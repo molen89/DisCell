@@ -13,7 +13,7 @@ Builds three graphs from a single load so they are directly comparable:
 Writes one multi-panel figure over a shared region plus a statistics table, and
 optionally a full-resolution figure per variant.
 
-Which definition matters is platform-dependent. Visium HD polygons are dilated
+Xenium boundaries are segmented independently and are dilated
 nuclei that collide, so exact contact already yields mean degree ~2.6. Xenium
 boundaries stop just short of each other -- a quarter of neighbouring pairs sit
 within 0.12 um, under the 0.2125 um pixel -- so exact contact collapses to ~0.14
@@ -36,17 +36,16 @@ from typing import Sequence
 
 import numpy as np
 
-from discell.data.segmented import (
+from discell.data.geometry import (
     _store_graph,
     build_contact_graph,
     build_voronoi_graph,
     graph_edge_frame,
 )
-from discell.plotting.cell_graph import (
-    find_tissue_image,
-    plot_cell_graph,
-    read_image_window,
-)
+from discell.data.xenium import find_tissue_image
+from discell.plotting.cell_graph import plot_cell_graph, read_image_window
+
+from discell import paths
 
 log = logging.getLogger("discell.plotting.compare_graphs")
 
@@ -215,7 +214,7 @@ def render_comparison(
     fig.tight_layout(rect=(0, 0, 1, 0.97))
 
     suffix = "overlay" if overlay else "plain"
-    path = out_dir / f"{sample_id}_graph_comparison_{suffix}.png"
+    path = out_dir / f"graph_comparison_{suffix}.png"
     fig.savefig(path, dpi=dpi, bbox_inches="tight", facecolor="white")
     plt.close(fig)
     log.info("Wrote %s (%.1f MB)", path.name, path.stat().st_size / 1e6)
@@ -225,7 +224,8 @@ def render_comparison(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--sample", required=True)
-    parser.add_argument("--out-dir", default="figures")
+    parser.add_argument("--out-dir", default=None,
+                        help="default: this sample's dataset figures directory")
     parser.add_argument("--tolerance-um", type=float, default=DEFAULT_TOLERANCE_UM)
     parser.add_argument("--clip-radius-um", type=float, default=DEFAULT_CLIP_RADIUS_UM)
     parser.add_argument("--max-edge-um", type=float, default=DEFAULT_MAX_EDGE_UM)
@@ -247,7 +247,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    from discell.plotting.cell_graph import load_any_sample
+    from discell.data.xenium import load_sample
 
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -256,7 +256,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     # Graphs are rebuilt here with controlled parameters, so skip the loader's.
-    adata, sample_dir = load_any_sample(
+    adata, sample_dir = load_sample(
         args.sample, args.clip_radius_um, args.max_cells,
         wall_tolerance_um=args.wall_tolerance_um,
     )
@@ -265,6 +265,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         label_key = adata.uns.get("default_label", label_key)
         log.info("Using label key %r", label_key)
 
+    ds = paths.dataset_for(sample_dir).ensure()
+    out_dir = Path(args.out_dir) if args.out_dir else ds.figures
+    log.info("Dataset %s -> %s", ds.dataset_id, out_dir)
+
     variants = build_variants(adata, args.tolerance_um, args.clip_radius_um, args.max_edge_um)
 
     table = statistics(adata, variants)
@@ -272,8 +276,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(table.to_string(index=False))
     print()
     if args.stats_out:
-        table.to_csv(args.stats_out, index=False)
-        log.info("Wrote %s", args.stats_out)
+        stats_path = Path(args.stats_out)
+        if stats_path.parent == Path("."):
+            stats_path = out_dir / stats_path.name
+        stats_path.parent.mkdir(parents=True, exist_ok=True)
+        table.to_csv(stats_path, index=False)
+        log.info("Wrote %s", stats_path)
 
     region = tuple(args.region) if args.region else densest_region(adata, args.zoom_um)
     log.info("Region: x %.0f..%.0f  y %.0f..%.0f px", *region)
@@ -282,7 +290,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     written = []
     for overlay in modes:
         written.append(render_comparison(
-            adata, sample_dir, Path(args.out_dir), variants, region,
+            adata, sample_dir, out_dir, variants, region,
             label_key=label_key, overlay=overlay,
             figsize_in=args.figsize_in, dpi=args.dpi,
         ))

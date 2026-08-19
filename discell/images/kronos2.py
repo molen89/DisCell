@@ -39,6 +39,8 @@ from typing import Sequence
 
 import numpy as np
 
+from discell import paths
+
 log = logging.getLogger("discell.images.kronos2")
 
 #: Reference tissue-patch size from the model card.
@@ -74,7 +76,7 @@ NOVEL_MARKERS = {
 
 
 def register_novel_markers(model, names: Sequence[str], stats: dict,
-                           out_csv: str | Path = "model_assets/kronos2_novel.csv") -> list:
+                           out_csv: str | Path | None = None) -> list:
     """Register out-of-vocabulary channels so v2 accepts all of them.
 
     *stats* maps marker name to ``(mean, std)`` measured on the actual crops --
@@ -92,7 +94,7 @@ def register_novel_markers(model, names: Sequence[str], stats: dict,
         mean, std = stats.get(name, (0.0254762, 0.0398634))   # documented defaults
         rows.append({"marker_name": name, **NOVEL_MARKERS[name],
                      "mean": float(mean), "std": float(std), "pretraining": "no"})
-    out_csv = Path(out_csv)
+    out_csv = Path(out_csv or paths.MODELS / "kronos2_novel.csv")
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(out_csv, index=False)
 
@@ -121,7 +123,7 @@ def measure_channel_stats(adata, image_path, channels, names, half_um,
             for k, name in enumerate(names)}
 
 
-def load_kronos2(cache_dir: str | Path = "./model_assets", hf_token: str | None = None,
+def load_kronos2(cache_dir: str | Path | None = None, hf_token: str | None = None,
                  device: str = "cuda"):
     """Load KRONOS2. Returns ``(model, embedding_dim)``."""
     import torch
@@ -131,7 +133,7 @@ def load_kronos2(cache_dir: str | Path = "./model_assets", hf_token: str | None 
     started = time.time()
     model = AutoModel.from_pretrained(
         "MahmoodLab/KRONOS2", trust_remote_code=True,
-        cache_dir=str(cache_dir), token=token,
+        cache_dir=str(cache_dir or paths.MODELS), token=token,
     )
     model.eval().to(device)
     dim = int(getattr(getattr(model, "config", None), "hidden_size", 0) or 768)
@@ -140,7 +142,7 @@ def load_kronos2(cache_dir: str | Path = "./model_assets", hf_token: str | None 
     return model, dim
 
 
-def resolve_marker_names(names: Sequence[str], cache_dir: str | Path = "./model_assets",
+def resolve_marker_names(names: Sequence[str], cache_dir: str | Path | None = None,
                          hf_token: str | None = None) -> dict:
     """Report which marker names the pretraining vocabulary knows."""
     import sys
@@ -151,9 +153,9 @@ def resolve_marker_names(names: Sequence[str], cache_dir: str | Path = "./model_
     token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     try:
         csv = hf_hub_download("MahmoodLab/KRONOS2", "marker_metadata.csv",
-                              cache_dir=str(cache_dir), token=token)
+                              cache_dir=str(cache_dir or paths.MODELS), token=token)
         utils = hf_hub_download("MahmoodLab/KRONOS2", "marker_utils.py",
-                                cache_dir=str(cache_dir), token=token)
+                                cache_dir=str(cache_dir or paths.MODELS), token=token)
     except Exception as exc:
         log.warning("could not check the marker vocabulary (%s)", type(exc).__name__)
         return {name: None for name in names}

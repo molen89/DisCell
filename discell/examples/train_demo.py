@@ -8,9 +8,9 @@ neighbours' types alone and uses no counts, geometry or morphology.
 
 Usage::
 
-    python -m discell.examples.train_demo --name ovarian_full
-    python -m discell.examples.train_demo --name ovarian_full \\
-        --embeddings embeddings/ovarian_kronos_all.pt --steps 300
+    python -m discell.examples.train_demo
+    python -m discell.examples.train_demo --dataset xenium_prime_ovarian_cancer_ffpe \\
+        --embeddings kronos1_v2scale --steps 300
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from discell.data.loader import CellGraphDataset, TorchBatch
+from discell import paths
 
 log = logging.getLogger("discell.examples.train_demo")
 
@@ -109,9 +110,11 @@ def run(args: argparse.Namespace) -> int:
     print("=" * 74)
     print("1. LOAD BUNDLE")
     print("=" * 74)
+    ds, variant = paths.resolve_bundle(args)
+
     started = time.time()
-    dataset = CellGraphDataset(
-        args.bundle_dir, args.name,
+    dataset = CellGraphDataset.from_dataset(
+        ds, variant,
         graph=args.graph,
         batch_cells=args.batch_cells,
         min_apposed_um=args.min_apposed_um,
@@ -229,8 +232,7 @@ def run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--bundle-dir", default="bundles")
-    parser.add_argument("--name", default="ovarian_full")
+    paths.add_dataset_args(parser)
     parser.add_argument("--graph", default="contact")
     parser.add_argument("--batch-cells", type=int, default=128)
     parser.add_argument("--resident", default="auto",

@@ -18,8 +18,8 @@ the result is identical to a fresh load.
 
 Usage::
 
-    python -m discell.data.export --sample <dir> --out-dir bundles/ --name full
-    python -m discell.data.export --sample <dir> --out-dir bundles/ --name trimmed \\
+    python -m discell.data.export --sample <dir>              # -> data/datasets/<id>/bundle/full.*
+    python -m discell.data.export --sample <dir> --variant trimmed \\
         --graph contact --contact-tolerance-um 2 --wall-tolerance-um 1 --min-apposed-um 0.001
 """
 
@@ -35,6 +35,8 @@ from typing import Sequence
 
 import numpy as np
 import pandas as pd
+
+from discell import paths
 
 log = logging.getLogger("discell.data.export")
 
@@ -110,9 +112,18 @@ def save_bundle(
     name: str,
     params: dict | None = None,
     graphs: Sequence[str] | None = None,
+    dataset_id: str | None = None,
 ) -> dict[str, Path]:
-    """Write the full run to *out_dir* as ``<name>.*``. Returns the paths."""
+    """Write the full run to *out_dir* as ``<name>.*``. Returns the paths.
+
+    *dataset_id* is stamped into the h5ad so a bundle carries its own identity:
+    the loader compares it against any embeddings handed in, and a bundle moved
+    or renamed still knows which slide it came from.
+    """
     import shapely
+
+    if dataset_id:
+        adata.uns["dataset_id"] = str(dataset_id)
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -131,7 +142,7 @@ def save_bundle(
         log.info("Wrote %s (%d polygons, %.1f MB)", path.name, len(frame),
                  path.stat().st_size / 1e6)
 
-    from discell.data.segmented import graph_edge_frame
+    from discell.data.geometry import graph_edge_frame
 
     for prefix in graphs:
         edges = graph_edge_frame(adata, prefix)
@@ -152,11 +163,12 @@ def save_bundle(
 
     meta = {
         "name": name,
+        "dataset_id": dataset_id or adata.uns.get("dataset_id", ""),
         "created": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "n_cells": int(adata.n_obs),
         "n_features": int(adata.n_vars),
         "microns_per_pixel": float(adata.uns.get("microns_per_pixel", float("nan"))),
-        "platform": adata.uns.get("platform", "visium_hd"),
+        "platform": adata.uns.get("platform", "xenium"),
         "sample_id": adata.uns.get("sample", {}).get("sample_id", ""),
         "label_columns": list(adata.uns.get("label_columns", [])),
         "default_label": adata.uns.get("default_label", ""),
@@ -198,9 +210,11 @@ def load_bundle(out_dir: str | Path, name: str):
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--sample", required=True)
-    parser.add_argument("--out-dir", default="bundles")
-    parser.add_argument("--name", default=None, help="bundle basename; default from sample")
+    parser.add_argument("--sample", required=True,
+                        help="raw sample directory or archive; determines the dataset")
+    parser.add_argument("--variant", default=paths.DEFAULT_VARIANT,
+                        help="bundle name within the dataset, for holding several "
+                             f"graph settings side by side (default {paths.DEFAULT_VARIANT!r})")
     parser.add_argument("--graph", default=None,
                         help="trim only this graph; default trims all present")
     parser.add_argument("--contact-tolerance-um", type=float, default=None)
@@ -215,7 +229,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    from discell.plotting.cell_graph import load_any_sample
+    from discell.data.xenium import load_sample
 
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -223,7 +237,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S",
     )
 
-    adata, sample_dir = load_any_sample(
+    adata, sample_dir = load_sample(
         args.sample, args.clip_radius_um, args.max_cells,
         args.contact_tolerance_um, args.wall_tolerance_um,
     )
@@ -234,7 +248,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         for prefix in targets:
             trimmed[prefix] = trim_graph_by_apposed_wall(adata, prefix, args.min_apposed_um)
 
-    name = args.name or f"{sample_dir.name}"
+    ds = paths.dataset_for(sample_dir).ensure()
+    name = args.variant
     params = {
         "sample": str(sample_dir),
         "contact_tolerance_um": args.contact_tolerance_um,
@@ -244,9 +259,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         "max_cells": args.max_cells,
         "edges_trimmed": trimmed,
     }
-    written = save_bundle(adata, args.out_dir, name, params)
+    written = save_bundle(adata, ds.bundle_dir, name, params, dataset_id=ds.dataset_id)
+    ds.write_manifest(
+        bundle=name,
+        platform=adata.uns.get("platform", "xenium"),
+        source=str(sample_dir),
+        sample_id=adata.uns.get("sample", {}).get("sample_id", ""),
+        n_cells=int(adata.n_obs),
+        n_features=int(adata.n_vars),
+        microns_per_pixel=float(adata.uns.get("microns_per_pixel", float("nan"))),
+        default_label=adata.uns.get("default_label", ""),
+    )
 
-    print(f"\nBundle '{name}' in {args.out_dir}:")
+    print(f"\nDataset '{ds.dataset_id}', bundle '{name}' in {ds.bundle_dir}:")
     total = 0
     for kind, path in written.items():
         size = path.stat().st_size

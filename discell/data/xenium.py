@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
-"""Read 10x Xenium outputs into the same AnnData shape as the Visium HD loaders.
+"""Read 10x Xenium outputs into the AnnData shape the rest of the pipeline uses.
 
-Xenium differs from Visium HD in three ways that matter here:
+Boundaries arrive as **parquet** in long form (one row per vertex) with
+coordinates in **microns**.
 
-* boundaries arrive as **parquet** in long form (one row per vertex), not GeoJSON
-* coordinates are in **microns**, not image pixels
-* segmentation is **measured**, not inferred. ``experiment.xenium`` reports the
-  split; on the Prime 5K lung sample 97.8% of cells were segmented from interior
-  or boundary stains and only 2.2% by nucleus expansion. Visium HD, by contrast,
-  is 100% nucleus expansion because H&E carries no membrane stain.
-
-That last point is why the contact graph is worth taking seriously here: these
-polygons may genuinely tile the tissue, in which case the Voronoi partition is a
-fallback rather than a necessity. :func:`tessellation_report` measures it.
+Segmentation here is *measured*, not inferred: ``experiment.xenium`` reports the
+split, and on the Prime 5K lung sample 97.8% of cells were segmented from
+interior or boundary stains and only 2.2% by nucleus expansion. That is why the
+contact graph is worth taking seriously -- these polygons may genuinely tile the
+tissue, making the Voronoi partition a fallback rather than a necessity.
+:func:`tessellation_report` measures it.
 
 Geometry is converted to image-pixel coordinates on load (dividing by
-``pixel_size``) so that everything downstream -- graphs, metrics, plotting,
-image overlay -- behaves exactly as it does for Visium HD, with
-``uns['microns_per_pixel']`` carrying the conversion back to microns.
+``pixel_size``) so that graphs, metrics, plotting and image overlay all share
+one coordinate system, with ``uns['microns_per_pixel']`` carrying the conversion
+back to microns.
 
 Usage::
 
@@ -41,13 +38,12 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-from discell.data.segmented import (
+from discell.data.geometry import (
     DEFAULT_CLIP_RADIUS_UM,
     DEFAULT_CONTACT_TOLERANCE_UM,
     DEFAULT_MAX_EDGE_UM,
     DEFAULT_PRECISION_UM,
     DEFAULT_WALL_TOLERANCE_UM,
-    VisiumHDError,
     _store_graph,
     add_apposed_wall,
     build_contact_graph,
@@ -57,6 +53,11 @@ from discell.data.segmented import (
 )
 
 log = logging.getLogger("discell.data.xenium")
+
+
+class XeniumError(RuntimeError):
+    """A sample could not be read."""
+
 
 BOUNDARY_FILES = {
     "cell": "cell_boundaries.parquet",
@@ -68,7 +69,7 @@ DEFAULT_POLYGON_KIND = "cell"
 #: the lung sample a quarter of neighbouring pairs sit within 0.12 um -- below
 #: the 0.2125 um pixel -- yet only 2.5% touch at zero distance. Exact-contact
 #: adjacency therefore collapses (mean degree 0.14, 88% isolated), while a 1 um
-#: tolerance recovers 2.60, matching Visium HD's exact-contact graph. So contact
+#: tolerance recovers a mean degree of 2.60. So contact
 #: here defaults to a tolerance rather than to zero.
 XENIUM_CONTACT_TOLERANCE_UM = 1.0
 
@@ -352,7 +353,7 @@ def load_xenium_sample(
 ):
     """Load a Xenium sample: raw counts, polygons, metadata and neighbour graphs.
 
-    Matches :func:`discell.data.segmented.load_segmented_sample` in structure, so
+    Builds the same AnnData structure the rest of the pipeline expects, so
     the plotting and graph tooling works unchanged. *max_cells* takes a spatially
     contiguous subset, which is useful for iterating on a 280k-cell slide.
     """
@@ -492,7 +493,7 @@ def tessellation_report(adata) -> dict:
     """Quantify how far the segmentation is from a true planar partition.
 
     Mean degree ~6 with few isolated cells means the polygons tile the tissue and
-    the contact graph can be used directly. Space Ranger's dilated nuclei score
+    the contact graph can be used directly. Dilated-nucleus polygons score
     ~2.6 with 5.8% isolated, which is what motivated the Voronoi fallback.
     """
     report = {}
@@ -541,6 +542,46 @@ def print_tessellation_report(adata) -> None:
 # --------------------------------------------------------------------------
 # CLI and self-test
 # --------------------------------------------------------------------------
+
+
+
+def find_tissue_image(sample_dir: Path) -> Path | None:
+    """Locate the morphology image for a sample."""
+    patterns = (
+        # Channel 0000 is DAPI, which reads best under the polygons.
+        "morphology_focus/morphology_focus_0000.ome.tif",
+        "morphology_focus/morphology_focus_*.ome.tif",
+        "morphology.ome.tif",
+    )
+    for pattern in patterns:
+        hits = sorted(sample_dir.glob(pattern))
+        if hits:
+            return hits[0]
+    return None
+
+
+def load_sample(
+    sample_path: str,
+    clip_radius_um: float = DEFAULT_CLIP_RADIUS_UM,
+    max_cells: int | None = None,
+    contact_tolerance_um: float | None = None,
+    wall_tolerance_um: float | None = None,
+    build_graphs: bool = True,
+):
+    """Load a sample and its graphs. Returns ``(adata, sample_dir)``.
+
+    Passing ``None`` for either tolerance keeps the loader's own default.
+    """
+    extra = {"build_graphs": build_graphs}
+    if contact_tolerance_um is not None:
+        extra["contact_tolerance_um"] = contact_tolerance_um
+    if wall_tolerance_um is not None:
+        extra["wall_tolerance_um"] = wall_tolerance_um
+
+    sample_dir = locate_xenium_dir(Path(sample_path).expanduser().resolve())
+    adata = load_xenium_sample(sample_dir, clip_radius_um=clip_radius_um,
+                               max_cells=max_cells, **extra)
+    return adata, sample_dir
 
 
 def self_test(sample_path: str | Path, max_cells: int | None) -> int:

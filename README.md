@@ -3,104 +3,185 @@
 Preprocessing for spatial transcriptomics: raw counts, cell polygons, and
 neighbour graphs with real geometric edge weights, ready to feed a model.
 
-Supports 10x **Visium HD** (binned and segmented outputs) and **Xenium** (Prime
-5K). Both platforms load into the same AnnData structure, so graphs, metrics and
-plotting are platform-agnostic.
+Built for 10x **Xenium** (Prime 5K).
 
 ```bash
 uv sync --extra viz        # viz extra adds pyqt6 + tornado for interactive viewing
+uv run python -m discell.paths     # create the data tree and print what is in it
 ```
 
-| module | reads |
+## Where things live
+
+Every input and output sits under one root, organised **by dataset**, so
+commands need no path arguments. `discell/paths.py` is the single source of
+truth; point `DISCELL_DATA` elsewhere to move the whole tree
+(`export DISCELL_DATA=/scratch/discell`).
+
+```
+data/
+  raw/          source cohorts -- SYMLINKS to wherever they were downloaded.
+                Never copied: the Xenium cohort is 55 GB.
+  interim/      unpacked per-sample outputs (interim/xenium -> .../extracted)
+  models/       downloaded weights + marker metadata -- SHARED, one checkpoint
+                embeds every slide
+  datasets/
+    <dataset_id>/
+      dataset.json   provenance: platform, source path, cell count, µm/px
+      bundle/        full.h5ad + full_polygons.parquet + full_edges_*.parquet
+      embeddings/    kronos1_v2scale.pt, kronos2_4ch.pt, ...
+      figures/
+      logs/
+```
+
+`raw` and `interim` are inputs, `datasets/` holds every output, and the whole
+tree is gitignored.
+
+### Why per-dataset
+
+The two cohorts hold 46 candidate samples. In a flat tree an artefact's dataset
+is only guessable from a filename prefix, so as soon as a second sample is
+processed either the names collide and one silently overwrites the other, or a
+run pairs one slide's bundle with another's embeddings. Neither failure raises.
+Putting the dataset in the *path* makes both impossible, and frees the filename
+to describe the variant instead — `kronos1_v2scale.pt`, not
+`ovarian_kronos1_v2scale.pt`.
+
+On top of that, artefacts are self-describing: every bundle carries
+`uns["dataset_id"]` and every `.pt` a `dataset` key, and the loader refuses a
+pair that disagrees rather than warning about zero-filled rows.
+
+`dataset.json` records what identifies the slide once, and what varies per
+bundle under `bundles`, so a 3k-cell dev bundle cannot overwrite what the full
+one reported:
+
+```json
+{
+  "dataset_id": "xenium_prime_ovarian_cancer_ffpe",
+  "platform": "xenium",
+  "source": "/…/10x_Xenium/extracted/Xenium_Prime_Ovarian_Cancer_FFPE",
+  "microns_per_pixel": 0.2125,
+  "modality": "cells",
+  "bundles": {
+    "full": {"n_cells": 407120, "n_features": 5101, "default_label": "cell_group"},
+    "dev":  {"n_cells": 3000,   "n_features": 5101, "default_label": "cell_group"}
+  }
+}
+```
+
+A second export that disagrees on `platform`, `source` or `modality` is
+refused — two samples landing on one id would leave the record describing slide
+B while `bundle/` still held slide A. Paths are compared resolved, so the
+symlinked `data/raw/…` and the real location count as the same source.
+
+### Dataset ids
+
+A `dataset_id` is the slug of the source sample directory, so every spelling of
+one slide resolves to the same outputs:
+
+```
+Xenium_Prime_Ovarian_Cancer_FFPE                 -> xenium_prime_ovarian_cancer_ffpe
+Xenium_Prime_Ovarian_Cancer_FFPE/outs            -> xenium_prime_ovarian_cancer_ffpe
+Xenium_Prime_Ovarian_Cancer_FFPE_XRrun_outs.zip  -> xenium_prime_ovarian_cancer_ffpe
+Xenium_Prime_Human_Lung_Cancer_FFPE_outs.zip     -> xenium_prime_human_lung_cancer_ffpe
+```
+
+Commands take `--dataset <id>`, infer it from `--sample <path>`, or — when only
+one dataset has a bundle — infer it from the tree. They never guess between two:
+
+```bash
+uv run python -m discell.paths                   # what the tree holds
+uv run python -m discell.main --embeddings kronos1_v2scale   # dataset inferred
+uv run python -m discell.main --dataset xenium_prime_human_lung_cancer_ffpe --graph voronoi
+uv run python -m discell.data.export --sample data/interim/xenium/Xenium_Prime_Human_Lung_Cancer_FFPE
+```
+
+Within a dataset, artefacts are named rather than pathed:
+`--embeddings kronos1_v2scale` resolves to that dataset's
+`embeddings/kronos1_v2scale.pt`. A dataset can hold several bundle variants
+(`--variant full`, `--variant tol2`) for different graph settings.
+
+To add a cohort, symlink it in rather than copying:
+
+```bash
+ln -s /path/to/10x_Xenium data/raw/xenium
+```
+
+The one artefact deliberately kept *outside* this tree is the HVG panel
+(`hvg_top_1000_square_008um.json`), which is cached next to the raw sample so it
+can be handed to `--hvg-file` when processing a different sample with the same
+gene panel.
+
+| module | holds |
 |---|---|
-| `discell.data.visium_hd` | Visium HD binned outputs — bins × genes, HVG panels |
-| `discell.data.segmented` | Visium HD segmented outputs — cells, polygons, graphs |
-| `discell.data.xenium` | Xenium outs — cells, boundaries, graphs |
-| `discell.plotting.cell_graph` | figures for either platform (auto-detected) |
+| `discell.data.xenium` | reading a slide: cells, boundaries, labels, images |
+| `discell.data.geometry` | polygons → neighbour graphs and edge metrics |
+| `discell.data.export` | bundles: save and reload one analysis run |
+| `discell.data.crops` | per-cell image crops |
+| `discell.data.loader` | GPU-resident subgraph batches |
+| `discell.images.kronos` | per-cell image embeddings (KRONOS v1/v2) |
+| `discell.plotting.*` | figures |
+| `discell.paths` | where artefacts live, keyed by dataset |
+---
+
+## Quickstart — the whole pipeline
+
+Four commands take a raw slide to inspectable training batches. Each writes into
+`data/datasets/<dataset_id>/`, and each later stage finds its inputs there
+without being told where they are.
+
+```bash
+S=data/interim/xenium/Xenium_Prime_Ovarian_Cancer_FFPE
+
+# 1. bundle: cells, polygons, both graphs, all edge metrics   (~15 min, 407k cells)
+uv run python -m discell.data.export --sample $S
+
+# 2. image embeddings: one KRONOS vector per cell             (~11 min on a GPU)
+uv run python -m discell.images.kronos --sample $S --out kronos1.pt
+
+# 3. does the embedding know anything? UMAP + separation stats
+uv run python -m discell.images.embedding_qc --sample $S \
+    --embeddings kronos1 --per-label 0 --out kronos1_umap.png
+
+# 4. inspect what the dataloader serves
+uv run python -m discell.main --embeddings kronos1 --batch-cells 10
+
+uv run python -m discell.paths        # what the tree holds, any time
+```
+
+Stage 1 sets the dataset id from `--sample`; stages 2–4 infer it. Steps 1 and 2
+are long — run them detached, since the console may close:
+
+```bash
+setsid nohup uv run python -m discell.data.export --sample $S \
+    > data/datasets/xenium_prime_ovarian_cancer_ffpe/logs/export.log 2>&1 < /dev/null &
+```
 
 ---
 
-## 1. Binned expression — `discell.data.visium_hd`
-
-Reads a sample directory or a `*_binned_outputs.tar.gz`, extracts only the files
-it needs, and returns raw counts subset to a set of highly variable genes.
-
-`adata.X` is never modified: HVG selection normalises a throwaway copy, so counts
-stay integer UMIs.
-
-```bash
-# end-to-end check on the default test sample
-uv run python -m discell.data.visium_hd --self-test
-
-# select 1000 HVGs, cache the panel next to the sample, write an .h5ad
-uv run python -m discell.data.visium_hd --sample <dir-or-tar> --n-top-genes 1000 --out sample.h5ad
-
-# reuse that panel on another sample -- skips HVG selection entirely
-uv run python -m discell.data.visium_hd --sample <other> --hvg-file hvg_top_1000_square_008um.json
-```
-
-The panel file is how you pin **one shared gene axis across samples**, which is
-what a model trained on more than one slide needs. Verified on two mouse brain
-samples whose references differ (19,070 vs 33,696 genes): both resolve to an
-identical 1000-gene axis, all 1000 present.
-
-Useful options:
-
-```bash
---bin-size square_002um       # 002/008/016; only 008 and 016 carry cluster labels
---matrix raw                  # every bin, not just tissue-covered ones
---hvg-flavor seurat_v3        # default; ranks directly on raw counts
---hvg-subsample 50000         # cap bins used for ranking (needed at 002um)
---on-missing pad              # zero-fill panel genes absent from this sample
---all-genes                   # keep all genes, flag the panel in var['highly_variable']
---var-names gene_id           # index var by Ensembl id instead of symbol
-```
-
-**Bin sizes.** `square_002um` has no `analysis/` directory, so no cluster labels
-exist at that resolution. Labels come from 008 or 016 µm only.
-
----
-
-## 2. Per-cell expression, polygons and graphs — `discell.data.segmented`
-
-Reads `*_segmented_outputs.tar.gz`: per-cell counts, segmentation polygons,
-cluster labels. Expression and geometry are matched by construction — the result
-contains exactly the cells that have both, in one shared order, and
-`uns['polygons']` indexes positionally into `obs`.
-
-```bash
-uv run python -m discell.data.segmented --self-test --sample <dir>
-
-# write the cell x gene matrix and the edge table
-uv run python -m discell.data.segmented --sample <dir> --out cells.h5ad --edges-out edges.csv
-
-# nucleus outlines instead of expanded cell boundaries
-uv run python -m discell.data.segmented --sample <dir> --polygon-kind nucleus
-
-# looser tessellation, tolerant contact
-uv run python -m discell.data.segmented --sample <dir> --clip-radius-um 50 --contact-tolerance-um 2
-```
+## 1. Reading a slide — `discell.data.xenium`
 
 ### Two graphs, because they answer different questions
 
-Measured on `Visium_HD_Mouse_Brain`, 40,222 cells:
+Measured on `Xenium_Prime_Ovarian_Cancer_FFPE`, 407,120 cells, with a
+2 µm contact tolerance:
 
 | graph | edges | mean degree | isolated | median shared wall |
 |---|---|---|---|---|
-| `contact` | 52,318 | 2.60 | 5.8% | 12.00 µm |
-| `voronoi` | 109,590 | 5.45 | 0.4% | 14.72 µm |
+| `contact` | 719,440 | 3.53 | 6.6% | 0.00 µm |
+| `voronoi` | 1,197,730 | 5.88 | 0.1% | 6.85 µm |
 
-**`contact`** — cells whose polygons actually touch. Faithful, but Space Ranger
-cell boundaries are nucleus masks dilated outward by ~5.8 µm independently, so
-they do not tile the plane. Mean degree 2.60 where planar geometry demands ~6,
-and 2,351 cells touch nothing at all.
+**`contact`** — cells whose boundaries touch, within a tolerance. Xenium
+boundaries approach each other but almost never coincide exactly, so a strict
+zero-distance rule collapses the graph entirely (mean degree 0.14, 88% isolated
+on the lung slide). Even at 2 µm, mean degree is 3.53 where planar geometry
+demands ~6, and 6.6% of cells touch nothing.
 
 **`voronoi`** — an exact planar partition seeded from the centroids. Every
 adjacent pair shares exactly one edge of positive length, so shared-wall length
 is always defined. `--clip-radius-um` caps how far a cell claims territory.
 
-Only **46.6%** of Voronoi edges join cells that physically touch. Filter on
-`wall_dist_um` to recover contact semantics from the tessellation.
+Filter on `wall_dist_um` — or better `apposed_wall_um` — to recover contact
+semantics from the tessellation.
 
 ### Edge metrics
 
@@ -117,9 +198,10 @@ Stored in `obsp` as symmetric sparse matrices, all in microns:
 physical meaning even when adjacency comes from the partition.
 
 ```python
-from discell.data.segmented import load_segmented_sample, graph_edge_frame
+from discell.data.xenium import load_sample
+from discell.data.geometry import graph_edge_frame
 
-adata = load_segmented_sample("<sample dir>")
+adata, sample_dir = load_sample("<sample dir>")
 edges = graph_edge_frame(adata, "voronoi")          # tidy edge list
 touching = edges[edges.wall_dist_um == 0]           # genuinely in contact
 ```
@@ -136,7 +218,7 @@ mouse brain, at solidity ≈0.73. `rep_*` is guaranteed interior.
 
 ---
 
-## 3. Xenium — `discell.data.xenium`
+### Xenium specifics
 
 Reads an extracted Xenium `outs` directory or a `*_outs.zip` (only the tabular
 members are extracted — the morphology images and transcript tables are tens of
@@ -154,7 +236,7 @@ uv run python -m discell.data.xenium --sample <outs-dir> --max-cells 20000
 Differences handled on load: boundaries are long-form **parquet** (one row per
 vertex) rather than GeoJSON, and coordinates are in **microns**. Geometry is
 converted to image-pixel coordinates using `pixel_size` from `experiment.xenium`
-so everything downstream matches Visium HD, with `uns['microns_per_pixel']`
+so everything downstream is uniform, with `uns['microns_per_pixel']`
 carrying the conversion back.
 
 ### Xenium cells barely touch — use a tolerance
@@ -181,9 +263,9 @@ tol 2.0 um -> 30,203 edges  mean_deg 3.02  isolated  7.6%
 tol 5.0 um -> 39,139 edges  mean_deg 3.91  isolated  3.4%
 ```
 
-At 1 µm the contact graph reaches 2.60 — the same as Visium HD at *exact*
-contact. `XENIUM_CONTACT_TOLERANCE_UM = 1.0` is therefore the default here,
-unlike the Visium HD loader which defaults to 0.
+At 1 µm the contact graph reaches mean degree 2.60, so
+`XENIUM_CONTACT_TOLERANCE_UM = 1.0` is the default. A strict zero-distance rule
+would leave 88% of cells isolated.
 
 Both Xenium samples tested, and the lung sample at full scale:
 
@@ -231,7 +313,7 @@ Plot with them via `--label-key cell_group` (or leave it to the default).
 and renders them side by side over a shared region, with a statistics table.
 
 ```bash
-uv run python -m discell.plotting.compare_graphs --sample <dir> --out-dir figures/ \
+uv run python -m discell.plotting.compare_graphs --sample <dir> \
     --max-cells 20000 --both --zoom-um 400 --stats-out comparison.csv
 ```
 
@@ -252,7 +334,7 @@ provides it on this platform.
 
 ---
 
-## 4. Plotting — `discell.plotting.cell_graph`
+## 2. Plotting — `discell.plotting.cell_graph`
 
 Draws polygons filled by cluster, the neighbour graph with edge width
 proportional to a geometric metric, and centroid nodes. Writes one figure over
@@ -260,7 +342,7 @@ the tissue image and one on plain background.
 
 ```bash
 # full slide + a zoom panel, both with and without overlay
-uv run python -m discell.plotting.cell_graph --sample <dir> --out-dir figures/
+uv run python -m discell.plotting.cell_graph --sample <dir>
 
 # a specific pixel window
 uv run python -m discell.plotting.cell_graph --sample <dir> --region 16800 18200 7500 8900 --no-zoom
@@ -310,7 +392,195 @@ and edge counts are for the rendered region.
 
 ---
 
-## 4. Viewing over SSH
+## 3. Bundling a run — `discell.data.export`
+
+A bundle is one reloadable analysis run: the counts, the polygons, both graphs
+and every edge metric, plus a provenance record. Building the graphs is the
+expensive part, so it is done once here and never again.
+
+```bash
+# whole slide, default tolerances -> data/datasets/<id>/bundle/full.*
+uv run python -m discell.data.export --sample <dir-or-archive>
+
+# a second bundle of the same slide with a tighter graph, kept side by side
+uv run python -m discell.data.export --sample <dir> --variant tol1 \
+    --contact-tolerance-um 1.0 --wall-tolerance-um 0.5
+
+# bake an apposed-wall trim into the stored graph
+uv run python -m discell.data.export --sample <dir> --variant strong --min-apposed-um 1.0
+
+# a small bundle for iterating
+uv run python -m discell.data.export --sample <dir> --variant dev --max-cells 20000
+```
+
+Five files per bundle:
+
+| file | holds |
+|---|---|
+| `<variant>.h5ad` | counts, `obs`, `obsm['spatial']`, both graphs in `obsp` |
+| `<variant>_polygons.parquet` | cell id + polygon as WKB |
+| `<variant>_edges_contact.parquet` | one row per contact edge, all metrics, µm |
+| `<variant>_edges_voronoi.parquet` | the same for the Voronoi graph |
+| `<variant>_params.json` | sample path, tolerances, counts, dataset id, modality |
+
+`--variant` exists because one slide can yield several bundles — different graph
+tolerances, or a small subset for iterating.
+
+---
+
+## 4. Image embeddings — `discell.images.kronos`
+
+[KRONOS](https://huggingface.co/MahmoodLab/KRONOS) is a multiplex-imaging
+foundation model: it projects **each channel separately** and adds a per-marker
+embedding, so it takes Xenium's 4-channel morphology stack directly. Both
+releases are wired up and selected with `--model`:
+
+| | v1 (`--model v1`) | v2 (`--model v2`) |
+|---|---|---|
+| architecture | ViT-S/16 | DINOv2 ViT-B/16 |
+| dimension | 384 | 768 |
+| markers identified by | integer ids | names, novel ones registrable |
+| throughput | 637 cells/s | 122 cells/s |
+| separation / 1-NN on ovarian | +0.4184 / 36.2% | +0.4166 / 36.2% |
+
+They score the same, so **v1 is the default**: half the width, five times the
+speed.
+
+```bash
+# v1, all four channels, whole slide -> data/datasets/<id>/embeddings/kronos1.pt
+uv run python -m discell.images.kronos --sample $S --out kronos1.pt
+
+# v2
+uv run python -m discell.images.kronos --model v2 --sample $S --out kronos2.pt
+
+# a DAPI-only baseline, and a quick 2000-cell check
+uv run python -m discell.images.kronos --sample $S --out dapi_only.pt --channels 0
+uv run python -m discell.images.kronos --sample $S --out probe.pt --limit 2000
+
+# check crops, markers and shapes without loading the model
+uv run python -m discell.images.kronos --sample $S --dry-run
+```
+
+The weights are gated: request access, then `--hf-token` or `HF_TOKEN`. They
+cache once in `data/models/` and are shared by every dataset.
+
+**Markers.** Xenium's four channels map onto KRONOS's 177-marker vocabulary as
+DAPI (exact), Na/K-ATPase and αSMA (antibody cocktails, named for their broadest
+component), and 18S rRNA — for which the vocabulary has no RNA marker at all. v1
+gives it an out-of-vocabulary id rather than borrowing another protein's; v2
+registers it as a novel marker from statistics measured on the actual crops.
+
+**Intensity scaling matters more than the model choice.** KRONOS expects
+intensities in roughly `[0,1]` and its own loader divides by the dtype maximum.
+Xenium morphology is uint16, so feeding raw values puts the z-score four orders
+of magnitude out and every patch outside the pretraining distribution. Fixing
+this moved v1 from +0.2724 / 24.1% to +0.4184 / 36.2% — a larger gain than
+anything else tried. Files written since record `intensity_scaled: True`.
+
+Each `.pt` holds `embeddings`, `cell_ids`, the marker set, and a `dataset` key
+naming the slide it came from — which the dataloader checks.
+
+### Does the embedding carry cell identity? — `discell.images.embedding_qc`
+
+```bash
+# reuse saved embeddings, every cell, UMAP coloured by cell type
+uv run python -m discell.images.embedding_qc --sample $S \
+    --embeddings kronos1 --per-label 0 --out kronos1_umap.png
+
+# embed a stratified subsample on the fly instead
+uv run python -m discell.images.embedding_qc --sample $S --per-label 150
+```
+
+Reports within- vs between-class cosine and 1-NN label agreement, then plots the
+UMAP. Both are computed on **centred** vectors: raw KRONOS embeddings sit in a
+narrow cone (all pairwise cosines ≈ 0.995) that swamps the between-class
+structure. The pairwise matrix is subsampled above 6000 cells — at 407k it would
+be 0.7 TB — and says so when it does.
+
+---
+
+## 5. The dataloader — `discell.data.loader`
+
+Serves subgraph batches for a model that predicts a cell from its neighbourhood.
+Everything is held resident on the GPU, so a batch is an `index_select` with no
+host-to-device copy.
+
+```bash
+uv run python -m discell.data.loader --self-test
+uv run python -m discell.data.loader --dataset <id> --batch-cells 64 \
+    --graph contact --min-apposed-um 0.001
+```
+
+A batch picks `batch_cells` **seeds**, pulls their 1-hop neighbours, and by
+default serves only the directed **neighbour → seed** edges. Fields by the axis
+they are aligned to:
+
+| aligned to | fields | size |
+|---|---|---|
+| seeds | `image_embedding`, `seed_index`, `seed_composition` | fixed |
+| nodes | `x`, `y`, `pos`, `node_ids`, `node_index` | varies |
+| edges | `edge_index` (2, E), `edge_attr` (E, 2) | varies |
+| constant | `neighbour_composition` (K, K) | fixed |
+
+`x` is raw integer counts; `edge_attr` is `[centroid_dist_um, apposed_wall_um]`;
+`neighbour_composition` is the mean neighbour-type distribution per cell type,
+computed once at construction. `pos` and `node_ids` are auxiliary — for plotting
+and debugging, not model inputs. The spatial information a model should consume
+is already reduced into `edge_attr`, and absolute slide coordinates would let a
+model memorise position.
+
+In Python:
+
+```python
+from discell.data.loader import CellGraphDataset
+
+data = CellGraphDataset.from_dataset(
+    "xenium_prime_ovarian_cancer_ffpe",
+    embeddings="kronos1_v2scale",     # resolved inside that dataset
+    graph="contact", batch_cells=64, resident="gpu",
+)
+for batch in data.torch_dataloader():
+    ...
+```
+
+Embeddings are checked against the bundle. A `.pt` recording a different dataset
+raises, and so does one sharing no cell ids — previously that only warned about
+zero-filled rows and trained on fabricated vectors.
+
+---
+
+## 6. Inspecting a batch — `discell.main`
+
+Loads one batch, prints every field with its shape and meaning, runs seven
+structural checks, and writes a four-panel figure.
+
+```bash
+uv run python -m discell.main --embeddings kronos1_v2scale --batch-cells 10
+uv run python -m discell.main --dataset <id> --graph voronoi --image-scope nodes
+uv run python -m discell.main --no-plot            # text only
+```
+
+The checks are assertions about batch structure, not statistics: every edge
+points into a seed, no self-loops, endpoints are valid node rows, counts are raw
+integers, labels are one-hot, composition rows sum to 1, and `edge_attr`
+distances match `pos`.
+
+The figure combines label distribution, the batch graph in slide coordinates
+(edge width = apposed wall, node colour = cell type), a cosine-distance matrix
+over the image embeddings, and per-type neighbourhood composition bars —
+alongside a whole-tissue panel placing the seeds on the slide.
+
+### Training demo — `discell.examples.train_demo`
+
+A minimal end-to-end sanity check that the batches train something:
+
+```bash
+uv run python -m discell.examples.train_demo --embeddings kronos1_v2scale --steps 300
+```
+
+---
+
+## 7. Viewing over SSH
 
 `--show` opens an interactive pan/zoom view. Backend selection is automatic:
 QtAgg → TkAgg → WebAgg, with the display probed via `xdpyinfo` first.
@@ -342,22 +612,17 @@ For the static PNGs, ImageMagick's `display` ships uncompressed pixmaps — abou
 156 MB per repaint at full slide. Always downsample:
 
 ```bash
-display -resize 1800x figures/<name>.png
+display -resize 1800x data/datasets/<dataset_id>/figures/<name>.png
 ```
 
 ---
 
 ## Notes on the data
 
-- **Space Ranger "cell" polygons are not measured membranes.** They are nuclei
-  dilated by ~5.8 µm (median; area ratio 6.16×, nucleus contained in its cell).
-  H&E carries no membrane stain. This is why the polygons do not tessellate.
 - **Coordinates.** Polygons and `obsm['spatial']` are in full-resolution image
-  pixels; `microns_per_pixel` comes from the *segmented* `scalefactors_json.json`,
-  which differs from the binned one and has no `bin_size_um`.
+  pixels; `microns_per_pixel` comes from `experiment.xenium`.
 - **Tissue images vary.** Tiled vs strip-based, uncompressed vs JPEG. Reading
   goes through `tifffile`; strip-based pages must be fully decoded, and are
   cached across figures in one run.
-- **Node set mismatch.** Space Ranger emits a polygon per segmented object but
-  drops low-count cells from the filtered matrix. The loaders keep the
-  intersection.
+- **Node set mismatch.** A polygon exists per segmented object, but low-count
+  cells are dropped from the filtered matrix. The loader keeps the intersection.

@@ -32,6 +32,9 @@ from typing import Sequence
 
 import numpy as np
 
+from discell import paths
+from discell.data.xenium import find_tissue_image, load_sample
+
 log = logging.getLogger("discell.plotting.cell_graph")
 
 DEFAULT_DPI = 200
@@ -52,21 +55,6 @@ METRIC_REF_UM = {
 
 EDGE_METRICS = ("shared_wall_um", "apposed_wall_um", "centroid_dist_um", "wall_dist_um")
 
-
-def find_tissue_image(sample_dir: Path) -> Path | None:
-    """Locate a background image: Visium HD tissue image or Xenium morphology."""
-    patterns = (
-        "*_tissue_image.btf", "*_tissue_image.tif", "*_tissue_image.tiff",
-        # Xenium: channel 0000 is DAPI, which reads best under the polygons.
-        "morphology_focus/morphology_focus_0000.ome.tif",
-        "morphology_focus/morphology_focus_*.ome.tif",
-        "morphology.ome.tif",
-    )
-    for pattern in patterns:
-        hits = sorted(sample_dir.glob(pattern))
-        if hits:
-            return hits[0]
-    return None
 
 
 #: Full decoded pages for strip-based/compressed images, which have no random
@@ -158,7 +146,7 @@ def read_image_window(
 ) -> tuple[np.ndarray, float]:
     """Read the window ``[y0:y1, x0:x1]`` of a large TIFF, as 8-bit RGB.
 
-    Handles the three layouts in this cohort: Visium HD's single-level tiled or
+    Handles the layouts in this cohort: single-level tiled or
     strip-based RGB, and Xenium's pyramidal multi-channel OME-TIFF, whose series
     is ``(C, Y, X)`` -- slicing that as if it were 2-D silently returns an empty
     array. When the file carries a pyramid, the coarsest level that still meets
@@ -266,7 +254,7 @@ def cluster_colors(adata, label_key: str = "cluster") -> tuple[dict, np.ndarray]
         set(labels), key=lambda s: (len(s), s)  # Cluster-2 before Cluster-10
     )
 
-    # Prefer a palette shipped with the labels: Visium HD's graphclust geojson
+    # Prefer a palette shipped with the labels: the graphclust export
     # carries 'cluster_color', Xenium's supplemental cell_groups.csv carries
     # 'cell_group_color'.
     palette: dict[str, str] = {}
@@ -377,7 +365,7 @@ def plot_cell_graph(
         )
 
     if draw_edges:
-        from discell.data.segmented import graph_edge_frame
+        from discell.data.geometry import graph_edge_frame
 
         if edge_metric not in EDGE_METRICS:
             raise ValueError(f"edge_metric must be one of {EDGE_METRICS}")
@@ -637,7 +625,8 @@ def render(
                             "--figsize-in, or shrink --region", per_source)
 
         # Encode the metric and filter in the name so variants do not overwrite.
-        parts = [sample_id, graph, tag]
+        # The dataset is carried by the directory, not the filename.
+        parts = [graph, tag]
         if edge_metric != "shared_wall_um":
             parts.append(edge_metric.replace("_um", ""))
         if color_edges_by_metric:
@@ -661,11 +650,10 @@ def render(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    from discell.data.visium_hd import DEFAULT_DATA_ROOT
-
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--sample", default=str(DEFAULT_DATA_ROOT / "Visium_HD_Mouse_Brain"))
-    parser.add_argument("--out-dir", default="figures")
+    parser.add_argument("--sample", required=True)
+    parser.add_argument("--out-dir", default=None,
+                        help="default: this sample's dataset figures directory")
     parser.add_argument("--graph", default=DEFAULT_GRAPH, choices=("voronoi", "contact"))
     parser.add_argument("--label-key", default="cluster")
     parser.add_argument("--region", nargs=4, type=float, default=None,
@@ -708,7 +696,7 @@ def build_parser() -> argparse.ArgumentParser:
                        help="drop edges longer than this between centroids")
     edges.add_argument("--contact-tolerance-um", type=float, default=None,
                        help="graph adjacency: how close polygons must be to be neighbours "
-                            "(default 0 on Visium HD, 1 on Xenium)")
+                            "(default 1 um)")
     edges.add_argument("--wall-tolerance-um", type=float, default=None,
                        help="apposed_wall_um: how close two membranes must run to count as "
                             "shared wall (default 1). Independent of adjacency.")
@@ -906,52 +894,6 @@ def show_interactive(
     plt.show()
 
 
-def load_any_sample(
-    sample_path: str,
-    clip_radius_um: float,
-    max_cells: int | None = None,
-    contact_tolerance_um: float | None = None,
-    wall_tolerance_um: float | None = None,
-    build_graphs: bool = True,
-):
-    """Load a sample from either platform, detected from what is on disk.
-
-    Returns ``(adata, sample_dir)``. Both loaders produce the same structure, so
-    everything downstream is platform-agnostic. Passing ``None`` for either
-    tolerance keeps that loader's own default, which differs by platform.
-    """
-    path = Path(sample_path).expanduser().resolve()
-    is_xenium = (
-        (path / "cell_boundaries.parquet").exists()
-        or (path / "experiment.xenium").exists()
-        or bool(list(path.glob("*/cell_boundaries.parquet")))
-        or path.suffix == ".zip"
-    )
-    extra = {"build_graphs": build_graphs}
-    if contact_tolerance_um is not None:
-        extra["contact_tolerance_um"] = contact_tolerance_um
-    if wall_tolerance_um is not None:
-        extra["wall_tolerance_um"] = wall_tolerance_um
-
-    if is_xenium:
-        from discell.data.xenium import load_xenium_sample, locate_xenium_dir
-
-        log.info("Detected Xenium output")
-        sample_dir = locate_xenium_dir(path)
-        adata = load_xenium_sample(
-            sample_dir, clip_radius_um=clip_radius_um, max_cells=max_cells, **extra
-        )
-        return adata, sample_dir
-
-    from discell.data.segmented import load_segmented_sample
-    from discell.data.visium_hd import resolve_sample
-
-    log.info("Detected Visium HD output")
-    sample_dir, _, _ = resolve_sample(sample_path)
-    adata = load_segmented_sample(sample_path, clip_radius_um=clip_radius_um, **extra)
-    return adata, sample_dir
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -959,7 +901,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S",
     )
 
-    adata, sample_dir = load_any_sample(
+    adata, sample_dir = load_sample(
         args.sample, args.clip_radius_um, args.max_cells,
         args.contact_tolerance_um, args.wall_tolerance_um,
     )
@@ -969,7 +911,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         label_key = adata.uns.get("default_label", label_key)
         log.info("Using label key %r", label_key)
     args.label_key = label_key
-    out_dir = Path(args.out_dir)
+    out_dir = (Path(args.out_dir) if args.out_dir
+               else paths.dataset_for(sample_dir).ensure().figures)
 
     region = tuple(args.region) if args.region else None
     max_gap_um = 0.0 if args.touching else args.max_gap_um

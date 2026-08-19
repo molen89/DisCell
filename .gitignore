@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+
+
+## added by me
+.claude/*
+.venv/*
+
+# All data in/out lives under data/ (see discell/paths.py, $DISCELL_DATA).
+# raw/ and interim/ are symlinks to the external cohorts; the rest is generated.
+data/

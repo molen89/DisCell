@@ -11,7 +11,7 @@ Two entry points:
     its neighbours and the graph edges drawn on top
 
 The window is ``half_um`` in every direction from the cell's anchor point, so a
-default of 10 um gives a 20x20 um field -- 94x94 px on Xenium, 74x74 on Visium
+default of 10 um gives a 20x20 um field -- 94x94 px at Xenium's 0.2125 um/px
 HD. Because that differs by platform, pass ``out_size`` to resample every crop
 to one shape before it reaches a model.
 
@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import Sequence
 
 import numpy as np
+
+from discell import paths
 
 log = logging.getLogger("discell.data.crops")
 
@@ -433,7 +435,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-polygon", action="store_true")
     parser.add_argument("--no-neighbours", action="store_true")
     parser.add_argument("--no-edges", action="store_true")
-    parser.add_argument("--out", default="crop.png")
+    parser.add_argument("--out", default="crop.png",
+                        help="filename inside this sample's dataset figures dir, "
+                             "or a full path")
     parser.add_argument("--export", default=None,
                         help="write crops for many cells to .npz (image + cell ids)")
     parser.add_argument("--limit", type=int, default=None, help="cells to export")
@@ -452,12 +456,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    from discell.plotting.cell_graph import (
-        XENIUM_DEFAULT_CHANNELS,
-        find_tissue_image,
-        is_xenium_morphology,
-        load_any_sample,
-    )
+    from discell.data.xenium import find_tissue_image, load_sample
+    from discell.plotting.cell_graph import XENIUM_DEFAULT_CHANNELS, is_xenium_morphology
 
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -465,7 +465,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S",
     )
 
-    adata, sample_dir = load_any_sample(args.sample, args.clip_radius_um, args.max_cells)
+    adata, sample_dir = load_sample(args.sample, args.clip_radius_um, args.max_cells)
+    ds = paths.dataset_for(sample_dir).ensure()
+    out_path = (Path(args.out) if Path(args.out).parent != Path(".")
+                else ds.figures / Path(args.out).name)
     image_path = find_tissue_image(sample_dir)
     if image_path is None:
         raise SystemExit(f"no image found under {sample_dir}")
@@ -503,8 +506,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         cells = sorted(rng.choice(adata.n_obs, min(args.grid, adata.n_obs), replace=False))
         fig = plot_cell_grid(adata, image_path, cells, args.half_um, channels,
                              graph=graph, label_key=args.label_key, **kwargs)
-        fig.savefig(args.out, bbox_inches="tight", facecolor="white")
-        print(f"\nWrote {args.out}: {len(cells)} cells at {2 * args.half_um:g} µm")
+        fig.savefig(out_path, bbox_inches="tight", facecolor="white")
+        print(f"\nWrote {out_path}: {len(cells)} cells at {2 * args.half_um:g} µm")
         return 0
 
     cell = args.cell if args.cell is not None else int(rng.integers(adata.n_obs))
@@ -513,8 +516,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     _, crop = plot_cell(adata, image_path, cell, args.half_um, channels,
                         anchor=args.anchor, graph=graph, label_key=args.label_key,
                         ax=ax, **kwargs)
-    fig.savefig(args.out, bbox_inches="tight", facecolor="white")
-    print(f"\n{crop!r}\nWrote {args.out}")
+    fig.savefig(out_path, bbox_inches="tight", facecolor="white")
+    print(f"\n{crop!r}\nWrote {out_path}")
     return 0
 
 

@@ -35,6 +35,8 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from discell import paths
+
 log = logging.getLogger("discell.images.embedding_qc")
 
 DEFAULT_PER_LABEL = 100
@@ -186,7 +188,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--embeddings", default=None,
                         help="reuse a saved .pt instead of embedding again")
     parser.add_argument("--save-embeddings", default=None)
-    parser.add_argument("--out", default="figures/kronos_umap.png")
+    parser.add_argument("--out", default="kronos_umap.png",
+                        help="filename inside this sample's dataset figures dir, "
+                             "or a full path")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--n-neighbors", type=int, default=15)
     parser.add_argument("--min-dist", type=float, default=0.1)
@@ -208,7 +212,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         resolve_markers,
         write_embeddings,
     )
-    from discell.plotting.cell_graph import find_tissue_image, load_any_sample
+    from discell.data.xenium import find_tissue_image, load_sample
 
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -218,7 +222,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     rng = np.random.default_rng(args.seed)
 
     # graphs are irrelevant to embedding and cost ~4 min on a full slide
-    adata, sample_dir = load_any_sample(args.sample, 30.0, args.max_cells,
+    adata, sample_dir = load_sample(args.sample, 30.0, args.max_cells,
                                         build_graphs=False)
     image_path = find_tissue_image(sample_dir)
     if image_path is None:
@@ -244,7 +248,16 @@ def main(argv: Sequence[str] | None = None) -> int:
           f"({'every cell' if args.per_label <= 0 else f'{args.per_label} per class, stratified'})")
 
     if args.embeddings:
-        payload = torch.load(args.embeddings, weights_only=False)
+        # Resolve inside this sample's dataset, so a bare name works and a
+        # foreign path is refused rather than quietly plotting another slide.
+        emb_path = paths.dataset_for(sample_dir).embeddings_file(args.embeddings)
+        payload = torch.load(emb_path, weights_only=False)
+        recorded = payload.get("dataset")
+        if recorded and recorded != paths.dataset_for(sample_dir).dataset_id:
+            raise SystemExit(
+                f"{emb_path.name} was computed on dataset {recorded!r}, but "
+                f"--sample resolves to {paths.dataset_for(sample_dir).dataset_id!r}"
+            )
         model_name = str(payload.get("model", "kronos"))
         stored_markers = list(payload.get("marker_names", []))
         stored = np.asarray(payload["cell_ids"]).astype(str)
@@ -253,7 +266,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         keep = position.notna().to_numpy()
         embeddings = payload["embeddings"].float().numpy()[position[keep].astype(int)]
         cells, labels = cells[keep], labels[keep]
-        print(f"Reused {len(embeddings):,} embeddings from {args.embeddings}")
+        print(f"Reused {len(embeddings):,} embeddings from {emb_path}")
     else:
         if args.model in ("v2", "kronos2"):
             raise SystemExit(
@@ -318,10 +331,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"1-NN {100 * report['nn_agreement']:.1f}% vs "
                 f"{100 * report['chance']:.1f}% chance"
                 + (f" (on {report['n_cells']:,})" if report["subsampled"] else ""))
-    plot_umap(coords, labels, Path(args.out), palette,
+    ds = paths.dataset_for(sample_dir).ensure()
+    out_path = (Path(args.out) if Path(args.out).parent != Path(".")
+                else ds.figures / Path(args.out).name)
+    plot_umap(coords, labels, out_path, palette,
               title=f"{sample_dir.name} — image embedding UMAP, coloured by {label_key}",
               subtitle=subtitle)
-    print(f"\nWrote {args.out}")
+    print(f"\nWrote {out_path}")
     return 0
 
 

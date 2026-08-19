@@ -23,6 +23,8 @@ from pathlib import Path
 
 import numpy as np
 
+from discell import paths
+
 log = logging.getLogger("discell.plotting.batch_view")
 
 #: Mirrors the loader: cells with no annotation are an explicit class.
@@ -153,8 +155,9 @@ def _tissue_image(dataset, bounds, mpp, max_px=4000):
     """The morphology image over the whole tissue, in micron extent."""
     from pathlib import Path as _Path
 
+    from discell.data.xenium import find_tissue_image
     from discell.plotting.cell_graph import (
-        XENIUM_DEFAULT_CHANNELS, find_tissue_image, is_xenium_morphology,
+        XENIUM_DEFAULT_CHANNELS, is_xenium_morphology,
         read_image_window,
     )
 
@@ -419,7 +422,7 @@ def _type_legend(fig, palette, names, ncol=6):
                fontsize=8, labelcolor=INK_2, bbox_to_anchor=(0.5, -0.01))
 
 
-def plot_batch(batch, dataset, out_path: str | Path = "figures/batch.png",
+def plot_batch(batch, dataset, out_path: str | Path = "batch.png",
                dpi: int = 220, overlay: bool = True, max_tiles: int = 16,
                index: int | None = None) -> Path:
     """One combined figure: neighbourhood tiles, tissue map, and the summaries."""

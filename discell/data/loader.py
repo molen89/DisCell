@@ -35,8 +35,8 @@ Model inputs are the counts, the edge attributes and the image embedding.
 
 Usage::
 
-    python -m discell.data.loader --self-test --bundle-dir bundles --name ovarian_full
-    python -m discell.data.loader --bundle-dir bundles --name ovarian_full \\
+    python -m discell.data.loader --self-test --dataset xenium_prime_ovarian_cancer_ffpe
+    python -m discell.data.loader --dataset xenium_prime_ovarian_cancer_ffpe \\
         --graph contact --min-apposed-um 0.001 --batch-cells 64
 """
 
@@ -52,6 +52,8 @@ from typing import Iterator, Sequence
 
 import numpy as np
 import pandas as pd
+
+from discell import paths
 
 log = logging.getLogger("discell.data.loader")
 
@@ -203,19 +205,29 @@ class TorchBatch:
         )
 
 
-def load_embeddings(path: str | Path, cell_ids: Sequence[str]) -> tuple[np.ndarray, np.ndarray]:
+def load_embeddings(path: str | Path, cell_ids: Sequence[str],
+                    dataset: str | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Load per-cell image embeddings aligned to *cell_ids*.
 
     Accepts ``.npz`` with ``cell_ids`` and ``embeddings`` arrays, or a parquet
     with a cell-id column plus either an ``embedding`` list column or numeric
     feature columns. Cells with no embedding get zeros; the returned mask marks
     which rows are real, so a model can avoid training on fabricated vectors.
+
+    Two guards stop embeddings from one slide being served against another's
+    bundle, which used to fail only as a warning about zero-filled rows:
+
+    * if the file records a ``dataset`` and *dataset* is given, they must match;
+    * if **no** cell id matches at all, that is a mismatched file rather than an
+      incomplete one, whatever the metadata says.
     """
     path = Path(path)
+    recorded: str | None = None
     if path.suffix in (".pt", ".pth"):
         import torch
 
         payload = torch.load(path, map_location="cpu", weights_only=False)
+        recorded = payload.get("dataset")
         ids = np.asarray(payload["cell_ids"]).astype(str)
         vectors = np.asarray(payload["embeddings"].float().numpy(), dtype=np.float32)
     elif path.suffix == ".npz":
@@ -236,10 +248,26 @@ def load_embeddings(path: str | Path, cell_ids: Sequence[str]) -> tuple[np.ndarr
     else:
         raise ValueError(f"Unsupported embedding format: {path.suffix}")
 
+    if dataset and recorded and recorded != dataset:
+        raise ValueError(
+            f"{path.name} was computed on dataset {recorded!r}, but this bundle is "
+            f"{dataset!r}. Use that dataset's own embeddings:\n"
+            f"  data/datasets/{dataset}/embeddings/"
+        )
+
     lookup = pd.Series(np.arange(len(ids)), index=pd.Index(ids))
     lookup = lookup[~lookup.index.duplicated()]
     position = lookup.reindex(pd.Index(np.asarray(cell_ids, dtype=str)))
     found = position.notna().to_numpy()
+
+    if not found.any():
+        raise ValueError(
+            f"{path.name} shares no cell ids with this bundle -- it belongs to a "
+            f"different dataset"
+            + (f" ({recorded})" if recorded else "")
+            + f". Its ids look like {[str(v) for v in ids[:2]]}, the bundle's like "
+              f"{[str(v) for v in np.asarray(cell_ids, dtype=str)[:2]]}."
+        )
 
     out = np.zeros((len(cell_ids), vectors.shape[1]), dtype=np.float32)
     out[found] = vectors[position[found].astype(int).to_numpy()]
@@ -251,6 +279,21 @@ def load_embeddings(path: str | Path, cell_ids: Sequence[str]) -> tuple[np.ndarr
 
 class CellGraphDataset:
     """Subgraph batches over a saved bundle."""
+
+    @classmethod
+    def from_dataset(cls, dataset, variant: str = "full", **kwargs) -> "CellGraphDataset":
+        """Open one dataset's bundle, resolving embeddings within that dataset.
+
+        ``dataset`` may be a :class:`discell.paths.Dataset`, a dataset id, or a
+        source sample path -- all spellings of one slide resolve alike, so a
+        caller cannot accidentally pair this bundle with another's embeddings.
+        """
+        from discell import paths
+
+        ds = paths.dataset(dataset)
+        if "embeddings" in kwargs:
+            kwargs["embeddings"] = ds.embeddings_file(kwargs["embeddings"])
+        return cls(ds.bundle_dir, variant, dataset_id=ds.dataset_id, **kwargs)
 
     def __init__(
         self,
@@ -277,6 +320,7 @@ class CellGraphDataset:
         resident: str | None = None,
         counts_dtype: str = "float32",
         seed: int = 0,
+        dataset_id: str | None = None,
     ) -> None:
         from discell.data.export import load_bundle
 
@@ -352,8 +396,12 @@ class CellGraphDataset:
                                  * mpp).astype(np.float32)
 
         self.cell_ids = np.asarray(self.adata.obs_names, dtype=str)
+        # Prefer the id recorded in the bundle over one passed in, so a bundle
+        # opened by raw path still checks its embeddings against the right slide.
+        self.dataset_id = str(self.adata.uns.get("dataset_id") or dataset_id or "") or None
         if embeddings is not None:
-            self.embeddings, self.embedding_mask = load_embeddings(embeddings, self.cell_ids)
+            self.embeddings, self.embedding_mask = load_embeddings(
+                embeddings, self.cell_ids, dataset=self.dataset_id)
         else:
             log.warning("no image embeddings given -- serving zeros of width %d", embedding_dim)
             self.embeddings = np.zeros((self.adata.n_obs, embedding_dim), dtype=np.float32)
@@ -787,8 +835,7 @@ def self_test(bundle_dir: str, name: str, graph: str, batch_cells: int) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--bundle-dir", default="bundles")
-    parser.add_argument("--name", required=True)
+    paths.add_dataset_args(parser)
     parser.add_argument("--graph", default=DEFAULT_GRAPH)
     parser.add_argument("--label-key", default=None)
     parser.add_argument("--batch-cells", type=int, default=DEFAULT_BATCH_CELLS)
@@ -824,11 +871,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         level=logging.WARNING if args.quiet else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S",
     )
+    ds, variant = paths.resolve_bundle(args)
     if args.self_test:
-        return self_test(args.bundle_dir, args.name, args.graph, args.batch_cells)
+        return self_test(ds.bundle_dir, variant, args.graph, args.batch_cells)
 
-    data = CellGraphDataset(
-        args.bundle_dir, args.name, graph=args.graph, label_key=args.label_key,
+    data = CellGraphDataset.from_dataset(
+        ds, variant, graph=args.graph, label_key=args.label_key,
         batch_cells=args.batch_cells, min_apposed_um=args.min_apposed_um,
         min_wall_um=args.min_wall_um, max_gap_um=args.max_gap_um,
         embeddings=args.embeddings, embedding_dim=args.embedding_dim,

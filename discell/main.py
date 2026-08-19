@@ -8,9 +8,9 @@ Nothing else: no model, no training, no plots. Those live in
 
 Usage::
 
-    python -m discell.main --name ovarian_full
-    python -m discell.main --name ovarian_full --embeddings embeddings/ovarian_kronos_all.pt
-    python -m discell.main --name ovarian_full --batch-cells 10 --image-scope nodes
+    python -m discell.main                          # dataset inferred when only one is bundled
+    python -m discell.main --dataset xenium_prime_ovarian_cancer_ffpe --embeddings kronos1_v2scale
+    python -m discell.main --batch-cells 10 --image-scope nodes
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ import numpy as np
 import torch
 
 from discell.data.loader import CellGraphDataset
+from discell import paths
 
 log = logging.getLogger("discell.main")
 
@@ -110,9 +111,12 @@ def run(args: argparse.Namespace) -> int:
                 else args.resident if args.resident != "auto"
                 else ("gpu" if device == "cuda" else None))
 
+    ds, variant = paths.resolve_bundle(args)
+    out_dir = Path(args.out_dir) if args.out_dir else ds.figures
+
     started = time.time()
-    dataset = CellGraphDataset(
-        args.bundle_dir, args.name,
+    dataset = CellGraphDataset.from_dataset(
+        ds, variant,
         graph=args.graph,
         batch_cells=args.batch_cells,
         label_key=args.label_key,
@@ -129,7 +133,7 @@ def run(args: argparse.Namespace) -> int:
     )
 
     print(RULE)
-    print(f"DATASET  {args.name}")
+    print(f"DATASET  {ds.dataset_id}  (bundle {variant!r})")
     print(RULE)
     print(f"  {dataset.adata.n_obs:,} cells x {len(dataset.gene_index):,} genes, "
           f"{dataset.n_types} types")
@@ -154,7 +158,7 @@ def run(args: argparse.Namespace) -> int:
         check_invariants(batch)
 
         if not args.no_plot:
-            plot_batch(index, batch, dataset, args.out_dir, not args.no_overlay, args.dpi)
+            plot_batch(index, batch, dataset, out_dir, not args.no_overlay, args.dpi)
 
         break   # one batch is enough to inspect the contract
 
@@ -165,8 +169,7 @@ def run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--bundle-dir", default="bundles")
-    parser.add_argument("--name", default="ovarian_full")
+    paths.add_dataset_args(parser)
     parser.add_argument("--graph", default="contact")
     parser.add_argument("--label-key", default=None)
     parser.add_argument("--batch-cells", type=int, default=10)
@@ -185,7 +188,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dpi", type=int, default=260)
     parser.add_argument("--no-overlay", action="store_true",
                         help="skip the morphology image behind the tissue map")
-    parser.add_argument("--out-dir", default="figures")
+    parser.add_argument("--out-dir", default=None,
+                        help="default: this dataset's figures directory")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--quiet", action="store_true")

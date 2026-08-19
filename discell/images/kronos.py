@@ -48,6 +48,8 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from discell import paths
+
 log = logging.getLogger("discell.images.kronos")
 
 #: KRONOS ViT patch size; the input edge must be a multiple of this.
@@ -127,7 +129,7 @@ XENIUM_MARKERS: tuple[MarkerSpec, ...] = (
 
 def fetch_marker_metadata(
     repo: str = "MahmoodLab/kronos",
-    cache_dir: str | Path = "./model_assets",
+    cache_dir: str | Path = paths.MODELS,
     hf_token: str | None = None,
 ) -> Path | None:
     """Download ``marker_metadata.csv`` from the KRONOS repo.
@@ -206,7 +208,7 @@ def describe_markers(markers: Sequence[MarkerSpec]) -> str:
 
 def load_kronos(
     checkpoint: str = "hf_hub:MahmoodLab/kronos",
-    cache_dir: str | Path = "./model_assets",
+    cache_dir: str | Path = paths.MODELS,
     hf_token: str | None = None,
     pretrained: bool = True,
 ):
@@ -310,6 +312,26 @@ def embed_cells(
     return embeddings, np.asarray(kept, dtype=str)
 
 
+
+def _dataset_output(sample_dir, value, kind: str):
+    """Resolve a bare output name into this sample's dataset directory.
+
+    An explicit path with a directory component is honoured as given; a plain
+    filename lands beside the rest of that dataset's artefacts, so two slides
+    processed with the same command cannot overwrite each other.
+    """
+    from pathlib import Path as _Path
+
+    from discell import paths as _paths
+
+    ds = _paths.dataset_for(sample_dir).ensure()
+    target = _Path(value)
+    if target.parent != _Path("."):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        return ds, target
+    return ds, (ds.embeddings_dir if kind == "embeddings" else ds.figures) / target.name
+
+
 def write_embeddings(path: str | Path, embeddings: np.ndarray, cell_ids: np.ndarray,
                      meta: dict | None = None) -> Path:
     """Write in the layout :func:`discell.data.loader.load_embeddings` reads.
@@ -369,7 +391,7 @@ def build_parser() -> argparse.ArgumentParser:
                              "default is every cell")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--hf-token", default=None)
-    parser.add_argument("--cache-dir", default="./model_assets")
+    parser.add_argument("--cache-dir", default=str(paths.MODELS))
     parser.add_argument("--drop-unknown-markers", action="store_true",
                         help="v2: skip channels that are neither in the vocabulary "
                              "nor registrable, instead of failing")
@@ -456,7 +478,9 @@ def _run_v2(args, adata, sample_dir, image_path) -> int:
         patch_px=args.patch_px, batch_size=args.batch_size, device=device,
         block_px=args.block_px, preferred_dapi=PREFERRED_DAPI,
     )
-    write_embeddings(args.out, embeddings, cell_ids, meta={
+    ds, out_path = _dataset_output(sample_dir, args.out, "embeddings")
+    write_embeddings(out_path, embeddings, cell_ids, meta={
+        "dataset": ds.dataset_id,
         "model": "kronos2",
         "patch_px": args.patch_px,
         "microns_per_pixel": mpp,
@@ -464,15 +488,19 @@ def _run_v2(args, adata, sample_dir, image_path) -> int:
         "marker_names": names,
         "in_vocabulary": [bool(resolved.get(n)) for n in names],
         "registered_novel": registered,
+        # Recorded so a stale file is identifiable later: everything embedded
+        # before the intensity fix fed raw uint16 to a model expecting [0, 1].
+        "intensity_scaled": True,
         "pretrained": True,
     })
-    print(f"\nWrote {args.out}: {embeddings.shape}")
-    print(f"Use with: CellGraphDataset(..., embeddings='{args.out}')")
+    print(f"\nWrote {out_path}: {embeddings.shape}")
+    print(f"Use with: CellGraphDataset.from_dataset('{ds.dataset_id}', "
+          f"embeddings='{out_path.stem}')")
     return 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    from discell.plotting.cell_graph import find_tissue_image, load_any_sample
+    from discell.data.xenium import find_tissue_image, load_sample
 
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -481,7 +509,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     # graphs are irrelevant to embedding and cost ~4 min on a full slide
-    adata, sample_dir = load_any_sample(args.sample, 30.0, args.max_cells,
+    adata, sample_dir = load_sample(args.sample, 30.0, args.max_cells,
                                         build_graphs=False)
     image_path = find_tissue_image(sample_dir)
     if image_path is None:
@@ -524,7 +552,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"Crop : {args.patch_px}px, {field:.1f} um field, {len(markers)} channels")
 
     if args.dry_run:
-        from discell.data.crops import DEFAULT_BLOCK_PX, iter_crop_blocks
+        from discell.data.crops import DEFAULT_BLOCK_PX, crop_cell, iter_crop_blocks
 
         crop = crop_cell(adata, image_path, cells[0],
                          half_um=(args.patch_px * mpp) / 2 if args.half_um is None
@@ -548,16 +576,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         patch_px=args.patch_px, batch_size=args.batch_size, device=device,
         half_um=args.half_um, block_px=args.block_px,
     )
-    write_embeddings(args.out, embeddings, cell_ids, meta={
+    ds, out_path = _dataset_output(sample_dir, args.out, "embeddings")
+    write_embeddings(out_path, embeddings, cell_ids, meta={
+        "dataset": ds.dataset_id,
+        "model": "kronos1",
         "patch_px": args.patch_px,
         "microns_per_pixel": mpp,
         "channels": [m.channel for m in markers],
         "marker_names": [m.name for m in markers],
         "marker_ids": [m.marker_id for m in markers],
+        # Recorded so a stale file is identifiable later: everything embedded
+        # before the intensity fix fed raw uint16 to a model expecting [0, 1].
+        "intensity_scaled": True,
         "pretrained": not args.no_pretrained,
     })
-    print(f"\nWrote {args.out}: {embeddings.shape}")
-    print(f"Use with: CellGraphDataset(..., embeddings='{args.out}')")
+    print(f"\nWrote {out_path}: {embeddings.shape}")
+    print(f"Use with: CellGraphDataset.from_dataset('{ds.dataset_id}', "
+          f"embeddings='{out_path.stem}')")
     return 0
 
 
