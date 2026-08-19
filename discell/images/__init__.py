@@ -1,0 +1,1 @@
+"""Image embedding pipelines."""
