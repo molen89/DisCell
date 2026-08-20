@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Per-cell image embeddings from KRONOS2 (MahmoodLab).
 
-The successor to :mod:`discell.images.kronos`, and a different contract:
+The successor to :mod:`discell.preprocess.kronos`, and a different contract:
 
 =====================  ==============================  ==========================
                        KRONOS (v1)                     KRONOS2 (v2)
@@ -26,7 +26,7 @@ https://huggingface.co/MahmoodLab/KRONOS2 and authenticate as for v1.
 
 Usage::
 
-    python -m discell.images.kronos --model v2 --sample <dir> --out emb2.pt
+    python -m discell.preprocess.kronos --model v2 --sample <dir> --out emb2.pt
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ import numpy as np
 
 from discell import paths
 
-log = logging.getLogger("discell.images.kronos2")
+log = logging.getLogger("discell.preprocess.kronos2")
 
 #: Reference tissue-patch size from the model card.
 DEFAULT_PATCH_PX = 256
@@ -109,8 +109,8 @@ def register_novel_markers(model, names: Sequence[str], stats: dict,
 def measure_channel_stats(adata, image_path, channels, names, half_um,
                           n_cells: int = 512, seed: int = 0) -> dict:
     """Mean/std per channel on scaled crops, for novel-marker registration."""
-    from discell.data.crops import iter_crop_blocks
-    from discell.images.kronos import intensity_scaling_factor
+    from discell.preprocess.crops import iter_crop_blocks
+    from discell.preprocess.kronos import intensity_scaling_factor
 
     rng = np.random.default_rng(seed)
     picked = sorted(rng.choice(adata.n_obs, min(n_cells, adata.n_obs), replace=False))
@@ -126,7 +126,6 @@ def measure_channel_stats(adata, image_path, channels, names, half_um,
 def load_kronos2(cache_dir: str | Path | None = None, hf_token: str | None = None,
                  device: str = "cuda"):
     """Load KRONOS2. Returns ``(model, embedding_dim)``."""
-    import torch
     from transformers import AutoModel
 
     token = hf_token or os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
@@ -187,55 +186,27 @@ def embed_cells_v2(
     batch_size: int = 32,
     device: str = "cuda",
     block_px: int = 4096,
-    anchor: str = "centroid",
     preferred_dapi: str = PREFERRED_DAPI,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Embed cells with KRONOS2. Returns ``(embeddings, cell_ids)``."""
     import torch
 
-    from discell.data.crops import iter_crop_blocks
+    from discell.preprocess.kronos import _embed_blocks
 
+    marker_names = list(marker_names)
     mpp = float(adata.uns["microns_per_pixel"])
     half = (patch_px * mpp) / 2
     log.info("Crop: %d px, %.1f um field (%.4f um/px), markers %s",
-             patch_px, 2 * half, mpp, list(marker_names))
+             patch_px, 2 * half, mpp, marker_names)
 
-    cells = list(range(adata.n_obs)) if cells is None else list(cells)
-    cell_names = np.asarray(adata.obs_names, dtype=str)
-    marker_names = list(marker_names)
+    def forward(array: np.ndarray) -> np.ndarray:
+        # preprocess wants numpy and does the marker-aware z-score itself, so
+        # no mean/std is applied here.
+        prepared = model.preprocess(array, marker_names, preferred_dapi=preferred_dapi)
+        batch = torch.as_tensor(np.asarray(prepared), dtype=torch.float32, device=device)
+        with torch.inference_mode():
+            return model(batch, marker_names).float().cpu().numpy()
 
-    outputs: list[np.ndarray] = []
-    kept: list[str] = []
-    started, done = time.time(), 0
-    for indices, crops in iter_crop_blocks(
-        adata, image_path, cells, half_um=half, channels=channels,
-        out_size=None, anchor=anchor, block_px=block_px,
-    ):
-        for start in range(0, len(indices), batch_size):
-            piece = crops[start : start + batch_size]
-            # (B, H, W, C) -> (B, C, H, W); preprocess wants numpy and does the
-            # marker-aware z-score itself, so no mean/std is applied here.
-            from discell.images.kronos import intensity_scaling_factor
-
-            scaling = intensity_scaling_factor(piece.dtype)
-            array = np.ascontiguousarray(piece.transpose(0, 3, 1, 2),
-                                         dtype=np.float32) / scaling
-            prepared = model.preprocess(array, marker_names,
-                                        preferred_dapi=preferred_dapi)
-            batch = torch.as_tensor(np.asarray(prepared), dtype=torch.float32,
-                                    device=device)
-            with torch.inference_mode():
-                features = model(batch, marker_names)
-            outputs.append(features.float().cpu().numpy())
-            kept.extend(cell_names[indices[start : start + batch_size]])
-
-        done += len(indices)
-        elapsed = max(time.time() - started, 1e-9)
-        log.info("  %d/%d cells (%.0f cells/s, eta %.1f min)",
-                 done, len(cells), done / elapsed,
-                 (len(cells) - done) / max(done / elapsed, 1e-9) / 60)
-
-    embeddings = np.concatenate(outputs, axis=0)
-    log.info("Embedded %d cells -> %s in %.1f min", len(kept), embeddings.shape,
-             (time.time() - started) / 60)
-    return embeddings, np.asarray(kept, dtype=str)
+    return _embed_blocks(adata, image_path, channels, cells, forward,
+                         half_um=half, out_size=None, batch_size=batch_size,
+                         block_px=block_px)

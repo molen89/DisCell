@@ -225,4 +225,4 @@ __marimo__/
 
 # All data in/out lives under data/ (see discell/paths.py, $DISCELL_DATA).
 # raw/ and interim/ are symlinks to the external cohorts; the rest is generated.
-data/
+/data/

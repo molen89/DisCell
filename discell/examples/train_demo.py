@@ -26,10 +26,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from discell.data.loader import CellGraphDataset, TorchBatch
+from discell.data.batch import DEFAULT_EDGE_METRICS, TorchBatch
+from discell.data.embeddings import DEFAULT_EMBEDDING_DIM
+from discell.data.loader import DEFAULT_GRAPH, CellGraphDataset
+from discell.data.priors import DEFAULT_BETA_TAU_UM
 from discell import paths
 
-log = logging.getLogger("discell.examples.train_demo")
 
 
 class EdgeAwareLayer(nn.Module):
@@ -41,7 +43,7 @@ class EdgeAwareLayer(nn.Module):
     whole reason the geometry is carried through the pipeline.
     """
 
-    def __init__(self, dim: int, edge_dim: int = 2) -> None:
+    def __init__(self, dim: int, edge_dim: int = len(DEFAULT_EDGE_METRICS)) -> None:
         super().__init__()
         self.message = nn.Linear(dim, dim)
         self.gate = nn.Sequential(nn.Linear(edge_dim, 16), nn.ReLU(), nn.Linear(16, 1))
@@ -66,10 +68,11 @@ class CellTypeModel(nn.Module):
     """Counts + neighbourhood geometry + image embedding -> cell type."""
 
     def __init__(self, n_genes: int, n_types: int, image_dim: int,
+                 edge_dim: int = len(DEFAULT_EDGE_METRICS),
                  dim: int = 128, layers: int = 2) -> None:
         super().__init__()
         self.encode = nn.Sequential(nn.Linear(n_genes, dim), nn.ReLU())
-        self.layers = nn.ModuleList(EdgeAwareLayer(dim) for _ in range(layers))
+        self.layers = nn.ModuleList(EdgeAwareLayer(dim, edge_dim) for _ in range(layers))
         # Image features exist only for seed cells, so they join at the head
         # rather than being message-passed with the rest.
         self.image = nn.Sequential(nn.Linear(image_dim, dim), nn.ReLU())
@@ -93,7 +96,7 @@ def composition_baseline(dataset: CellGraphDataset, batch: TorchBatch,
     Uses only the precomputed K x K table -- no counts, no image, no geometry
     beyond who is adjacent. Any real model should beat this.
     """
-    composition = dataset.composition_tensor(device)          # (K, K)
+    composition = dataset.constant.neighbour_composition       # (K, K)
     src, dst = batch.edge_index[0], batch.edge_index[1]
     neighbour_types = torch.zeros_like(batch.y)
     neighbour_types.index_add_(0, dst, batch.y[src])
@@ -117,10 +120,9 @@ def run(args: argparse.Namespace) -> int:
         ds, variant,
         graph=args.graph,
         batch_cells=args.batch_cells,
-        min_apposed_um=args.min_apposed_um,
+        beta_tau_um=args.beta_tau_um,
         embeddings=args.embeddings,
         embedding_dim=args.embedding_dim,
-        as_torch=True,
         device=device,
         # Everything resident on the GPU: batching becomes an index_select with
         # no host-to-device copy, ~3x the throughput of the transfer path.
@@ -129,7 +131,7 @@ def run(args: argparse.Namespace) -> int:
         counts_dtype=args.counts_dtype,
         seed=args.seed,
     )
-    print(f"   {dataset.adata.n_obs:,} cells x {len(dataset.gene_index):,} genes")
+    print(f"   {dataset.adata.n_obs:,} cells x {dataset.adata.n_vars:,} genes")
     print(f"   {len(dataset.edge_i):,} edges in the {args.graph!r} graph")
     print(f"   {dataset.n_types} cell types, {len(dataset)} batches of {args.batch_cells}")
     print(f"   image embeddings: {'real for ' if args.embeddings else 'none, zeros of width '}"
@@ -149,7 +151,7 @@ def run(args: argparse.Namespace) -> int:
     top = dataset.composition_support.sort_values(ascending=False).head(5).index
     print(dataset.neighbour_composition.loc[top, top].round(3).to_string())
     print(f"\n   full table: {dataset.neighbour_composition.shape}, "
-          f"as a tensor via dataset.composition_tensor()")
+          f"as a tensor via dataset.constant.neighbour_composition")
 
     print()
     print("=" * 74)
@@ -161,12 +163,11 @@ def run(args: argparse.Namespace) -> int:
                          ("edge_attr    ", batch.edge_attr), ("y            ", batch.y),
                          ("image_embed  ", batch.image_embedding),
                          ("seed_index   ", batch.seed_index),
-                         ("seed_comp    ", batch.seed_composition),
-                         ("neigh_comp   ", batch.neighbour_composition)):
+                         ("seed_comp    ", batch.seed_composition)):
         fixed = "fixed" if name.strip() in (
-            "image_embed", "seed_index", "seed_comp", "neigh_comp") else "varies"
+            "image_embed", "seed_index", "seed_comp") else "varies"
         print(f"   {name} {str(tuple(tensor.shape)):>18}  {str(tensor.dtype):<14} {fixed}")
-    print(f"\n   auxiliary (not model input):")
+    print("\n   auxiliary (not model input):")
     print(f"   pos           {str(tuple(batch.pos.shape)):>18}  "
           f"{str(batch.pos.dtype):<14} microns, for plotting")
     print(f"\n   edge_attr columns: {batch.edge_attr_names}")
@@ -178,8 +179,9 @@ def run(args: argparse.Namespace) -> int:
     print("4. TRAIN A SMALL EDGE-AWARE GNN")
     print("=" * 74)
     model = CellTypeModel(
-        n_genes=len(dataset.gene_index), n_types=dataset.n_types,
-        image_dim=dataset.embeddings.shape[1], dim=args.dim,
+        n_genes=dataset.adata.n_vars, n_types=dataset.n_types,
+        image_dim=dataset.embeddings.shape[1],
+        edge_dim=len(dataset.edge_metrics), dim=args.dim,
     ).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"   {model.__class__.__name__}: {n_params:,} parameters on {device}")
@@ -233,7 +235,7 @@ def run(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     paths.add_dataset_args(parser)
-    parser.add_argument("--graph", default="contact")
+    parser.add_argument("--graph", default=DEFAULT_GRAPH)
     parser.add_argument("--batch-cells", type=int, default=128)
     parser.add_argument("--resident", default="auto",
                         choices=("auto", "gpu", "cuda", "cpu", "none"),
@@ -241,9 +243,11 @@ def build_parser() -> argparse.ArgumentParser:
                              "auto uses the GPU when one is available")
     parser.add_argument("--counts-dtype", default="float32",
                         choices=("float32", "float16"))
-    parser.add_argument("--min-apposed-um", type=float, default=None)
+    parser.add_argument("--beta-tau-um", type=float, default=DEFAULT_BETA_TAU_UM,
+                        help="decay length of the neighbour smoothing weights")
     parser.add_argument("--embeddings", default=None, help="KRONOS .pt / .npz")
-    parser.add_argument("--embedding-dim", type=int, default=384)
+    parser.add_argument("--embedding-dim", type=int,
+                        default=DEFAULT_EMBEDDING_DIM)
     parser.add_argument("--dim", type=int, default=128)
     parser.add_argument("--steps", type=int, default=200)
     parser.add_argument("--eval-batches", type=int, default=40)

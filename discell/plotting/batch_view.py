@@ -23,7 +23,6 @@ from pathlib import Path
 
 import numpy as np
 
-from discell import paths
 
 log = logging.getLogger("discell.plotting.batch_view")
 
@@ -37,7 +36,6 @@ SEQ_BLUE = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#
 #: Same ramp truncated for **discrete marks**. The full ramp's lightest steps sit
 #: within a hair of the surface, so a low-count node effectively disappears; the
 #: palette's ordinal rule requires starting no lighter than step 250 (2.06:1).
-MARK_BLUE = ["#86b6ef", "#5598e7", "#3987e5", "#256abf", "#184f95", "#0d366b"]
 DIVERGING = ["#0d366b", "#256abf", "#86b6ef", "#f0efec", "#ec835a", "#d03b3b", "#7d1d1d"]
 SURFACE = "#fcfcfb"
 INK = "#0b0b0b"
@@ -84,11 +82,10 @@ def type_palette(dataset) -> dict:
     return palette
 
 
-def _node_types(batch, dataset):
-    """Type name per node, and the colour for each."""
+def _node_types(batch, dataset) -> list[str]:
+    """Type name per node."""
     names = list(dataset.type_names)
-    indices = batch.y.argmax(1).cpu().numpy()
-    return [names[i] for i in indices], indices
+    return [names[i] for i in batch.y.argmax(1).cpu().numpy()]
 
 
 def _style(ax) -> None:
@@ -155,9 +152,10 @@ def _tissue_image(dataset, bounds, mpp, max_px=4000):
     """The morphology image over the whole tissue, in micron extent."""
     from pathlib import Path as _Path
 
-    from discell.data.xenium import find_tissue_image
-    from discell.plotting.cell_graph import (
-        XENIUM_DEFAULT_CHANNELS, is_xenium_morphology,
+    from discell.tiff import (
+        XENIUM_DEFAULT_CHANNELS,
+        find_tissue_image,
+        is_xenium_morphology,
         read_image_window,
     )
 
@@ -192,9 +190,11 @@ def _panel_graph_grid(axes, batch, dataset, palette) -> int:
     pos = batch.pos.cpu().numpy()
     src = batch.edge_index[0].cpu().numpy()
     dst = batch.edge_index[1].cpu().numpy()
-    wall = batch.edge_attr[:, 1].cpu().numpy()
+    names = list(batch.edge_attr_names)
+    wall_col = names.index("apposed_wall_um") if "apposed_wall_um" in names else 1
+    wall = batch.edge_attr[:, wall_col].cpu().numpy()
     seed_rows = batch.seed_index.cpu().numpy()
-    names, _ = _node_types(batch, dataset)
+    names = _node_types(batch, dataset)
 
     scale = np.percentile(wall, 95) if len(wall) else 1.0
     # One radius for every tile, so tile-to-tile distances are comparable.
@@ -233,12 +233,11 @@ def _panel_graph_grid(axes, batch, dataset, palette) -> int:
     return int(round(radius))
 
 
-def _panel_tissue(ax, batch, dataset, fig, palette, overlay: bool = True,
-                  seeds_only: bool = True) -> None:
+def _panel_tissue(ax, batch, dataset, fig, palette, overlay: bool = True) -> None:
     """Where this batch sits on the slide, over the morphology image."""
     pos = batch.pos.cpu().numpy()
     seed_rows = batch.seed_index.cpu().numpy()
-    names, _ = _node_types(batch, dataset)
+    names = _node_types(batch, dataset)
     mpp = float(dataset.adata.uns.get("microns_per_pixel", 1.0))
 
     x0, x1, y0, y1 = _tissue_bounds(dataset)
@@ -251,14 +250,9 @@ def _panel_tissue(ax, batch, dataset, fig, palette, overlay: bool = True,
     is_seed[seed_rows] = True
     colours = [palette[n] for n in names]
 
-    if not seeds_only:
-        ax.scatter(pos[~is_seed, 0], pos[~is_seed, 1], s=26,
-                   c=[colours[i] for i in np.flatnonzero(~is_seed)],
-                   edgecolors=SURFACE, linewidths=0.5, alpha=0.95, zorder=3,
-                   label="context (neighbour)")
-    # Seeds only by default: a neighbour sits ~10 um from its seed, which is
-    # sub-pixel across an 11 mm slide, so context marks land on top of their own
-    # seed and add nothing but clutter. The graph tiles are where they are read.
+    # Seeds only: a neighbour sits ~10 um from its seed, which is sub-pixel
+    # across an 11 mm slide, so context marks land on top of their own seed and
+    # add nothing but clutter. The graph tiles are where neighbours are read.
     ax.scatter(pos[is_seed, 0], pos[is_seed, 1], s=150,
                c=[colours[i] for i in np.flatnonzero(is_seed)],
                edgecolors="#ffffff", linewidths=2.0, zorder=4, label="seed")
@@ -271,7 +265,7 @@ def _panel_tissue(ax, batch, dataset, fig, palette, overlay: bool = True,
     ax.set_aspect("equal", adjustable="box")
     ax.set_xlabel("x (µm)", color=INK_2, fontsize=9)
     ax.set_ylabel("y (µm)", color=INK_2, fontsize=9)
-    kind = "seed centroids" if seeds_only else "all centroids"
+    kind = "seed centroids"
     ax.set_title(f"{kind} on the tissue  ·  {x1 - x0:,.0f} × {y1 - y0:,.0f} µm"
                  f"  ·  fixed extent", fontsize=11, loc="left")
     _style(ax)
@@ -423,20 +417,15 @@ def _type_legend(fig, palette, names, ncol=6):
 
 
 def plot_batch(batch, dataset, out_path: str | Path = "batch.png",
-               dpi: int = 220, overlay: bool = True, max_tiles: int = 16,
-               index: int | None = None) -> Path:
+               dpi: int = 220, overlay: bool = True, max_tiles: int = 16) -> Path:
     """One combined figure: neighbourhood tiles, tissue map, and the summaries."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    if index is not None:
-        out_path = Path(out_path)
-        out_path = out_path.parent / f"batch_{index}.png"
-
     palette = type_palette(dataset)
-    names, _ = _node_types(batch, dataset)
+    names = _node_types(batch, dataset)
     present = sorted(set(names), key=lambda n: -names.count(n))
     type_names = list(dataset.type_names)
 
@@ -454,7 +443,7 @@ def plot_batch(batch, dataset, out_path: str | Path = "batch.png",
         [fig.add_subplot(tiles[i, j]) for i in range(rows) for j in range(cols)],
         batch, dataset, palette)
     _panel_tissue(fig.add_subplot(top[0, 1]), batch, dataset, fig, palette,
-                  overlay=overlay, seeds_only=True)
+                  overlay=overlay)
 
     # Bottom: composition and embedding summaries.
     lower = outer[1].subgridspec(1, 5, wspace=0.40,

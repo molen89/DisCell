@@ -23,11 +23,14 @@ is what makes that impossible. Override the root with ``DISCELL_DATA``.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+log = logging.getLogger("discell.paths")
 
 DATA_ROOT = Path(os.environ.get("DISCELL_DATA")
                  or Path(__file__).resolve().parent.parent / "data")
@@ -149,7 +152,19 @@ dataset_for = dataset          # reads better at a --sample call site
 
 
 def list_datasets() -> list[Dataset]:
-    return [Dataset(p.name) for p in sorted(DATASETS.glob("*")) if p.is_dir()]
+    """Datasets on disk, skipping directories whose name is not already an id.
+
+    A hand-made ``<id> copy`` would otherwise be reported as a second slide.
+    """
+    found = []
+    for path in sorted(DATASETS.glob("*")):
+        if not path.is_dir():
+            continue
+        if path.name != slug(path.name):
+            log.warning("%s/ is not a dataset id -- ignoring", path.name)
+            continue
+        found.append(Dataset(path.name))
+    return found
 
 
 def add_dataset_args(parser, variant: bool = True) -> None:
@@ -177,7 +192,7 @@ def resolve_bundle(args) -> tuple[Dataset, str]:
                 + "\n".join(f"  {d} ({', '.join(d.variants())})" for d in candidates)
                 if candidates else
                 f"No bundles under {DATASETS}. Build one:\n"
-                f"  python -m discell.data.export --sample <sample dir>")
+                f"  python -m discell.preprocess --sample <sample dir>")
         ds = candidates[0]
     if not ds.bundle(variant).exists():
         raise SystemExit(f"{ds} has no bundle {variant!r}; "

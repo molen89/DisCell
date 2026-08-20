@@ -21,37 +21,37 @@ and a tolerance is required.
 
 Usage::
 
-    python -m discell.plotting.compare_graphs --sample <dir> --out-dir figures/
-    python -m discell.plotting.compare_graphs --sample <dir> --max-cells 20000 --overlay
+    python -m discell.preprocess.plotting.compare_graphs --sample <dir> --out-dir figures/
+    python -m discell.preprocess.plotting.compare_graphs --sample <dir> --max-cells 20000 --overlay
 """
 
 from __future__ import annotations
 
-import argparse
 import logging
-import sys
 import time
 from pathlib import Path
 from typing import Sequence
 
 import numpy as np
 
-from discell.data.geometry import (
+from discell.preprocess.geometry import (
+    DEFAULT_CLIP_RADIUS_UM,
+    DEFAULT_MAX_EDGE_UM,
+    DEFAULT_WALL_TOLERANCE_UM,
     _store_graph,
+    add_apposed_wall,
     build_contact_graph,
     build_voronoi_graph,
     graph_edge_frame,
 )
-from discell.data.xenium import find_tissue_image
-from discell.plotting.cell_graph import plot_cell_graph, read_image_window
+from discell.tiff import find_tissue_image
+from discell.tiff import read_image_window
+from discell.preprocess.plotting.cell_graph import plot_cell_graph
 
-from discell import paths
 
-log = logging.getLogger("discell.plotting.compare_graphs")
+log = logging.getLogger("discell.preprocess.plotting.compare_graphs")
 
 DEFAULT_TOLERANCE_UM = 1.0
-DEFAULT_CLIP_RADIUS_UM = 30.0
-DEFAULT_MAX_EDGE_UM = 100.0
 
 
 def build_variants(
@@ -59,8 +59,14 @@ def build_variants(
     tolerance_um: float = DEFAULT_TOLERANCE_UM,
     clip_radius_um: float = DEFAULT_CLIP_RADIUS_UM,
     max_edge_um: float = DEFAULT_MAX_EDGE_UM,
+    wall_tolerance_um: float | None = DEFAULT_WALL_TOLERANCE_UM,
 ) -> list[tuple[str, str]]:
-    """Build and store the three variants. Returns ``[(prefix, title), ...]``."""
+    """Build and store the three variants. Returns ``[(prefix, title), ...]``.
+
+    Each gets ``apposed_wall_um`` measured on the real polygons, so a panel can
+    be drawn or filtered by how much membrane two cells actually share rather
+    than by the tessellation wall, which is a property of the partition.
+    """
     polys = adata.uns["polygons"]
     cents = np.asarray(adata.obsm["spatial"], dtype=np.float64)
     mpp = float(adata.uns["microns_per_pixel"])
@@ -87,6 +93,10 @@ def build_variants(
     _store_graph(adata, graph, "voronoi_cmp")
     variants.append(("voronoi_cmp", f"voronoi (clip {clip_radius_um:g} µm)"))
     log.info("  %.1fs", time.time() - started)
+
+    if wall_tolerance_um is not None:
+        for prefix, _ in variants:
+            add_apposed_wall(adata, prefix, wall_tolerance_um, polys)
 
     return variants
 
@@ -134,6 +144,8 @@ def render_comparison(
     label_key: str = "cluster",
     overlay: bool = False,
     color_edges: bool = True,
+    edge_metric: str = "apposed_wall_um",
+    min_apposed_um: float | None = None,
     figsize_in: float = 16.0,
     dpi: int = 150,
 ) -> Path:
@@ -170,14 +182,19 @@ def render_comparison(
         if image is not None:
             ax.imshow(image, extent=(x0, x1, y1, y0), zorder=1)
 
-        # Contact graphs can have a shared wall of zero throughout -- on Xenium
-        # touching pairs meet at a point, not along a wall -- which would render
-        # every edge at minimum width and the bottom of the colormap, i.e.
-        # invisible. Fall back to centroid distance for those panels.
-        wall = adata.obsp[f"{prefix}_shared_wall_um"]
-        wall_median = float(np.median(wall.data)) if wall.nnz else 0.0
-        metric = "shared_wall_um" if wall_median > 0 else "centroid_dist_um"
-        note = "" if wall_median > 0 else "  (shared wall is 0 — sized by centroid distance)"
+        # A metric that is zero throughout would draw every edge at minimum
+        # width and the bottom of the colormap. That happens with
+        # shared_wall_um on a contact graph -- on Xenium touching pairs meet at
+        # a point, not along a wall. Falling back to centroid distance keeps the
+        # panel legible but INVERTS the reading: thicker then means further
+        # apart, so the panel says so in its title.
+        key = f"{prefix}_{edge_metric}"
+        stored = adata.obsp[key] if key in adata.obsp else None
+        usable = stored is not None and stored.nnz and float(np.median(stored.data)) > 0
+        metric = edge_metric if usable else "centroid_dist_um"
+        note = "" if usable else (
+            f"  ({edge_metric.replace('_um', '')} is 0 here — sized by CENTROID "
+            f"DISTANCE, so thicker = further apart)")
 
         drawn = plot_cell_graph(
             adata, ax, graph=prefix, label_key=label_key, region=region,
@@ -185,7 +202,7 @@ def render_comparison(
             edge_color="#00e5ff" if overlay else "#111111",
             edge_alpha=0.9, node_size=10.0, max_linewidth=3.5,
             color_edges_by_metric=color_edges, edge_metric=metric,
-            draw_nodes=True,
+            min_apposed_um=min_apposed_um,
         )
         info = adata.uns[f"{prefix}_graph"]
         ax.set_title(
@@ -219,87 +236,3 @@ def render_comparison(
     plt.close(fig)
     log.info("Wrote %s (%.1f MB)", path.name, path.stat().st_size / 1e6)
     return path
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--sample", required=True)
-    parser.add_argument("--out-dir", default=None,
-                        help="default: this sample's dataset figures directory")
-    parser.add_argument("--tolerance-um", type=float, default=DEFAULT_TOLERANCE_UM)
-    parser.add_argument("--clip-radius-um", type=float, default=DEFAULT_CLIP_RADIUS_UM)
-    parser.add_argument("--max-edge-um", type=float, default=DEFAULT_MAX_EDGE_UM)
-    parser.add_argument("--wall-tolerance-um", type=float, default=1.0,
-                        help="apposed_wall_um tolerance; independent of --tolerance-um")
-    parser.add_argument("--max-cells", type=int, default=None)
-    parser.add_argument("--label-key", default="cluster")
-    parser.add_argument("--zoom-um", type=float, default=400.0)
-    parser.add_argument("--region", nargs=4, type=float, default=None,
-                        metavar=("X0", "X1", "Y0", "Y1"))
-    parser.add_argument("--both", action="store_true",
-                        help="write plain and overlay versions")
-    parser.add_argument("--overlay", action="store_true")
-    parser.add_argument("--figsize-in", type=float, default=16.0)
-    parser.add_argument("--dpi", type=int, default=150)
-    parser.add_argument("--stats-out", default=None, help="write the table to .csv")
-    parser.add_argument("--quiet", action="store_true")
-    return parser
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    from discell.data.xenium import load_sample
-
-    args = build_parser().parse_args(argv)
-    logging.basicConfig(
-        level=logging.WARNING if args.quiet else logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S",
-    )
-
-    # Graphs are rebuilt here with controlled parameters, so skip the loader's.
-    adata, sample_dir = load_sample(
-        args.sample, args.clip_radius_um, args.max_cells,
-        wall_tolerance_um=args.wall_tolerance_um,
-    )
-    label_key = args.label_key
-    if label_key not in adata.obs:
-        label_key = adata.uns.get("default_label", label_key)
-        log.info("Using label key %r", label_key)
-
-    ds = paths.dataset_for(sample_dir).ensure()
-    out_dir = Path(args.out_dir) if args.out_dir else ds.figures
-    log.info("Dataset %s -> %s", ds.dataset_id, out_dir)
-
-    variants = build_variants(adata, args.tolerance_um, args.clip_radius_um, args.max_edge_um)
-
-    table = statistics(adata, variants)
-    print()
-    print(table.to_string(index=False))
-    print()
-    if args.stats_out:
-        stats_path = Path(args.stats_out)
-        if stats_path.parent == Path("."):
-            stats_path = out_dir / stats_path.name
-        stats_path.parent.mkdir(parents=True, exist_ok=True)
-        table.to_csv(stats_path, index=False)
-        log.info("Wrote %s", stats_path)
-
-    region = tuple(args.region) if args.region else densest_region(adata, args.zoom_um)
-    log.info("Region: x %.0f..%.0f  y %.0f..%.0f px", *region)
-
-    modes = [False, True] if args.both else [args.overlay]
-    written = []
-    for overlay in modes:
-        written.append(render_comparison(
-            adata, sample_dir, out_dir, variants, region,
-            label_key=label_key, overlay=overlay,
-            figsize_in=args.figsize_in, dpi=args.dpi,
-        ))
-
-    print("Wrote:")
-    for path in written:
-        print(f"  {path}  ({path.stat().st_size / 1e6:.1f} MB)")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

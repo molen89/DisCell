@@ -22,13 +22,13 @@ import time
 from pathlib import Path
 from typing import Sequence
 
-import numpy as np
 import torch
 
-from discell.data.loader import CellGraphDataset
+from discell.data.embeddings import DEFAULT_EMBEDDING_DIM
+from discell.data.loader import DEFAULT_GRAPH, CellGraphDataset
+from discell.data.priors import DEFAULT_BETA_TAU_UM
 from discell import paths
 
-log = logging.getLogger("discell.main")
 
 RULE = "=" * 78
 
@@ -45,6 +45,8 @@ def describe_batch(batch, dataset) -> None:
         ("EDGE-ALIGNED  (neighbour -> seed; length varies per batch)", (
             ("edge_index", batch.edge_index, "(2, n_edges) local node positions"),
             ("edge_attr", batch.edge_attr, f"{batch.edge_attr_names}"),
+            ("edge_id", batch.edge_id, "row in the whole-slide edge list"),
+            ("into_j", batch.into_j, "which constant.beta column applies"),
         )),
         ("SEED-ALIGNED  (fixed at batch_cells)", (
             ("seed_index", batch.seed_index, "which node rows are seeds"),
@@ -52,9 +54,13 @@ def describe_batch(batch, dataset) -> None:
              f"KRONOS, scope={dataset.image_scope}"),
             ("seed_composition", batch.seed_composition, "each seed's type prior"),
         )),
-        ("CONSTANT", (
-            ("neighbour_composition", batch.neighbour_composition,
+        ("ON THE DATASET, NOT THE BATCH  (dataset.constant)", (
+            ("neighbour_composition", dataset.constant.neighbour_composition,
              "mean neighbour-type vector per type"),
+            ("niche", dataset.constant.niche, "each cell's observed neighbour mix"),
+            ("beta", dataset.constant.beta,
+             f"row-stochastic smoothing weight, tau={dataset.beta_tau_um:g}um; "
+             f"per batch via dataset.constant.edge_beta(batch)"),
         )),
     )
     for title, fields in groups:
@@ -71,9 +77,10 @@ def describe_batch(batch, dataset) -> None:
     print(f"  device                 {batch.x.device}")
 
 
-def check_invariants(batch) -> None:
+def check_invariants(batch, dataset) -> None:
     """The properties a consumer is entitled to rely on."""
     src, dst = batch.edge_index[0], batch.edge_index[1]
+    beta = dataset.constant.edge_beta(batch)
     seeds = set(batch.seed_index.tolist())
     checks = [
         ("every edge points INTO a seed",
@@ -89,7 +96,10 @@ def check_invariants(batch) -> None:
                              torch.ones_like(batch.seed_composition[:, 0]), atol=1e-5))),
         ("edge_attr distance matches pos",
          bool(torch.allclose((batch.pos[dst] - batch.pos[src]).norm(dim=1),
-                             batch.edge_attr[:, 0], atol=1e-2))),
+                             batch.edge_attr[:, batch.edge_attr_names.index('centroid_dist_um')],
+                             atol=1e-2))),
+        ("constant.edge_beta lines up with edge_index",
+         beta is None or tuple(beta.shape) == (batch.edge_index.shape[1],)),
     ]
     print()
     for label, ok in checks:
@@ -120,12 +130,10 @@ def run(args: argparse.Namespace) -> int:
         graph=args.graph,
         batch_cells=args.batch_cells,
         label_key=args.label_key,
-        edge_mode=args.edge_mode,
         image_scope=args.image_scope,
-        min_apposed_um=args.min_apposed_um,
+        beta_tau_um=args.beta_tau_um,
         embeddings=args.embeddings,
         embedding_dim=args.embedding_dim,
-        as_torch=True,
         device=device,
         resident=resident,
         counts_dtype=args.counts_dtype,
@@ -135,10 +143,9 @@ def run(args: argparse.Namespace) -> int:
     print(RULE)
     print(f"DATASET  {ds.dataset_id}  (bundle {variant!r})")
     print(RULE)
-    print(f"  {dataset.adata.n_obs:,} cells x {len(dataset.gene_index):,} genes, "
+    print(f"  {dataset.adata.n_obs:,} cells x {dataset.adata.n_vars:,} genes, "
           f"{dataset.n_types} types")
-    print(f"  {len(dataset.edge_i):,} edges in the {args.graph!r} graph "
-          f"(edge_mode={args.edge_mode})")
+    print(f"  {len(dataset.edge_i):,} edges in the {args.graph!r} graph")
     print(f"  {len(dataset)} batches of {args.batch_cells} seed cells")
     covered = 100 * dataset.embedding_mask.mean()
     print(f"  image embeddings: {covered:.1f}% real, dim {dataset.embeddings.shape[1]}")
@@ -155,7 +162,7 @@ def run(args: argparse.Namespace) -> int:
               f"{batch.edge_index.shape[1]} edges")
         print(RULE)
         describe_batch(batch, dataset)
-        check_invariants(batch)
+        check_invariants(batch, dataset)
 
         if not args.no_plot:
             plot_batch(index, batch, dataset, out_dir, not args.no_overlay, args.dpi)
@@ -170,15 +177,15 @@ def run(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     paths.add_dataset_args(parser)
-    parser.add_argument("--graph", default="contact")
+    parser.add_argument("--graph", default=DEFAULT_GRAPH)
     parser.add_argument("--label-key", default=None)
     parser.add_argument("--batch-cells", type=int, default=10)
-    parser.add_argument("--edge-mode", default="to_seed",
-                        choices=("to_seed", "induced", "star"))
     parser.add_argument("--image-scope", default="seeds", choices=("seeds", "nodes"))
-    parser.add_argument("--min-apposed-um", type=float, default=None)
+    parser.add_argument("--beta-tau-um", type=float, default=DEFAULT_BETA_TAU_UM,
+                        help="decay length of the neighbour smoothing weights")
     parser.add_argument("--embeddings", default=None)
-    parser.add_argument("--embedding-dim", type=int, default=384)
+    parser.add_argument("--embedding-dim", type=int,
+                        default=DEFAULT_EMBEDDING_DIM)
     parser.add_argument("--resident", default="auto",
                         choices=("auto", "gpu", "cuda", "cpu", "none"))
     parser.add_argument("--counts-dtype", default="float32",

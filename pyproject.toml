@@ -44,3 +44,9 @@ packages = ["discell"]
 
 [tool.uv.sources]
 kronos = { git = "https://github.com/mahmoodlab/KRONOS.git" }
+
+[dependency-groups]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
