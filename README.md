@@ -6,9 +6,44 @@ neighbour graphs with real geometric edge weights, ready to feed a model.
 Built for 10x **Xenium** (Prime 5K).
 
 ```bash
-uv sync --extra viz        # viz extra adds pyqt6 + tornado for interactive viewing
+uv sync                            # everything except the image models
 uv run python -m discell.paths     # create the data tree and print what is in it
 ```
+
+### Install profiles
+
+Core installs the whole non-image pipeline: reading a slide, both graphs, the
+bundle, the dataloader and every figure. Two extras sit on top:
+
+| | brings | needed for |
+|---|---|---|
+| *(core)* | numpy, pandas, scipy, shapely, anndata, scanpy, pyarrow, tifffile, zarr, torch, matplotlib, umap-learn | bundles, the dataloader, figures |
+| `--extra kronos` | kronos, transformers, omegaconf, huggingface-hub | the `embed` stage — per-cell image embeddings |
+| `--extra viz` | pyqt6, tornado | interactive pan/zoom instead of a written PNG (§7) |
+| `--group dev` | pytest, ruff | the test suite (§8) |
+
+`uv run` syncs the environment to exactly what you ask for, so run it with the
+same extras you installed — a bare `uv run --group dev pytest` will *uninstall*
+the kronos and viz extras.
+
+```bash
+uv sync --extra kronos --extra viz --group dev     # everything
+```
+
+The KRONOS weights are gated, so `--extra kronos` is not enough on its own —
+request access and set `HF_TOKEN`. Asking for the `embed` stage without the
+extra says so rather than failing inside a model loader:
+
+```
+$ uv run python -m discell.preprocess --sample $S --only embed
+the embed stage needs kronos, huggingface_hub, which the 'kronos' extra provides:
+    uv sync --extra kronos
+```
+
+Every dependency listed is one `discell` imports by name. Transitive
+availability is not treated as a declaration: `anndata` happens to pull `zarr`
+and `scanpy` happens to pull `matplotlib` and `umap-learn`, but this package
+imports all three itself, so it pins all three itself.
 
 ## Where things live
 
@@ -104,11 +139,6 @@ To add a cohort, symlink it in rather than copying:
 ```bash
 ln -s /path/to/10x_Xenium data/raw/xenium
 ```
-
-The one artefact deliberately kept *outside* this tree is the HVG panel
-(`hvg_top_1000_square_008um.json`), which is cached next to the raw sample so it
-can be handed to `--hvg-file` when processing a different sample with the same
-gene panel.
 
 The package splits along the artefacts: `preprocess` produces them, `data`
 consumes them, and nothing in `data` imports from `preprocess`.
@@ -627,10 +657,34 @@ display -resize 1800x data/datasets/<dataset_id>/figures/<name>.png
 
 ---
 
-## 8. Tests
+## 8. Development log
+
+`docs/devlog.md` records what was decided and why — the contact-tolerance
+finding, why `apposed_wall_um` exists, why the default graph is `voronoi`, KRONOS
+v1 vs v2, and each experiment with its design and caveats written down *before*
+the numbers arrive. Entries are appended rather than edited: a decision that
+turns out wrong gets a later entry saying so, because the reasoning that produced
+it is the part worth keeping.
+
+---
+
+## 9. Experiments — `discell.experiments`
 
 ```bash
-uv run --group dev pytest -q
+uv run python -m discell.experiments.ego_masking --dataset <id>
+```
+
+Each experiment is a module with its question in the docstring, its output under
+`data/datasets/<id>/experiments/`, and its entry in the devlog. The current one
+asks what a per-cell image embedding is actually reading — the cell, or the
+tissue around it, or only the homophily the graph already carries.
+
+---
+
+## 10. Tests
+
+```bash
+uv run --all-extras --group dev pytest -q
 ```
 
 The suite builds a real 1,500-cell bundle into a temporary `DISCELL_DATA` root

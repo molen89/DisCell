@@ -32,6 +32,7 @@ from typing import Sequence
 import numpy as np
 
 from discell import paths
+from discell.preprocess.crops import DEFAULT_MASK_RADIUS_UM, MASK_MODES
 from discell.preprocess.markers import (
     MarkerSpec,
     describe_markers,
@@ -111,7 +112,9 @@ def load_kronos(
 
 def _embed_blocks(adata, image_path, channels, cells, forward, *, half_um: float,
                   out_size: int | None, batch_size: int, block_px: int,
-                  anchor: str = "centroid") -> tuple[np.ndarray, np.ndarray]:
+                  anchor: str = "centroid", mask: str = "none",
+                  mask_radius_um: float = DEFAULT_MASK_RADIUS_UM,
+                  ) -> tuple[np.ndarray, np.ndarray]:
     """Crop every cell and run *forward* over the batches.
 
     *forward* takes ``(B, C, H, W)`` float32 already divided by the dtype
@@ -130,6 +133,7 @@ def _embed_blocks(adata, image_path, channels, cells, forward, *, half_um: float
     for indices, crops in iter_crop_blocks(
         adata, image_path, cells, half_um=half_um, channels=list(channels),
         out_size=out_size, anchor=anchor, block_px=block_px,
+        mask=mask, mask_radius_um=mask_radius_um,
     ):
         for start in range(0, len(indices), batch_size):
             piece = crops[start : start + batch_size]
@@ -153,7 +157,8 @@ def embed_cells(
     adata, image_path: str | Path, markers: Sequence[MarkerSpec], model, precision,
     cells: Sequence[int] | None = None, patch_px: int = DEFAULT_PATCH_PX,
     batch_size: int = 32, device: str = "cuda", half_um: float | None = None,
-    block_px: int = 4096,
+    block_px: int = 4096, mask: str = "none",
+    mask_radius_um: float = DEFAULT_MASK_RADIUS_UM,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Embed cells with KRONOS v1. Returns ``(embeddings, cell_ids)``."""
     import torch
@@ -170,8 +175,9 @@ def embed_cells(
     mean = torch.tensor([m.mean for m in markers], dtype=precision, device=device)
     std = torch.tensor([m.std for m in markers], dtype=precision, device=device)
     model.eval().to(device)
-    log.info("Crop: %d px, %.1f um field (%.4f um/px)%s",
-             patch_px, 2 * half, mpp, "" if out_size is None else " [resampled]")
+    log.info("Crop: %d px, %.1f um field (%.4f um/px)%s, mask=%s",
+             patch_px, 2 * half, 2 * half / patch_px,
+             "" if out_size is None else " [resampled]", mask)
 
     def forward(array: np.ndarray) -> np.ndarray:
         batch = torch.from_numpy(array).to(device=device, dtype=precision)
@@ -183,7 +189,8 @@ def embed_cells(
 
     return _embed_blocks(adata, image_path, [m.channel for m in markers], cells,
                          forward, half_um=half, out_size=out_size,
-                         batch_size=batch_size, block_px=block_px)
+                         batch_size=batch_size, block_px=block_px,
+                         mask=mask, mask_radius_um=mask_radius_um)
 
 
 def write_embeddings(path: str | Path, embeddings: np.ndarray, cell_ids: np.ndarray,
@@ -214,7 +221,7 @@ def write_embeddings(path: str | Path, embeddings: np.ndarray, cell_ids: np.ndar
     return path
 
 
-def _embed_v1(adata, image_path, channels, cells, *, patch_px, half_um, batch_size,
+def _embed_v1(adata, image_path, channels, cells, *, mask, mask_radius_um, patch_px, half_um, batch_size,
               block_px, device, cache_dir, hf_token):
     """KRONOS v1: markers by integer id, caller applies mean/std."""
     specs = [m for m in XENIUM_MARKERS if m.channel in channels]
@@ -238,7 +245,8 @@ def _embed_v1(adata, image_path, channels, cells, *, patch_px, half_um, batch_si
     embeddings, cell_ids = embed_cells(
         adata, image_path, markers, model, precision, cells=cells,
         patch_px=patch_px, batch_size=batch_size, device=device,
-        half_um=half_um, block_px=block_px,
+        half_um=half_um, block_px=block_px, mask=mask,
+        mask_radius_um=mask_radius_um,
     )
     return embeddings, cell_ids, {
         "model": "kronos1",
@@ -248,8 +256,9 @@ def _embed_v1(adata, image_path, channels, cells, *, patch_px, half_um, batch_si
     }
 
 
-def _embed_v2(adata, image_path, channels, cells, *, patch_px, batch_size, block_px,
-              device, cache_dir, hf_token, drop_unknown_markers):
+def _embed_v2(adata, image_path, channels, cells, *, mask, mask_radius_um, patch_px,
+              half_um, batch_size, block_px, device, cache_dir, hf_token,
+              drop_unknown_markers):
     """KRONOS2: markers by name, normalisation inside the model."""
     from discell.preprocess.kronos2 import (
         NOVEL_MARKERS, PREFERRED_DAPI, XENIUM_MARKER_NAMES,
@@ -296,7 +305,8 @@ def _embed_v2(adata, image_path, channels, cells, *, patch_px, batch_size, block
     embeddings, cell_ids = embed_cells_v2(
         adata, image_path, names, channels, model, cells=cells,
         patch_px=patch_px, batch_size=batch_size, device=device,
-        block_px=block_px, preferred_dapi=PREFERRED_DAPI,
+        block_px=block_px, preferred_dapi=PREFERRED_DAPI, half_um=half_um,
+        mask=mask, mask_radius_um=mask_radius_um,
     )
     return embeddings, cell_ids, {
         "model": "kronos2",
@@ -313,7 +323,8 @@ def embed_sample(
     patch_px: int = DEFAULT_PATCH_PX, half_um: float | None = None,
     batch_size: int = 128, block_px: int = 4096, device: str = "cuda",
     cache_dir: str | Path = paths.MODELS, hf_token: str | None = None,
-    drop_unknown_markers: bool = False,
+    drop_unknown_markers: bool = False, mask: str = "none",
+    mask_radius_um: float = DEFAULT_MASK_RADIUS_UM,
 ) -> tuple[np.ndarray, np.ndarray, dict]:
     """Embed a sample's cells. Returns ``(embeddings, cell_ids, meta)``.
 
@@ -321,28 +332,37 @@ def embed_sample(
     artefact stays identifiable: model version, channels, marker identities and
     the resolution the crops were cut at.
     """
+    if mask not in MASK_MODES:
+        raise ValueError(f"mask must be one of {list(MASK_MODES)}, not {mask!r}")
     image_path = Path(image_path)
     channels = [int(c) for c in channels]
     cells = list(range(adata.n_obs)) if cells is None else list(cells)
     mpp = float(adata.uns["microns_per_pixel"])
-    log.info("Embedding %d of %d cells from %s: %d px, %.1f um field, %d channels",
-             len(cells), adata.n_obs, image_path.name, patch_px,
-             patch_px * mpp if half_um is None else 2 * half_um, len(channels))
+    field_um = patch_px * mpp if half_um is None else 2 * half_um
+    log.info("Embedding %d of %d cells from %s: %d px, %.1f um field "
+             "(%.4f um/px), %d channels, mask=%s",
+             len(cells), adata.n_obs, image_path.name, patch_px, field_um,
+             field_um / patch_px, len(channels), mask)
 
+    shared = dict(mask=mask, mask_radius_um=mask_radius_um, patch_px=patch_px,
+                  half_um=half_um, batch_size=batch_size, block_px=block_px,
+                  device=device, cache_dir=cache_dir, hf_token=hf_token)
     if model in ("v2", "kronos2"):
-        out = _embed_v2(adata, image_path, channels, cells, patch_px=patch_px,
-                        batch_size=batch_size, block_px=block_px, device=device,
-                        cache_dir=cache_dir, hf_token=hf_token,
-                        drop_unknown_markers=drop_unknown_markers)
+        out = _embed_v2(adata, image_path, channels, cells,
+                        drop_unknown_markers=drop_unknown_markers, **shared)
     else:
-        out = _embed_v1(adata, image_path, channels, cells, patch_px=patch_px,
-                        half_um=half_um, batch_size=batch_size, block_px=block_px,
-                        device=device, cache_dir=cache_dir, hf_token=hf_token)
+        out = _embed_v1(adata, image_path, channels, cells, **shared)
 
     embeddings, cell_ids, meta = out
     return embeddings, cell_ids, {
         "patch_px": patch_px,
-        "microns_per_pixel": mpp,
+        # The resolution the crops were actually cut at, which is what makes an
+        # embedding comparable to another -- not the slide's native um/px.
+        "microns_per_pixel": field_um / patch_px,
+        "slide_microns_per_pixel": mpp,
+        "field_um": field_um,
+        "mask": mask,
+        "mask_radius_um": mask_radius_um if mask == "ego" else None,
         # Recorded so a stale file is identifiable later: everything embedded
         # before the intensity fix fed raw uint16 to a model expecting [0, 1].
         "intensity_scaled": True,

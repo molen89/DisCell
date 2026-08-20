@@ -36,12 +36,35 @@ from pathlib import Path
 from typing import Sequence
 
 from discell import paths
+from discell.preprocess.crops import DEFAULT_MASK_RADIUS_UM, MASK_MODES
 
 log = logging.getLogger("discell.preprocess")
 
 STAGES = ("bundle", "embed", "figures")
 FIGURE_KINDS = ("graph", "crops", "qc", "compare")
 DEFAULT_FIGURES = "graph,crops,qc"
+
+#: What each model version needs beyond the core install. Checked before the
+#: slide is read, so a missing extra is a sentence rather than a
+#: ModuleNotFoundError raised four frames inside a model loader.
+KRONOS_REQUIRES = {
+    "v1": ("kronos", "huggingface_hub"),
+    "v2": ("transformers", "omegaconf", "huggingface_hub"),
+}
+
+
+def _require_kronos(model: str) -> None:
+    from importlib.util import find_spec
+
+    missing = [m for m in KRONOS_REQUIRES[model] if find_spec(m) is None]
+    if missing:
+        raise SystemExit(
+            f"the embed stage needs {', '.join(missing)}, which the 'kronos' "
+            f"extra provides:\n"
+            f"    uv sync --extra kronos\n"
+            f"The weights are gated -- request access at "
+            f"https://huggingface.co/MahmoodLab/KRONOS and set HF_TOKEN.\n"
+            f"To preprocess without image embeddings, pass --only bundle.")
 
 
 class Run:
@@ -143,6 +166,7 @@ class Run:
         if target.exists() and "embed" not in self.forced:
             return f"SKIP  {target.name} exists"
 
+        _require_kronos(self.args.model)
         adata = self.adata(need_graphs=False)
         if self.image_path is None:
             raise SystemExit(f"no morphology image under {self.sample_dir}")
@@ -154,10 +178,17 @@ class Run:
             rng = np.random.default_rng(self.args.seed)
             cells = sorted(rng.choice(adata.n_obs, min(self.args.limit, adata.n_obs),
                                       replace=False))
+        # --target-mpp fixes the resolution the crops are cut at rather than the
+        # field: half_um follows from it, so an embedding is comparable to
+        # another taken at the same scale on a different slide.
+        half_um = self.args.half_um
+        if self.args.target_mpp:
+            half_um = self.args.patch_px * self.args.target_mpp / 2
         embeddings, cell_ids, meta = embed_sample(
             adata, self.image_path, model=self.args.model,
             channels=[int(c) for c in self.args.channels.split(",")],
-            cells=cells, patch_px=self.args.patch_px, half_um=self.args.half_um,
+            cells=cells, patch_px=self.args.patch_px, half_um=half_um,
+            mask=self.args.mask, mask_radius_um=self.args.mask_radius_um,
             batch_size=self.args.batch_size, block_px=self.args.block_px,
             device=self.args.device, cache_dir=self.args.cache_dir,
             hf_token=self.args.hf_token,
@@ -290,6 +321,17 @@ def build_parser() -> argparse.ArgumentParser:
     image.add_argument("--half-um", type=float, default=None,
                        help="fix the field in microns and resample to --patch-px "
                             "instead of cropping natively")
+    image.add_argument("--target-mpp", type=float, default=None,
+                       help="fix the microns-per-pixel the crops are cut at; the "
+                            "field follows from --patch-px. KRONOS's own "
+                            "reference is 0.37; the slide is 0.2125")
+    image.add_argument("--mask", default="none", choices=MASK_MODES,
+                       help="'ego' zeroes a fixed disk over the cell, 'ego_only' "
+                            "zeroes everything outside its polygon")
+    image.add_argument("--mask-radius-um", type=float,
+                       default=DEFAULT_MASK_RADIUS_UM,
+                       help="radius of the 'ego' disk; identical for every cell, "
+                            "so the hole carries no information about the cell")
     image.add_argument("--batch-size", type=int, default=128)
     image.add_argument("--block-px", type=int, default=4096,
                        help="image block decoded at once when cropping in bulk")

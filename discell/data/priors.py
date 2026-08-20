@@ -19,10 +19,12 @@ import pandas as pd
 
 log = logging.getLogger("discell.data.priors")
 
-#: Decay length for the smoothing weights. Median nearest-neighbour spacing on
-#: Xenium is ~11 um, so this puts the decay at one cell diameter: edges beyond
-#: 30 um then carry under 1% of a cell's weight.
-DEFAULT_BETA_TAU_UM = 10.0
+#: Decay length for the smoothing weights, shared with the model's leakage
+#: kernel so the two never disagree. 20 um is the contamination decay length
+#: from the DisCell model spec (discell_specs.md) -- roughly two cell diameters at Xenium's ~11 um
+#: nearest-neighbour spacing. Whether beta at this tau still concentrates on
+#: the immediate ring is a standing validation item (see docs/devlog.md).
+DEFAULT_BETA_TAU_UM = 20.0
 
 
 def smoothing_weights(face_um: np.ndarray, dist_um: np.ndarray, edge_i: np.ndarray,

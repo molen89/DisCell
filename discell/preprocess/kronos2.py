@@ -187,6 +187,9 @@ def embed_cells_v2(
     device: str = "cuda",
     block_px: int = 4096,
     preferred_dapi: str = PREFERRED_DAPI,
+    half_um: float | None = None,
+    mask: str = "none",
+    mask_radius_um: float = 15.0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Embed cells with KRONOS2. Returns ``(embeddings, cell_ids)``."""
     import torch
@@ -195,9 +198,11 @@ def embed_cells_v2(
 
     marker_names = list(marker_names)
     mpp = float(adata.uns["microns_per_pixel"])
-    half = (patch_px * mpp) / 2
-    log.info("Crop: %d px, %.1f um field (%.4f um/px), markers %s",
-             patch_px, 2 * half, mpp, marker_names)
+    # Either take patch_px pixels natively, or a fixed micron field resampled.
+    half, out_size = ((patch_px * mpp) / 2, None) if half_um is None else (half_um, patch_px)
+    log.info("Crop: %d px, %.1f um field (%.4f um/px)%s, mask=%s, markers %s",
+             patch_px, 2 * half, 2 * half / patch_px,
+             "" if out_size is None else " [resampled]", mask, marker_names)
 
     def forward(array: np.ndarray) -> np.ndarray:
         # preprocess wants numpy and does the marker-aware z-score itself, so
@@ -208,5 +213,5 @@ def embed_cells_v2(
             return model(batch, marker_names).float().cpu().numpy()
 
     return _embed_blocks(adata, image_path, channels, cells, forward,
-                         half_um=half, out_size=None, batch_size=batch_size,
-                         block_px=block_px)
+                         half_um=half, out_size=out_size, batch_size=batch_size,
+                         block_px=block_px, mask=mask, mask_radius_um=mask_radius_um)

@@ -36,6 +36,47 @@ log = logging.getLogger("discell.preprocess.crops")
 DEFAULT_HALF_UM = 10.0
 DEFAULT_ANCHOR = "centroid"
 
+#: Ways to hide part of a crop, for asking what the model is reading.
+#:
+#: ``none``
+#:     the whole window.
+#: ``ego``
+#:     a fixed-radius disk at the anchor is zeroed. A *disk* so there is no
+#:     orientation artefact, and a *fixed* radius so the hole is identical for
+#:     every cell and therefore carries no information about the one removed.
+#:     Masking by the cell's own polygon would do the opposite: the silhouette
+#:     it leaves behind is the single most type-informative feature of the cell.
+#: ``ego_only``
+#:     everything *outside* the cell's polygon is zeroed -- the ego cell alone,
+#:     shape included. Not the exact complement of ``ego``: the annulus between
+#:     the polygon and the disk belongs to neither.
+MASK_MODES = ("none", "ego", "ego_only")
+
+#: Radius of the ``ego`` disk, measured rather than guessed. Over the 407,120
+#: cells of the ovarian slide, the radius of the smallest disk centred on the
+#: crop anchor that fully contains a cell runs p50 6.3 um, p99 14.3, p99.9 18.3,
+#: p100 36.8 -- the tail is elongated smooth-muscle spindles, not segmentation
+#: failures. 25 um covers 99.999% of them; the six that do not fit must be
+#: dropped rather than half-masked, since a cell poking out of the hole leaks
+#: exactly the identity the hole exists to remove.
+DEFAULT_MASK_RADIUS_UM = 25.0
+
+
+def covering_radius_um(adata) -> np.ndarray:
+    """Per cell, the radius that a disk at the crop anchor needs to contain it.
+
+    Not ``equiv_diameter_um``: that is derived from area and badly
+    underestimates anything elongated, which is precisely the tail that decides
+    how large the mask has to be.
+    """
+    mpp = float(adata.uns["microns_per_pixel"])
+    centres = np.asarray(adata.obsm["spatial"], dtype=np.float64)
+    out = np.empty(len(centres))
+    for k, polygon in enumerate(adata.uns["polygons"]):
+        xy = np.asarray(polygon.exterior.coords)
+        out[k] = np.sqrt(((xy - centres[k]) ** 2).sum(1)).max()
+    return out * mpp
+
 
 @dataclass
 class CellCrop:
@@ -61,6 +102,46 @@ class CellCrop:
             f"{2 * self.half_um:g}um, {self.microns_per_pixel:.4f}um/px"
             f"{', padded' if self.padded else ''})"
         )
+
+
+def _ego_disk(out_size: int, radius_um: float, field_um: float) -> np.ndarray:
+    """``(out_size, out_size)`` boolean, True where the crop is kept.
+
+    The same array for every cell, so it is built once per run rather than per
+    crop -- which is also the reason it carries no per-cell information.
+    """
+    centre = (out_size - 1) / 2.0
+    radius_px = radius_um / (field_um / out_size)
+    y, x = np.ogrid[:out_size, :out_size]
+    return ((x - centre) ** 2 + (y - centre) ** 2) > radius_px ** 2
+
+
+def _polygon_mask(polygon, x0: float, y0: float, size: int, out_size: int) -> np.ndarray:
+    """``(out_size, out_size)`` boolean, True inside *polygon*.
+
+    Rasterised through PIL rather than a point-in-polygon test per pixel: at
+    400k cells the vectorised form is still minutes, and this is microseconds.
+    """
+    from PIL import Image, ImageDraw
+
+    scale = out_size / size
+    coords = np.asarray(polygon.exterior.coords, dtype=np.float64)
+    coords = (coords - (x0, y0)) * scale
+    canvas = Image.new("1", (out_size, out_size), 0)
+    ImageDraw.Draw(canvas).polygon([tuple(p) for p in coords], fill=1, outline=1)
+    return np.asarray(canvas, dtype=bool)
+
+
+def _apply_mask(window: np.ndarray, mode: str, keep: np.ndarray | None) -> np.ndarray:
+    """Zero the hidden part of *window*, in place.
+
+    Zero rather than a median or an inpaint: the hole is an artefact either way,
+    and a constant one is an artefact the model encodes identically for every
+    cell.
+    """
+    if mode == "none" or keep is None:
+        return window
+    return np.where(keep[..., None], window, 0).astype(window.dtype)
 
 
 def _anchor_point(adata, index: int, anchor: str) -> tuple[float, float]:
@@ -156,6 +237,8 @@ def iter_crop_blocks(
     anchor: str = DEFAULT_ANCHOR,
     block_px: int = DEFAULT_BLOCK_PX,
     pad_value: float = 0.0,
+    mask: str = "none",
+    mask_radius_um: float = DEFAULT_MASK_RADIUS_UM,
 ):
     """Yield ``(cell_indices, crops)`` block by block, decoding each region once.
 
@@ -168,6 +251,15 @@ def iter_crop_blocks(
     mpp = float(adata.uns["microns_per_pixel"])
     height, width, _ = image_shape(image_path)
     size = int(round(2 * half_um / mpp))
+
+    if mask not in MASK_MODES:
+        raise ValueError(f"mask must be one of {list(MASK_MODES)}, not {mask!r}")
+    edge = out_size or size
+    ego_keep = (_ego_disk(edge, mask_radius_um, 2 * half_um) if mask == "ego" else None)
+    polygons = adata.uns.get("polygons") if mask == "ego_only" else None
+    if mask == "ego_only" and polygons is None:
+        raise ValueError("mask='ego_only' needs uns['polygons']; open the bundle, "
+                         "which restores them from the WKB parquet")
 
     cells = np.asarray(list(cells), dtype=np.int64)
     if anchor == "representative" and "rep_x_px" in adata.obs:
@@ -207,6 +299,12 @@ def iter_crop_blocks(
 
                 factor = out_size / window.shape[0]
                 window = zoom(window, (factor, factor, 1), order=1)[:out_size, :out_size]
+            if mask == "ego":
+                window = _apply_mask(window, mask, ego_keep)
+            elif mask == "ego_only":
+                cell = int(cells[group[k]])
+                window = _apply_mask(window, mask, _polygon_mask(
+                    polygons[cell], int(gx0[k]), int(gy0[k]), size, edge))
             crops.append(window)
         yield cells[group], np.stack(crops)
 

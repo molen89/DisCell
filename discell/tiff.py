@@ -34,8 +34,12 @@ log = logging.getLogger("discell.tiff")
 #: backdrop; the boundary channel carries the tissue architecture.
 XENIUM_DEFAULT_CHANNELS = (1, 0, 2)
 
-def find_tissue_image(sample_dir: Path) -> Path | None:
-    """Locate the morphology image for a sample."""
+def find_tissue_image(sample_dir: str | Path) -> Path | None:
+    """Locate the morphology image for a sample.
+
+    Takes a string too: ``uns["xenium_dir"]`` comes back from the h5ad as one.
+    """
+    sample_dir = Path(sample_dir)
     patterns = (
         # Channel 0000 is DAPI, which reads best under the polygons.
         "morphology_focus/morphology_focus_0000.ome.tif",
