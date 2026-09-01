@@ -76,6 +76,8 @@ def fit_grid(args: argparse.Namespace) -> None:
                 kappa=float(kappa), seed=int(seed),
                 alpha_z=args.alpha_z, alpha_w=args.alpha_w,
                 alpha_a=args.alpha_a, omega=args.omega,
+                invariance=args.invariance, adv_steps=args.adv_steps,
+                adv_lr=args.adv_lr,
                 epochs=args.epochs, tile_cells=args.tile_cells,
                 device=args.device,
             )
@@ -191,6 +193,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--alpha-w", type=float, default=0.1)
     parser.add_argument("--alpha-a", type=float, default=0.02)
     parser.add_argument("--omega", type=float, default=1.0)
+    parser.add_argument("--invariance", default="closed_form",
+                        choices=("closed_form", "adversary"))
+    parser.add_argument("--adv-steps", type=int, default=6)
+    parser.add_argument("--adv-lr", type=float, default=2e-3)
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--tile-cells", type=int, default=4096)
     parser.add_argument("--device", default="cuda")

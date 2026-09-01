@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 import torch
 
 from discell.model.equations import TypeCovariances, gaussian_kl, multinomial_loglik
-from discell.model.networks import Forward
+from discell.model.networks import Adversary, Forward, soft_cross_entropy
 
 
 @dataclass(frozen=True)
@@ -97,3 +97,41 @@ def discell_loss(fwd: Forward, x: torch.Tensor, t: torch.Tensor,
                  recon_a=float(recon_a.detach()), recon_b=float(recon_b.detach()),
                  kl_z=float(kl_z.detach()), kl_w=float(kl_w.detach()),
                  penalty=float(penalty.detach()), penalty_info=info)
+
+
+@dataclass
+class AdversaryTerms:
+    """Both directions of the minimax, plus the halves the spec wants logged."""
+
+    encoder_term: torch.Tensor   # Adv_i mean: add alpha_a * this to the loss
+    head_loss: torch.Tensor      # what the adversary optimiser minimises
+    excess_y: float              # CE(y, ybar(t)) - CE(y, y-hat)   -- half 1
+    excess_phi: float            # CE(ephi, phibar(t)) - CE(ephi, ephi-hat)
+
+
+def adversary_terms(heads: Adversary, mu_z: torch.Tensor, t: torch.Tensor,
+                    y: torch.Tensor, e_phi: torch.Tensor,
+                    ybar_t: torch.Tensor, phibar_t: torch.Tensor
+                    ) -> AdversaryTerms:
+    """Spec 4.6's ``Adv_i``, in both of its roles.
+
+    The heads are trained on ``sg mu_z`` (their optimiser owns them); the
+    encoder term evaluates the same heads *with gradient flowing to mu_z only*
+    -- the trainer never steps head parameters from the model loss, and zeroes
+    any gradient that reached them before the head step. Baselines are the
+    type-only lookups, so each half reads as excess predictive skill over
+    knowing the type alone: zero at the optimum.
+    """
+    log_y, log_phi = heads(mu_z, t)
+    base_y = soft_cross_entropy(y, ybar_t.clamp(min=1e-8).log()[t])
+    base_phi = soft_cross_entropy(e_phi, phibar_t.clamp(min=1e-8).log()[t])
+    excess_y = base_y - soft_cross_entropy(y, log_y)
+    excess_phi = base_phi - soft_cross_entropy(e_phi, log_phi)
+    encoder_term = (excess_y + excess_phi).mean()
+
+    log_y_sg, log_phi_sg = heads(mu_z.detach(), t)
+    head_loss = (soft_cross_entropy(y, log_y_sg)
+                 + soft_cross_entropy(e_phi, log_phi_sg)).mean()
+    return AdversaryTerms(encoder_term=encoder_term, head_loss=head_loss,
+                          excess_y=float(excess_y.mean().detach()),
+                          excess_phi=float(excess_phi.mean().detach()))

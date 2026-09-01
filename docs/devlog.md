@@ -624,3 +624,293 @@ Architect additions now encoded as requirements rather than intentions:
   (Δ held-out recon with vs without Φ) — the test the mask experiment could
   not run, and the one that settles the deferred PCA decision.
 - **τ is recorded as a non-axis**: measured face-dominated; κ is the sweep.
+
+### Calibration (§4.6), two rounds — the operating point
+
+Twelve 40-epoch fits at κ = 0.1 (`experiments/calibration.json`,
+`calibration_round2.json`). Uncontrolled baseline: MLP-probe ΔCE 0.335,
+NMI 0.612, noise floor ≈ −0.055.
+
+| decided | value | the evidence |
+|---|---|---|
+| α_a | **0.03** | ΔCE 61% → **28%** → 6% of uncontrolled at 0.02/0.03/0.04, with the NMI cliff (0.556 → 0.347) between 0.03 and 0.04 — the spec's crossing, found |
+| α_w | **0.1** | the M3 knife-edge on real tissue: 0.03 gives w capacity (KL 0.044/dim) and NMI 0.33 — identity theft; 0.2 kills w with no NMI gain. 0.1 is best NMI and lowest viable leak; w near-pinned there (KL ≈ 0.002/dim) — anomaly scores will read conservative |
+| ω | **1** | 0.5 loses NMI everywhere; 2.0 buys recon (−7.32) at more leak (ΔCE 0.161) and lower NMI |
+| Φ | **keep, full-dim** | ablation: +0.0092 per-count nats of held-out reconstruction (~1.6 nats/cell) — the value the mask experiment could not measure |
+
+Two findings beyond the numbers: the **MLP probe reads ~2.5–3× the ridge**
+consistently — the architect's cross-check was necessary, and the escalation
+rule is judged on MLP numbers from now on; and the within-type mirror sits at
+0.10–0.17 across every configuration — **no mirror attractor**, and the old
+pooled readings (~0.5–0.8) were type-confounding exactly as §7.10's patch
+anticipated.
+
+**Open judgment**: at the operating point the converged... rather, the
+40-epoch ΔCE is 28% of uncontrolled against the ~20% escalation rule —
+marginal, and from short fits. A single convergence-length run at the
+operating point is deciding it before the sweep commits 18 runs either way.
+
+### The escalation fired — the adversary is in
+
+The convergence-length check at the operating point split the leak cleanly:
+**ridge ΔCE 0.026** (linear dependence essentially gone — the log-det penalty
+did the job it can do) against **MLP ΔCE 0.153** (NMI intact at 0.573). What
+remains is *nonlinear* dependence, which a covariance penalty cannot see even
+in principle — the precise case §4.6's adversary exists for, and the precise
+thing the architect's MLP cross-check was inserted to catch. Trigger
+documented in the registers; trigger met; component built:
+
+- `soft_clusters` (`e_Φ`, E_Φ = K, soft memberships, fit-once-freeze) and
+  `Φ̄(t)` in `ModelData`;
+- `Adversary` heads `(z, t) → ŷ, êΦ` — deliberately nonlinear MLPs — on a
+  separate optimiser; `adversary_terms` carries both directions of the minimax
+  and logs the two excess halves separately, as the spec asks;
+- trainer mode `--invariance adversary`: model step against frozen heads,
+  then `adv_steps` head updates on detached z;
+- six tests: gradient isolation both ways, and zero-at-optimum shown on
+  synthetic (excess < 0.03 with nothing to find, > 0.15 with a planted leak).
+
+The probe stack stays independent of the adversary (fresh ridge + fresh MLP at
+evaluation), so the invariance check is never graded by its own enforcer.
+Adversarial α_a calibration at convergence length is running; the sweep waits
+on its operating point.
+
+### Adversarial calibration, rounds 3–4 — and the sweep launch
+
+The first adversary (`adv_steps=2`) was a placebo: the encoder defeated the
+stale heads while the fresh probe still saw 58–99% of the leak (issues A2).
+With `adv_steps=6`, lr 2e-3, the picture inverted completely:
+
+| adversary α_a | MLP ΔCE | % of uncontrolled | NMI |
+|---|---|---|---|
+| 0.3 | 0.046 | **14%** | 0.641 |
+| 1.0 | −0.018 | at the floor | 0.650 |
+
+Converged uncontrolled baseline: MLP ΔCE 0.333, NMI 0.623. The invariance is
+achieved at **zero NMI cost** — both adversarial runs sit *above* the
+uncontrolled NMI — and ~0.02 nats of reconstruction. Operating point α_a = 0.3
+(clears the rule with ΔCE still a hair positive; 1.0 over-scrubs below zero
+for no NMI gain). The general lesson is A2: adversary strength is graded only
+by the independent probe, never by its own training loss.
+
+**The κ sweep is live**: 6 κ × 3 seeds, adversarial invariance, both 4090s
+(κ ≤ 0.1 on GPU 0, κ ≥ 0.2 on GPU 1), early stopping active, per-eval
+`history.jsonl` + TensorBoard (now with UMAP figures: spatial z and w grids,
+type-coloured UMAPs for both, and within-type UMAPs coloured by dominant
+neighbour type — z should mix, w should organise). Report lands in
+`experiments/kappa_sweep.json` via `sweep.py --report-only`.
+
+### Reproduction card — every tuning run, for the article's methods section
+
+Fixed throughout: bundle `full` (407,120 cells × 5,101 genes), `Φ` =
+`egomask_ego_v1` (KRONOS v1, 256 px @ 0.5 µm/px, 25 µm ego disk zeroed,
+full 384-d), graph = voronoi pruned at 40 µm, τ = 20 µm, tiles 4,096 cells,
+split seed 0 (identical split in every run, guaranteed by per-purpose RNG
+streams), `d_z = 20`, `d_w = 6`, hidden 256, GAT 32×4 heads, lr 1e-3 cosine,
+grad-clip 10, `α_z = 0.007`. All artefacts under
+`data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/`.
+
+| round | what varied | fixed at | length | artefact |
+|---|---|---|---|---|
+| 1 | `α_a` ∈ {0, .01, .02, .05, .1} closed-form; + Φ ablation (Φ vs zeros at α_a=.02) | κ=.1, α_w=.1, ω=1 | 40 ep, eval@40 | `calibration.json` |
+| 2 | `α_a` ∈ {.03, .04}; `α_w` ∈ {.03, .06, .2} at α_a=.03; `ω` ∈ {.5, 2} | κ=.1 | 40 ep | `calibration_round2.json` |
+| conv | single fits at α_a=.03 closed-form and α_a=0 | κ=.1, α_w=.1, ω=1 | 200 ep cap, eval@5, patience 20 (early-stopped) | `convergence_check.json`, `convergence_uncontrolled.json` |
+| 3 | adversary `α_a` ∈ {.02, .05, .1}, `adv_steps=2`, adv-lr 1e-3 | κ=.1, α_w=.1 | conv-length | `calibration_round3_adversary.json` |
+| 4 | adversary `α_a` ∈ {.3, 1.0}, `adv_steps=6`, adv-lr 2e-3 | κ=.1, α_w=.1 | conv-length | `calibration_round4_adversary.json` |
+
+Round 1 is `python -m discell.model.calibrate` verbatim; rounds 2–4 are the
+same `_short_fit` machinery with the parameter deltas above (drivers were
+throwaway; the JSONs + this table are the record). Probes throughout: fresh
+ridge + fresh 64×64-MLP on `(μ_z, onehot t) → [y′, PCs₁₂(Φ)]`, spatial
+train/val at tile level, ΔCE against the per-type mean baseline; noise floor
+from within-type permutation of z.
+
+**The sweep** (18 runs, 2026-09-01):
+
+```
+python -m discell.model.sweep --dataset xenium_prime_ovarian_cancer_ffpe \
+  --embeddings egomask_ego_v1 --invariance adversary --alpha-a 0.3 \
+  --adv-steps 6 --adv-lr 2e-3 --alpha-w 0.1 --alpha-z 0.007 --omega 1.0 \
+  --epochs 200 --kappas <0 0.05 0.1 | 0.2 0.3 0.4>   # split over two GPUs
+```
+
+Seeds {0, 1, 2} per κ; per-run record = `runs/sweep_k*_s*/`
+(`config.json` incl. git hash, `history.jsonl` per evaluation, `best.pt`
+weights + adversary-era covariance state, TensorBoard events); cross-run
+report = `experiments/kappa_sweep.json`.
+
+---
+
+## 2026-09-01 — the κ sweep: first read of the deliverable
+
+18 runs complete (6 κ × 3 seeds, adversarial invariance, early-stopped at
+~40–90 epochs each; `experiments/kappa_sweep.json`, per-run `history.jsonl`).
+Read per §4.7: stable across the grid → finding; vanishing or sign-flipping →
+not separable from leakage.
+
+**1. Type-level spatial responsiveness survives the whole sweep.** Mean ‖w‖
+per type keeps one ordering at every κ, with seed-envelopes attached:
+VEGFA+ Tumor (10.5 ± 0.6) > Proliferative Tumor (9.4) > Inflammatory Tumor
+(8.7) > Tumor (7.6) > … > Tumor Associated Fibroblasts (4.8). The tumour
+subpopulations are the most niche-responsive cells on the slide and the
+ranking is not explainable by leakage at any swept level. Magnitudes shrink
+mildly at κ = 0.4 (VEGFA+ 10.5 → 9.0) as the leak term absorbs variance —
+expected, ranking intact. *A finding at type granularity.*
+
+**2. z is κ-invariant.** NMI 0.62–0.68 across every (κ, seed) — identity
+separation owes nothing to the leakage setting.
+
+**3. B: stable along κ, moderate across seeds — the architect's joint
+envelope was the right call.** Within a seed lineage the programme space
+tracks the anchor at 0.84–0.88 matched correlation across the entire grid;
+across seeds it reproduces at 0.65–0.73 for most κ, with two outlier cells
+(κ=0.2 s2 at 0.43, κ=0.4 s2 at 0.44) dragging those κ's minima. Seed
+variation > κ variation. Gene-level programme claims therefore need consensus
+over seeds (e.g. matched-average B), not a single run; the two outlier runs
+are flagged, not averaged away.
+
+**4. The predicted partial-isolation artefact exists and is small.** Cells
+with post-prune degree ≤ 2 pay ~0.12 nats of held-out reconstruction from
+κ = 0 to 0.4, against ~0.03 for well-connected cells — full κ against a thin
+ρ̄, as accepted at the design stage. Effects must not be read off those cells;
+the strata are in the report for exactly that.
+
+**5. No likelihood cliff anywhere on the grid** (−7.25 → −7.29 monotone in
+κ): the data does not identify κ, which is the premise of sweeping it rather
+than fitting it.
+
+Caveats that stay attached to all of the above: one slide, one label set,
+early-stopped runs, and ‖w‖ is a magnitude summary — gene-level effects are
+the next analysis, from the consensus-B route in (3).
+
+*(Infra: all UMAP figures gained PCA twins on shared subsamples; sweep-run
+TensorBoards predate the twins by one commit.)*
+
+### Post-sweep decisions and the evaluation upgrades
+
+**The working point, given the sweep**: reference model at **κ = 0.1**
+(inside the published Xenium range, effects stable there, clear of the two
+seed-outlier cells), always quoted with the sweep envelope; gene-level claims
+via consensus-B over seeds; degree ≤ 2 cells excluded from effect readouts;
+calibrated αs unchanged — the sweep confirmed the design, it did not amend it.
+
+**Evaluation figures extended** (all in TensorBoard per run):
+per-type ‖w‖ **box plots ordered by mean** — the sweep's headline ranking,
+now visible live per run; a **signed-log w** UMAP (`sign(w)·log1p|w|`; a raw
+log is undefined on a signed latent); and **w pseudotime**: a principal curve
+(Hastie–Stuetzle by moving average, `principal_curve` in `metrics`, recovery-
+tested at ρ > 0.95 on a synthetic arc) fitted to the w-UMAP "snake", drawn on
+the UMAP and rendered as a colour gradient in tissue coordinates — globally
+and within each canonical type. Curve direction is arbitrary and the figures
+say so. A shared UMAP cache keeps a figure event at roughly the previous cost
+despite tripling its content.
+
+**Reference run launched**: `runs/reference_k0.1/`, calibrated operating
+point, full new figure suite, seed 0.
+
+### Pseudotime PCA twin, and the cell-cycle disentanglement read
+
+`figures/w_trajectories_{umap,pca}`: the principal-curve pseudotime now runs
+on both projections (same members, same curve fitter) — the PCA snake may
+parameterise more cleanly than UMAP's.
+
+**Cell cycle, per the architect's recipe**: Tirosh scoring
+(`cc.genes.updated.2019`, scanpy `score_genes_cell_cycle`) computed once at
+assembly from the raw counts on a scratch AnnData; types ranked by MKI67⁺
+fraction; both cautions encoded rather than remembered — hard `phase`
+defaults to G1 at Xenium depth so quantitative reads use the **continuous
+S/G2M scores**, and analyses restrict to cycling types. Two consumers:
+
+- `figures/z_cell_cycle`: z UMAP+PCA within the top cycling types, coloured
+  by phase (the picture);
+- `val/cycle_r2_{z,w}` every evaluation (the test): within-type ridge R² of
+  the continuous scores from each latent against a within-type-permuted
+  control, per-type means removed so identity itself carries nothing.
+  Expected signature — z well above control, w at it; w predicting cycle
+  would mean identity leaking into the context channel. The circularity
+  (scores come from the same x that z encodes) is the point, not a flaw: the
+  question is whether z *retains* that axis. Unit-tested (carrying latent
+  R² > 0.5, blind latent ≈ 0).
+
+Reference run relaunched with the full suite; the superseded first run (old
+figure set, best recon −7.2622 / NMI 0.656 at epoch 59) was deleted.
+
+### Figure-suite reorganisation (and a silent-patch lesson)
+
+Three changes, user-directed: **(1)** the PCA trajectory was genuinely broken —
+an earlier multi-line string patch had failed to match, and `.replace` fails
+*silently*, so `w_trajectories_pca` was UMAP coordinates under a PCA title.
+The figure code was rewritten wholesale and every claim grep-verified
+(process note, twice earned this session: verify that a text patch landed,
+and never `pkill`/`kill` by a pattern your own command line contains).
+**(2)** Figures are now organised **per variable with projections as
+columns** — `figures/{z,w,logw}_by_type` are single figures with UMAP | PCA
+panels; `figures/per_type_{z,w}` put both projections side by side within
+each canonical type. **(3)** The cell-cycle panels cover the union of cycling
+and canonical types (≤6), phase-coloured, both projections; the cycle *probe*
+now also excludes `Unassigned`, aligning it with the figure.
+
+Reference relaunched as **`reference_k0.1_v2`** with the corrected suite. The
+superseded launch had already delivered the first live disentanglement read:
+cycle-R² **z +0.32 / w +0.02** against ~0 controls — the designed z/w split
+on real tissue.
+
+### Evaluation round: richer w-spatial, more panel types, symmetric controls
+
+- **`figures/w_spatial` enriched** to match z's information density: per-dim
+  posterior mean, per-dim **deviation from the prior** `μ_w − m_ψ(c,t)` (what
+  this cell did beyond its niche's expectation), `‖w‖`, and the per-cell
+  **KL(q(w)‖p) anomaly** — the spec's §4.3 anomaly score, now rendered in
+  tissue coordinates every figure event.
+- **Per-type panels widened** from 4 to 8 types (`--panel-types`, canonical
+  first then abundance fill) — applies to `per_type_{z,w}`, the cycle panels
+  and the trajectories.
+- **`val/cycle_r2_w_permuted`** added; both latents now carry their own
+  permuted control in TB/history (z-side scalars existed already).
+
+Reference relaunched as **`reference_k0.1_v3`** (v2 had early-stopped and is
+kept for comparison).
+
+### Mid-turn additions: per-type cycle R², merged panel figures
+
+- **Cycle R² restructured**: one shared within-type ridge fit, evaluated
+  per type — TB carries the **mean over types** as the headline
+  (`val/cycle_r2_{z,w}`), the pooled value, both permuted controls, and a
+  per-type breakdown (`val/cycle_r2_{z,w}_types/<name>`). History/metrics
+  JSON carry the full dicts.
+- **`figures/{z,w}_panels`**: the per-variable figures now have rows =
+  *all cells* (coloured by type) followed by each of the 8 panel types
+  (coloured by dominant neighbour), columns = UMAP | PCA — and the w figure
+  carries the **log-w UMAP as a third column**, replacing the separate logw
+  figure. The old split global/per-type figures are gone.
+
+Run **`reference_k0.1_v3`** was superseded pre-figures by these arrivals;
+**`reference_k0.1_v4`** carries the complete set: enriched w-spatial
+(deviation, ‖w‖, KL anomaly), 8 panel types, dual-projection trajectories,
+cycle panels + per-type R², symmetric permuted controls.
+
+### v5: the cell-cycle ceiling, reliability, and the right instrument
+
+Architect's diagnosis, encoded: UMAP/PCA display *dominant variance*, not
+*retained information* — z's top axes must be type geometry (the decoder has
+no `t`), cycle is a low-variance within-type axis, and the invariance penalty
+makes z blobby-by-construction within type. A 0.3-R² axis will not paint a
+global UMAP; that is the instrument's failure, not the model's. Three
+additions for v5:
+
+1. **The ceiling** (`val/cycle_r2_ceiling` + per-type): the identical ridge
+   probe run from 50 PCs of log-normalised counts. Decision rule attached:
+   z ≈ ceiling → z retains what is measurable, no model change; z ≪ ceiling →
+   rate–distortion is pruning the axis, lever is `α_z` down a notch (and check
+   held-out recon on the cycle genes specifically).
+2. **Split-half score reliability** at assembly (each marker list halved,
+   scored twice, correlated) — the ceiling on the ceiling; printed on the
+   projection figure.
+3. **`figures/z_cycle_projection`**: per proliferative type — z projected
+   onto the probe's own directions (`z·β_S` vs `z·β_G2M`; expected G1 blob at
+   the origin, arc through S into G2M, phase-coloured) beside the within-type
+   z-UMAP coloured by **kNN-smoothed** S and G2M scores (per-cell scores are
+   mostly noise at this depth).
+
+Run `reference_k0.1_v5` carries everything from v4 (which was superseded
+pre-figures) plus the above.

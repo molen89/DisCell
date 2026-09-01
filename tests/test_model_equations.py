@@ -219,3 +219,41 @@ def test_mirror_r2_is_blind_to_pure_type_separation():
     coupled = mirror_r2(z, c_coupled, t)
     assert coupled["r2"] > 0.2
     assert coupled["r2"] > coupled["r2_permuted"] + 0.15
+
+
+def test_principal_curve_recovers_the_generating_order():
+    """A noisy arc: pseudotime must monotonically track the true parameter."""
+    from scipy.stats import spearmanr
+
+    from discell.model.metrics import principal_curve
+
+    rng = np.random.default_rng(6)
+    s = np.sort(rng.uniform(0, 1, 3000))
+    coords = np.stack([4 * s, np.sin(4 * s)], axis=1)
+    coords += 0.08 * rng.standard_normal(coords.shape)
+    pseudotime, curve = principal_curve(coords)
+    rho = abs(spearmanr(pseudotime, s).statistic)
+    assert rho > 0.95
+    assert curve.ndim == 2 and curve.shape[1] == 2
+
+
+def test_cycle_r2_separates_the_carrying_latent_from_the_blind_one():
+    from discell.model.metrics import cycle_r2
+
+    rng = np.random.default_rng(8)
+    n, k = 8000, 3
+    t = rng.integers(0, k, n)
+    z = rng.standard_normal((n, 6))
+    scores = np.stack([z[:, 0] * 0.9 + 0.3 * rng.standard_normal(n),
+                       z[:, 1] * 0.9 + 0.3 * rng.standard_normal(n)], axis=1)
+    w = rng.standard_normal((n, 4))                    # blind to the cycle
+    train = rng.random(n) < 0.7
+    types = np.array([0, 1])
+    carrying = cycle_r2(z, t, scores, types, train, ~train)
+    blind = cycle_r2(w, t, scores, types, train, ~train)
+    assert carrying["r2_pooled"] > 0.5
+    assert carrying["r2_mean_types"] > 0.5
+    assert carrying["r2_pooled"] > carrying["r2_permuted"] + 0.3
+    assert set(carrying["by_type"]) == {0, 1}
+    assert all(v > 0.4 for v in carrying["by_type"].values())
+    assert abs(blind["r2_pooled"]) < 0.05

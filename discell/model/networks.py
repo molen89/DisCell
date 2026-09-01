@@ -112,6 +112,34 @@ class Forward:
     alpha: torch.Tensor
 
 
+class Adversary(nn.Module):
+    """The escalation heads of spec 4.6: ``(z, t) -> y-hat`` and ``-> e_Phi-hat``.
+
+    Deliberately nonlinear -- the closed-form penalty already removes the
+    linear (Gaussian) dependence, and the escalation trigger is precisely the
+    *nonlinear* excess an MLP probe still finds. Trained by a separate
+    optimiser to predict the niche from ``sg mu_z``; the encoder is trained
+    against frozen heads to defeat them. Zero excess skill over the type-only
+    baselines at the optimum.
+    """
+
+    def __init__(self, d_z: int, n_types: int, e_phi: int, hidden: int = 64):
+        super().__init__()
+        self.n_types = n_types
+        self.head_y = mlp([d_z + n_types, hidden, hidden, n_types])
+        self.head_phi = mlp([d_z + n_types, hidden, hidden, e_phi])
+
+    def forward(self, z: torch.Tensor, t: torch.Tensor):
+        joined = torch.cat([z, F.one_hot(t, self.n_types).float()], dim=-1)
+        return (F.log_softmax(self.head_y(joined), dim=-1),
+                F.log_softmax(self.head_phi(joined), dim=-1))
+
+
+def soft_cross_entropy(target: torch.Tensor, log_pred: torch.Tensor) -> torch.Tensor:
+    """``-sum_k target_k log pred_k`` per row, for distribution targets."""
+    return -(target * log_pred).sum(dim=-1)
+
+
 class DisCell(nn.Module):
     """The five networks of the spec, plus the tile forward pass."""
 

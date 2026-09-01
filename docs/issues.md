@@ -53,14 +53,21 @@ below was confirmed by direct inspection instead.
 | T8 | evaluation sweeps sampled z and w — held-out reconstruction (the early-stop signal) rode reparameterisation noise | `forward(sample=False)`: posterior means throughout evaluation, deterministic sweeps |
 | T9 | `vbar_t` averaged isolated cells' all-zero `y` rows while `ybar_t` excluded them | connected cells only, matching |
 
+## Adversary (escalation, 2026-09-01)
+
+| # | issue | caught by | resolution |
+|---|---|---|---|
+| A1 | the closed-form penalty cannot remove nonlinear dependence by construction: converged, ridge-ΔCE 0.026 (linear leak gone) but MLP-ΔCE 0.153 (46% of uncontrolled) | convergence check with the MLP probe | §4.6 escalation: adversary built (soft `eΦ`, two nonlinear heads, separate optimiser, halves logged) |
+| A2 | a **weak adversary is a placebo**: at `adv_steps=2`, lr 1e-3, the encoder defeats the stale heads while a fresh probe still finds 58–99% of the leak | adversarial calibration round 3 | `adv_steps=6`, lr 2e-3, α_a=0.3 → MLP-ΔCE 14% of uncontrolled at **zero NMI cost** (0.641 vs 0.623 uncontrolled); α_a=1.0 reaches the floor. Head strength must be verified by the *independent* probe, never by the training-time head loss |
+
 ## Open / watch list (updated after architect review, 2026-09-01)
 
-- **α_w calibration on real data** — the knife-edge (M3) must be set on the
-  slide, not carried over from the synthetic gate. **NOT covered by the
-  running calibration** (which grids α_a and ablates Φ at fixed α_w = 0.1):
-  a short α_w scan {0.03, 0.06, 0.1} judged on KL_w-alive + NMI + probe is the
-  one remaining pre-sweep run. The architect's MLP probe cross-check IS in the
-  running calibration.
+- ~~α_w calibration~~ **done 2026-09-01**: scanned {0.03, 0.06, 0.1, 0.2} on
+  the slide; knife-edge reproduced (0.03 → NMI 0.33 identity theft; 0.2 → w
+  dead). α_w = 0.1 chosen; consequence to keep in mind: w near-pinned
+  (KL ≈ 0.002/dim), anomaly scores conservative. The MLP probe cross-check
+  found the ridge under-reports ~2.5–3× — **the escalation rule is judged on
+  MLP numbers** from here on.
 - **Partial isolation is unhandled by design** — renormalisation fixes degree 0
   only; a degree-1–2 cell gets full κ against a 1–2-neighbour ρ̄. Ruling:
   acceptable, but **the sweep report must stratify effects by the edges-lost

@@ -46,9 +46,9 @@ decision to surface, not a bug; bugs live in `docs/issues.md`.
 
 | what | spec section | trigger for building it |
 |---|---|---|
-| adversary heads `ŷ_ξ, êΦ_ξ` + separate optimiser | §4.6 escalation | held-out ΔCE > ~20% of the uncontrolled baseline and clearly above the noise floor — the probe decides, per spec |
-| `eΦ` image-niche clusters and `Φ̄(t)` lookup | §2, §4.6 | only the adversary consumes them |
-| `α_a` operating-point sweep (ΔCE vs z–type NMI crossing) | §4.6 | **running** (`calibrate.py`, 2026-09-01) |
+| adversary heads `ŷ_ξ, êΦ_ξ` + separate optimiser | §4.6 escalation | ~~trigger pending~~ **TRIGGERED AND BUILT 2026-09-01**: converged MLP-ΔCE was 46% of uncontrolled with the linear leak already gone — the nonlinear case, exactly |
+| `eΦ` image-niche clusters and `Φ̄(t)` lookup | §2, §4.6 | **built** with the adversary (`soft_clusters`, E_Φ = K) |
+| `α_a` operating-point sweep (ΔCE vs z–type NMI crossing) | §4.6 | **done** — four rounds; adversarial α_a = 0.3 (14% of uncontrolled, zero NMI cost); 1.0 reaches the floor |
 | Dirichlet-Multinomial likelihood | §7.6 | posterior-predictive under-dispersion at higher depth |
 | counterfactual machinery (`do(c = c′)` with abduction) | §7.9 | after a κ sweep produces stable effects worth interrogating |
 | bounded learned `σ_w(c,t) ∈ [0.5, 2]` | §7.12 | explicitly optional; fixed `σ_w = 1` until a reason appears |
@@ -56,11 +56,17 @@ decision to surface, not a bug; bugs live in `docs/issues.md`.
 
 ## Hyperparameters the spec leaves open (current defaults)
 
-`α_z = 0.007`, `α_w = 0.1`, `α_a = 0.02` (post-T1: the straight-through fix
-made the old 0.3 twenty-fold stronger, so the default was rescaled to its old
-*effective* size), `ω = 1`, `d_w = 6`, `d_z = 20`, `v_pcs = 12`, lr `1e-3`,
-tiles 4096 cells. The αs come from the synthetic recovery gate (issues M2/M3)
-and are **calibration starting points, not findings**. `α_a` and Φ are being
-decided by the running calibration; **`α_w` and `ω` are not in that grid** —
-`α_w` gets its own short scan before the sweep (issues M3), `ω = 1` stands
-unexamined on real data.
+**Calibrated on the slide, 2026-09-01** (two §4.6 rounds, 12 short fits +
+one convergence check; `experiments/calibration*.json`): **`α_a = 0.03`**
+(MLP-probe ΔCE 28% of uncontrolled at NMI −9%; 0.04 collapses NMI for 22
+points of leak), **`α_w = 0.1`** (the M3 knife-edge reproduced on the slide:
+0.03 → identity theft, 0.2 → w dead with no NMI gain; caveat — at 0.1 w is
+near-pinned, KL ≈ 0.002/dim, so anomaly scores read conservative),
+**`ω = 1`** (0.5 loses NMI everywhere, 2.0 trades leak for recon), `α_z =
+0.007` (§5's 1/ℓ̄ rule), `d_z = 20`, `d_w = 6`, `v_pcs = 12`, lr `1e-3`, tiles
+4096, Φ full-dimension (ablation: +0.009 per-count nats of held-out recon).
+**Escalation resolved 2026-09-01**: the convergence check showed the residual
+leak is nonlinear (ridge at floor, MLP at 46%), the adversary was built, and
+the sweep runs with `invariance = adversary`, `α_a = 0.3`, `adv_steps = 6`,
+`adv_lr = 2e-3` — MLP-ΔCE 14% of uncontrolled at zero NMI cost. Lesson kept in
+issues A2: a weak adversary is a placebo; only the independent probe grades it.

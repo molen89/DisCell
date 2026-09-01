@@ -31,7 +31,7 @@ def small_fit(tmp_path_factory, monkeypatch_session=None):
         train_tiles=tiles[:-1], val_tiles=tiles[-1:],
     )
     config = TrainConfig(
-        dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8, epochs=4, eval_every=2, figures_every=2,
+        dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8, epochs=4, eval_every=2, figures_every=4,
         patience=100, device="cpu", alpha_z=0.007, alpha_w=0.1, alpha_a=0.3,
         v_pcs=4,
     )
@@ -63,6 +63,10 @@ def test_run_directory_holds_the_record(small_fit):
     assert "config.json" in names
     assert "metrics.json" in names
     assert "best.pt" in names
+    history = [json.loads(line) for line in
+               (trainer.run_dir / "history.jsonl").read_text().splitlines()]
+    assert len(history) >= 2                      # one entry per evaluation
+    assert {"epoch", "recon_val", "nmi", "mirror", "probe"} <= set(history[0])
     assert any(n.startswith("events.out.tfevents") for n in names)
     config = json.loads((trainer.run_dir / "config.json").read_text())
     assert config["kappa"] == 0.1

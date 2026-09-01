@@ -134,3 +134,92 @@ def attention_beta_correlation(alpha: np.ndarray, beta: np.ndarray) -> float:
     if len(alpha) < 2:
         return float("nan")
     return float(np.corrcoef(alpha, beta)[0, 1])
+
+
+def principal_curve(coords: np.ndarray, n_iter: int = 4,
+                    resolution: int = 400) -> tuple[np.ndarray, np.ndarray]:
+    """Pseudotime along a 1-D principal curve through a 2-D embedding.
+
+    Hastie-Stuetzle by moving average: order by the first principal component,
+    smooth the ordered coordinates into a polyline, project every point onto
+    it, re-parameterise by arclength, iterate. Returns ``(pseudotime in [0,1],
+    curve polyline)``. The direction is arbitrary -- an embedding has no
+    preferred end -- so downstream reads are about *ordering*, never sign.
+    """
+    from scipy.spatial import cKDTree
+    from sklearn.decomposition import PCA
+
+    order_value = PCA(1).fit_transform(coords).ravel()
+    curve = coords[np.argsort(order_value)][:: max(len(coords) // resolution, 1)]
+    for _ in range(n_iter):
+        ranked = coords[np.argsort(order_value)]
+        window = max(len(coords) // 50, 15)
+        pad = (window // 2, window - 1 - window // 2)
+        smooth = np.stack([
+            np.convolve(np.pad(ranked[:, d], pad, mode="edge"),
+                        np.ones(window) / window, mode="valid")
+            for d in (0, 1)], axis=1)
+        keep = np.linspace(0, len(smooth) - 1,
+                           min(resolution, len(smooth))).astype(int)
+        curve = smooth[keep]
+        arc = np.concatenate([[0.0], np.cumsum(
+            np.linalg.norm(np.diff(curve, axis=0), axis=1))])
+        order_value = arc[cKDTree(curve).query(coords)[1]]
+    span = order_value.max() - order_value.min()
+    return (order_value - order_value.min()) / max(span, 1e-9), curve
+
+
+def cycle_r2(latent: np.ndarray, t: np.ndarray, scores: np.ndarray,
+             types: np.ndarray, train: np.ndarray, test: np.ndarray,
+             seed: int = 0) -> dict:
+    """Within-type ridge R^2 of continuous S/G2M scores from a latent.
+
+    The disentanglement read: cycle is intrinsic state, so z should score well
+    above the within-type-permuted control and w should sit at it -- if w
+    predicts cycle, identity is leaking into the context channel. Restricted
+    to *types* (the MKI67-ranked cycling ones); pooled across them with the
+    per-type means removed so type identity itself carries nothing.
+    """
+    rng = np.random.default_rng(seed)
+    keep = np.isin(t, types)
+    rows_train = np.flatnonzero(train & keep)
+    rows_test = np.flatnonzero(test & keep)
+    if len(rows_train) < 200 or len(rows_test) < 200:
+        return {"r2_pooled": float("nan"), "r2_mean_types": float("nan"),
+                "r2_permuted": float("nan"), "by_type": {}}
+    rows_train = _subsample_rows(rows_train, rng)
+    rows_test = _subsample_rows(rows_test, rng)
+
+    latent = latent.copy().astype(np.float64)
+    target = scores.copy().astype(np.float64)
+    permuted = latent.copy()
+    for g in types:                       # centre per type; permute within type
+        members = np.flatnonzero(t == g)
+        latent[members] -= latent[members].mean(axis=0)
+        target[members] -= target[members].mean(axis=0)
+        permuted[members] = latent[members[rng.permutation(len(members))]]
+
+    def fit(design_all: np.ndarray):
+        design = np.hstack([design_all[rows_train],
+                            np.ones((len(rows_train), 1))])
+        gram = design.T @ design + 1e-3 * np.eye(design.shape[1])
+        coef = np.linalg.solve(gram, design.T @ target[rows_train])
+        held = np.hstack([design_all[rows_test], np.ones((len(rows_test), 1))])
+        return target[rows_test] - held @ coef
+
+    def r2(residual: np.ndarray, sel: np.ndarray) -> float:
+        return float(1.0 - residual[sel].var()
+                     / max(target[rows_test][sel].var(), 1e-12))
+
+    residual = fit(latent)
+    residual_permuted = fit(permuted)
+    everything = np.ones(len(rows_test), dtype=bool)
+    # one shared fit, evaluated per type: how well the shared cycle axis
+    # transfers into each type, plus the pooled and mean-of-types summaries
+    by_type = {int(g): r2(residual, t[rows_test] == g)
+               for g in types if (t[rows_test] == g).sum() >= 100}
+    return {"r2_pooled": r2(residual, everything),
+            "r2_mean_types": float(np.mean(list(by_type.values())))
+            if by_type else float("nan"),
+            "r2_permuted": r2(residual_permuted, everything),
+            "by_type": by_type}

@@ -220,6 +220,25 @@ def tile_batch(graph: ModelGraph, seeds: np.ndarray) -> TileBatch:
 # --------------------------------------------------------------------------
 
 
+def soft_clusters(points: np.ndarray, k: int, seed: int = 0
+                  ) -> tuple[np.ndarray, np.ndarray]:
+    """Soft k-means memberships: ``softmax(-d^2 / T)``, T the median nearest d^2.
+
+    The spec's ``e_Phi`` (4.6): fit once, freeze, and keep assignments *soft* --
+    a smoother CE target with no boundary artefacts. ``E_Phi = K`` so the two
+    adversary heads face comparable difficulty and one alpha serves both.
+    """
+    from sklearn.cluster import KMeans
+
+    centres = KMeans(k, n_init=4, random_state=seed).fit(points).cluster_centers_
+    d2 = ((points[:, None, :] - centres[None]) ** 2).sum(-1)
+    temperature = max(float(np.median(d2.min(axis=1))), 1e-8)
+    logits = -d2 / temperature
+    logits -= logits.max(axis=1, keepdims=True)
+    soft = np.exp(logits)
+    return (soft / soft.sum(axis=1, keepdims=True)).astype(np.float32), centres
+
+
 @dataclass
 class ModelData:
     """Everything one DisCell fit consumes, resident and split.
@@ -244,6 +263,12 @@ class ModelData:
     vbar_t: np.ndarray            # per-type mean of v_block, probe baseline
     train_tiles: list[np.ndarray]
     val_tiles: list[np.ndarray]
+    # the adversary's targets (spec 4.6 escalation); None under closed_form
+    e_phi: np.ndarray | None = None       # (N, E_Phi) soft memberships
+    phibar_t: np.ndarray | None = None    # (K, E_Phi) mean membership per type
+    #: Tirosh cell-cycle scores + MKI67-ranked cycling types; None when the
+    #: panel lacks the markers (synthetic data)
+    cycle: dict | None = None
 
     @property
     def n_cells(self) -> int:
@@ -298,6 +323,11 @@ def assemble(dataset, variant: str, embeddings: str,
         else np.zeros(v_block.shape[1], dtype=np.float32)
         for g in range(k)])
 
+    e_phi, _ = soft_clusters(phi_pcs, k, seed=seed)      # E_Phi = K (spec 4.6)
+    phibar_t = np.stack([
+        e_phi[(t == g) & connected].mean(axis=0) if ((t == g) & connected).any()
+        else np.full(k, 1.0 / k, dtype=np.float32) for g in range(k)])
+
     tiles = spatial_tiles(opened.positions_um, tile_cells)
     order = rng_split.permutation(len(tiles))
     n_val = max(1, int(round(val_fraction * len(tiles))))
@@ -308,11 +338,23 @@ def assemble(dataset, variant: str, embeddings: str,
 
     x = opened.counts.astype(np.float32)
     totals = np.asarray(x.sum(axis=1)).ravel()
+
+    from discell.model.cell_cycle import cycling_type_ranking, score_cell_cycle
+
+    cycle = score_cell_cycle(x, opened.gene_names)
+    if cycle is not None:
+        from discell.model.cell_cycle import expression_pcs
+
+        cycle["cycling_types"] = cycling_type_ranking(
+            x, opened.gene_names, t, k).tolist()
+        # the probe ceiling: what the counts themselves can say about cycle
+        cycle["x_pcs"] = expression_pcs(x, seed=seed)
     return ModelData(
         graph=graph, x=x, t=t.astype(np.int64),
         phi=phi.astype(np.float32), positions=opened.positions_um,
         totals=totals, median_counts=float(np.median(totals)),
         p_t=(np.bincount(t, minlength=k) / len(t)).astype(np.float32),
         type_names=opened.type_names, v_block=v_block, vbar_t=vbar_t,
-        train_tiles=train, val_tiles=val,
+        train_tiles=train, val_tiles=val, e_phi=e_phi, phibar_t=phibar_t,
+        cycle=cycle,
     )
