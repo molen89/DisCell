@@ -132,7 +132,9 @@ c_i   = GATv2((x_src, x_dst), edges) ⊕ Φ_i
   variation into the estimand (§7.3).
 - **One layer ⇒ the GAT itself reaches one hop.** The *batch* still needs two rings, because `ρ̄`
   needs the neighbours' `ρ_j` (§4.5).
-- Isolated cells (all edges pruned) softmax over an empty set → NaN. Set `c_i = 0` with a flag.
+- Isolated cells (all edges pruned) softmax over an empty set → NaN. Zero the **GAT part only** —
+  `Φ_i` is measured data, defined for isolated cells, and stays — plus a flag. The leak mixture
+  renormalises per row so these cells degenerate to `κ_i = 0`: no neighbours, no foreign source.
 
 ### 4.2 `q(z_i | x_i, t_i)` — infers what the cell is
 
@@ -306,7 +308,10 @@ evaluated twice — `w` from the posterior in (a), from the prior in (b).
 
 **Scale the reconstruction by `1/ℓ_i`** before weighting. It is `O(−200…−400)` per cell against
 KLs of `O(1–10)`, and its magnitude varies several-fold between sections; unnormalised, `α_z, α_w`
-will not transfer across your own data.
+will not transfer across your own data. **Note what the scaling does to the α's:** reconstruction
+becomes `O(1)` while the KLs stay absolute, so `α = 1` prices a latent's information ~`ℓ`-fold
+above the unscaled ELBO and collapses `z`. The ELBO-equivalent point is `α ≈ 1/ℓ̄`; treat that as
+the centre of the sweep, not 1.
 
 **This is a weighted surrogate, not a bound**, once any `α ≠ 1`, and `x_i` appears in both (a) and
 (b). Uncertainty comes from the `κ` sweep, not from `q`.
@@ -326,8 +331,17 @@ log p(x_i | c_i,t_i)
   = E_{q(z)q(w)}[ log p(x_i|z,w) ] − KL(q(z)‖p(z)) − KL(q(w)‖p(w|c_i,t_i))
 ```
 
-Jensen at line 3. The `w`-KL would normally sit inside `E_{q(z)}`, but `p(w|c_i,t_i)` depends on
-neighbours' codes rather than `z_i`, and those are frozen — so it is an ordinary Gaussian KL.
+Jensen at line 3, with the variational family `q(z)·q(w|c,t,z,x)`. Because `q(w|·)` conditions on
+the sampled `z`, the exact bound keeps the `w`-KL **inside** `E_{q(z)}`:
+
+```
+log p(x_i|c_i,t_i) ≥ E_{q(z)}[ E_{q(w|z)}[log p(x_i|z,w)] − KL(q(w|z)‖p(w|c_i,t_i)) ] − KL(q(z)‖p(z))
+```
+
+Evaluating the closed-form Gaussian KL at the one reparameterised `z` is an unbiased one-sample
+estimate of `E_{q(z)}[KL]` — which is what an implementation does anyway. (An earlier version of
+this text justified pulling the KL out of the expectation via the p-side; the p-side was never the
+obstacle — the q-side conditioning is.)
 
 ### 6.2 The intrinsic path, and where `(1+ω)` comes from
 
@@ -522,7 +536,8 @@ anomalies, per-cell responses, and counterfactuals with abduction
 ### 7.10 Diagnostics
 
 ```
-R²(z_i ~ c_i) vs permuted control     mirror check
+R²(z_i ~ c_i) WITHIN TYPE, vs within-type permuted control — pooled R² partly
+                                      measures type separability, which z and c both carry legitimately
 corr(α_ij, β_ij)                      only if the edge-feature fallback is on (§7.3)
 KL_w per dimension                    → 0: rule out the mirror BEFORE free-bits
 z–type NMI                            hard floor; the CSVAE failure mode

@@ -1,1 +1,1 @@
-"""DisCell: the model described in discell_specs.md."""
+"""DisCell: the model described in 07-simple-spec_7.md."""

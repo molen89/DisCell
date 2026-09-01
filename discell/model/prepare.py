@@ -213,3 +213,106 @@ def tile_batch(graph: ModelGraph, seeds: np.ndarray) -> TileBatch:
         leak_src=gat_src[:n_leak], leak_dst=gat_dst[:n_leak],
         leak_beta=sub.data[:n_leak],
     )
+
+
+# --------------------------------------------------------------------------
+# the assembled training data
+# --------------------------------------------------------------------------
+
+
+@dataclass
+class ModelData:
+    """Everything one DisCell fit consumes, resident and split.
+
+    ``v_block`` is the invariance target ``[y minus one column, PCs(Phi)]`` --
+    one y column dropped because the simplex constraint makes the full block
+    singular, Phi as a few PCs because the penalty conditions on their joint
+    covariance (spec 4.6). ``phi`` itself stays at full dimension unless
+    *phi_pca* asked otherwise; the compression decision belongs to the caller.
+    """
+
+    graph: ModelGraph
+    x: "object"                   # scipy CSR, rows gathered per tile
+    t: np.ndarray
+    phi: np.ndarray
+    positions: np.ndarray
+    totals: np.ndarray
+    median_counts: float
+    p_t: np.ndarray
+    type_names: np.ndarray
+    v_block: np.ndarray
+    vbar_t: np.ndarray            # per-type mean of v_block, probe baseline
+    train_tiles: list[np.ndarray]
+    val_tiles: list[np.ndarray]
+
+    @property
+    def n_cells(self) -> int:
+        return self.graph.n_cells
+
+
+def assemble(dataset, variant: str, embeddings: str,
+             tile_cells: int = 4096, val_fraction: float = 0.15,
+             phi_pca: int | None = None, v_pcs: int = 12,
+             max_edge_um: float = DEFAULT_MAX_EDGE_UM,
+             tau_um: float = DEFAULT_TAU_UM, seed: int = 0) -> ModelData:
+    """Open a bundle and build the tensors, tiles and split for one fit."""
+    from discell import paths
+    from discell.data.embeddings import load_embeddings
+    from discell.data.loader import CellGraphDataset
+
+    ds = paths.dataset(dataset)
+    opened = CellGraphDataset.from_dataset(ds, variant, graph="voronoi")
+    graph = from_dataset(opened, max_edge_um=max_edge_um, tau_um=tau_um)
+
+    phi, found = load_embeddings(ds.embeddings_file(embeddings),
+                                 opened.cell_ids, dataset=ds.dataset_id)
+    if not found.all():
+        log.warning("%d cells lack an image embedding (zeros)", int((~found).sum()))
+
+    # Independent streams per purpose: with one shared generator, toggling
+    # phi_pca would shift the draws downstream and silently change the
+    # train/val split -- runs of a sweep must share one split.
+    rng_pca = np.random.default_rng([seed, 1])
+    rng_split = np.random.default_rng([seed, 2])
+    if phi_pca is not None:
+        from sklearn.decomposition import PCA
+
+        rows = rng_pca.choice(len(phi), min(len(phi), 50_000), replace=False)
+        phi = PCA(phi_pca, random_state=seed).fit(phi[rows]).transform(phi)
+        log.info("Phi compressed to %d PCs", phi_pca)
+
+    from sklearn.decomposition import PCA
+
+    rows = rng_pca.choice(len(phi), min(len(phi), 50_000), replace=False)
+    phi_pcs = PCA(v_pcs, random_state=seed).fit(phi[rows]).transform(phi)
+    v_block = np.hstack([graph.y[:, :-1], phi_pcs]).astype(np.float32)
+
+    t = opened.type_index
+    k = opened.n_types
+    # connected cells only, matching ybar_t: an isolated cell's zero y row is
+    # an artefact of having no neighbours, not a niche observation
+    connected = graph.degrees > 0
+    vbar_t = np.stack([
+        v_block[(t == g) & connected].mean(axis=0)
+        if ((t == g) & connected).any()
+        else np.zeros(v_block.shape[1], dtype=np.float32)
+        for g in range(k)])
+
+    tiles = spatial_tiles(opened.positions_um, tile_cells)
+    order = rng_split.permutation(len(tiles))
+    n_val = max(1, int(round(val_fraction * len(tiles))))
+    val = [tiles[i] for i in order[:n_val]]
+    train = [tiles[i] for i in order[n_val:]]
+    log.info("Tiles: %d train, %d val (of %d cells)", len(train), len(val),
+             graph.n_cells)
+
+    x = opened.counts.astype(np.float32)
+    totals = np.asarray(x.sum(axis=1)).ravel()
+    return ModelData(
+        graph=graph, x=x, t=t.astype(np.int64),
+        phi=phi.astype(np.float32), positions=opened.positions_um,
+        totals=totals, median_counts=float(np.median(totals)),
+        p_t=(np.bincount(t, minlength=k) / len(t)).astype(np.float32),
+        type_names=opened.type_names, v_block=v_block, vbar_t=vbar_t,
+        train_tiles=train, val_tiles=val,
+    )

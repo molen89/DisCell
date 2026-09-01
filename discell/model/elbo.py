@@ -94,6 +94,6 @@ def discell_loss(fwd: Forward, x: torch.Tensor, t: torch.Tensor,
         objective = objective - w.alpha_a * penalty
 
     return Terms(loss=-objective,
-                 recon_a=float(recon_a), recon_b=float(recon_b),
-                 kl_z=float(kl_z), kl_w=float(kl_w),
-                 penalty=float(penalty), penalty_info=info)
+                 recon_a=float(recon_a.detach()), recon_b=float(recon_b.detach()),
+                 kl_z=float(kl_z.detach()), kl_w=float(kl_w.detach()),
+                 penalty=float(penalty.detach()), penalty_info=info)

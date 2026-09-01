@@ -21,8 +21,8 @@ def tiny_tile(n=10, genes=25, types=3, phi_dim=4, isolate_last=True):
         dist[-1] = 100.0
     graph = build_graph(ei, ej, np.ones(n - 1), dist, n)
     batch = tile_batch(graph, np.arange(3, n))          # seeds 3..n-1
-    model = DisCell(genes, types, phi_dim, d_z=4, d_w=2, hidden=16,
-                    t_dim=4, gat_dim=6)
+    model = DisCell(genes, types, phi_dim, median_counts=100.0, d_z=4, d_w=2,
+                    hidden=16, gat_dim=6)
     rng = np.random.default_rng(1)
     tensors = dict(
         x=torch.tensor(rng.poisson(3.0, (len(batch.nodes), genes)), dtype=torch.float32),

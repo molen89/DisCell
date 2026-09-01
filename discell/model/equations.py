@@ -165,7 +165,15 @@ class TypeCovariances:
                 excluded += rows.shape[0]
                 continue
 
-            cov = mixed_second - mixed_mean[:, None] * mixed_mean[None, :]
+            # Straight-through: the VALUE comes from the EMA-stabilised
+            # moments, the GRADIENT from the current batch at full scale.
+            # Without this the only live path is the ema * batch term, so the
+            # penalty gradient -- and therefore alpha_a's effective strength --
+            # would silently scale with cov_ema.
+            st_mean = mixed_mean.detach() + (batch_mean - batch_mean.detach())
+            st_second = (mixed_second.detach()
+                         + (batch_second - batch_second.detach()))
+            cov = st_second - st_mean[:, None] * st_mean[None, :]
             # Work on the correlation form: MI is invariant to per-dimension
             # scaling (the log-std terms cancel exactly between the blocks and
             # the joint), and correlation matrices keep the log-det gradient --

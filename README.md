@@ -657,7 +657,35 @@ display -resize 1800x data/datasets/<dataset_id>/figures/<name>.png
 
 ---
 
-## 8. Development log
+## 8. The model — `discell.model`
+
+The DisCell model of `discell_specs.md`: split a cell's expression into what it
+**is** (`z`), what its **environment did to it** (`w`), and a fixed leakage
+mixture, with the leak fraction κ swept rather than estimated.
+
+```bash
+uv run python -m discell.model.train --dataset <id> --embeddings egomask_ego_v1 --kappa 0.2
+tensorboard --logdir data/datasets/<id>/runs
+```
+
+| module | holds |
+|---|---|
+| `model.equations` | multinomial, KLs, leak mixture, invariance penalty — each tested against an independent reference |
+| `model.networks` | encoders, prior, decoder, hand-rolled GATv2, the tile forward pass |
+| `model.prepare` | pruned graph, β, tiles/rings, `ModelData` assembly |
+| `model.elbo` | the objective J, tested end-to-end against `torch.distributions` |
+| `model.metrics` | NMI, mirror R², probe ΔCE, held-out recon (spec §7.10) |
+| `model.train` | the fit: TensorBoard, figures, joint early stopping, run dirs |
+| `model.synthetic` | tissue simulated from the model itself — the recovery gate |
+
+One run = one κ point; outputs land in `data/datasets/<id>/runs/<name>/`.
+Two registers accompany the code: `docs/issues.md` (every bug found, with its
+fix) and `docs/spec_deviations.md` (everywhere the code chose, departed, or
+deferred relative to the spec).
+
+---
+
+## 9. Development log
 
 `docs/devlog.md` records what was decided and why — the contact-tolerance
 finding, why `apposed_wall_um` exists, why the default graph is `voronoi`, KRONOS
@@ -668,7 +696,7 @@ it is the part worth keeping.
 
 ---
 
-## 9. Experiments — `discell.experiments`
+## 10. Experiments — `discell.experiments`
 
 ```bash
 uv run python -m discell.experiments.ego_masking --dataset <id>
@@ -681,7 +709,7 @@ tissue around it, or only the homophily the graph already carries.
 
 ---
 
-## 10. Tests
+## 11. Tests
 
 ```bash
 uv run --all-extras --group dev pytest -q

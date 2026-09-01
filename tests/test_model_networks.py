@@ -66,8 +66,8 @@ def tiny():
     dist[-1] = 100.0                       # isolate cell 7
     graph = build_graph(ei, ej, np.ones(n - 1), dist, n)
     batch = tile_batch(graph, np.array([3, 4, 7]))
-    model = DisCell(genes, types, phi_dim, d_z=4, d_w=2, hidden=16,
-                    t_dim=4, gat_dim=6)
+    model = DisCell(genes, types, phi_dim, median_counts=100.0, d_z=4, d_w=2,
+                    hidden=16, gat_dim=6)
     rng = np.random.default_rng(0)
     tensors = dict(
         x=torch.tensor(rng.poisson(2.0, (len(batch.nodes), genes)), dtype=torch.float32),
@@ -152,7 +152,7 @@ def test_term_b_trains_the_prior_network(tiny):
 
 def test_decoder_has_no_route_from_t():
     """The only path from identity to expression is z (spec 7.1)."""
-    model = DisCell(20, 3, 4, d_z=4, d_w=2, hidden=16)
+    model = DisCell(20, 3, 4, median_counts=100.0, d_z=4, d_w=2, hidden=16)
     z = torch.randn(5, 4, requires_grad=True)
     w = torch.randn(5, 2, requires_grad=True)
     model.log_rho(z, w).sum().backward()

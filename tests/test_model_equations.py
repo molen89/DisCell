@@ -178,3 +178,44 @@ def test_leakage_mix_gives_isolated_cells_kappa_zero():
     assert torch.allclose(log_p.exp().sum(-1), torch.ones(2), atol=1e-5)
     assert torch.allclose(log_p[1], rho[1].log(), atol=1e-5)   # isolated row
     assert not torch.allclose(log_p[0], rho[0].log(), atol=1e-3)  # mixed row
+
+
+def test_penalty_gradient_scale_is_independent_of_ema():
+    """Straight-through: cov_ema stabilises the value, never the gradient."""
+    torch.manual_seed(4)
+    z = torch.randn(64, 3)
+    v = torch.randn(64, 2)
+    t = torch.zeros(64, dtype=torch.long)
+    grads = []
+    for ema in (0.01, 0.5):
+        tracker = TypeCovariances(1, 3, 2, ema=ema, shrink=0.05, min_count=1)
+        tracker.penalty(torch.randn(64, 3), torch.randn(64, 2), t,
+                        torch.ones(1))                    # populate the EMA
+        state = [tracker.mean.clone(), tracker.second.clone(),
+                 tracker.batch_count.clone()]
+        tracker.mean, tracker.second, tracker.batch_count = state  # freeze equal? no-op
+        z_leaf = z.clone().requires_grad_(True)
+        pen, _ = tracker.penalty(z_leaf, v, t, torch.ones(1))
+        pen.backward()
+        grads.append(z_leaf.grad.clone())
+    # same stored state cannot be arranged across different first draws, so
+    # compare magnitudes: without straight-through these differ by ~50x
+    ratio = grads[1].norm() / grads[0].norm()
+    assert 0.2 < float(ratio) < 5.0
+
+
+def test_mirror_r2_is_blind_to_pure_type_separation():
+    """Spec 7.10 (patched): z and c that share only the TYPE must score ~0."""
+    from discell.model.metrics import mirror_r2
+
+    rng = np.random.default_rng(5)
+    t = rng.integers(0, 4, 20_000)
+    z = 3.0 * t[:, None] + rng.standard_normal((20_000, 3))
+    c = -2.0 * t[:, None] + rng.standard_normal((20_000, 5))
+    out = mirror_r2(z, c, t)
+    assert abs(out["r2"]) < 0.01                      # nothing within type
+    # whereas genuine within-type coupling is seen far above the control
+    c_coupled = np.hstack([c, z[:, :1] + 0.5 * rng.standard_normal((20_000, 1))])
+    coupled = mirror_r2(z, c_coupled, t)
+    assert coupled["r2"] > 0.2
+    assert coupled["r2"] > coupled["r2_permuted"] + 0.15

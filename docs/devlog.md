@@ -504,3 +504,123 @@ remaining arms:
   a mechanism beyond type-homogeneous neighbourhoods.
 
 `ego_only` (what the cell alone carries) and the v2 arms land overnight.
+
+---
+
+## 2026-08-20 (late) — training infrastructure, verification, and the full mask experiment
+
+### Ego-masking: all seven arms
+
+Spatial split, macro one-vs-rest AUC for cell type, baseline
+`AUC(type | neighbours' labels)` = **0.9076**:
+
+| arm | v1 | v2 |
+|---|---|---|
+| unmasked (whole patch) | 0.8502 | 0.8485 |
+| ego (25 µm disk zeroed) | 0.8285 | 0.8183 |
+| ego_only (cell alone) | 0.8728 | **0.8960** |
+| ego_only at native resolution | **0.8927** | — |
+
+Three readings:
+
+1. **The cell alone beats the whole patch** — by +0.023 (v1) and +0.048 (v2),
+   and at native resolution by +0.043. The surrounding tissue does not add type
+   information to the embedding; it *dilutes* it. KRONOS pools the patch, and
+   95% context pixels drown the one cell that differs from them.
+2. **Everything the context knows is homophily.** Both masked arms sit ~0.08
+   *below* the neighbour-label baseline; by the spec's decision rule that is
+   the "expected, legitimate" case — no mechanism beyond type-homogeneous
+   neighbourhoods is needed to explain the context signal. For `Φ_i`'s role in
+   `c_i` (describe the niche, not the cell) this is exactly what we want, and
+   the ego mask holds the ego out for 0.02 AUC — cheap insurance, kept.
+3. **v1 vs v2 finally separate — on the cell, not the context.** ego_only:
+   v2 0.896 vs v1 0.873. On masked context they tie (v1 even slightly ahead).
+   Since the model consumes the *context* embedding, **v1 remains the choice**
+   at 5× the speed; v2's edge lives where the model deliberately does not look.
+   The resolution effect (0.873 → 0.893 for v1) confirms the earlier caveat
+   that 0.5 µm/px starves single-cell readout.
+
+### The trainer, and what an adversarial hunt found in it
+
+`model/train.py` + `model/metrics.py`: TensorBoard scalars (every loss term,
+per-dim KL_w, mirror R² with its permuted control, probe ΔCE with its noise
+floor), spatial-w / z-PCA / B-loading figures on a schedule, joint early
+stopping, one run directory per κ point.
+
+A six-agent verification workflow over `discell/model/` produced nine
+infrastructure fixes (issues T1–T9). The two worth remembering:
+
+- **T1**: the invariance penalty's only live gradient path ran through the
+  `ema × batch` term, so `alpha_a`'s real strength was `alpha_a × cov_ema` —
+  a hyperparameter silently coupled to a smoothing constant. Fixed with a
+  straight-through estimator (value from the EMA, gradient from the batch),
+  and `alpha_a` rescaled to keep the effective size.
+- **T2/T3**: two RNG couplings — the train/val split moved when `phi_pca`
+  toggled, and a *figure* schedule consumed the training-shuffle stream.
+  Sweep runs must share one split and logging must never move the fit; both
+  now hold by construction.
+
+The derivation check confirmed §5, §6.2 (the `(1+ω)` factor) and the penalty ≡
+Gaussian conditional MI, and surfaced one **spec-text gap in §6.1**: the
+factored w-KL is justified by p-side independence, but the actual dependence is
+q-side (`q(w)` conditions on the sampled `z`); the code is a correct one-sample
+estimator of the proper bound either way. Registered in
+`docs/spec_deviations.md`, spec left untouched.
+
+### B under κ is seed-bistable — the confound, made visible
+
+At planted κ = 0.2, B's recovery flips between seeds (principal cosine
+0.15–0.83, same config); in a no-leak world it is stable (0.65/0.83). Within a
+region `w` is nearly constant, so `B·w` produces regional expression shifts —
+which is also exactly what the leak term produces. One fit at one κ cannot
+apportion them; **this is §7.7 observed in vitro**, and it is why the sweep is
+the deliverable. The recovery gate now asserts sharp recovery only where it is
+identifiable (κ = 0) and stability-plus-type where it is not (κ = 0.2).
+
+### Stability probes on the slide (407k cells, 4 configs × 12 epochs)
+
+All finite, no NaN, ~7 s/epoch on one 4090 (~25 s with eval). lr 1e-3 ≥ 3e-4;
+α_z 0.007 and 0.02 both stable; the soft-α_w probe (0.03) showed the knife-edge
+live on real data — reconstruction improving while NMI slid 0.33 → 0.27 — and
+the **joint early stop refused to bless those checkpoints**, which is the
+guard doing precisely what §7.10 wants. Mirror R² ~0.5 against a permuted
+control of ~0.03 needs the within-type variant before it is read as an alarm
+(open list). These are stability results only; no biology is claimed from
+12-epoch runs.
+
+---
+
+## 2026-09-01 — architect review folded in; calibration under way
+
+The architect ratified every registered choice (the straight-through penalty
+gradient judged *better than specified* — its attenuation advice **was** the T1
+coupling), owned E2 and the 15 µm radius, accepted both spec-text findings, and
+patched the spec in four places. The authority is now **`07-simple-spec_7.md`**:
+§6.1 carries the q-side derivation, §4.1 zeroes the GAT part only (Φ stays,
+κ_i = 0), §5 records α ≈ 1/ℓ̄ as the sweep centre, §7.10's mirror is
+within-type.
+
+Code moved to match the author clarifications and the patched spec:
+
+- **`t` is one-hot wherever it is an input** (`enc_z`, `enc_w`, `m_ψ`);
+  `embed(t)` survives only as the GAT query, sized **K + d_z** to live in the
+  same space as the source features `[onehot(t_j), z_j]` it stands in for. The
+  free `t_dim` knob is gone. Recovery gate re-passed 6/6 under the change.
+- **Mirror R² is within-type** with a within-type permuted control;
+  `test_mirror_r2_is_blind_to_pure_type_separation` proves the property the
+  patch exists for (pure type separation scores < 0.01, genuine within-type
+  coupling scores far above its control).
+
+Architect additions now encoded as requirements rather than intentions:
+
+- `sweep.py` (built): ≥3 seeds per κ, B-stability via optimally matched
+  column correlations both across seeds and along κ, per-type ‖w‖ envelopes,
+  and held-out reconstruction **stratified by the edges-lost QC column** —
+  partial isolation (degree 1–2 gets full κ against a thin ρ̄) is accepted but
+  must be visible in the report.
+- `calibrate.py` (built, running): the §4.6 α_a operating point on the slide
+  (ΔCE vs NMI, α_a = 0 as the uncontrolled baseline for the escalation rule),
+  a **small-MLP probe cross-check** against the ridge, and the **Φ ablation**
+  (Δ held-out recon with vs without Φ) — the test the mask experiment could
+  not run, and the one that settles the deferred PCA decision.
+- **τ is recorded as a non-axis**: measured face-dominated; κ is the sweep.

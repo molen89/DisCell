@@ -29,9 +29,18 @@ def mlp(dims: list[int]) -> nn.Sequential:
     return nn.Sequential(*layers)
 
 
-def encode_counts(x: torch.Tensor) -> torch.Tensor:
-    """The one transform applied to raw counts on the way into an encoder."""
-    return torch.log1p(x)
+def encode_counts(x: torch.Tensor, median_counts: float) -> torch.Tensor:
+    """Counts as an encoder sees them: ``[log1p(x/l * median(l)), log l]``.
+
+    Library-normalised before ``log1p`` -- raw ``log1p(x)`` entangles depth with
+    composition, and since ``l`` is conditioned on rather than modelled, ``z``
+    should not spend capacity on it. Depth is still weakly state-informative,
+    so ``log l`` rides along as one scalar instead of being discarded
+    (spec 4.2).
+    """
+    totals = x.sum(dim=-1, keepdim=True).clamp(min=1.0)
+    return torch.cat([torch.log1p(x / totals * median_counts),
+                      totals.log()], dim=-1)
 
 
 class GATv2(nn.Module):
@@ -107,17 +116,24 @@ class DisCell(nn.Module):
     """The five networks of the spec, plus the tile forward pass."""
 
     def __init__(self, n_genes: int, n_types: int, phi_dim: int,
-                 d_z: int = 20, d_w: int = 6, hidden: int = 256,
-                 t_dim: int = 16, gat_dim: int = 32, heads: int = 4):
+                 median_counts: float, d_z: int = 20, d_w: int = 6,
+                 hidden: int = 256, gat_dim: int = 32, heads: int = 4):
         super().__init__()
         self.n_types, self.d_z, self.d_w = n_types, d_z, d_w
-        self.embed_t = nn.Embedding(n_types, t_dim)
-        self.enc_z = mlp([n_genes + t_dim, hidden, hidden, 2 * d_z])
-        self.gat = GATv2(src_dim=n_types + d_z, dst_dim=t_dim,
+        self.median_counts = float(median_counts)
+        # The type embedding exists ONLY as the GAT query: it stands in for the
+        # z_i the centre cell deliberately does not contribute to its own
+        # context, so it is sized K + d_z -- the same dimension as the source
+        # features [onehot(t_j), z_j] it is queried against. Everywhere t is a
+        # plain input (enc_z, enc_w, m_psi) it enters as a one-hot.
+        self.embed_t = nn.Embedding(n_types, n_types + d_z)
+        # spec 4.2: normalised counts + log-depth scalar + one-hot type
+        self.enc_z = mlp([n_genes + 1 + n_types, hidden, hidden, 2 * d_z])
+        self.gat = GATv2(src_dim=n_types + d_z, dst_dim=n_types + d_z,
                          out_dim=gat_dim, heads=heads)
         c_dim = gat_dim + phi_dim + 1                     # +1: isolated flag
-        self.prior_w = mlp([c_dim + t_dim, hidden // 4, d_w])
-        self.enc_w = mlp([c_dim + t_dim + d_z + n_genes, hidden, 2 * d_w])
+        self.prior_w = mlp([c_dim + n_types, hidden // 4, d_w])
+        self.enc_w = mlp([c_dim + n_types + d_z + n_genes + 1, hidden, 2 * d_w])
         # the decoder: a_g(z) + <w, B_g>. No t anywhere below this line.
         self.dec_a = mlp([d_z, hidden, n_genes])
         self.B = nn.Linear(d_w, n_genes, bias=False)
@@ -125,7 +141,8 @@ class DisCell(nn.Module):
     # -- pieces ------------------------------------------------------------
 
     def posterior_z(self, x: torch.Tensor, t: torch.Tensor):
-        out = self.enc_z(torch.cat([encode_counts(x), self.embed_t(t)], dim=-1))
+        out = self.enc_z(torch.cat([encode_counts(x, self.median_counts),
+                                    F.one_hot(t, self.n_types).float()], dim=-1))
         return out.chunk(2, dim=-1)
 
     def context(self, mu_z: torch.Tensor, t: torch.Tensor, phi: torch.Tensor,
@@ -155,7 +172,8 @@ class DisCell(nn.Module):
                 isolated: torch.Tensor, gat_src: torch.Tensor,
                 gat_dst: torch.Tensor, leak_src: torch.Tensor,
                 leak_dst: torch.Tensor, leak_beta: torch.Tensor,
-                n_seeds: int, n_context: int, kappa: float) -> Forward:
+                n_seeds: int, n_context: int, kappa: float,
+                sample: bool = True) -> Forward:
         """One tile: all nodes in [seeds | ring1 | ring2] layout.
 
         ``z`` is encoded for every node (ring2 feeds the GAT), ``c``/``w``/
@@ -165,16 +183,22 @@ class DisCell(nn.Module):
         from discell.model.equations import foreign_influx, leakage_mix
 
         mu_z, logvar_z = self.posterior_z(x, t)
-        z = mu_z + torch.randn_like(mu_z) * (0.5 * logvar_z).exp()
+        # sample=False: posterior means throughout, so an evaluation sweep is
+        # deterministic -- early stopping should not ride reparameterisation
+        # noise. Training always samples.
+        noise = torch.randn_like(mu_z) if sample else torch.zeros_like(mu_z)
+        z = mu_z + noise * (0.5 * logvar_z).exp()
 
         c, alpha = self.context(mu_z, t, phi, isolated, gat_src, gat_dst, n_context)
 
-        t_c = self.embed_t(t[:n_context])
+        t_c = F.one_hot(t[:n_context], self.n_types).float()
         prior_mean_w = self.prior_w(torch.cat([c, t_c], dim=-1))
         mu_w, logvar_w = self.enc_w(torch.cat(
-            [c, t_c, z[:n_context], encode_counts(x[:n_context])], dim=-1)
+            [c, t_c, z[:n_context],
+             encode_counts(x[:n_context], self.median_counts)], dim=-1)
         ).chunk(2, dim=-1)
-        w = mu_w + torch.randn_like(mu_w) * (0.5 * logvar_w).exp()
+        w_noise = torch.randn_like(mu_w) if sample else torch.zeros_like(mu_w)
+        w = mu_w + w_noise * (0.5 * logvar_w).exp()
 
         log_rho = self.log_rho(z[:n_context], w)
         # the leak mixture reads every neighbour -- ring1 or fellow seed --
@@ -184,7 +208,9 @@ class DisCell(nn.Module):
         log_p = leakage_mix(log_rho[:n_seeds].exp(), rho_bar, kappa)
 
         # term (b): same seeds, w drawn from the prior instead of the posterior
-        w_breve = prior_mean_w[:n_seeds] + torch.randn_like(mu_w[:n_seeds])
+        w_breve = prior_mean_w[:n_seeds] + (
+            torch.randn_like(mu_w[:n_seeds]) if sample
+            else torch.zeros_like(mu_w[:n_seeds]))
         log_rho_breve = self.log_rho(z[:n_seeds], w_breve)
         log_p_breve = leakage_mix(log_rho_breve.exp(), rho_bar, kappa)
 
