@@ -14,8 +14,7 @@ suspect.
 
 Usage::
 
-    python -m discell.model.sweep --dataset <id> --embeddings egomask_ego_v1 \\
-        --alpha-a 0.02
+    python -m discell.model.sweep --dataset <id> --embeddings egomask_ego_v1
     python -m discell.model.sweep --dataset <id> --report-only
 """
 
@@ -56,8 +55,8 @@ def matched_correlation(b_a: np.ndarray, b_b: np.ndarray) -> float:
     return float(corr[rows, cols].mean())
 
 
-def run_name(kappa: float, seed: int) -> str:
-    return f"sweep_k{kappa:g}_s{seed}"
+def run_name(kappa: float, seed: int, tag: str = "sweep") -> str:
+    return f"{tag}_k{kappa:g}_s{seed}"
 
 
 def fit_grid(args: argparse.Namespace) -> None:
@@ -65,7 +64,7 @@ def fit_grid(args: argparse.Namespace) -> None:
                     tile_cells=args.tile_cells, seed=0)
     for seed in args.seeds:
         for kappa in args.kappas:
-            name = run_name(kappa, seed)
+            name = run_name(kappa, seed, args.tag)
             run_dir = paths.dataset(args.dataset).root / "runs" / name
             if (run_dir / "metrics.json").exists() and not args.force:
                 log.info("skip %s (metrics.json exists)", name)
@@ -79,6 +78,7 @@ def fit_grid(args: argparse.Namespace) -> None:
                 invariance=args.invariance, adv_steps=args.adv_steps,
                 adv_lr=args.adv_lr,
                 epochs=args.epochs, tile_cells=args.tile_cells,
+                figures_every=args.figures_every,
                 device=args.device,
             )
             # one split for every run: the data seed is fixed, only the model
@@ -100,7 +100,7 @@ def report(args: argparse.Namespace) -> dict:
     loaded: dict[tuple, dict] = {}
     for seed in args.seeds:
         for kappa in args.kappas:
-            run_dir = ds.root / "runs" / run_name(kappa, seed)
+            run_dir = ds.root / "runs" / run_name(kappa, seed, args.tag)
             if not (run_dir / "best.pt").exists():
                 log.warning("missing %s -- skipped", run_dir.name)
                 continue
@@ -109,10 +109,23 @@ def report(args: argparse.Namespace) -> dict:
             metrics = json.loads((run_dir / "metrics.json").read_text())
             b_matrix = payload["model"]["B.weight"].numpy()      # (G, d_w)
             loaded[(kappa, seed)] = {"B": b_matrix, "payload": payload}
+            final = metrics.get("final", {})
+            cycle = final.get("cycle") or {}
+
+            def _mt(latent):
+                entry = cycle.get(latent) or {}
+                return entry.get("r2_mean_types")
+
             rows.append({"kappa": kappa, "seed": seed,
                          "recon": metrics["best"]["recon_val"],
                          "nmi": metrics["best"]["nmi"],
-                         "epoch": metrics["best"]["epoch"]})
+                         "epoch": metrics["best"]["epoch"],
+                         # the quality battery, from the final evaluation
+                         "cycle_r2_z": _mt("z"), "cycle_r2_w": _mt("w"),
+                         "cycle_r2_ceiling": _mt("ceiling"),
+                         "mirror_r2": (final.get("mirror") or {}).get("r2"),
+                         "probe_delta_ce":
+                             (final.get("probe") or {}).get("delta_ce")})
 
     # -- B stability: within kappa across seeds, and along kappa ----------
     stability = {"across_seeds": {}, "along_kappa": {}}
@@ -175,7 +188,9 @@ def report(args: argparse.Namespace) -> dict:
                "config": {"kappas": list(args.kappas), "seeds": list(args.seeds),
                           "alpha_a": args.alpha_a, "alpha_w": args.alpha_w,
                           "alpha_z": args.alpha_z, "omega": args.omega}}
-    out = ds.root / "experiments" / "kappa_sweep.json"
+    out = ds.root / "experiments" / (
+        "kappa_sweep.json" if args.tag == "sweep"
+        else f"kappa_sweep_{args.tag}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(summary, indent=2))
     log.info("wrote %s", out)
@@ -191,15 +206,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seeds", type=int, nargs="*", default=list(DEFAULT_SEEDS))
     parser.add_argument("--alpha-z", type=float, default=0.007)
     parser.add_argument("--alpha-w", type=float, default=0.1)
-    parser.add_argument("--alpha-a", type=float, default=0.02)
+    parser.add_argument("--alpha-a", type=float, default=0.3)
     parser.add_argument("--omega", type=float, default=1.0)
-    parser.add_argument("--invariance", default="closed_form",
+    parser.add_argument("--invariance", default="adversary",
                         choices=("closed_form", "adversary"))
     parser.add_argument("--adv-steps", type=int, default=6)
     parser.add_argument("--adv-lr", type=float, default=2e-3)
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--tile-cells", type=int, default=4096)
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--tag", default="sweep",
+                        help="run-name prefix; a new tag never touches an old "
+                             "sweep's runs")
+    parser.add_argument("--figures-every", type=int, default=50,
+                        help="sparser than a reference run: metrics log every "
+                             "eval regardless; figures are heavy x18")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--report-only", action="store_true")
     parser.add_argument("--quiet", action="store_true")

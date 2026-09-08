@@ -158,7 +158,7 @@ def principal_curve(coords: np.ndarray, n_iter: int = 4,
         smooth = np.stack([
             np.convolve(np.pad(ranked[:, d], pad, mode="edge"),
                         np.ones(window) / window, mode="valid")
-            for d in (0, 1)], axis=1)
+            for d in range(coords.shape[1])], axis=1)
         keep = np.linspace(0, len(smooth) - 1,
                            min(resolution, len(smooth))).astype(int)
         curve = smooth[keep]

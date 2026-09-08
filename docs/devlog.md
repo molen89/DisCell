@@ -914,3 +914,183 @@ additions for v5:
 
 Run `reference_k0.1_v5` carries everything from v4 (which was superseded
 pre-figures) plus the above.
+
+### v6: full-space pseudotime, z trajectories — and the w-UMAP explained
+
+**Pseudotime was being fitted in the 2-D embedding** (the user asked; the
+honest answer was no). Now the principal curve is fitted in the **full latent
+space** (a hardcoded 2-D assumption in the smoother surfaced and was fixed,
+with a 6-D recovery test added) and rendered per projection by mapping curve
+points through their nearest cells — so the UMAP and PCA figures share one
+pseudotime and differ only in layout. `z` gets the same treatment
+(`figures/{z,w}_trajectories_{umap,pca}`).
+
+**Why the w-UMAP looks like a snake** — inspection of `reference_k0.1_v5`'s
+posterior (`experiments`-grade numbers, scratch script):
+
+| quantity | value |
+|---|---|
+| R²(μ_w ~ m_ψ) | **0.9998** (per-dim corr ≥ 0.9997) |
+| per-cell deviation / total std | 1–2.4% per dim |
+| w variance in PC1 / PC2 / PC3 | **85.4% / 14.6% / 0.01%** (participation ratio 1.33) |
+| R²(μ_w ~ type alone) | 0.77 |
+| R²(μ_w ~ type + y + Φ-PCs) | 0.97 |
+
+So at the calibrated α_w = 0.1, **w *is* the prior**: an effectively
+~1.3-dimensional deterministic function of (type, niche). The UMAP of a
+near-1-D continuum is a filament — the "snake" is the niche manifold seen
+through m_ψ, not an artefact. Consequences, all consistent with the standing
+register entries: w-pseudotime reads as *ordering along the dominant niche
+axis*; the per-cell anomaly is small by construction; and only ~2 of 6 w
+dimensions do real work. The lever, if per-cell response is ever needed, is
+α_w down toward the knife-edge at a known NMI price — not taken without cause.
+
+### sweep2: the κ sweep rerun under the full quality battery
+
+The original 18 runs predate the adversarial-calibration-era metrics; sweep2
+re-runs the identical grid (6 κ × 3 seeds, same operating point, same shared
+split) with everything the evaluation now measures, so quality is quantified
+per run rather than inferred: **cycle R² for z / w / the x-PC ceiling**
+(mean-over-types + per-type), within-type mirror R² ± control, probe ΔCE ±
+noise floor, per-eval `history.jsonl`, full-space pseudotime and the rest of
+the figure suite (at a sparser cadence — metrics log every eval; figures ×18
+runs are the expensive part). Mechanics: `--tag sweep2` so **no original
+sweep run is touched or overwritten**; the cross-run report gains the
+quality columns and lands in `experiments/kappa_sweep_sweep2.json`. Fleets:
+κ ≥ 0.2 on GPU 1 immediately, κ ≤ 0.1 queued on GPU 0 behind the finishing
+v6 reference; combined report fires automatically when both exit.
+
+What the battery adds to the sweep's interpretive power: the cycle triplet
+tells us at every κ whether z keeps its intrinsic axis (z vs ceiling) and
+whether κ pushes identity into the context channel (w vs its control) —
+a per-κ disentanglement audit the first sweep could not express.
+
+### What the z-pseudotime captures — the axes, named by their genes
+
+Method: within each type, Spearman-correlate the full-space z-pseudotime with
+every gene expressed in ≥5% of that type's cells (log-normalised), plus
+decompositions against depth, cell geometry, niche composition, Φ-PCs, cycle
+scores, and neighbour-smoothness. Run on `reference_k0.1_v6`; scratch script,
+numbers in the log. Two global facts first: **depth R² ≤ 0.04 everywhere**
+(the §4.2 normalisation did its job) and **niche-composition R² ≤ 0.11
+everywhere** — the dominant intrinsic axis is not a niche readout, i.e. the
+invariance holds along the pseudotime too.
+
+| type | the axis, by its genes | spatial ρ |
+|---|---|---|
+| Proliferative + plain Tumor Cells | one shared **tumour-state continuum**: PVT1 / SNHG15 / SOX2-OT / PABPC1L / PLXNB1 (+) vs H19 / LDHA (−) — a lncRNA-stemness programme against a hypoxic-glycolytic pole. The slide's own label set contains "SOX2-OT+ Tumor Cells" as a *discrete type*; z's leading axis is the **continuum that label discretises** — spec §7.1's prediction, verbatim | 0.20–0.27 |
+| Inflammatory Tumor Cells | an **interferon-response gradient**: GBP1, CXCL10, IFIT1/2/3, MX1, RSAD2, TNFSF10 moving together — and strongly spatially organised (ρ 0.65, Φ-R² 0.19). Cycle co-varies along it (ρ ≈ 0.3), which is why this type was the pseudotime-cycle exception | 0.65 |
+| Smooth Muscle | the classic **contractile ↔ synthetic** phenotype axis: CNN1 (+) vs TIMP3, NOTCH3, HEYL, EPAS1 (−) | 0.34 |
+| Macrophages | a **matrix-gene axis** (DCN, COL5A1, BGN, LUM, POSTN, CTHRC1) — either fibrosis-associated polarisation or **residual spillover from fibroblast neighbours**; flagged, and checkable: if it is leakage, its strength should fall along the κ grid in sweep2 | 0.16 |
+
+So the pseudotime is not noise and not the cycle: it finds a nameable
+intrinsic state continuum per type — several straight from §7.1's list of
+what z should hold beyond the label. Caveats attached: correlational, one
+run, one slide; the macrophage axis carries the spillover hypothesis until
+sweep2 says otherwise.
+
+### sweep2 results — the full battery over 6 κ × 3 seeds (2026-09-08)
+
+All 18 runs finished 2026-09-01; the auto-fired report had aggregated only
+the GPU-0 half (κ ≤ 0.1), so the report was regenerated over the full grid
+(`--report-only`, same tag) — `experiments/kappa_sweep_sweep2.json` now holds
+all 18. Reads, in order of what is new:
+
+1. **Reconstruction now argues for small κ.** Held-out per-count recon is
+   flat through κ ≤ 0.1 (−7.2531 / −7.2534 / −7.2540) then falls monotonely:
+   −7.2599 (0.2), −7.2708 (0.3), −7.2829 (0.4). The 0.1 → 0.4 drop (~0.030
+   nats) is ~6× the within-κ seed spread (~0.005). sweep1 saw "no cliff";
+   sweep2 (adversarial operating point) resolves a gentle plateau-then-slope.
+   Still no likelihood *identification* of κ inside the plateau, as designed.
+2. **The mirror metric is the first with a clean monotone κ response**:
+   within-type mirror R² 0.067 → 0.062 → 0.060 → 0.052 → 0.046 → 0.041
+   along the grid, control flat at ~0.016. Excess over control halves from
+   κ = 0 to κ = 0.4 — the explicit leak channel absorbs exactly the
+   neighbour-explaining duty that otherwise feeds the mirror attractor.
+3. **Cycle triplet, the robust (pooled) read**: z 0.42–0.46 at *every* κ,
+   w ≤ 0.024 ≈ 0, within-type-permuted ≈ 0, 50-PC expression reference
+   0.216. Cycle is in z and absent from w at every κ and seed. Two lessons
+   about the metric itself:
+   - the "ceiling" is not a ceiling — z beats the 50-PC ridge ~2×, i.e. a
+     linear read from 50 linear PCs underfits; treat it as an
+     *expression-PC reference line*, not a bound;
+   - `r2_mean_types` is noisy (−0.08…+0.13 across runs) because the MKI67⁺
+     ranking pulls two essentially non-cycling types into the top-4:
+     Pericytes (held-out R² −0.5…−1.2) and Ciliated Epithelial (~−0.10) —
+     while the real cycling types are rock-stable (Proliferative 0.45–0.51,
+     Inflammatory 0.44–0.48 in every run). MKI67⁺ pericytes in a tumour
+     slide are plausibly *themselves spillover*. Headline read = pooled;
+     mean-of-types kept for the per-type split (issues M6).
+4. **Invariance holds at every κ**: ridge probe ΔCE −0.03…+0.02 across all
+   18 runs (noise floor −0.05…−0.06) — no linear leak anywhere; NMI flat
+   0.62–0.67 with no κ trend. The adversary neither weakens at high κ nor
+   costs identity.
+5. **B seed-stability falls with κ**: across-seed matched |corr| mean
+   0.62–0.64 for κ ≤ 0.1 vs 0.48–0.55 for κ ≥ 0.2 (min 0.41). Along-κ
+   within seed stays high (s0: 0.83–0.93). Higher κ costs not just
+   likelihood but programme-space reproducibility. Note the adversarial
+   operating point is overall less B-stable across seeds than sweep1's
+   closed-form runs — consensus-B over seeds remains the reporting rule.
+6. **The headline biology replicates**: per-type ‖w‖ ranking is unchanged
+   from sweep1 and stable over all 18 runs — VEGFA+ 10.1 > Proliferative
+   9.2 > Inflammatory 8.6 > Tumor 7.5 > … > Malignant-Cyst 2.3 >
+   Fallopian-Tube 2.0 (means; orderings agree run by run at the top/bottom).
+7. **The κ cost concentrates in low-degree cells**, as the watch-list item
+   predicted: from κ = 0 to 0.4 recon falls 0.030 globally but 0.065 in
+   lost-1+ cells and 0.098 in degree ≤ 2 cells (~2–3× the global cost);
+   the lost0-vs-lost1+ gap shrinks 0.217 → 0.180. Direction consistent with
+   full-κ-against-thin-ρ̄; magnitude small; keep excluding degree ≤ 2 cells
+   from effect readouts.
+
+**Verdict**: κ = 0.1 stays the operating point, now *supported* rather than
+default — it sits at the end of the recon plateau, in the most B-stable
+region, with mirror already 10% below the κ = 0 level. Pushing κ ≥ 0.2 buys
+further mirror reduction at a monotone price in likelihood, seed stability,
+and low-degree cells. Open: the macrophage matrix-axis spillover prediction
+("strength should fall along κ") is not answerable from the battery — it
+needs the pseudotime–gene-correlation analysis re-run per κ; deferred.
+
+### The operating point becomes the default; `reference_best` + per-run reports
+
+**Defaults changed** (`TrainConfig`, and the sweep CLI to match): κ = 0.1,
+invariance = adversary, α_a = 0.3, adv_steps = 6, adv_lr = 2e-3 — exactly the
+calibrated point every reference run and sweep2 used explicitly; a bare
+`python -m discell.model.train --dataset <id>` now reproduces it. The
+closed-form path stays selectable (`--invariance closed_form`, where the
+straight-through-equivalent α_a is ~0.02, still noted in the config comment).
+The synthetic train-smoke fixture pins `closed_form` (synthetic data carries
+no eΦ). Suite: 116 passed, 1 skipped.
+
+**`reference_best`**: one run at the defaults with the budget widened —
+`--epochs 500 --patience 40` (stop after 40 improvement-free epochs instead
+of 20), seed 0, eval every 5, figures every 25. Purpose: convergence
+certainty for the reportable run; the config is otherwise byte-identical to
+`reference_k0.1_v6`.
+
+**`discell/model/report.py`** — one-command per-run report
+(`python -m discell.model.report --dataset <id> --run <name>` →
+`runs/<name>/report/report.md` + figures). Contents: TB figures extracted at
+their final step; a six-panel training-progress figure with a reading guide
+(recon, NMI, probe ΔCE vs floor, mirror vs control, cycle pooled z/w/reference,
+KLs) and the best-checkpoint epoch marked; the **disentanglement quadrant**
+computed fresh from `best.pt` on the validation split — z passes cycle / w
+fails it (same in-probe construction on both latents, side by side), w passes
+the tissue-gradient read / z fails it; the per-type ‖w‖ boxplot with the
+biological reading and the w≈prior caveat; B loadings; provenance block.
+
+**Methodological catch while validating on v6**: the *raw* niche-R² of the
+z-pseudotime is 0.55 — not leak, but type read through homophily (z carries
+type by design; type is spatially predictable, ego-masking AUC 0.89). After
+partialling per-type means from both sides (the mirror_r2 pattern) the
+contrast is clean and stark: **z-pseudotime niche R² 0.01 / neighbour
+coherence 0.10 vs w-pseudotime 0.53 / 0.63** (v6 numbers). Any spatialness
+claim about a type-carrying latent must be type-partialled or it measures
+homophily. The report tables the partialled numbers and shows raw in context.
+
+**`reference_best` outcome**: best epoch 59, trained to 99 (the full 40-epoch
+grace exhausted with no further improvement — convergence confirmed, not
+truncated), 17.8 min. Best recon −7.2586 / NMI 0.658, inside the sweep2
+κ = 0.1 envelope. The quadrant replicates v6 on this independent fit:
+z cycle 0.47 / w 0.03 pooled; type-partialled pseudotime niche R² z 0.01 vs
+w 0.53, coherence z 0.15 vs w 0.64. Report:
+`runs/reference_best/report/report.md`.

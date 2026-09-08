@@ -33,7 +33,7 @@ def small_fit(tmp_path_factory, monkeypatch_session=None):
     config = TrainConfig(
         dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8, epochs=4, eval_every=2, figures_every=4,
         patience=100, device="cpu", alpha_z=0.007, alpha_w=0.1, alpha_a=0.3,
-        v_pcs=4,
+        v_pcs=4, invariance="closed_form",   # synthetic data carries no e_phi
     )
     from discell import paths
 

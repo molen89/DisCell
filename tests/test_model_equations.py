@@ -257,3 +257,19 @@ def test_cycle_r2_separates_the_carrying_latent_from_the_blind_one():
     assert set(carrying["by_type"]) == {0, 1}
     assert all(v > 0.4 for v in carrying["by_type"].values())
     assert abs(blind["r2_pooled"]) < 0.05
+
+
+def test_principal_curve_works_in_full_dimensional_space():
+    """The curve is fitted in latent space, not in the 2-D embedding."""
+    from scipy.stats import spearmanr
+
+    from discell.model.metrics import principal_curve
+
+    rng = np.random.default_rng(9)
+    s = np.sort(rng.uniform(0, 1, 3000))
+    coords = np.stack([np.cos(3 * s), np.sin(3 * s), 2 * s,
+                       0.5 * s ** 2, -s, np.cos(5 * s) * 0.3], axis=1)
+    coords += 0.05 * rng.standard_normal(coords.shape)
+    pseudotime, curve = principal_curve(coords)
+    assert abs(spearmanr(pseudotime, s).statistic) > 0.95
+    assert curve.shape[1] == 6

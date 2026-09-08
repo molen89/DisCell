@@ -59,18 +59,21 @@ class TrainConfig:
     heads: int = 4
     phi_pca: int | None = None          # None: full-dimension Phi into c
     v_pcs: int = 12                     # Phi PCs inside the invariance block
-    # the objective
-    invariance: str = "closed_form"     # or "adversary" (spec 4.6 escalation)
-    adv_lr: float = 1e-3
-    adv_steps: int = 1
+    # the objective -- defaults are the calibrated operating point (2026-09,
+    # four calibration rounds + two sweeps; see docs/devlog.md): adversary at
+    # alpha_a = 0.3 / 6 steps / lr 2e-3 (MLP-probe leak 14% of uncontrolled at
+    # zero NMI cost), kappa = 0.1 (end of the recon plateau, most B-stable).
+    # Under invariance = "closed_form" the straight-through-scaled alpha_a
+    # equivalent is ~0.02, not 0.3.
+    invariance: str = "adversary"       # "closed_form" before spec 4.6 escalation
+    adv_lr: float = 2e-3
+    adv_steps: int = 6
     adv_hidden: int = 64
-    kappa: float = 0.0
+    kappa: float = 0.1
     omega: float = 1.0
     alpha_z: float = 0.007
     alpha_w: float = 0.1
-    # rescaled when the penalty gradient became straight-through: the old 0.3
-    # was silently attenuated by cov_ema (~x0.05), so ~0.015 was its true size
-    alpha_a: float = 0.02
+    alpha_a: float = 0.3
     # optimisation
     epochs: int = 200
     tile_cells: int = 4096
@@ -520,29 +523,44 @@ class Trainer:
             fig.tight_layout(rect=(0, 0, 1, 0.97))
             writer.add_figure("figures/z_cell_cycle", fig, step)
 
-        # -- w pseudotime along a principal curve, per projection ------------
-        def w_trajectories(method: str) -> None:
-            """Direction is arbitrary (an embedding has no preferred end); the
-            reads are ordering and spatial organisation, never sign."""
-            scopes = [("all cells", pick)]
-            scopes += [(names[g], members_of[g]) for g in members_of]
+        # -- pseudotime: curve fitted in FULL latent space, rendered per
+        # projection (curve points mapped through their nearest cells), so
+        # both projection figures share one pseudotime and differ only in
+        # layout. Direction is arbitrary; reads are ordering and spatial
+        # organisation, never sign.
+        trajectory_cache: dict = {}
+
+        def fitted_trajectory(values: np.ndarray, tag: str, scope) -> tuple:
+            key = (tag, scope)
+            if key not in trajectory_cache:
+                members = pick if scope == "global" else members_of[scope]
+                trajectory_cache[key] = principal_curve(values[members])
+            return trajectory_cache[key]
+
+        def trajectories(values: np.ndarray, tag: str, method: str) -> None:
+            from scipy.spatial import cKDTree
+
+            scopes = [("all cells", "global", pick)]
+            scopes += [(names[g], g, members_of[g]) for g in members_of]
             fig, axes = plt.subplots(len(scopes), 2,
                                      figsize=(8.0, 3.4 * len(scopes)))
-            for r, (label, members) in enumerate(scopes):
+            for r, (label, scope, members) in enumerate(scopes):
                 ax_u, ax_s = axes[r]
                 if len(members) < 50:
                     ax_u.axis("off"); ax_s.axis("off")
                     continue
-                key = ("w", "global") if label == "all cells" else \
-                      ("w", [g for g in members_of if names[g] == label][0])
-                coords = project(w[members], method,
-                                 key=key if method == "umap" else None)
-                pseudotime, curve = principal_curve(coords)
+                pseudotime, curve = fitted_trajectory(values, tag, scope)
+                coords = project(values[members], method,
+                                 key=(tag, scope) if method == "umap" else None)
+                _, nearest = cKDTree(values[members]).query(
+                    curve, k=min(20, len(members)))
+                curve_2d = coords[nearest].mean(axis=1)
                 ax_u.scatter(coords[:, 0], coords[:, 1], c=pseudotime, s=0.8,
                              cmap="viridis", rasterized=True)
-                ax_u.plot(curve[:, 0], curve[:, 1], color="black", lw=1.2)
-                ax_u.set_title(f"w {method.upper()} + principal curve | "
-                               f"{label[:22]}", fontsize=8)
+                ax_u.plot(curve_2d[:, 0], curve_2d[:, 1], color="black", lw=1.2)
+                ax_u.set_title(f"{tag} {method.upper()} + curve (fit in "
+                               f"{values.shape[1]}-D) | {label[:20]}",
+                               fontsize=8)
                 position = self.data.positions[rows[members]]
                 ax_s.scatter(position[:, 0], position[:, 1], c=pseudotime,
                              s=0.8, cmap="viridis", rasterized=True)
@@ -550,10 +568,10 @@ class Trainer:
                 ax_s.set_title("pseudotime in tissue coordinates", fontsize=8)
                 for ax in (ax_u, ax_s):
                     ax.set_xticks([]); ax.set_yticks([])
-            fig.suptitle(f"w pseudotime along the principal curve of the "
-                         f"{method.upper()} (direction arbitrary)", fontsize=9)
+            fig.suptitle(f"{tag} pseudotime along the full-space principal "
+                         "curve (direction arbitrary)", fontsize=9)
             fig.tight_layout(rect=(0, 0, 1, 0.97))
-            writer.add_figure(f"figures/w_trajectories_{method}", fig, step)
+            writer.add_figure(f"figures/{tag}_trajectories_{method}", fig, step)
 
         def w_spatial_extended() -> None:
             """w per dim, its deviation from the prior per dim, then ||w|| and
@@ -632,7 +650,6 @@ class Trainer:
                                    rasterized=True)
                 ax.set_title(f"z·β_S vs z·β_G2M | {names[g][:20]}", fontsize=8)
                 ax.legend(fontsize=5, markerscale=6)
-                # kNN-smoothed scores on the within-type UMAP
                 neighbours = NearestNeighbors(n_neighbors=min(30, len(members) - 1)
                                               ).fit(z[members])
                 nearest = neighbours.kneighbors(return_distance=False)
@@ -661,8 +678,10 @@ class Trainer:
         w_norm_boxplot()
         variable_panels(z, "z")
         variable_panels(w, "w", extra=(log_w, "logw"))
-        w_trajectories("umap")
-        w_trajectories("pca")
+        trajectories(w, "w", "umap")
+        trajectories(w, "w", "pca")
+        trajectories(z, "z", "umap")
+        trajectories(z, "z", "pca")
         if self.data.cycle is not None:
             z_cycle_panels()
             z_cycle_projection()
