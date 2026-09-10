@@ -1,0 +1,56 @@
+\section{DESIGN RATIONALE}
+\label{app:rationale}
+
+This appendix carries the parts of the arguments of \cref{sec:method} that the main text only summarises. It does not repeat what is already there.
+
+\subsection{The Mirror Attractor}
+\label{app:mirror}
+
+The attention layer of \cref{eq:context-gat} computes logits $e_{ij} = \mathbf{a}^\top \mathrm{LeakyReLU}(\mathbf{W}_{\mathrm{dst}} \mathbf{h}_i + \mathbf{W}_{\mathrm{src}} \mathbf{h}_j)$ and aggregates $\sum_j \att_{ij} \mathbf{W}_{\mathrm{src}}\mathbf{h}_j$, so the destination feature $\mathbf{h}_i$ enters the \emph{attention} but never the \emph{value} \citep{brody2022}. With $\vz_i$ as the destination feature, the selection channel of \cref{sec:inference} opens. What the type query gives up is state-specific attention, which belongs in the decoder (as type-dependent loadings or a low-rank interaction with $\vz$) rather than in the context encoder.
+
+The diagnostic is the within-type coefficient of determination of $\vz_i$ regressed on $\vc_i$ against a within-type permuted control (\cref{sec:selection}), or the correlation between $\att_{ij}$ and $\simop(\vz_i,\vz_j)$. Downstream, a mirror is indistinguishable from ordinary posterior collapse of $\vw$; a free-bits remedy \citep{kingma2016} would mask it and leave the anomaly score meaningless, which is why the mirror is ruled out first.
+
+Zeroing $\vz_i$ while keeping self-loops is not an alternative: the softmax still spends attention mass on the self-edge, down-weighting neighbours, and under $\vz \sim \N(\mathbf{0},\vI)$ the origin is the prior mean, so a zero vector asserts ``this cell is average'' rather than ``ignore this cell''.
+
+\subsection{Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}
+\label{app:graph}
+
+A discretised contact indicator (touching, near, far) looks as if it dodges the collinearity objection of \cref{sec:inference}, but on this platform under nuclear-expansion segmentation whether two segmented polygons touch is largely a measurement of local density: dense regions touch, sparse regions do not. The indicator would smuggle density back in, in the confounded direction, and a tolerance parameter only moves the threshold. The measurements that establish this on our data are in \cref{app:contact}.
+
+Delaunay adjacency resolves it: two cells are neighbours if and only if their Voronoi cells share a face, which is the correct notion of adjacency for a packing, built from centroids alone. The one parameter that returns is the pruning of long edges, and it is much less sensitive than choosing a neighbour count. The Voronoi face length is used in the kernel rather than shared segmented boundary because the Voronoi face is where the boundary between two cells effectively lies, its length is a contact-extent proxy defined whether or not the polygons touch, and it is independent of the expansion setting.
+
+The fallback is empirical. If $\mpsi$ predicts responses poorly, or held-out reconstruction is worse than a comparison run whose attention layer carries edge features (distance, face length), that is direct evidence that the continuous signal mattered. If it is added back, the correlation between $\att_{ij}$ and $\beta_{ij}$ must be monitored: a high correlation means the attention has rediscovered the leakage kernel and $\vw$ is becoming collinear with $\rhobar$. That risk is tolerable while $\kappa$ is fixed, since there is no free contamination parameter to feed, and intolerable once $\kappa$ is estimated. \pending{the edge-feature comparison run has not been performed}
+
+\subsection{Three Routes to a Vanishing Response Divergence}
+\label{app:qw}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Cause & Check & Fix \\
+\midrule
+Posterior collapse & $\alphaw$ large relative to reconstruction & lower $\alphaw$; free bits \\
+Mirror & within-type $R^2$ of $\vz_i$ on $\vc_i$ vs.\ permuted control & type embedding as query \\
+Starved of ego evidence & does the response posterior receive $\vx_i$ directly? & add the direct path \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Conditional Invariance and Label Granularity}
+\label{app:conditional}
+
+The marginal-invariance failure is documented by \citet{slavutsky2025} for the conditional subspace VAE \citep{klys2018}, whose invariance drives the agreement between the shared code and the nuisance variable to zero while collapsing its agreement with cell type \todo{quote the exact numbers from that comparison}. Coarse labels are preferable to fine ones for three reasons: fine labels leave $\vz$ with nothing to carry, they block more of the position$\to$fate$\to$expression path, and they destroy the overlap that any conditional comparison needs. The label-set control of \cref{app:graphclust} varies the granularity.
+
+\subsection{The Leak Fraction: Grid Range and Upgrade Path}
+\label{app:kappa}
+
+The grid range comes from three sources: zero as anchor; published misassignment estimates for this platform \needsource; and a marker-set ceiling. For an atlas-defined set $\mathcal{M}$ of genes that a cell of type $t_i$ should not express, and an empirical neighbour profile $\tilde{\vrho}_i$ obtained by averaging the observed compositions of $i$'s neighbours with the kernel $\beta$, the ratio $\sum_{g \in \mathcal{M}} x_{ig} / (\ell_i \sum_{g \in \mathcal{M}} \tilde\rho_{ig})$ bounds the leak fraction from above. The set must be defined externally: ranking genes by their neighbour-to-own expression ratio from the same counts selects the zero-count genes and drives the bound to zero with probability one. \pending{compute the marker-set ceiling on both sections}
+
+This version of the model sweeps $\kappa$; it cannot estimate it. Estimation needs two views of one cell that share a foreign profile at different contamination levels, which a nuclear/extranuclear split of the transcript coordinates provides. Its identifying condition is that gene-wise nuclear retention varies across genes; with constant retention both views lie on the same line between $\vrho_i$ and $\rhobar_i$ and nothing is pinned. Adding it does not restructure the model: the likelihood becomes a multinomial over $2G$ bins and $\kappa$ moves from hyperparameter to latent. We leave it as future work.
+
+\subsection{Learned Variances: What to Learn and What Not To}
+\label{app:variances}
+
+If a conditional $\sigma_w(\vc, t)$ is wanted, because it would standardise deviation against local variability so that a deviation of two in a niche where everyone deviates by two does not read as anomalous, it must be bounded, e.g.\ $\sigma_w \in [0.5, 2]$ through a scaled sigmoid, so that it cannot inflate away, and its mean over cells must be checked for upward drift over training.
+
+The prior on $\vz$ is a standard normal. A richer prior, a mixture with one component per type or a VampPrior with archetypal pseudo-inputs \citep{tomczak2018}, would be a genuine upgrade for cell-type structure and would make $t$ a latent rather than an input, but that is a different change, not a variance question.

@@ -1094,3 +1094,480 @@ truncated), 17.8 min. Best recon −7.2586 / NMI 0.658, inside the sweep2
 z cycle 0.47 / w 0.03 pooled; type-partialled pseudotime niche R² z 0.01 vs
 w 0.53, coherence z 0.15 vs w 0.64. Report:
 `runs/reference_best/report/report.md`.
+
+### Doc-08 latent-validation analyses — `discell/model/validate.py`
+
+Implements the handover doc (08-validation-analyses_1.md): every analysis
+probes a known-allegiance target from BOTH latents against floor
+(within-type permutation), ℓ-baseline (log-depth-only probe — retrofitted
+into the training-time cycle probe too, logged as `cycle/lbaseline`), and
+the 50-PC ceiling where expression-derived; within type; **spatial-block CV**
+with whole tiles as fold blocks (tile k → fold k mod 5). One CLI:
+`python -m discell.model.validate --dataset <id> --run <name>` (headline) or
+`--sweep-tag sweep2` (κ companion). Outputs in `runs/<name>/validation/`.
+7 known-answer tests (planted allegiances) in `tests/test_model_validate.py`;
+they caught two instrument bugs before any real data was touched (binary-AUC
+form; probability rows not summing to 1 when a contiguous niche hides from a
+fold's training half).
+
+**Two instrument corrections after the first real-data pass, registered:**
+
+1. *Landmark banding*: the doc's letter ("fit on d ≤ 500; report held-out R²
+   per band") scored a pooled global fit against band-local variance — every
+   probe went negative with the floor at zero, and more signal meant more
+   negative (w −0.76 < z −0.25 < ℓ −0.16 < floor 0 mid-band). Deviation: **fit
+   within each band** (block-CV inside the band), which is the question the
+   mid band asks — "does the latent order cells by distance where one hop
+   cannot see the landmark". θ_L now comes from the mid-band fit.
+2. *Gene signatures*: B rows of never-expressed control/viral/mutant probes
+   are gradient-unconstrained noise and dominated `B·θ̂` (SRY/HPV16 in an
+   ovarian slide as "top genes"). Masked to genes expressed in ≥1% of cells.
+
+Also: interface mode-filter raised 3 → 10 iterations (3 left 58% of the slide
+"boundary" — the slide is deeply infiltrative), and the §3.2 hot-z-dim triage
+(y-R² = leakage read, cycle-corr = benign read) added to the Moran output.
+
+**Headline results (`reference_best`)**:
+
+- **Moran's I**: mean |I| **w 0.545 vs z 0.082** (6.6×), every w dim hot
+  (0.40–0.64), no collapsed dims (the α_w concern resolved by the variance
+  check: μ_w varies through the context prior even at KL_w ≈ 0). All 20 z
+  dims clear the razor-thin 400k-cell null (0.02–0.17), but the triage says
+  benign: hottest dims regress on y at ≤ 3.6% R² — intrinsic-spatial
+  biology, not leakage.
+- **Niche invariance** (K = 10; robust at 6/15): macro-AUC **w 0.76**,
+  **z 0.65**, ℓ-baseline 0.59, floor 0.50 (14 eligible types). The
+  asymmetry is there (w−ℓ = 0.18 vs z−ℓ = 0.06) but z is *not* fully at
+  the ℓ-baseline — a genuine residual, consistent with the Moran triage's
+  benign intrinsic-spatial structure, worth watching (issues list).
+- **Landmarks** (mid band = the evidence): weak but correctly-ordered —
+  w 0.03–0.06 vs z ≈ 0 (ordering w > ℓ ≈ floor in 3 of 4 classes);
+  interferon programme (MX1, IFIT1/2/3) recurs along the distance axes,
+  matching the known interferon niche gradient. θ cosines mixed (−0.75 to
+  0.46), cross-type consistency low (0.05–0.38) — a multi-axis spatial code,
+  though θ from R² ~ 0.05 fits is high-variance (caveat attached).
+  Inventory: smooth muscle (244 instances), stromal/tumor endothelial
+  (92/19), tumor-stroma interface (10-iter mode filter).
+- **Allegiance matrix**: near-block-diagonal — S/G2M z 0.45 vs w 0.01
+  (ceiling 0.21); niche w 0.76 vs z 0.65 (the one soft cell); mid-band
+  distance w 0.03 vs z −0.04; pseudotime tissue-gradient w 0.53 vs z 0.01.
+
+κ companion over the 18 sweep2 runs: launched (capped: 10k cells/type,
+200 perms, K=10 only) → `experiments/validation_sweep2.{json,png}`.
+
+**κ companion results** (`experiments/validation_sweep2.{json,png}`, 18 runs,
+capped: 10k cells/type, 200 perms, K=10): **Moran's mean |I| on z falls
+monotonically with κ — 0.078 → 0.043 from κ=0 to 0.4 — while w stays flat at
+~0.52–0.54.** Same shape as the mirror-R² trend: the explicit leak channel
+absorbs spatial autocorrelation that otherwise lodges in z; Moran-I_z is the
+second metric with a clean monotone κ response, and the cheapest. Niche AUC_z
+drifts the same way (0.642 → 0.619 over the grid, ℓ-baseline flat at 0.580 —
+z's residual above depth shrinks from +0.062 to +0.039) with AUC_w flat at
+0.73–0.75. Landmark mid-band R² is flat/noisy in both latents (z ≈ −0.03,
+w 0.02–0.04, no κ trend) — consistent with the inventory diagnosis (the map:
+smooth-muscle sheets, starved endothelial coverage, degenerate interface at
+84% near-share; landmark redefinition pending a decision). The headline
+`reference_best` numbers sit inside all three seed envelopes.
+
+### Motivations register for the doc-08 experiments, and the landmark rewrite
+
+Written down before the rewrite, so the reasoning is on record independent of
+how the rewrite turns out.
+
+**Why each validation experiment exists.** The §4.6 training probe is the
+model grading its own homework: it asks whether z predicts the very block
+(v = [y', Φ-PCs]) the objective was told to scrub, with the machinery chosen
+at training time. Doc-08's premise is different — take targets whose
+allegiance is known *a priori*, probe them from **both** latents, and let the
+asymmetry carry the claim, certified by references (floor, ℓ-baseline,
+ceiling):
+
+- **Moran's I** — no annotation, no probe family, no target choice at all:
+  just spatial autocorrelation of each latent dimension on the model's own
+  graph. w is the context channel, so its dims must be spatially organised;
+  z should be near-null except for honest intrinsic-spatial biology, which
+  the §3.2 triage (y-R² = leakage, cycle-corr = benign) separates. Cheapest
+  per-κ diagnostic — and it delivered: I_z falls 0.078 → 0.043 along κ.
+- **Niche invariance** — the *exclusion* direction. Cycle retention alone
+  could be satisfied by a z that also memorises the niche; z must also FAIL
+  to predict data-defined niche labels (k-means on y — never on latents,
+  that would be circular). The ℓ-baseline is mandatory because depth
+  co-varies with niche.
+- **Distance-to-landmark** — the only **geometry-derived** target: zero
+  circularity with the counts, which neither Moran's (latents themselves)
+  nor niche (labels from composition) can claim. The mid band (50–300 µm) is
+  the thesis itself: one graph hop cannot see the landmark there, so
+  predicting distance must travel through induced expression response.
+- **Allegiance matrix** — the compression: every claim in one block-diagonal
+  figure, each cold cell certified by its references.
+
+**Why the landmarks are being rewritten** (evidence: `landmark_map.png`,
+first-pass results, κ companion): the mid-band signal was weak (w 0.03–0.06)
+and κ-flat while every other instrument finds strong w-effects — pointing at
+the target's *definition*, not at absent spatial structure. The map confirms
+three specific failures:
+
+1. *Smooth muscle is sheets, not structures*: one giant wall instance
+   dominates; near-share 23%, beyond-cap 53% — distance-to-a-sheet is a thin
+   shell, not a gradient.
+2. *The good landmarks are starved*: the endothelial classes are
+   morphologically ideal (compact bullseyes) but cover a quarter of the
+   slide (92 + 19 instances; 68–75% beyond cap; the tumour mass unsampled).
+3. *The interface is degenerate and it is not a smoothing bug*: the mode
+   filter CONVERGED at 57.8% boundary — the slide is interleaved at
+   single-cell scale, so any 1-hop boundary definition makes near-share 84%
+   and the target has no variance.
+
+**The redefinitions, each with its success check** (all data-derived, same
+status as y; no pathologist input):
+
+1. **`vasculature`** = both endothelial types merged (+ Pericytes iff the
+   map-level co-location test passes: ≥50% of pericytes within 30 µm of an
+   endothelial cell — decided by the number, logged). Success: instances up,
+   beyond-cap share down, tumour mass sampled; mid-band w > z with floor ≈ 0.
+2. **Smooth muscle → compact instances only** (20–500 cells): arteriole
+   rings stay, anatomical walls drop. If < 5 instances survive, the class
+   drops out honestly.
+3. **Interface at tissue scale**: kNN-smoothed tumour fraction (k = 50,
+   ≈ 75 µm at this density), compartments = field > 0.5, boundary = graph
+   edges crossing compartments *of the smoothed field*. Success: boundary
+   share ≪ 57.8% and near-share ≪ 84% in the map.
+
+If the mid band stays flat after honest landmarks, that is a *finding* (the
+spatial response does not carry metric distance information beyond one hop),
+and the demotion question reopens with evidence instead of suspicion.
+
+**Landmark rewrite outcome** (reference_best, landmarks+matrix rerun; new
+`landmark_map.png`): every structural success check passed —
+
+- pericyte co-location measured at **90%** within 30 µm of endothelium →
+  included; `vasculature` = 8,387 cells in **206 instances** spread over the
+  whole slide incl. the tumour mass (mid-band coverage 7%→**55%**,
+  beyond-cap 68–75%→16%);
+- smooth muscle (compact, 20–500 cells): 238 instances, the 53k-cell sheets
+  gone (map shows rings, not walls); coverage still northern (cap 56%);
+- interface via kNN-smoothed tumour fraction (k=50): boundary share
+  57.8%→**8.9%**, near-share 84%→28% — the map shows a proper filigree
+  tracing the tumour lobules.
+
+The science, with honest targets: **the tumor–stroma interface is the one
+landmark w carries — mid-band R² 0.069 vs z −0.005, ℓ −0.005, floor −0.001**
+(and it strengthened vs the degenerate first pass). **Metric distance to
+vasculature is a clean null**: mid-band w 0.007 with 55% of the slide in
+band — either one-hop context genuinely cannot propagate perfusion distance,
+or labelled vasculature (endothelium+pericytes) is not the perfusion field
+(capillaries are unlabelled on this panel). The old smooth-muscle 0.045 is
+exposed as sheet-proximity (regional composition), falling to 0.010 with
+compact instances. Caveats: matrix row "mid-band landmark distance" averages
+all three classes, diluting the interface signal (0.069→0.029 shown);
+vasculature near-band shows z 0.06 > w 0.03 (spillover-adjacent intrinsic
+states? watch, near band is sanity-only). θ: vasculature ~ interface cosine
+0.52 (vessels live in stroma — expected collinearity, doc §2.5).
+
+**The circularity critique and the y-baseline control** (user-raised: the
+landmark sets are type-defined, types are expression-derived — so "ground
+truth from geometry, zero circularity" holds for the *ruler*, not the *set*).
+Where the risk actually sits: the z-column is structurally protected (fits
+are within-type so cell i's own label is constant; enc_z sees no neighbour
+labels; interface label-noise would bias z toward looking leaky → its null is
+conservative). The exposed cell is the w-positive on the interface, whose
+generator IS composition — w's own favourite food. Control added: a
+**y-baseline** (probe from raw one-hop composition) in every landmark table.
+Measured on reference_best:
+
+- *vasculature*: near-band y-baseline 0.45 (pure composition echo, as §2.4
+  predicted) but **mid-band y-baseline −0.004** — the invisibility premise
+  holds for compact structures; w's mid 0.007 is therefore a certified
+  genuine null of the strong beyond-one-hop claim.
+- *interface*: mid-band y-baseline **0.042** vs w **0.069** — roughly 60% of
+  the interface signal is definitional (composition reads its own boundary);
+  the defensible residual is **w − y ≈ +0.027**, and even that flows through
+  channels that include Φ. Reframed accordingly: the interface row shows w's
+  compositional nature (legitimate allegiance, weakly beyond raw one-hop
+  composition), NOT geometry-pure spatial-effect propagation.
+- z: ≈ 0 in every mid band under every reference — unchanged.
+
+Standing conclusion for the article: only annotation-free, image-derived
+landmarks (vessel lumens / DAPI voids from morphology) would honour the
+"zero circularity" pitch literally — noted as the second-slide upgrade; on
+this slide the landmark analysis contributes the vessel null + the
+quantified-circularity interface read, with Moran's/niche/cycle carrying the
+headline allegiance claims.
+
+### The annotation-free control: `reference_graphclust` (lung rehearsal)
+
+Motivation: the lung Prime dataset ships no curated `cell_groups.csv` (CDN
+verified — ovarian's file 206s, lung's 403s/absent), so before annotating
+lung we measure what training on unsupervised clusters costs, on the slide
+where we can compare. Mechanics: `--label-key` now threads through
+`assemble` → `TrainConfig` → run record and both post-hoc reloaders
+(report/validate rebuild a run under its own label set). Run: identical
+config/budget to `reference_best`, only t changes — 26 graphclust classes
+(25 clusters + Unassigned for 513 NaN cells via the P3 fold). Same
+trajectory: best epoch 59, stop 99, 18.6 min. Numbers
+(`experiments/graphclust_comparison.json`; cross-label reads score BOTH runs
+against the CURATED labels):
+
+| read | reference_best | reference_graphclust |
+|---|---|---|
+| held-out recon | −7.2586 | **−7.2556** (marginally better) |
+| NMI(kmeans-18(z), cell_group) | 0.657 | 0.646 (−0.011) |
+| probe ΔCE vs curated v-block (floor −0.056) | 0.004 | **0.061** |
+| cycle z pooled / its 50-PC frame | 0.475 / 0.216 (×2.19) | 0.323 / 0.116 (×2.79) |
+| cycle w pooled | 0.034 | 0.004 |
+| Moran mean I (z / w), own centring | 0.082 / 0.545 | 0.050 / 0.339 (6.7×; finer 26-way centring removes more from both) |
+| niche AUC (w / z / ℓ / floor), own niches | 0.76/0.65/0.59/0.50 | 0.75/0.64/0.57/0.50 |
+| per-curated-type ‖w‖ | — | Spearman 0.58; **top-3 identical** (VEGFA+ > Inflammatory > Proliferative) |
+
+**Verdict**: annotation-free training preserves everything except one thing —
+recon equal, z organises the curated biology essentially unchanged, cycle
+retention relative to its expression frame preserved (absolute numbers are
+frame-dependent, the ratio is the honest cross-conditioning read), the
+allegiance battery keeps its shape, the headline ‖w‖ biology survives at the
+top. The one principled degradation: **the invariance guarantee is
+label-set-relative** — z scrubbed against cluster-niche leaks ΔCE 0.061
+against the curated-niche block (vs 0.004 when trained on it); the adversary
+covers the composition it was shown, not every composition. Lung
+implication: graphclust-first is viable for model development and the
+allegiance battery; any invariance claim stated w.r.t. *named* types needs
+either a re-run after annotation (~19 min) or the reduced guarantee stated.
+
+### Lung: the second slide (`xenium_prime_human_lung_cancer_ffpe`)
+
+Motivation: generalisation beyond the ovarian slide, and the live rehearsal
+of the annotation-free path the graphclust control just validated. 10x ships
+no curated `cell_groups.csv` for this dataset (CDN-verified), so t =
+graphclust per the control's verdict.
+
+Slide facts and per-dataset decisions (each traced to its rule):
+
+- 278,324 cells × 5,001 genes (base Prime 5K panel — ovarian's extra 100
+  custom genes absent). Bundle built with the standard pipeline: voronoi
+  816,949 edges, mean degree 5.87, isolated 0.1%.
+- **Mask radius stays 25 µm** (E1 rule re-run on lung polygons): covering
+  radius p100 = 26.5 µm, exactly 2 cells exceed the disk (ovarian: 6) —
+  excluded/zero-filled, Φ stays cross-slide comparable.
+- **α_z = 0.004** (§5 rule): lung ℓ̄ = 242 vs ovarian's ~143 → 1/242 ≈
+  0.0041. Everything else at the calibrated defaults (portability of α_a,
+  α_w, ω across slides is an assumption to check against this run's probe
+  and KL_w readouts, not a given).
+- Labels: graphclust = 32 clusters + Unassigned (182 NaN cells via the P3
+  fold). Cycle instruments fully portable: MKI67 present, 18 S + 34 G2M
+  panel hits — same coverage as ovarian.
+- Embeddings: `egomask_ego_v1`, identical arm (KRONOS v1, 256 px @
+  0.5 µm/px, ego disk 25 µm), running at ~100 cells/s.
+
+Then: train `reference_graphclust` with `--label-key graphclust
+--alpha-z 0.004 --epochs 500 --patience 40`, defaults otherwise.
+
+### The α_w study: is w about the cell, or only about its context?
+
+Motivation (user-raised, written before the runs). At the operating point
+α_w = 0.1, w is measurably prior-pinned: KL_w ≈ 0.002/dim and
+R²(μ_w ~ m_ψ(c,t)) = 0.9998 (v5 inspection). The spec intends w as *the
+cell's* spatial response, and w has two information routes: the context
+prior m_ψ(c,t) — the population-level response every cell in that context
+shares — and the posterior deviation μ_w − m_ψ, the per-cell part read from
+the cell's own counts. At 0.1 the second route is essentially closed, so
+today w is a context-conditional field *evaluated at* the cell, not a
+per-cell measurement; the per-cell anomaly channel is deactivated (already
+recorded as an α_w calibration fact). The open question: does lowering α_w
+re-open a *usable* per-cell channel, or is everything below the knife-edge
+just identity theft (M3: closed-form-era 0.03 → NMI 0.33)? The adversary
+(α_a = 0.3) now guards the niche route, which may have moved the edge.
+
+Design: full runs (not short fits — the M3 numbers came from short fits in
+the closed-form era) at α_w ∈ {0.02, 0.03, 0.05, 0.07}, seed 0, everything
+else the calibrated defaults; `reference_best` is the 0.1 point. Per run,
+beyond the standard battery (NMI, probe, mirror, cycle z/w, recon):
+
+- **channel opening**: KL_w per dim; prior-R² = R²(μ_w ~ m_ψ); deviation
+  magnitude ‖μ_w − m_ψ‖ distribution;
+- **what the freed channel contains** (the deciding reads, all on the
+  deviation, not on w): kmeans-NMI(deviation, t) = identity-theft;
+  cycle-R²(deviation) = intrinsic-state theft; Δ held-out recon vs 0.1 =
+  legitimate per-cell response.
+
+Success criteria, stated in advance: (i) a middle α_w where KL_w opens,
+recon improves, NMI holds, and the deviation carries signal that is neither
+type nor cycle → candidate re-calibration; or (ii) theft all the way down →
+"on this slide at this depth, the per-cell spatial response is not
+identifiable; w is a context field" — and 0.1 stands with that caveat made
+formal. Either outcome answers the question; only one changes the model.
+
+(Parallel: lung `reference_graphclust` launches on the other GPU —
+embeddings landed, α_z = 0.004.)
+
+**Lung `reference_graphclust` results** (first cross-tissue fit; only α_z
+recalibrated): best epoch 59 — the third run in a row — recon −7.2577,
+NMI 0.653 over 33 clusters, 72 min (GPU contention). **The full allegiance
+structure transfers**: cycle pooled z 0.347 vs 50-PC frame 0.166 (×2.1) with
+w −0.000 and ℓ-baseline 0.000; probe ΔCE −0.010 (floor −0.021); mirror 0.036
+vs control 0.015 (lower than ovarian); Moran mean |I| w 0.428 vs z 0.059
+(7.3×, z triage benign: max y-R² 1.9%); niche AUC w 0.731 / z 0.617 /
+ℓ 0.544 / floor 0.50 — the same shape as ovarian at every read. KL_w
+prior-pinned on lung too (≈0.000–0.002/dim): the α_w question the ovarian
+study is probing is tissue-general, not an ovarian artefact. Report +
+validation under `runs/reference_graphclust/` on the lung dataset.
+
+**α_w study results** (`experiments/alphaw_study.json`; deviation reads on
+the validation split, deviation = μ_w − m_ψ):
+
+| α_w | recon | NMI | KL_w (nats, 6 dims) | prior-R² | dev→type NMI | dev→cycle R² | probe ΔCE | mirror |
+|---|---|---|---|---|---|---|---|---|
+| 0.10 | −7.2586 | 0.658 | 0.004 | 0.9989 | 0.22 | 0.02 | 0.004 | 0.056 |
+| 0.07 | −7.2586 | 0.635 | 0.148 | 0.9980 | 0.23 | 0.01 | 0.006 | 0.053 |
+| 0.05 | −7.2534 | 0.638 | 0.059 | 0.9978 | 0.24 | 0.03 | −0.018 | 0.052 |
+| 0.03 | −7.2510 | 0.631 | 0.180 | 0.9977 | 0.17 | 0.04 | −0.023 | 0.050 |
+| 0.02 | −7.2518 | 0.612 | 0.758 | 0.9960 | 0.16 | 0.06 | −0.025 | 0.048 |
+
+Readings, in order of importance:
+
+1. **The closed-form knife-edge is gone.** M3's "0.03 → NMI 0.33" does not
+   reproduce under the adversary: NMI at 0.03 is 0.631. The adversary guards
+   the niche route that the old identity theft ran through; the edge has
+   moved to ~0.02 (NMI 0.612 and sliding at the guard floor mid-training).
+2. **A real per-cell channel opens and pays**: recon improves monotonically
+   to 0.03 (−7.2586 → −7.2510, +0.0076 per-count nats — the size of the
+   entire Φ ablation), KL_w opens to 0.18 nats at 0.03 and 0.76 at 0.02.
+3. **What flows through it is NOT identity**: the deviation's type-NMI
+   *falls* as the channel opens (0.22 → 0.16). The ~0.2 floor at closed
+   channel is enc_w's t-conditioning patterning the near-zero residual, not
+   theft — the trend is the read, and it points away from theft. A small
+   intrinsic seepage appears instead (dev→cycle 0.02 → 0.06), the cost side.
+4. **Amplitude stays context-dominated everywhere**: prior-R² ≥ 0.996 at
+   every α_w — w's bulk is the context field at any setting in this range;
+   what opens is a small per-cell *correction*, which is precisely the
+   spec's deviation/anomaly reading of w. Prior-R² is therefore the wrong
+   sensitivity lens; KL_w is the right one.
+5. Invariance and mirror are fine or better everywhere (probe ≤ 0, mirror
+   falls slightly); cycle_z stable 0.45–0.49; cycle_w ≤ 0.014 below 0.1.
+
+**Verdict on the question "is w about the cell or the context?"**: at
+α_w = 0.1 — the context only, measured. The study lands in pre-registered
+outcome (i): α_w ≈ 0.03 re-opens a genuine per-cell channel (0.18 nats,
+likelihood-positive, non-type, marginally cycle-tinged) while w's bulk
+remains the context field. **Candidate re-calibration α_w = 0.03**, pending
+the pre-registered seed check (seeds 1, 2 at 0.03 launched); the KL_w
+non-monotonicity at 0.05/0.07 is single-seed noise the check will also
+bound. Default unchanged until then.
+
+### Doc-09 execution: gate zero, the module, and the α_w plot twist
+
+**Gate zero passed decisively**: 618 CellChat pairs survive panel ∩ (L+R
+present) ∩ (≥20 in-panel NicheNet targets) — 463 secreted, 155
+contact-dependent, 282 unique ligands. No fallback needed. Provenance:
+`CellChatDB.human.rda` (jinworks/CellChat main, downloaded 2026-09-10) and
+NicheNet v2 `ligand_target_matrix_nsga2r_final.rds` (Zenodo
+10.5281/zenodo.7074291), both in `data/external/`; new deps `rdata` (R
+lists; pyreadr cannot read them) + `pyreadr` (the rds matrix).
+
+**`discell/model/communication.py`** implements §1–§4 + §5c: inventory
+(sender types = top-quartile per-type mean ligand rate; receivers ≥2k cells,
+all receptor subunits ≥5% positive; ranked by Var(Ẽ)×prevalence, top 20),
+exposure (one-hop through the model's own β; mid-band grid-KDE Gaussian
+shell 50–150 µm), the load-bearing composition residualisation with the
+Var(Ẽ)/Var(E) ≥ 0.1 gate, allegiance rows {w, z, floor, ℓ, y} on block-CV,
+program B·θ̂ scored by NicheNet-target AUROC against 50 matched-null ligands,
+reattribution on decontaminated log ρ (leak-attributed = keeps <30% of the
+naive coefficient; BH-FDR 0.05 naive hits), and the decoy-exposure control.
+5 planted-truth instrument tests pass (exposure vs hand computation;
+mid-band shell sees 100 µm not 30/250; residualisation strips composition;
+depth-controlled association; AUROC ordering).
+
+**α_w seed check, interim**: seeds 1/2 at 0.03 are still training past
+epoch 99 with recon −7.19/−7.24 (≫ seed 0's −7.2510 — more than any
+legitimate deviation could buy) at NMI ~0.613. Reading: **0.03 is
+seed-bistable** — an honest-channel basin (seed 0) and a theft basin
+(seeds 1/2). Deviation reads on completion decide; 0.05 becomes the
+candidate safe point if confirmed. Doc-09 runs will carry the 0.1-vs-0.03
+ablation either way (§3.6), with the bistability reported.
+
+**α_w seed verdict — 0.03 revoked, 0.05 on probation.** The full-table
+deviation reads over seeds (`experiments/alphaw_study.json`, rows
+0.031/0.032 = seeds 1/2 at 0.03): the anomalous recon (−7.173/−7.233 vs
+seed 0's −7.251) is **not deviation-carried** — KL_w stays ≈ 0.17–0.20
+nats in every 0.03 run, and a 0.2-nat channel cannot buy ~11 nats/cell of
+likelihood. The gain comes from a competing solution family in the
+*context* machinery (prior/GAT/B over-explaining expression), and it drains
+z: cycle_z falls to 0.445 (s1) and 0.354 (s2) vs 0.47–0.49 in every honest
+run, invisible to the NMI guard (type separability holds). Reading: low
+α_w doesn't just open the deviation channel, it lets the posterior *lead*
+an exploratory drift early in training that the prior then chases —
+KL-free once converged, so only the seed ensemble exposes it. Conclusion:
+**0.03 is seed-bistable and rejected per the pre-registered criteria; the
+candidate moves to 0.05** (recon −7.2534, clean deviation reads, cycle_z
+0.454) pending its own seed check (s1/s2 launched). A methods lesson for
+the paper: prior-R² cannot certify context-determination when the prior is
+learned — the prior chases the posterior, so the certificate is KL_w plus
+cross-seed stability, never the R².
+
+**Doc-09 first pass, the 0.1 arm (`reference_best`)** — all 20 top-ranked
+pairs end-to-end (`runs/reference_best/communication/communication.json`):
+
+1. **The 0.1 side of the §3.6 ablation is now measured: w cannot see the
+   residualised exposure at all** — every allegiance R² (w, z, y) ≈ 0 on
+   block-CV. Consistent with everything known about the 0.1 point (w ≈
+   1.3-D composition manifold): even "exposure visibility" is absent once
+   composition is partialled out. The low-α_w arm is where the channel
+   question gets answered.
+2. **Programs still separate a candidate set** despite the flat R² (θ is an
+   in-sample direction in 6-d program space): 5 pairs clear the matched
+   null at ≥ 0.94 percentile — POSTN→ITGAV/B5 (AUROC 0.640, decoy 0.545),
+   PDGFB→PDGFRB (0.606/0.479), TNFSF10→TNFRSF10B (0.602/0.544),
+   IL6→IL6R/IL6ST (0.575/0.499), CD99 (1.00 percentile but decoy 0.602 —
+   **decoy-rejected**, sender-proximity artifact). The decoy control does
+   its job, and the survivors are all *secreted* pairs — matching the
+   cellAdmix expectation that little survives cleaning, and the range
+   logic (contact pairs are the leak-mimic hard case).
+3. **Reattribution headline (provisional)**: 2,788 naive exposure-
+   associated genes across pairs; **61% leak-attributed**, 30 w-retained,
+   38% unexplained (expected at 0.1 — w cannot retain what it cannot see).
+   **Caveat, logged before anyone quotes the 61%**: the built-in
+   falsification is weak — only 9/28 sender-exclusive artifact candidates
+   get leak-attributed, and leak examples skew to low-expression genes, so
+   the keeps-<30%-on-log-ρ threshold is uncalibrated for rare genes. The
+   §5a planted worlds (world B = leakage only, correct answer nothing) are
+   the calibration instrument and gate any quotable number from §4.
+Next: 0.05 seed check → operating point → the low-α_w communication arm;
+then planted worlds.
+
+**α_w study, final verdict: no safe re-calibration below 0.1 — default
+stands.** The 0.05 seed check reproduces the bistability (s1 −7.1857,
+s2 −7.2285 vs seed 0 −7.2534), and the full table
+(`experiments/alphaw_study.json`, 9 runs) sharpens the mechanism: at
+0.05/s1 the implausible likelihood arrives with every existing guard clean
+— NMI 0.623, cycle_z 0.478, KL_w 0.027, deviation reads normal. So the
+basin is not deviation theft and not z-drain (that was 0.03/s2's variant):
+the route is the **w-mirror** — m_ψ(c,t) learning to reconstruct the cell
+from its neighbours' μ_z through the GAT, KL-free once the prior converges,
+unguarded by NMI (type intact), by the invariance probe (targets [y,Φ]),
+and by the z-mirror metric (which watches z, not w). Below α_w = 0.1 the
+posterior can afford the early exploratory deviation that discovers this
+route; 3 of 6 sub-0.1 seed runs fell in, 0 of 21+ runs at 0.1 ever have.
+**Pre-registered outcome (ii), amended**: the per-cell channel cannot be
+safely opened by lowering α_w alone under the current architecture; the
+honest answer to "is w about the cell?" stays "no — context only", now
+with the mechanism that enforces it mapped. Registered in issues as the
+w-mirror watch item with the proposed guard (a w-side mirror metric:
+held-out R² of μ_w's within-type residual from neighbour z's, to be added
+to the evaluation battery before any future α_w attempt; architectural
+options — capacity-limiting or input-restricting m_ψ — are spec-change
+territory for the architect). Doc-09's low-α_w arm runs on `alphaw_0.05`
+seed 0 (clean basin, labelled fragile) purely as the §3.6 ablation.
+
+**Doc-09 §3.6 ablation (0.1 vs 0.05), verdict**: opening the deviation
+channel does NOT rescue exposure visibility — mean w-R² on residualised
+exposure gains +0.006 (still ≈ 0 on all 20 pairs). The blind spot is
+architectural, not α_w-gated: a 6-d, one-hop, composition-dominated context
+channel retains no within-composition ligand detail at any tested operating
+point. Worse for the low arm: the program signal *degrades* there — mean
+target-AUROC 0.541 → 0.514, and all five null-clearing pairs collapse
+(POSTN pct 1.00→0.72, PDGFB 0.98→0.16, TNFSF10 0.94→0.46, IL6 0.94→0.40).
+The communication readout is best at the honest 0.1 point. Standing doc-09
+results: 4 decoy-validated secreted candidates at 0.1 (POSTN→ITGAV/B5,
+PDGFB→PDGFRB, TNFSF10→TNFRSF10B, IL6→IL6R/ST), CD99 decoy-rejected, 61%
+leak-reattribution (uncalibrated until §5a), and the architectural null.
+Consequence for §5a: world A now doubles as the sensitivity calibration —
+if a planted response of realistic amplitude is also invisible to the
+w-probe, the exposure null is a sensitivity statement, not biology.

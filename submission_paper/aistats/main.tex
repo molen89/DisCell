@@ -1,0 +1,63 @@
+\documentclass[twoside]{article}
+
+\usepackage{aistats2026}
+% \usepackage[accepted]{aistats2026}   % camera-ready
+% \usepackage[preprint]{aistats2026}   % non-anonymous preprint
+
+\usepackage[round]{natbib}
+\renewcommand{\bibname}{References}
+\renewcommand{\bibsection}{\subsubsection*{\bibname}}
+
+\usepackage{amsmath,amssymb,amsthm,bm,mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs,multirow,array}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\graphicspath{{figures/}}
+\input{macros}
+
+\begin{document}
+
+\runningtitle{DISCELL}
+% \runningauthor{...}
+
+\twocolumn[
+\aistatstitle{DISCELL}
+\aistatsauthor{Anonymous Author}
+\aistatsaddress{Anonymous Institution} ]
+
+\begin{abstract}
+  \input{sections/abstract}
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/method}
+\input{sections/experiments}
+\input{sections/conclusion}
+
+\bibliographystyle{apalike}
+\bibliography{references}
+
+\input{sections/checklist}
+
+\clearpage
+\appendix
+\thispagestyle{empty}
+\onecolumn
+\aistatstitle{DISCELL: Supplementary Materials}
+
+\input{appendix/derivations}
+\input{appendix/rationale}
+\input{appendix/implementation}
+\input{appendix/data}
+\input{appendix/calibration}
+\input{appendix/synthetic}
+\input{appendix/validation}
+\input{appendix/additional_results}
+
+\end{document}

@@ -1,0 +1,85 @@
+\section{IMPLEMENTATION DETAILS}
+\label{app:implementation}
+
+\subsection{Architecture and Hyperparameters}
+\label{app:architecture}
+
+\cref{tab:architecture} lists every network and every fixed quantity as used in the experiments. All multilayer perceptrons use rectified-linear hidden units.
+
+\begin{table}[t]
+\centering
+\caption{Networks and fixed quantities. $G$ genes, $K$ types, $\dPhi$ image-embedding dimension.}
+\label{tab:architecture}
+\small
+\begin{tabular}{@{}p{0.2\textwidth}p{0.27\textwidth}p{0.48\textwidth}@{}}
+\toprule
+Component & Input & Layers / value \\
+\midrule
+Count encoding & $\vx_i$ & $[\log(1 + \vx_i \tilde\ell/\ell_i),\ \log\ell_i]$, $\tilde\ell$ the median total \\
+$q(\vz_i \mid \vx_i, t_i)$ & count encoding $\oplus \onehot(t_i)$ & $256 \to 256 \to 2\dz$, $\dz = 20$ \\
+Type query $\embed(t_i)$ & $t_i$ & learned table, width $K + \dz$ \\
+Attention sources & neighbour $j$ & $[\onehot(t_j), \sg{\vmu_z(\vx_j)}]$, width $K + \dz$ \\
+Attention layer & sources, query & one bipartite GATv2 layer, $4$ heads $\times\, 32$, averaged, LeakyReLU slope $0.2$, no self-loops, no edge features \\
+Context $\vc_i$ & & attention output ($32$) $\oplus\ \vPhi_i$ ($\dPhi = 384$) $\oplus$ isolation flag ($1$) \\
+Prior mean $\mpsi(\vc_i, t_i)$ & $\vc_i \oplus \onehot(t_i)$ & $64 \to \dw$, $\dw = 6$ \\
+$q(\vw_i \mid \cdot)$ & $\vc_i \oplus \onehot(t_i) \oplus \vz_i \oplus$ count encoding & $256 \to 2\dw$ \\
+Decoder $a(\vz_i)$ & $\vz_i$ & $256 \to G$ \\
+Loadings $\vB$ & $\vw_i$ & linear $\dw \to G$, no bias \\
+Adversary heads & $\vmu_{z,i} \oplus \onehot(t_i)$ & two heads $64 \to 64 \to K$ (composition) and $\to \Ephi = K$ (image niche) \\
+Image niche $\ephi_i$ & $12$ principal components of $\vPhi$ & soft $k$-means memberships $\softmax(-d^2/T)$, $T$ the median nearest squared distance; the projection is fitted on a $50{,}000$-cell random subsample and applied to all cells, the $k$-means (four restarts) on all cells; fitted once and frozen \\
+Invariance block $\vv_i$ & & $[\vy_i^{(-K)},\ 12 \text{ principal components of } \vPhi_i]$ \\
+Held-out probes & $\vmu_{z,i} \oplus \onehot(t_i)$ & ridge regression ($\lambda = 10^{-3}$) with a within-type permutation floor; perceptron $64 \to 64$, $300$ Adam steps at $10^{-3}$ with batches of $2{,}048$; both fitted on at most $30{,}000$ training-tile cells \\
+\midrule
+Graph & & Delaunay adjacency; Voronoi faces measured within $30\um$ discs; prune at $40\um$ \\
+Kernel $\beta$ & & $f_{ij}\exp(-d_{ij}/\tau)$, $\tau = 20\um$, row-normalised over in-edges \\
+Prior scale $\sigma_w$ & & $1$ (fixed) \\
+\midrule
+Leak fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; operating point $0.1$ \\
+$\omega$ & & $1$ \\
+$\alphaz$ & & $0.007$ \\
+$\alphaw$ & & $0.1$ \\
+$\alphaa$ (adversary) & & $0.3$; heads updated $6$ times per model update, learning rate $2\times10^{-3}$ \\
+$\alphaa$ (closed form, not used for the sweep) & & $0.03$, calibrated (\cref{app:calibration}) \\
+Moving-average rate, shrinkage & & $0.05$, $0.05$; support floor $10\times$ joint dimension \\
+\midrule
+Tiles & & recursive median split into rectangles of $\leq 4{,}096$ cells; $15\%$ of tiles held out \\
+Optimiser & & Adam \citep{kingma2015adam}, learning rate $10^{-3}$, cosine annealing \citep{loshchilov2017} over $200$ epochs, gradient-norm clip $10$ \\
+Evaluation & & every $5$ epochs on posterior means; checkpoint accepted if held-out reconstruction improves and $\vz$--type agreement $\geq 0.9\times$ its running maximum; patience $20$ epochs \\
+Halo overhead & & extra nodes per step $21\%$ of the seed count at tiles of about $1{,}600$ cells and $9.7\%$ at about $6{,}400$ (not measured at $4{,}096$) \\
+Hardware & & one consumer GPU; a $407{,}120$-cell fit takes roughly $7$ s per epoch, $7$ to $23$ minutes to early stopping \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Choices Made in Implementation}
+\label{app:deviations}
+
+Where the model description of \cref{sec:method} leaves a choice open, \cref{tab:deviations} records what was done and why. Every entry is also stated in the method text; the table collects them in one place. \todo{author to decide whether this table stays; it duplicates the method text}
+
+\begin{table}[t]
+\centering
+\caption{Implementation choices and their reasons.}
+\label{tab:deviations}
+\small
+\begin{tabular}{@{}p{0.22\textwidth}p{0.36\textwidth}p{0.36\textwidth}@{}}
+\toprule
+Where & Decision & Reason \\
+\midrule
+Type input to $q(\vw)$ and $\mpsi$ & one-hot everywhere the type is an input; the learned type embedding exists only as the attention query, sized to match the source features & the query stands in for the $\vz_i$ that the cell deliberately does not contribute to its own context \\
+Counts input to $q(\vw)$ & the same encoding as $q(\vz)$ & one encoding of the counts for both posteriors \\
+Neighbour responses $\vw_j$ & a posterior draw from the same batched pass, under a stop-gradient & the neighbours' clean compositions must include their local programme (\cref{sec:batching}) \\
+Invariance block & one composition column dropped & the simplex makes the full block singular; the information is unchanged (\cref{app:gaussian-mi}) \\
+Penalty matrices & correlation rather than covariance form, plus $10^{-5}\vI$ on the correlation matrix before the log-determinant & identical value by scale invariance; bounded gradient; on a unit-diagonal matrix the additive term is a uniform relative jitter, not a variance-inflating ridge \\
+Penalty gradient & straight-through: value from the moving averages, gradient from the batch & otherwise the effective strength of $\alphaa$ scales with the averaging rate \\
+Penalty, adversary and probe input & posterior means $\vmu_z$, not samples & encoder noise would dilute the measured dependence \\
+Objective granularity & per-cell mean over the batch rather than a sum & invariant to tile size \\
+Evaluation draws & posterior means & the stopping signal should not ride reparameterisation noise \\
+Image embedding dimension & full $384$ dimensions into $\vc_i$ rather than a $32$--$64$-dimensional projection & an ablation found a small gain in held-out reconstruction from the full embedding (\cref{app:calibration}); the invariance block still uses $12$ principal components \\
+Probe target for the image & Gaussian cross-entropy on the continuous block rather than categorical cross-entropy against image-niche clusters & the closed-form penalty takes continuous components directly; a small nonlinear probe is fitted alongside as a cross-check \\
+Graph construction & the Voronoi tessellation is clipped to $30\um$ discs before faces are measured, then edges are pruned at $40\um$ & the clip removes faces only for pairs more than roughly $60\um$ apart, which the prune removes anyway, and bounds the length of faces at tissue borders and across gaps; the effect on $\beta$ for kept edges has not been quantified \todo{quantify} \\
+Invariance mechanism & the adversary is the operating configuration; the closed-form penalty is the cheaper first attempt & a nonlinear probe found residual dependence after the closed-form penalty converged (\cref{app:calibration}) \\
+\midrule
+Not built & Dirichlet-multinomial likelihood; counterfactual machinery with abduction; bounded conditional $\sigma_w(\vc,t)$; estimation of $\kappa$ from a nuclear/extranuclear split; edge features in the attention layer & each has a stated trigger that has not fired, or is future work \\
+\bottomrule
+\end{tabular}
+\end{table}

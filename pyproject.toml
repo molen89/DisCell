@@ -13,19 +13,21 @@ dependencies = [
     "numpy>=1.26",
     "pandas>=2.2",
     "scipy>=1.13",
-    "shapely>=2.0",             # polygon validity repair, apposed-wall measurement
+    "shapely>=2.0", # polygon validity repair, apposed-wall measurement
     # the AnnData world
-    "anndata>=0.11",            # a bundle's .h5ad
-    "scanpy>=1.10",             # only for read_10x_h5; ~285 MB of tree for one call
-    "pyarrow>=16",              # polygon and edge parquet -- pandas ships it as an extra
+    "anndata>=0.11", # a bundle's .h5ad
+    "scanpy>=1.10", # only for read_10x_h5; ~285 MB of tree for one call
+    "pyarrow>=16", # polygon and edge parquet -- pandas ships it as an extra
     # imaging: one window out of a multi-GB BigTIFF, without decoding the slide
     "tifffile[codecs]>=2024.1", # [codecs] is what decodes the JPEG-compressed tiles
-    "zarr>=3.1",                # tifffile.aszarr() is opened through it
+    "zarr>=3.1", # tifffile.aszarr() is opened through it
     # modelling and figures
     "torch>=2.4",
-    "matplotlib>=3.8",          # discell.main plots by default, as does --figures
-    "umap-learn>=0.5",          # --figures qc
-    "tensorboard>=2.16",        # training-loop logging
+    "matplotlib>=3.8", # discell.main plots by default, as does --figures
+    "umap-learn>=0.5", # --figures qc
+    "tensorboard>=2.16", # training-loop logging
+    "pyreadr>=0.5.6",
+    "rdata>=1.1.0",
 ]
 
 [project.optional-dependencies]

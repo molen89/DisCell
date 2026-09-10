@@ -1,0 +1,47 @@
+\section{DERIVATIONS}
+\label{app:derivations}
+
+\subsection{The Reconstruction Bound}
+\label{app:bound}
+
+Fix a cell $i$ and hold $\vc_i$ and $\rhobar_i$ constant, as \cref{sec:batching} does. Then
+\begin{align}
+  \log p(\vx_i \mid \vc_i, t_i)
+  &= \log \iint p(\vx_i \mid \vz, \vw)\, p(\vw \mid \vc_i, t_i)\, p(\vz)\, d\vz\, d\vw \\
+  &\geq \E_{q(\vz)\,q(\vw \mid \vz)}\Big[\log p(\vx_i \mid \vz, \vw) + \log p(\vw \mid \vc_i, t_i) + \log p(\vz) - \log q(\vz) - \log q(\vw \mid \vz)\Big] \label{eq:jensen}\\
+  &= \E_{q(\vz)}\Big[\E_{q(\vw \mid \vz)}\big[\log p(\vx_i \mid \vz, \vw)\big] - \KL\big(q(\vw \mid \vz)\,\|\,p(\vw \mid \vc_i, t_i)\big)\Big] - \KL\big(q(\vz)\,\|\,p(\vz)\big),
+\end{align}
+where \cref{eq:jensen} is Jensen's inequality under the variational family $q(\vz)\,q(\vw \mid \vc_i, t_i, \vz, \vx_i)$. Because $q(\vw \mid \cdot)$ conditions on the sampled $\vz$, the exact bound keeps the $\vw$-divergence inside $\E_{q(\vz)}$. The divergence between two diagonal Gaussians is available in closed form,
+\begin{equation}
+  \KL\big(\N(\vmu, \vsigma^2)\,\|\,\N(\mathbf{m}, \mathbf{s}^2)\big) = \sum_k \Big[\log\frac{s_k}{\sigma_k} + \frac{\sigma_k^2 + (\mu_k - m_k)^2}{2 s_k^2} - \frac{1}{2}\Big],
+  \label{eq:gauss-kl}
+\end{equation}
+and evaluating it at the single reparameterised draw of $\vz$ used for the reconstruction term is an unbiased one-sample estimate of $\E_{q(\vz)}[\KL(\cdot)]$.
+
+\subsection{The Intrinsic Path and the Factor \texorpdfstring{$(1+\omega)$}{(1+omega)}}
+\label{app:pathb}
+
+A second bound on the same data holds for the model in which $\vw$ is not inferred. Setting $q(\vw) := p(\vw \mid \vc_i, t_i)$ zeroes the $\vw$-divergence and leaves
+\begin{equation}
+  \log p(\vx_i \mid \vc_i, t_i) \geq \E_{q(\vz)}\E_{p(\vw \mid \vc_i, t_i)}\big[\log p(\vx_i \mid \vz, \vw)\big] - \KL\big(q(\vz)\,\|\,p(\vz)\big) =: L_i^{z}.
+\end{equation}
+Call the bound of \cref{app:bound} $L_i$. Each carries its own $-\KL(q(\vz_i)\|p(\vz_i))$, so $L_i + \omega L_i^{z}$ contains $-(1+\omega)\KL(q(\vz_i)\|p(\vz_i))$. Omitting the second copy breaks the correspondence with $L_i + \omega L_i^{z}$ even at $\omega = 1$.
+
+The construction mirrors the two-bound objective of \citet{slavutsky2025}, where the sum of the shared-only and joint bounds corresponds to minimising $\KL(q(\vz) \,\|\, p(\vz \mid \vx)) + \KL(q(\vz)q(\vw) \,\|\, p(\vz,\vw \mid \vx, u))$ with $u$ their condition label, a sum of two non-negative divergences. It is coherent as an M-estimation target, but it is not the evidence lower bound of a single model, so $q$ is not the posterior of anything, which is one of the reasons uncertainty is reported from the leakage sweep rather than from $q$.
+
+Why the intrinsic path is load-bearing: in \citet{slavutsky2025} a structured prior couples the two codes through the condition and thereby rewards the shared code for carrying signal \todo{state the exact form of that prior}. Our prior on $\vw$ never references $\vz$, and the prior on $\vz$ is a standard normal, so nothing else in the objective rewards $\vz$ for being informative. The intrinsic path supplies that pressure directly, since under it $\vz$ must explain the cell given only the expected response. It runs through the same leakage mixture as the first term, so it never asserts $\kappa = 0$ and contradicts it.
+
+\subsection{The Invariance Term as Posterior Regularisation}
+\label{app:posterior-reg}
+
+Neither $\Pen$ nor $\Adv_i$ is part of any bound. Both are posterior regularisation in the sense of \citet{ganchev2010}: a constraint on the variational family, $\I(\vz; [\vy, \vPhi] \mid t) = 0$, written as a penalty on the variational objective. This is the same status \citet{slavutsky2025} give their adversarial term. It is a statement about which $q$ are admissible, not a modification of the generative model, and the generative model's conditional independence $\vz_i \perp [\vy_i, \vPhi_i] \mid t_i$ is what it encodes.
+
+\subsection{The Gaussian Conditional Mutual Information}
+\label{app:gaussian-mi}
+
+For jointly Gaussian $(\vz, \vv)$ with covariance $\Sig_{[\vz,\vv]}$ and marginal covariances $\Sig_{\vz}, \Sig_{\vv}$, the mutual information is $\I(\vz;\vv) = \tfrac12[\logdet\Sig_{\vz} + \logdet\Sig_{\vv} - \logdet\Sig_{[\vz,\vv]}]$ \citep{cover2006}. \cref{eq:penalty} applies this per type and averages with the type frequencies, which is the Gaussian estimate of $\I(\vz;\vv \mid t)$ under a type-wise Gaussian assumption. Two properties used in \cref{sec:invariance} follow directly. First, the value is invariant to a per-dimension rescaling $\vu \mapsto \mathbf{D}\vu$ with $\mathbf{D}$ diagonal: each log-determinant gains $\log\det$ of the corresponding block of $\mathbf{D}^2$, and the blocks of $\mathbf{D}$ for $\vz$ and $\vv$ together make up $\mathbf{D}$, so the three terms cancel exactly. The penalty may therefore be computed on correlation matrices. Second, on the simplex $\sum_k y_k = 1$ the covariance of the full composition vector is singular and the log-determinant is $-\infty$; dropping one column removes the constraint without changing the information, since the dropped column is a deterministic function of the others.
+
+\subsection{Feedback Amplification Through the Leakage Path (Heuristic)}
+\label{app:amplification}
+
+The following is a first-order heuristic, not a theorem. Write the decoder output of cell $j$ as $\vrho_j$ and suppose gradients were allowed to flow from cell $i$'s reconstruction through $\rhobar_i = \sum_j \beta_{ij}\vrho_j$ into the parameters that produce $\vrho_j$. Linearising around a fixed point of the coupled system, a perturbation $\delta$ of a cell's clean composition induces a perturbation $\kappa\,\beta\,\delta$ of its neighbours' fitted compositions, which feeds back through the same path; the total response is $\delta\sum_{n \ge 0}(\kappa \mathbf{P}_\beta)^n$ for a row-stochastic $\mathbf{P}_\beta$ built from $\beta$, whose spectral radius is at most one, so the geometric series is bounded by $1/(1-\kappa)$. The stop-gradient truncates the series at $n = 0$. The argument concerns perturbations of the fitted compositions; the gradient fixed point through shared decoder parameters is more involved, and the empirical fact that matters is the collapse reported by \citet{ergen2025} when the path is left open. \todo{either complete the gradient-level argument or keep this as a heuristic}

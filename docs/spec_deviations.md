@@ -70,3 +70,20 @@ leak is nonlinear (ridge at floor, MLP at 46%), the adversary was built, and
 the sweep runs with `invariance = adversary`, `α_a = 0.3`, `adv_steps = 6`,
 `adv_lr = 2e-3` — MLP-ΔCE 14% of uncontrolled at zero NMI cost. Lesson kept in
 issues A2: a weak adversary is a placebo; only the independent probe grades it.
+
+# Deviations from doc 08 (`08-validation-analyses_1.md`, validation handover)
+
+Same discipline as above: each row is a surfaced decision, evidence in the
+devlog. The handover file itself is left as received; this register + the
+devlog carry the deltas (ready for architect ratification like the 07 rounds).
+
+| where | doc says | code does | rationale |
+|---|---|---|---|
+| §2.4 banding | "fit on cells with d ≤ 500 µm; report held-out R² per band" | **fit within each band** (block-CV inside the band) | the pooled fit scored band-locally punishes the global slope, not the band question — every probe went negative with the floor at zero, more signal = more negative (w −0.76 < z −0.25 < ℓ −0.16 < floor 0) |
+| §2.1 inventory | one class per structural type; interface via graph mode-filter | `vasculature` = endothelial ∪ pericytes (co-location **measured** at 90%/30 µm); smooth muscle restricted to compact instances (20–500 cells); interface from kNN-smoothed tumour fraction (k = 50) | map diagnosis: sheets not structures; starved coverage (68–75% beyond cap); mode filter *converged* at 57.8% boundary on this interleaved slide (near-share 84%, target without variance) |
+| §1 references | floor / ℓ-baseline / ceiling | **+ y-baseline** (probe from raw one-hop composition) in every landmark table | the landmark sets are type-defined and types are expression-derived (user-raised); y-baseline measures the definitional share instead of arguing about it |
+| §2.6 θ | from the w-probe (band unspecified) | from the **mid-band** fit | the evidence band defines the direction; a 0–500 fit mixes the echo into θ |
+| §2 claim | "ground truth from *geometry* … zero circularity with the counts" | claim scoped: true of the ruler, not the set | measured: interface mid-band y-baseline 0.042 vs w 0.069 → ~60% definitional, residual +0.027 reframed as compositional allegiance; **vasculature is the only geometry-grade test and is a certified null** (mid y −0.004, w 0.007). Literal zero-circularity needs image-derived landmarks (second-slide upgrade) |
+| §3.1 weights | "binary or β_ij" | binary, row-normalised | β adds no discriminative value for the I asymmetry; one fewer knob |
+| §4.3 expectation | "z within noise of max(floor, ℓ-baseline)" | measured **above** it: AUC z 0.65 vs ℓ 0.59 (w 0.76) | not silently accepted: registered as a watch item (issues), triaged benign (hot z dims y-R² ≤ 3.6%), and shown κ-reducible (+0.062 → +0.039 over the grid) |
+| §5 matrix | rows incl. "mid-band landmark distances" | row present but averages three classes, diluting the interface read (0.069 shown as 0.029) | split into interface row + vessel-null-in-text proposed, **decision pending** |

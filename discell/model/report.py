@@ -266,7 +266,7 @@ def build(args: argparse.Namespace) -> Path:
     data = assemble(args.dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
                     v_pcs=config.v_pcs, val_fraction=config.val_fraction,
-                    seed=config.seed)
+                    seed=config.seed, label_key=config.label_key)
     device = args.device if torch.cuda.is_available() else "cpu"
     model = DisCell(n_genes=data.x.shape[1], n_types=len(data.p_t),
                     phi_dim=data.phi.shape[1],

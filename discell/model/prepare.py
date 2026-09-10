@@ -266,6 +266,7 @@ class ModelData:
     # the adversary's targets (spec 4.6 escalation); None under closed_form
     e_phi: np.ndarray | None = None       # (N, E_Phi) soft memberships
     phibar_t: np.ndarray | None = None    # (K, E_Phi) mean membership per type
+    gene_names: np.ndarray | None = None  # panel gene symbols, decoder order
     #: Tirosh cell-cycle scores + MKI67-ranked cycling types; None when the
     #: panel lacks the markers (synthetic data)
     cycle: dict | None = None
@@ -279,14 +280,21 @@ def assemble(dataset, variant: str, embeddings: str,
              tile_cells: int = 4096, val_fraction: float = 0.15,
              phi_pca: int | None = None, v_pcs: int = 12,
              max_edge_um: float = DEFAULT_MAX_EDGE_UM,
-             tau_um: float = DEFAULT_TAU_UM, seed: int = 0) -> ModelData:
-    """Open a bundle and build the tensors, tiles and split for one fit."""
+             tau_um: float = DEFAULT_TAU_UM, seed: int = 0,
+             label_key: str | None = None) -> ModelData:
+    """Open a bundle and build the tensors, tiles and split for one fit.
+
+    *label_key* selects the obs column that becomes ``t`` (None: the bundle's
+    default label, i.e. curated ``cell_group`` when present). Everything
+    conditioned on type -- y, rho_bar, the adversary, K itself -- follows it.
+    """
     from discell import paths
     from discell.data.embeddings import load_embeddings
     from discell.data.loader import CellGraphDataset
 
     ds = paths.dataset(dataset)
-    opened = CellGraphDataset.from_dataset(ds, variant, graph="voronoi")
+    opened = CellGraphDataset.from_dataset(ds, variant, graph="voronoi",
+                                           label_key=label_key)
     graph = from_dataset(opened, max_edge_um=max_edge_um, tau_um=tau_um)
 
     phi, found = load_embeddings(ds.embeddings_file(embeddings),
@@ -356,5 +364,5 @@ def assemble(dataset, variant: str, embeddings: str,
         p_t=(np.bincount(t, minlength=k) / len(t)).astype(np.float32),
         type_names=opened.type_names, v_block=v_block, vbar_t=vbar_t,
         train_tiles=train, val_tiles=val, e_phi=e_phi, phibar_t=phibar_t,
-        cycle=cycle,
+        cycle=cycle, gene_names=np.asarray(opened.gene_names),
     )

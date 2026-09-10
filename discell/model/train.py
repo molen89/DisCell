@@ -50,6 +50,9 @@ class TrainConfig:
     dataset: str
     variant: str = "full"
     embeddings: str = "egomask_ego_v1"
+    #: obs column for t; None = the bundle default (curated cell_group).
+    #: "graphclust" runs on unsupervised clusters -- the no-annotation control
+    label_key: str | None = None
     run_name: str | None = None
     # the model
     d_z: int = 20
@@ -295,7 +298,15 @@ class Trainer:
                      "ceiling": M.cycle_r2(cyc["x_pcs"][rows_all], t_all,
                                            scores, cycling, train_mask,
                                            ~train_mask,
-                                           seed=self.config.seed)}
+                                           seed=self.config.seed),
+                     # the l-baseline (doc 08 conventions): depth alone --
+                     # G2/M cells carry ~2x mRNA, so l is not trivially cold
+                     # even for an intrinsic target
+                     "lbaseline": M.cycle_r2(
+                         np.log(self.data.totals[rows_all].clip(min=1.0)
+                                )[:, None].astype(np.float64),
+                         t_all, scores, cycling, train_mask, ~train_mask,
+                         seed=self.config.seed)}
         return {
             "cycle": cycle,
             "recon_val": M.held_out_reconstruction(x_val, val["log_p"]),
@@ -744,7 +755,7 @@ class Trainer:
                               report["probe"]["noise_floor"], step)
             if report.get("cycle"):
                 type_names = [str(n) for n in self.data.type_names]
-                for latent in ("z", "w", "ceiling"):
+                for latent in ("z", "w", "ceiling", "lbaseline"):
                     entry = report["cycle"][latent]
                     writer.add_scalar(f"val/cycle_r2_{latent}",
                                       entry["r2_mean_types"], step)
@@ -825,7 +836,7 @@ def run(config: TrainConfig) -> dict:
     data = assemble(config.dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
                     v_pcs=config.v_pcs, val_fraction=config.val_fraction,
-                    seed=config.seed)
+                    seed=config.seed, label_key=config.label_key)
     return Trainer(config, data).fit()
 
 
@@ -846,6 +857,7 @@ def build_parser() -> argparse.ArgumentParser:
         parser.add_argument(f"--{field.replace('_', '-')}", type=int,
                             default=getattr(defaults, field))
     parser.add_argument("--phi-pca", type=int, default=None)
+    parser.add_argument("--label-key", default=None)
     parser.add_argument("--invariance", default=defaults.invariance,
                         choices=("closed_form", "adversary"))
     parser.add_argument("--device", default=defaults.device)

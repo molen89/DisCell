@@ -101,3 +101,21 @@ below was confirmed by direct inspection instead.
   effective sample; the support floor inherits that softness.
 - **Mirror R²** should get a within-type variant: the current z~c regression
   partly measures type separability, which both carry legitimately.
+- **Niche-invariance residual in z (doc-08, 2026-09-08)**: block-CV logistic
+  `mu_z -> niche` reads macro-AUC 0.65 vs ℓ-baseline 0.59 and w 0.76 — z is
+  not fully at max(floor, ℓ) as doc-08 §4.3 expects. The Moran §3.2 triage
+  says the hot z dims are NOT y-explainable (≤3.6% R²), so the current
+  reading is benign intrinsic-spatial structure (clone patches/programme
+  territories) leaking into *discrete* niche labels through spatial
+  contiguity, not context leakage the §4.6 probe missed. Watch: if a future
+  operating point pushes it toward w's level, run the triage per dim and
+  regress the niche logits on y before concluding either way.
+- **The w-mirror basin (α_w study, 2026-09-10)**: for α_w < 0.1 training is
+  seed-bistable; the degenerate basin reaches recon −7.17..−7.23 (vs
+  −7.25..−7.26 honest) through m_ψ(c,t) reconstructing the cell from
+  neighbour μ_z via the GAT — KL-free at convergence and invisible to NMI,
+  the invariance probe, the z-mirror, and the deviation reads (0.05/s1 has
+  all clean). Watch: any future run whose recon beats the 0.1-era envelope
+  by ≫ seed spread is suspect; the missing instrument is a **w-side mirror
+  metric** (held-out R² of μ_w's within-type residual from neighbour z's).
+  α_w stays 0.1 until that guard exists.

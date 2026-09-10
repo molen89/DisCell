@@ -1,0 +1,73 @@
+% ---------------------------------------------------------------------------
+% Notation and editorial macros for the DISCELL manuscript
+% ---------------------------------------------------------------------------
+\newcommand{\needsource}{\textcolor{red}{\textbf{[NEEDS A SOURCE]}}}
+\newcommand{\todo}[1]{\textcolor{orange}{\textbf{[TODO: #1]}}}
+\newcommand{\pending}[1]{\textcolor{violet}{\textbf{[PENDING RUNS: #1]}}}
+
+% operators
+\DeclareMathOperator{\sgop}{sg}
+\newcommand{\sg}[1]{\sgop\!\left[#1\right]}
+\DeclareMathOperator{\KL}{KL}
+\DeclareMathOperator{\softmax}{softmax}
+\DeclareMathOperator{\Mult}{Multinomial}
+\DeclareMathOperator{\Pois}{Poisson}
+\DeclareMathOperator{\CE}{CE}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\logdet}{logdet}
+\DeclareMathOperator{\embed}{embed}
+\DeclareMathOperator{\onehot}{onehot}
+\DeclareMathOperator{\GAT}{GATv2}
+\DeclareMathOperator{\I}{I}
+\DeclareMathOperator{\E}{\mathbb{E}}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\corr}{corr}
+\DeclareMathOperator{\NMI}{NMI}
+\DeclareMathOperator{\simop}{sim}
+\newcommand{\att}{\pi}   % attention weight, distinct from the loss weights alpha
+
+% sets and fields
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Nat}{\mathbb{N}}
+\newcommand{\N}{\mathcal{N}}
+\newcommand{\simplex}[1]{\Delta^{#1}}
+\newcommand{\nbr}[1]{\mathcal{N}_{#1}}
+
+% vectors
+\newcommand{\vx}{\mathbf{x}}
+\newcommand{\vy}{\mathbf{y}}
+\newcommand{\vz}{\mathbf{z}}
+\newcommand{\vw}{\mathbf{w}}
+\newcommand{\vc}{\mathbf{c}}
+\newcommand{\vv}{\mathbf{v}}
+\newcommand{\vu}{\mathbf{u}}
+\newcommand{\vB}{\mathbf{B}}
+\newcommand{\vI}{\mathbf{I}}
+\newcommand{\vPhi}{\boldsymbol{\Phi}}
+\newcommand{\vrho}{\boldsymbol{\rho}}
+\newcommand{\rhobar}{\bar{\boldsymbol{\rho}}}
+\newcommand{\vp}{\mathbf{p}}
+\newcommand{\vmu}{\boldsymbol{\mu}}
+\newcommand{\vsigma}{\boldsymbol{\sigma}}
+\newcommand{\wbreve}{\breve{\mathbf{w}}}
+\newcommand{\ybar}{\bar{\mathbf{y}}}
+\newcommand{\Phibar}{\bar{\boldsymbol{\Phi}}}
+\newcommand{\Sig}{\boldsymbol{\Sigma}}
+\newcommand{\Sighat}{\hat{\boldsymbol{\Sigma}}}
+\newcommand{\lbar}{\bar{\ell}}
+\newcommand{\ephi}{e^{\Phi}}
+\newcommand{\Ephi}{E_{\Phi}}
+\newcommand{\dz}{d_z}
+\newcommand{\dw}{d_w}
+\newcommand{\dPhi}{d_{\Phi}}
+\newcommand{\alphaz}{\alpha_z}
+\newcommand{\alphaw}{\alpha_w}
+\newcommand{\alphaa}{\alpha_a}
+\newcommand{\mpsi}{m_{\psi}}
+\newcommand{\Pen}{\mathrm{Pen}}
+\newcommand{\Adv}{\mathrm{Adv}}
+\newcommand{\dCE}{\Delta\!\CE}
+\newcommand{\um}{\,\mu\text{m}}
+
+\newtheorem{proposition}{Proposition}
+\newtheorem{remark}{Remark}

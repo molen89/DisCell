@@ -1,0 +1,38 @@
+\section{DATA AND PREPROCESSING}
+\label{app:data}
+
+\todo{Numbers in this appendix are from the existing single-section preprocessing and are stable (they do not depend on model seeds). They will be duplicated for the second section.}
+
+\subsection{Sections and Labels}
+\label{app:sections}
+
+The ovarian section: $407{,}124$ segmented cells in the vendor output, of which four lack a usable boundary polygon and are dropped; $5{,}101$ features, all treated as genes in the multinomial (a $5{,}001$-gene predesigned panel plus $100$ custom targets); median $178$ transcripts and $147$ detected genes per cell (mean $261.6$ transcripts; $5$th and $95$th percentiles $18$ and $761$); median cell area $57\um^2$, median equivalent diameter $8.5\um$. Segmentation provenance: $69\%$ of cells from an interior stain, $29\%$ from a boundary stain, $2\%$ from nuclear expansion. Labels: the vendor's curated annotation covers $406{,}611$ cells in $18$ classes including an ``unassigned'' class; the $513$ cells absent from the annotation are folded onto that class. Type sizes range from $103{,}606$ (tumour cells) to $1{,}961$ (urothelial-like). An unsupervised graph-based clustering with $26$ clusters, supplied with the dataset, serves as the label-set control.
+
+\pending{lung section: cell count, panel, labels from unsupervised clustering}
+
+\subsection{Why a Contact Graph Is Degenerate on This Platform}
+\label{app:contact}
+
+On a $20{,}000$-cell subset of a lung section, requiring exact polygon contact yields $1{,}448$ edges, a mean degree of $0.14$ and $87.7\%$ isolated cells; a $1\um$ tolerance yields $25{,}956$ edges, mean degree $2.6$ and $10.8\%$ isolated; the Voronoi graph yields $58{,}206$ edges, mean degree $5.8$ and $0.1\%$ isolated. A quarter of neighbouring polygon pairs sit within $0.12\um$ of one another but only $2.5\%$ touch at zero distance. On the full ovarian section the $1\um$-tolerance contact graph has $634{,}557$ edges, mean degree $3.1$, $9.6\%$ isolated cells and a median shared-boundary length of zero, so a leakage kernel built from shared segmented boundary would be all-zero for $94.5\%$ of connected cells; the Voronoi graph has $1{,}197{,}730$ edges, mean degree $5.9$, $0.13\%$ isolated cells and a median face length of $6.85\um$. The Voronoi face length correlates only weakly with the polygon gap ($r = -0.11$), which is the property the kernel needs: contact extent that is not a density readout.
+
+\subsection{Pruning and the Kernel}
+\label{app:pruning}
+
+The $95$th percentile of Voronoi edge length on the ovarian section is $27.4\um$. Pruning at $40\um$ removes $1.11\%$ of edges ($13{,}281$ of $1{,}197{,}730$), isolates $372$ additional cells ($527 \to 899$), leaves $1{,}511$ cells with a single neighbour, and costs no cell more than ten edges. The composition $\vy$ and the type table $\ybar(t)$ are recomputed on the pruned graph. The decay length $\tau$ is inert at this cell spacing: the perplexity of the kernel rows (effective number of contributing neighbours) is $4.39$, $4.68$ and $4.90$ at $\tau = 10\um$, $20\um$ and no decay, against a median degree of $6$; $\beta$ is dominated by the face lengths, and conclusions from the leakage sweep should not be attributed to $\tau$. The $2{,}410$ cells with at most two neighbours after pruning receive the full leak fraction against a one- or two-neighbour influx; they are excluded from effect readouts, and their extra reconstruction cost along the sweep is reported separately (\cref{app:low-degree}).
+
+\subsection{Image Embedding}
+\label{app:image}
+
+The morphology image has four channels (nuclear stain, a boundary-stain cocktail, an interior ribosomal-RNA stain, and a smooth-muscle/mesenchymal cocktail). Patches of $256$ pixels at $0.5\um$ per pixel (a $128\um$ field) are embedded with a marker-aware vision transformer \citep{dosovitskiy2021} pretrained on multiplexed immunofluorescence \citep{kronos2025}; two generations of that model score identically on a class-separation test ($+0.418$ versus $+0.417$ mean within-minus-between class cosine, $36.2\%$ nearest-neighbour label agreement for both, chance $1/18$), so the faster $384$-dimensional one is used. Scaling the $16$-bit intensities to $[0,1]$ before embedding mattered more than the choice of model (separation $+0.272 \to +0.418$). The channel-to-marker mapping is approximate for two of the four channels and the ribosomal stain is outside the model's marker vocabulary; this is a known limitation. \todo{state as limitation in main text?}
+
+\paragraph{Mask radius.}
+The ego cell is hidden by zeroing a fixed disc around its centroid. A disc rather than the polygon, so that the hole carries no silhouette; zeros rather than inpainting. The radius is chosen from the distribution of covering radii (the smallest centroid-centred disc containing the cell) over all $407{,}120$ cells: median $6.3\um$, $99$th percentile $14.3\um$, $99.99$th percentile $22.6\um$, maximum $36.8\um$. A $15\um$ disc leaves $2{,}740$ cells partially visible; $25\um$ covers all but six, which are excluded from the embedding and receive a zero image vector. The disc is $12\%$ of the patch area and, at this cell density, removes a median of $18$ neighbouring cells, so the masked embedding describes tissue beyond roughly $25\um$ rather than ``the patch minus the cell''. \todo{state this scale explicitly wherever $\vPhi$ is interpreted}
+
+\subsection{The Class Test for the Image Context}
+\label{app:ego-masking}
+
+\paragraph{Goal.} Establish what cell-type information the masked image embedding carries, and in particular whether it reads the ego cell through the hole or through its silhouette. The intended reading of $\vPhi_i$ is a description of the surroundings; if a masked patch predicted the ego cell's type better than its neighbours' labels do, the embedding would be a second copy of the cell and not a context.
+
+\paragraph{Protocol.} Seven embeddings are computed on identical patches: unmasked; ego-masked ($25\um$ disc zeroed); ego-only (everything outside the cell's polygon zeroed); each for both model generations; plus ego-only at native resolution ($0.2125\um$ per pixel). Each embedding is scored by a multinomial logistic regression for the $18$ types (standardised features, unit regularisation), reported as macro one-versus-rest area under the ROC curve \citep{hand2001}, under a spatial split into $1{,}000\um$ tiles with $30\%$ of tiles held out and cells within half a patch of a tile edge dropped ($92$ tiles, $23$ held out, $95{,}506$ edge cells dropped, $40{,}000$ training cells, $79{,}741$ held-out cells). The reference is the same classifier from neighbour composition $\vy_i$ alone, i.e.\ type homophily.
+
+\paragraph{Result.} Homophily alone reaches $0.908$. The unmasked patch reaches $0.850$ and the ego-masked patch $0.829$ (first model generation; $0.849$ and $0.818$ for the second): masking costs $0.02$, and both context arms sit roughly $0.08$ \emph{below} the homophily reference, so the masked context carries no type information beyond what the neighbour labels already carry. The cell's own image reaches $0.873$ ($0.893$ at native resolution; $0.896$ for the second generation), i.e.\ the cell alone beats the whole patch. This is the intended, legitimate regime: a context that sits below the homophily baseline is exogenous to the cell, and its value to the model is not type information but the architectural signal that neighbour labels lack, which the reconstruction ablation of \cref{app:calibration} measures. \pending{repeat the classifier with three seeds of the split for error bars; second section}

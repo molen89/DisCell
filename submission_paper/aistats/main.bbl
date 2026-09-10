@@ -1,0 +1,235 @@
+\begin{thebibliography}{}
+
+\bibitem[Bengio et~al., 2013]{bengio2013}
+Bengio, Y., L{\'e}onard, N., and Courville, A. (2013).
+\newblock Estimating or propagating gradients through stochastic neurons for
+  conditional computation.
+\newblock {\em arXiv preprint arXiv:1308.3432}.
+
+\bibitem[Birk et~al., 2025]{birk2025nichecompass}
+Birk, S., Lotfollahi, M., et~al. (2025).
+\newblock Quantitative characterization of cell niches in spatially resolved
+  omics data.
+\newblock {\em Nature Genetics}.
+\newblock CHECK: author list, volume, identifier.
+
+\bibitem[Brody et~al., 2022]{brody2022}
+Brody, S., Alon, U., and Yahav, E. (2022).
+\newblock How attentive are graph attention networks?
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Cover and Thomas, 2006]{cover2006}
+Cover, T.~M. and Thomas, J.~A. (2006).
+\newblock {\em Elements of Information Theory}.
+\newblock Wiley, 2nd edition.
+
+\bibitem[Dong et~al., 2025]{dong2025simvi}
+Dong, M., Kluger, Y., et~al. (2025).
+\newblock {SIMVI} disentangles intrinsic and spatial-induced cellular states in
+  spatial omics data.
+\newblock {\em Nature Communications}.
+\newblock CHECK: author list, volume, identifier.
+
+\bibitem[Dosovitskiy et~al., 2021]{dosovitskiy2021}
+Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X.,
+  Unterthiner, T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S.,
+  Uszkoreit, J., and Houlsby, N. (2021).
+\newblock An image is worth 16x16 words: Transformers for image recognition at
+  scale.
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Elazar and Goldberg, 2018]{elazar2018}
+Elazar, Y. and Goldberg, Y. (2018).
+\newblock Adversarial removal of demographic attributes from text data.
+\newblock In {\em Proceedings of the 2018 Conference on Empirical Methods in
+  Natural Language Processing}, pages 11--21.
+
+\bibitem[Ergen et~al., 2025]{ergen2025}
+Ergen, C., Yosef, N., et~al. (2025).
+\newblock {resolVI}: addressing noise and bias in spatial transcriptomics.
+\newblock {\em bioRxiv}.
+\newblock CHECK: exact title, author list, and identifier.
+
+\bibitem[Ester et~al., 1996]{ester1996}
+Ester, M., Kriegel, H.-P., Sander, J., and Xu, X. (1996).
+\newblock A density-based algorithm for discovering clusters in large spatial
+  databases with noise.
+\newblock In {\em Proceedings of the Second International Conference on
+  Knowledge Discovery and Data Mining}, pages 226--231.
+
+\bibitem[Fischer et~al., 2023]{fischer2023}
+Fischer, D.~S., Schaar, A.~C., and Theis, F.~J. (2023).
+\newblock Modeling intercellular communication in tissues using spatial graphs
+  of cells.
+\newblock {\em Nature Biotechnology}, 41:332--336.
+
+\bibitem[Ganchev et~al., 2010]{ganchev2010}
+Ganchev, K., Gra{\c{c}}a, J., Gillenwater, J., and Taskar, B. (2010).
+\newblock Posterior regularization for structured latent variable models.
+\newblock {\em Journal of Machine Learning Research}, 11:2001--2049.
+
+\bibitem[Ganin et~al., 2016]{ganin2016}
+Ganin, Y., Ustinova, E., Ajakan, H., Germain, P., Larochelle, H., Laviolette,
+  F., Marchand, M., and Lempitsky, V. (2016).
+\newblock Domain-adversarial training of neural networks.
+\newblock {\em Journal of Machine Learning Research}, 17(59):1--35.
+
+\bibitem[Hand and Till, 2001]{hand2001}
+Hand, D.~J. and Till, R.~J. (2001).
+\newblock A simple generalisation of the area under the {ROC} curve for
+  multiple class classification problems.
+\newblock {\em Machine Learning}, 45:171--186.
+
+\bibitem[Hastie and Stuetzle, 1989]{hastie1989}
+Hastie, T. and Stuetzle, W. (1989).
+\newblock Principal curves.
+\newblock {\em Journal of the American Statistical Association},
+  84(406):502--516.
+
+\bibitem[Janesick et~al., 2023]{janesick2023}
+Janesick, A., Shelansky, R., Gottscho, A.~D., Wagner, F., Williams, S.~R.,
+  Rouault, M., Beliakoff, G., Morrison, C.~A., Oliveira, M.~F., Sicherman,
+  J.~T., et~al. (2023).
+\newblock High resolution mapping of the tumor microenvironment using
+  integrated single-cell, spatial and in situ analysis.
+\newblock {\em Nature Communications}, 14:8353.
+\newblock CHECK: full author list truncated.
+
+\bibitem[Khemakhem et~al., 2020]{khemakhem2020}
+Khemakhem, I., Kingma, D.~P., Monti, R.~P., and Hyv{\"a}rinen, A. (2020).
+\newblock Variational autoencoders and nonlinear {ICA}: A unifying framework.
+\newblock In {\em International Conference on Artificial Intelligence and
+  Statistics}.
+
+\bibitem[Kingma and Ba, 2015]{kingma2015adam}
+Kingma, D.~P. and Ba, J. (2015).
+\newblock Adam: A method for stochastic optimization.
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Kingma et~al., 2016]{kingma2016}
+Kingma, D.~P., Salimans, T., Jozefowicz, R., Chen, X., Sutskever, I., and
+  Welling, M. (2016).
+\newblock Improved variational inference with inverse autoregressive flow.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~29.
+
+\bibitem[Kingma and Welling, 2014]{kingma2014}
+Kingma, D.~P. and Welling, M. (2014).
+\newblock Auto-encoding variational {Bayes}.
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Klys et~al., 2018]{klys2018}
+Klys, J., Snell, J., and Zemel, R. (2018).
+\newblock Learning latent subspaces in variational autoencoders.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~31.
+
+\bibitem[Kuhn, 1955]{kuhn1955}
+Kuhn, H.~W. (1955).
+\newblock The {Hungarian} method for the assignment problem.
+\newblock {\em Naval Research Logistics Quarterly}, 2(1--2):83--97.
+
+\bibitem[Ledoit and Wolf, 2004]{ledoit2004}
+Ledoit, O. and Wolf, M. (2004).
+\newblock A well-conditioned estimator for large-dimensional covariance
+  matrices.
+\newblock {\em Journal of Multivariate Analysis}, 88(2):365--411.
+
+\bibitem[Locatello et~al., 2019]{locatello2019}
+Locatello, F., Bauer, S., Lucic, M., R{\"a}tsch, G., Gelly, S., Sch{\"o}lkopf,
+  B., and Bachem, O. (2019).
+\newblock Challenging common assumptions in the unsupervised learning of
+  disentangled representations.
+\newblock In {\em International Conference on Machine Learning}.
+
+\bibitem[Loshchilov and Hutter, 2017]{loshchilov2017}
+Loshchilov, I. and Hutter, F. (2017).
+\newblock {SGDR}: Stochastic gradient descent with warm restarts.
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Louizos et~al., 2016]{louizos2016}
+Louizos, C., Swersky, K., Li, Y., Welling, M., and Zemel, R. (2016).
+\newblock The variational fair autoencoder.
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Manski, 2003]{manski2003}
+Manski, C.~F. (2003).
+\newblock {\em Partial Identification of Probability Distributions}.
+\newblock Springer.
+
+\bibitem[Moran, 1950]{moran1950}
+Moran, P. A.~P. (1950).
+\newblock Notes on continuous stochastic phenomena.
+\newblock {\em Biometrika}, 37(1/2):17--23.
+
+\bibitem[Rezende et~al., 2014]{rezende2014}
+Rezende, D.~J., Mohamed, S., and Wierstra, D. (2014).
+\newblock Stochastic backpropagation and approximate inference in deep
+  generative models.
+\newblock In {\em International Conference on Machine Learning}.
+
+\bibitem[Roberts et~al., 2017]{roberts2017}
+Roberts, D.~R., Bahn, V., Ciuti, S., Boyce, M.~S., Elith, J., Guillera-Arroita,
+  G., Hauenstein, S., Lahoz-Monfort, J.~J., Schr{\"o}der, B., Thuiller, W.,
+  Warton, D.~I., Wintle, B.~A., Hartig, F., and Dormann, C.~F. (2017).
+\newblock Cross-validation strategies for data with temporal, spatial,
+  hierarchical, or phylogenetic structure.
+\newblock {\em Ecography}, 40(8):913--929.
+
+\bibitem[Rosenbaum, 2002]{rosenbaum2002}
+Rosenbaum, P.~R. (2002).
+\newblock {\em Observational Studies}.
+\newblock Springer, 2nd edition.
+
+\bibitem[Sch{\"a}fer and Strimmer, 2005]{schafer2005}
+Sch{\"a}fer, J. and Strimmer, K. (2005).
+\newblock A shrinkage approach to large-scale covariance matrix estimation and
+  implications for functional genomics.
+\newblock {\em Statistical Applications in Genetics and Molecular Biology},
+  4(1).
+
+\bibitem[Shaban et~al., 2025]{kronos2025}
+Shaban, M. et~al. (2025).
+\newblock {KRONOS}: A foundation model for spatial proteomics.
+\newblock {\em arXiv preprint}.
+\newblock CHECK: exact title, authors, and identifier; two model generations
+  were used.
+
+\bibitem[Slavutsky et~al., 2026]{slavutsky2025}
+Slavutsky, Y., Beker, O., Blei, D., and Dumitrascu, B. (2026).
+\newblock Variational learning of disentangled representations.
+\newblock In {\em International Conference on Machine Learning}.
+\newblock arXiv:2506.17182.
+
+\bibitem[Strehl and Ghosh, 2002]{strehl2002}
+Strehl, A. and Ghosh, J. (2002).
+\newblock Cluster ensembles --- a knowledge reuse framework for combining
+  multiple partitions.
+\newblock {\em Journal of Machine Learning Research}, 3:583--617.
+
+\bibitem[Tirosh et~al., 2016]{tirosh2016}
+Tirosh, I., Izar, B., Prakadan, S.~M., Wadsworth, M.~H., Treacy, D., Trombetta,
+  J.~J., Rotem, A., Rodman, C., Lian, C., Murphy, G., Fallahi-Sichani, M.,
+  Dutton-Regester, K., Lin, J.-R., Cohen, O., Shah, P., Lu, D., Genshaft,
+  A.~S., Hughes, T.~K., Ziegler, C. G.~K., Kazer, S.~W., Gaillard, A., Kolb,
+  K.~E., Villani, A.-C., Johannessen, C.~M., Andreev, A.~Y., Van~Allen, E.~M.,
+  Bertagnolli, M., Sorger, P.~K., Sullivan, R.~J., Flaherty, K.~T., Frederick,
+  D.~T., Jan{\'e}-Valbuena, J., Yoon, C.~H., Rozenblatt-Rosen, O., Shalek,
+  A.~K., Regev, A., and Garraway, L.~A. (2016).
+\newblock Dissecting the multicellular ecosystem of metastatic melanoma by
+  single-cell {RNA}-seq.
+\newblock {\em Science}, 352(6282):189--196.
+
+\bibitem[Tomczak and Welling, 2018]{tomczak2018}
+Tomczak, J.~M. and Welling, M. (2018).
+\newblock {VAE} with a {VampPrior}.
+\newblock In {\em International Conference on Artificial Intelligence and
+  Statistics}.
+
+\bibitem[Xie et~al., 2017]{xie2017}
+Xie, Q., Dai, Z., Du, Y., Hovy, E., and Neubig, G. (2017).
+\newblock Controllable invariance through adversarial feature learning.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~30.
+
+\end{thebibliography}

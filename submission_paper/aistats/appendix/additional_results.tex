@@ -1,0 +1,28 @@
+\section{ADDITIONAL RESULTS}
+\label{app:additional}
+
+\todo{Skeleton. Each subsection states what will be reported; numbers follow the reruns.}
+
+\subsection{Label-Set Control}
+\label{app:graphclust}
+The ovarian section refitted with an unsupervised graph-based clustering ($K = 26$) in place of the curated annotation, at the operating point: held-out reconstruction, type agreement against the new labels, the cell-cycle asymmetry, and the niche probes. \pending{single fit: best held-out reconstruction $-7.256$ nats per count, agreement $0.70$ against the $26$ clusters, cell-cycle $R^2$ from $\vz$ lower than under the curated labels; three seeds; interpretation of the lower cycle $R^2$ under finer labels, which \cref{app:conditional} predicts}
+
+\subsection{Low-Degree Cells Along the Sweep}
+\label{app:low-degree}
+Held-out reconstruction from $\kappa = 0$ to $0.4$, globally and in the strata of cells that lost at least one edge to pruning and of cells with at most two neighbours. \pending{three seeds: global cost $0.030$ nats per count, lost-edge stratum $0.07$, low-degree stratum $0.10$} The fixed leak fraction is a poorer model for sparsely connected cells, which is the reason they are excluded from effect readouts.
+
+\subsection{Stability of the Loadings}
+\label{app:B-stability}
+Mean absolute correlation between columns of $\vB$ after optimal matching \citep{kuhn1955}, across seeds within each $\kappa$ and along $\kappa$ within a seed lineage. \pending{three seeds: across-seed value about $0.62$ to $0.64$ for $\kappa \leq 0.1$ and $0.48$ to $0.55$ for $\kappa \geq 0.2$; along-$\kappa$ within one seed $0.83$ to $0.93$} The loadings are therefore identified well enough to track a programme along the sweep within a run and not well enough to name a programme from one run; all gene-level statements are run-relative (\cref{sec:sweep}). \pending{five seeds}
+
+\subsection{Per-Type Response Magnitude}
+\label{app:w-norm}
+Mean $\|\vmu_w\|$ per type on held-out cells, at every $\kappa$ and seed. \pending{three seeds: the ordering of the top three types (VEGFA-positive tumour, proliferative tumour, inflammatory tumour) holds in $16$ of $18$ runs and the top-three set in $17$ of $18$} The exceptions are reported, not dropped.
+
+\subsection{The Response at the Operating Point}
+\label{app:w-prior}
+\pending{one converged reference fit} $\vmu_w$ is explained by the prior mean $\mpsi(\vc, t)$ with $R^2 = 0.9998$, the per-dimension divergence is $2\times10^{-4}$ to $1.5\times10^{-3}$, and the first two principal components of $\vmu_w$ carry $85\%$ and $15\%$ of its variance (participation ratio $1.3$). At this operating point $\vw$ is, to a very good approximation, a low-dimensional deterministic function of type and context; the allegiance analyses therefore test the context channel as a whole, which is still the allegiance claim, and the per-cell anomaly score is deactivated. \pending{three seeds; a lower-$\alphaw$ arm for comparison}
+
+\subsection{Run Inventory}
+\label{app:runs}
+\todo{table of every fit that contributes a number to the paper: section, labels, $\kappa$, seed, epochs to best, wall time.}
