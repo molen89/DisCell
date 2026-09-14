@@ -76,7 +76,7 @@ def fit_grid(args: argparse.Namespace) -> None:
                 alpha_z=args.alpha_z, alpha_w=args.alpha_w,
                 alpha_a=args.alpha_a, omega=args.omega,
                 invariance=args.invariance, adv_steps=args.adv_steps,
-                adv_lr=args.adv_lr,
+                adv_lr=args.adv_lr, gat_sources=args.gat_sources,
                 epochs=args.epochs, tile_cells=args.tile_cells,
                 figures_every=args.figures_every,
                 device=args.device,
@@ -106,6 +106,7 @@ def report(args: argparse.Namespace) -> dict:
                 continue
             payload = torch.load(run_dir / "best.pt", map_location="cpu",
                                  weights_only=False)
+            payload["config"].setdefault("gat_sources", "type_z")
             metrics = json.loads((run_dir / "metrics.json").read_text())
             b_matrix = payload["model"]["B.weight"].numpy()      # (G, d_w)
             loaded[(kappa, seed)] = {"B": b_matrix, "payload": payload}
@@ -122,7 +123,10 @@ def report(args: argparse.Namespace) -> dict:
                          "epoch": metrics["best"]["epoch"],
                          # the quality battery, from the final evaluation
                          "cycle_r2_z": _mt("z"), "cycle_r2_w": _mt("w"),
-                         "cycle_r2_ceiling": _mt("ceiling"),
+                         "cycle_r2_linear_ref": (_mt("linear_ref")
+                                                 if _mt("linear_ref")
+                                                 is not None
+                                                 else _mt("ceiling")),
                          "mirror_r2": (final.get("mirror") or {}).get("r2"),
                          "probe_delta_ce":
                              (final.get("probe") or {}).get("delta_ce")})
@@ -157,7 +161,8 @@ def report(args: argparse.Namespace) -> dict:
                         d_z=state["config"]["d_z"], d_w=state["config"]["d_w"],
                         hidden=state["config"]["hidden"],
                         gat_dim=state["config"]["gat_dim"],
-                        heads=state["config"]["heads"]).to(device)
+                        heads=state["config"]["heads"],
+                        gat_sources=state["config"]["gat_sources"]).to(device)
         model.load_state_dict(state["model"])
         trainer = Trainer(TrainConfig(**state["config"]), data)
         trainer.model = model.eval()
@@ -211,6 +216,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--invariance", default="adversary",
                         choices=("closed_form", "adversary"))
     parser.add_argument("--adv-steps", type=int, default=6)
+    parser.add_argument("--gat-sources", default="type_only",
+                        choices=("type_z", "type_only"))
     parser.add_argument("--adv-lr", type=float, default=2e-3)
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--tile-cells", type=int, default=4096)

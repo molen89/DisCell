@@ -121,6 +121,44 @@ def probe_delta_ce(z: np.ndarray, t: np.ndarray, v: np.ndarray,
             "baseline_ce": baseline}
 
 
+def w_mirror_delta_r2(mu_w: np.ndarray, neighbour_z: np.ndarray,
+                      y: np.ndarray, t: np.ndarray, train: np.ndarray,
+                      test: np.ndarray, seed: int = 0) -> dict:
+    """The w-mirror detector: neighbour *state* beyond neighbour *composition*.
+
+    ``delta_r2 = R2(mu_w ~ [y, N]) - R2(mu_w ~ y)`` held-out, within-type
+    centred, where ``N_i = sum_j beta_ij mu_z_j``. An honest w is a
+    composition-level field (delta ~ 0); the mirror basin -- the prior
+    reconstructing the cell from per-neighbour z detail -- reads large.
+    Certified against labelled basin/honest runs before being trusted
+    (devlog, 2026-09-11).
+    """
+    rng = np.random.default_rng(seed)
+    rows_train = _subsample_rows(np.flatnonzero(train), rng)
+    rows_test = _subsample_rows(np.flatnonzero(test), rng)
+    keep = np.concatenate([rows_train, rows_test])
+    w_c, y_c, n_c = mu_w.astype(np.float64).copy(), \
+        y.astype(np.float64).copy(), neighbour_z.astype(np.float64).copy()
+    for g in np.unique(t[keep]):
+        members = keep[t[keep] == g]
+        for block in (w_c, y_c, n_c):
+            block[members] -= block[members].mean(axis=0)
+
+    def held_out_sse(design_blocks) -> float:
+        design = np.hstack([b[rows_train] for b in design_blocks]
+                           + [np.ones((len(rows_train), 1))])
+        gram = design.T @ design + 1e-3 * np.eye(design.shape[1])
+        coef = np.linalg.solve(gram, design.T @ w_c[rows_train])
+        held = np.hstack([b[rows_test] for b in design_blocks]
+                         + [np.ones((len(rows_test), 1))])
+        return float(((w_c[rows_test] - held @ coef) ** 2).sum())
+
+    total = float((w_c[rows_test] ** 2).sum())
+    r2_y = 1.0 - held_out_sse([y_c]) / max(total, 1e-12)
+    r2_yn = 1.0 - held_out_sse([y_c, n_c]) / max(total, 1e-12)
+    return {"delta_r2": r2_yn - r2_y, "r2_y": r2_y, "r2_yn": r2_yn}
+
+
 def held_out_reconstruction(x: np.ndarray, log_p: np.ndarray) -> float:
     """Mean per-count log-likelihood on held-out seeds; the early-stop signal."""
     totals = x.sum(axis=1).clip(min=1.0)

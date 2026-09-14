@@ -68,6 +68,11 @@ class TrainConfig:
     # zero NMI cost), kappa = 0.1 (end of the recon plateau, most B-stable).
     # Under invariance = "closed_form" the straight-through-scaled alpha_a
     # equivalent is ~0.02, not 0.3.
+    #: GAT source features. "type_only" (default, ratified 2026-09-12 after
+    #: the doc-10 PARK + source ablation: better on every measured axis, and
+    #: removes the neighbour-z channel entirely); "type_z" = the original
+    #: spec-4.1 sources [onehot(t_j), sg mu_z_j], kept for era-reproduction
+    gat_sources: str = "type_only"
     invariance: str = "adversary"       # "closed_form" before spec 4.6 escalation
     adv_lr: float = 2e-3
     adv_steps: int = 6
@@ -122,6 +127,7 @@ class Trainer:
             phi_dim=data.phi.shape[1], median_counts=data.median_counts,
             d_z=config.d_z, d_w=config.d_w, hidden=config.hidden,
             gat_dim=config.gat_dim, heads=config.heads,
+            gat_sources=config.gat_sources,
         ).to(self.device)
         self.covariances = None
         self.adversary = self.adversary_optimiser = None
@@ -293,9 +299,10 @@ class Trainer:
                      "w": M.cycle_r2(w_all, t_all, scores, cycling,
                                      train_mask, ~train_mask,
                                      seed=self.config.seed),
-                     # the ceiling: the same probe from 50 expression PCs --
-                     # z cannot retain more cycle than the counts carry
-                     "ceiling": M.cycle_r2(cyc["x_pcs"][rows_all], t_all,
+                     # the 50-PC LINEAR EXPRESSION REFERENCE (renamed from
+                     # "ceiling", doc-11 flag: z beats it ~2x, so it is a
+                     # linear reference line, never a bound)
+                     "linear_ref": M.cycle_r2(cyc["x_pcs"][rows_all], t_all,
                                            scores, cycling, train_mask,
                                            ~train_mask,
                                            seed=self.config.seed),
@@ -755,7 +762,7 @@ class Trainer:
                               report["probe"]["noise_floor"], step)
             if report.get("cycle"):
                 type_names = [str(n) for n in self.data.type_names]
-                for latent in ("z", "w", "ceiling", "lbaseline"):
+                for latent in ("z", "w", "linear_ref", "lbaseline"):
                     entry = report["cycle"][latent]
                     writer.add_scalar(f"val/cycle_r2_{latent}",
                                       entry["r2_mean_types"], step)
@@ -860,6 +867,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--label-key", default=None)
     parser.add_argument("--invariance", default=defaults.invariance,
                         choices=("closed_form", "adversary"))
+    parser.add_argument("--gat-sources", default=defaults.gat_sources,
+                        choices=("type_z", "type_only"))
     parser.add_argument("--device", default=defaults.device)
     parser.add_argument("--quiet", action="store_true")
     return parser

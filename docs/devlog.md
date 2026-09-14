@@ -1571,3 +1571,631 @@ leak-reattribution (uncalibrated until §5a), and the architectural null.
 Consequence for §5a: world A now doubles as the sensitivity calibration —
 if a planted response of realistic amplitude is also invisible to the
 w-probe, the exposure null is a sensitivity statement, not biology.
+
+**GAT-sources ablation result (`ablation_gat_type_only`, seed 0, defaults
+otherwise)**: removing neighbour μ_z from the GAT sources is not merely
+cost-free — it is a small improvement on nearly every axis. recon −7.2586 →
+**−7.2527** (+0.006, ~⅔ of the Φ ablation's worth), NMI 0.658 → 0.667,
+mirror 0.056 → **0.044** (the attractor's raw material is gone), cycle_w
+0.034 → 0.007 (cleaner w), probe fine, w's spatial character intact
+(Moran-I_w 0.531 vs 0.545, niche-AUC_w 0.743 vs 0.763, ℓ-baseline equal).
+cycle_z 0.475 → 0.440 — inside the cross-run envelope, the one number a
+confirmation seed should watch. KL_w/prior-R² unchanged (channel closed at
+0.1 either way). Interpretation: at the operating point neighbour-state
+detail was buying nothing (doc-09 exposure null) while its presence (a)
+seeds the w-mirror basin below α_w = 0.1 and (b) apparently costs a little
+likelihood even at 0.1. Pre-registered criterion (Δrecon ≈ 0 → adopt) is
+exceeded in the favourable direction. **Awaiting architect ratification**
+before changing the default; recommendation: adopt `type_only`, add the
+w-mirror metric to the battery regardless, and reopen the α_w question
+afterwards (the basin's raw material no longer exists).
+
+### The w-mirror detector: definition and certification protocol (pre-registered)
+
+**Metric** (`w_mirror_delta_r2`): with N_i = Σ_j β_ij μ_z_j (the model's own
+graph weights — the same operator as doc-09 exposure), within-type centred,
+held-out on the standard split: **ΔR² = R²(μ_w ~ [y, N]) − R²(μ_w ~ y)** —
+the share of w's variance that neighbour *state* explains beyond neighbour
+*composition*. Honest w (a composition-level field) predicts ΔR² ≈ 0; the
+mirror basin (m_ψ reading per-neighbour z detail to reconstruct the cell)
+predicts ΔR² ≫ 0.
+
+**Certification before trust**, on labelled runs already on disk:
+positives = {alphaw_0.03_s1, alphaw_0.03_s2, alphaw_0.05_s1} (basin: recon
+−7.17..−7.23); negatives = {reference_best, alphaw_0.07, alphaw_0.05,
+alphaw_0.03, alphaw_0.02, ablation_gat_type_only} — the last is a
+*structural* negative (no z in c at all). alphaw_0.05_s2 (recon −7.2285,
+between envelope and basin) is deliberately unlabelled — reported, not used.
+**Success criterion, stated in advance**: every positive's ΔR² above every
+negative's with a visible gap. If certified → wired into the evaluation
+battery; if not → the discriminator hypothesis is wrong and the fallback is
+a recon-decomposition detector (does the w-channel's likelihood contribution
+exceed composition-level capacity). In parallel: `ablation_gat_type_only`
+seed-1 confirmation run (cycle_z 0.475→0.440 is the one number to settle).
+
+**w-mirror certification: FAILED twice — the mechanism claim is retracted.**
+(`experiments/w_mirror_certification.json`.) Detector 1 (ΔR² of μ_w from
+neighbour-z beyond composition): no separation — negatives at low α_w
+(0.068–0.080) exceed every labelled positive (0.036–0.050). Detector 2
+(recon drop when w is replaced by a composition-only linear surrogate):
+no separation either — and it exposed the decisive fact: **the basin runs'
+likelihood advantage survives w-substitution** (0.03_s1 still reconstructs
+at −7.1835 with ŵ(y)). The channel decomposition (w=0 / z=0 passes)
+completes the picture: the basin has BOTH a strong z channel (d_z ≈ 0.30,
+level of the best runs) AND a w channel twice the reference's (d_w 0.074–
+0.086 vs 0.039) — and that w value is almost entirely recoverable by a
+*linear function of composition*. Three independent tests agree: the extra
+likelihood does NOT run through per-neighbour z detail. **The "m_ψ reads
+neighbour μ_z" mechanism is falsified.**
+
+What stands, measured: (1) α_w < 0.1 is strongly seed-bistable (recon
+spread 0.08 vs ±0.005 at 0.1) — the *instability* is real even though my
+mechanism for it was wrong; (2) the basin = the optimizer finding a much
+stronger **composition-level** w-pathway (co-adapted m_ψ/B) that 0.1 never
+reaches — which is w working *as designed*, only harder; whether it is a
+better solution or homophily-confound absorption is now an **open
+question** (s2's cycle_z crash to 0.354 says at least one basin variant
+damages z; s1's battery is unexamined); (3) the `type_only` ablation's
+empirical result is unaffected (all numbers stand) but its *motivation
+narrative* ("removes the mirror's raw material") is unsupported —
+**the architect summary must be corrected before presentation**: the
+honest case for type_only is purely empirical (better on nearly every
+axis, simpler, and removes an input that measurably buys nothing), not
+mechanistic. Next probe if wanted: full validation battery on 0.03_s1 —
+if the strong-w basin passes allegiance clean, low-α_w becomes a candidate
+*better* operating point rather than a hazard, inverting the earlier
+verdict. Issues entry updated accordingly.
+
+**The strong family vindicated (2026-09-11).** `ablation_gat_type_only_s1`
+reached recon −7.1924 — strong-family likelihood — in the architecture
+where neighbour z is structurally absent: final, independent falsification
+of the mirror story. Its battery is the best recorded: **cycle_z 0.499**
+(never seen above 0.49), NMI 0.654, mirror 0.046, cycle_w 0.008, and the
+allegiance asymmetry *improves* — Moran-I z 0.061 / w 0.628 (ref: 0.082 /
+0.545), niche w 0.767 / z 0.654 / ℓ 0.585, triage benign (2.8%).
+`alphaw_0.03_s1` likewise passes clean (Moran 0.058/0.589, niche w 0.793 —
+highest w-AUC yet). Conclusion, three reversals deep and now
+evidence-settled: **the high-recon solution family is a better optimum,
+not a pathology** — stronger z AND stronger composition-level w, with
+better disentanglement on the very metrics built to catch cheating. The
+one bad instance remains alphaw_0.03_s2 (cycle_z 0.354): membership in
+the family does not guarantee quality — **selection must read the battery,
+never recon alone**. Open: reachability (type_only found it in 1 of 2
+seeds at α_w = 0.1; s2 running). Emerging protocol for the architect
+package: adopt type_only, train a small seed ensemble, select by the
+battery (recon + cycle_z + allegiance + probes) — standard model
+selection, now with certified instruments. The α_w question dissolves:
+the strong family exists at the default 0.1.
+
+### Doc-10 received: the z–w guard, build + arm-0 launch
+
+Sequencing per instruction: doc-09 on `type_only` first (both seeds queued:
+`ablation_gat_type_only_s1` — the battery-selected strong instance — then
+s0 as the same-architecture weak-optimum contrast), guard testing after.
+
+**Guard built** exactly per doc-10 §2: `alpha_zw` weight; the §4.6
+closed-form machinery verbatim via `TypeCovariances(K, d_z, d_w)` on
+(sg μ_z, μ_w-guard-view); straight-through/EMA/shrink/correlation-form
+inherited. **One implementation subtlety the routing test caught before it
+shipped**: detaching the penalty's z-block is NOT enough — enc_w *consumes*
+z (q(w|c,t,z,x)), so the naive term trains enc_z through enc_w's input,
+precisely the direction §1 forbids. Fix: a **guard view** — enc_w re-run on
+detached inputs (numerically identical μ_w, gradient reaching enc_w's
+parameters only; `forward(guard_view=True)`).
+`test_zw_guard_gradient_reaches_enc_w_and_never_enc_z` asserts the routing;
+it failed on the naive build and passes on the view. Guard is default-off
+(`alpha_zw = 0`), NOT in spec 07, adoption gated on doc-10 §4.
+
+**Arm 0 launched** (`discell/model/guard_gate.py`): synthetic gate with a
+planted world-A dose (sender-type lognormal ligand variability → exposure
+varies within composition; ~30 mid-expression non-marker genes respond at
+log-fold 0.3–0.7 ∝ standardised exposure; ρ edited, κ re-mixed, counts
+re-sampled). Grid α_w ∈ {0.003, 0.007, 0.02, 0.05, 0.1} × α_zw ∈ {0, 0.01,
+0.03, 0.1}, 600-epoch fits; metrics: z-NMI, matched-B recovery, dose-R²,
+plant AUROC, KL_w (the guard must not be a backdoor α_w increase).
+Deliverable: the cliff-vs-plateau plot (`data/experiments_synthetic/
+guard_gate.{json,png}`). Decision per doc-10 §4, unchanged.
+
+**type_only seed triple complete**: recon −7.2527 / −7.1924 / −7.2310
+(s0/s1/s2), every battery clean (s2: cycle_z 0.465, cycle_w 0.010, mirror
+0.045, NMI 0.666, probe −0.011). The "strong family" is a **continuum of
+optima with large seed variance**, not a binary basin — under type_only,
+3/3 seeds are honest by every instrument, and the spread (0.06) is pure
+optimisation variance. Architect package amendment: seed-ensemble +
+battery-selection is ordinary model selection over a rugged landscape;
+selected model = s1.
+
+**Doc-10 v2 received**: the guard-view routing is now normative in §2 (with
+the naive-build failure recorded), and §1 gains the coherence resolution
+(posterior regularisation, §6.4 status; the anticipated cheap solution —
+enc_w ignoring z, collapsing the deviation — is what arm 0's dose gate and
+arm 1's KL_w gate exist to catch). Implementation already conforms; the
+routing regression test extended to the full normative set: the penalty
+reaches **no parameter of enc_z, the GAT, m_ψ, or embed_t** (10/10 pass).
+
+**Doc-09 on `type_only` s1 (the selected model)**: exposure visibility is
+identically null (mean w-R² −0.010 vs reference −0.010) — and under
+type_only this is now **provable from the architecture, not just
+measured**: c = f(type-attention, composition, Φ) carries no channel for
+neighbour expression detail, so within-composition ligand variation cannot
+reach w by construction. The Ẽ-ridge row is settled structurally. Programs:
+the candidate set **tightens to one architecture-robust pair** —
+PDGFB→PDGFRB survives everything in both arms (ref 0.606/pct 0.98/decoy
+0.479; s1 0.583/pct 1.00/decoy 0.497); POSTN→ITGAV/B5 stays strong on
+paper in s1 (0.663, pct 1.00) but loses its decoy margin there (decoy
+0.645) → demoted to reference-arm-only; TNFSF10 and IL6 do not replicate
+across models. One-to-two robust pairs is precisely the cellAdmix
+expectation quoted in doc-09's own motivation. s0 arm still running as the
+weak-optimum contrast.
+
+**Doc-09 s0 contrast arm**: w-R² null again (−0.009; fourth arm, same
+answer). Null-clearing pairs at pct ≥ 0.9: POSTN (1.00, decoy 0.44 — clean
+here) and SEMA4C_PLXNB2 (0.96, weak AUROC 0.533); PDGFB does NOT clear in
+s0. Cross-model tally over three arms (ref, s1, s0): POSTN 2/3 (decoy
+fails in s1), PDGFB 2/3 (does not clear in s0), nothing 3/3. Per §5f's
+stability doctrine the honest statement is: **the program route yields at
+most 1–2 candidates and none is stable across model instances** — the
+route is fragile, and the paper should report the tally, not a winner.
+
+**Doc-10 arm 0 verdict: PARK** (pre-registered §4 clause; grid in
+`data/experiments_synthetic/guard_gate.{json,png}`). The cliff did not
+become a plateau — guard-on never holds what guard-off loses:
+
+1. **Little cliff to rescue in this world**: guard-off z-NMI degrades only
+   mildly at low α_w (0.68 at 0.003 vs 0.74 at 0.1; the M3-era 0.12
+   collapse does not reproduce with the invariance penalty active and the
+   world-A plant in place). B recovery does degrade (0.57 vs 0.76) — the
+   real low-α_w cost.
+2. **The guard charges cost without delivering rescue**: at α_zw ∈ {0.01,
+   0.03} B recovery is *worse at every α_w* (0.42–0.57 vs 0.65–0.76
+   guard-off) and NMI never improves. The §1-anticipated cheap solution is
+   measurably active: KL_w shrinks monotonically with α_zw at matched α_w
+   (1.10 → 0.47 at α_w = 0.003) — the guard partially closes the very
+   channel it exists to protect, and at α_zw = 0.1, α_w ≥ 0.05 it closes
+   it fully (KL_w = 0.000, the backdoor-α_w failure).
+3. **One curious side-effect for the record**: at α_zw = 0.1 with the
+   channel open (α_w ≤ 0.02), w abandons the composition response
+   (B_corr 0.06–0.18) and specialises toward the planted dose (dose-R²
+   0.18–0.40, plant AUROC 0.58–0.65) — the guard purges z-correlated
+   content so hard that the exposure-driven plant becomes w's main
+   remaining food. Double-edged: interesting as a hint for a *designed*
+   communication channel, useless as a guardrail.
+
+Park report per §4: the low-α_w instability (where it exists at all in the
+current loss configuration) is not visible to a Gaussian MI in the μ's as
+an I(z;w|t) excess — consistent with the real-slide finding that the
+strong-optimum family passes every dependence-based instrument. Caveat
+attached: this arm-0 world (8 types, α_a = 0.02 closed-form, plant
+present) is not the original M3 configuration; reproducing the historical
+0.12 cliff first would be the prerequisite for any second attempt.
+
+**Guard removed from the code** (user decision after the arm-0 PARK): the
+`alpha_zw` weight, the guard covariance tracker, the `guard_view` forward
+path / `mu_w_guard` field, the routing regression test, and
+`discell/model/guard_gate.py` are all reverted — the working tree carries
+no trace, by design ("less confusion later"). The full record stays here:
+mechanism (§4.6 machinery on (sg μ_z, μ_w-guard-view)), the guard-view
+routing subtlety and its test (which caught the naive build), the arm-0
+grid and PARK verdict with the three observations, and the results in
+`data/experiments_synthetic/guard_gate.{json,png}`. Doc-10 remains the
+proposal document; any future attempt starts from this devlog entry plus
+the pre-registered §4 criteria, and must first reproduce the historical
+M3 cliff in the current loss configuration. Suite after removal: 26/26 on
+the affected files.
+
+### Doc-08 v6 execution: steps 0–4 (post-park programme)
+
+**Step 0 — ratified and pinned.** `gat_sources = "type_only"` is now the
+default everywhere (TrainConfig, DisCell, sweep CLI), per the user's
+ratification; "type_z" stays selectable for era reproduction. Era-safety
+added at every checkpoint reload (`setdefault("gat_sources", "type_z")` —
+pre-field checkpoints are type_z and the new default must never reshape
+them; a shape mismatch would be loud, but the guard makes old runs load
+correctly). **Pinned post-park reference: `ablation_gat_type_only_s1`**
+(battery-selected best of the seed triple: recon −7.1924, cycle_z 0.499,
+clean allegiance) — doc-08 v6's status line quotes s0's numbers; the
+selection protocol says s1, and multi-seed envelopes use all three. Full
+suite: 129 passed, 1 skipped. Doc-08 v6 changes registered: §8 is now
+SIMVI + resolVI as bracketing ablation baselines (each missing one of our
+channels, opposite pre-registered failure directions), DisCoVR demoted to
+citation — kept for last per instruction (steps 0–4 first).
+
+**Step 4 launched** (gates §6.5/§7.5 only): sweep3 — the post-park κ sweep,
+6 κ × 3 seeds at the operating point with type_only sources, GPU 1,
+`--tag sweep3` (sweep2/sweep remain untouched). **Step 1 launched**: §2
+landmarks + §5 matrix + full report regenerated on the pinned s1, GPU 0.
+**Step 2 prerequisite**: MSigDB hallmarks downloaded —
+`data/external/msigdb_hallmarks_h.all.v2023.2.Hs.symbols.gmt` (50 sets,
+release 2023.2.Hs, data.broadinstitute.org, 2026-09-12).
+
+**Steps 1–3 delivered on the pinned s1** (sweep3 still running):
+
+- **§2/§5 rerun (step 1)**: the reference-era pattern reproduces on the
+  post-park reference — interface mid-band w 0.054 vs y-baseline 0.036,
+  vessels null, matrix block-diagonal (cycle z 0.440/w 0.006; niche w
+  0.767/z 0.654 with the §4.3 flag standing; pseudotime w 0.565/z 0.005).
+- **§6 atlas (step 2)** — `discell/model/atlas.py`, instruments certified
+  (varimax orthogonality/decomposition-invariance/planted-sparsity;
+  hallmark ranking). On s1: **all 6 programs active** (no spare capacity),
+  Moran 0.36–0.70, and the doc's claim lands hard: **joint context-driver
+  R² 0.92–0.98 per program** — the programs are almost entirely
+  context-explained. Hallmarks: EMT (×2, the top-variance programs),
+  adipogenesis, hedgehog, spermatogenesis(-labelled), and a small
+  G2M-checkpoint program reading as proliferative-niche territory
+  (consistent with cycle_w ≈ 0.008: territory, not per-cell cycle).
+  §6.5 stubbed pending sweep3. MSigDB provenance in `data/external/`.
+- **§7 transport (step 3)** — `discell/model/transport.py`. Two instrument
+  lessons registered while running it: (i) selecting the most
+  composition-distinct pairs up front is self-defeating (they are exactly
+  what the overlap guard flags) — all pairs are evaluated and the guard
+  decides; (ii) the overlap comparison must be 1-D **along the gap
+  direction**. Structural finding: with k-means niches the supported
+  (interpolation) tier is near-empty *by construction* — 3 of 158 panels,
+  adjacent niches, nothing to predict (mean full R² 0.026). **The
+  informative regime is extrapolation, named as such**: 155 panels, mean
+  full R² 0.146, **median calibration slope 0.96**, and the §7.4
+  requirement met overwhelmingly — **full beats both single channels in
+  135/155 (87%)** (program-only 0.068, leak-only 0.063). Top panels are
+  Macrophages (full 0.44–0.51) with the leak channel carrying up to half
+  the predicted shift — the macrophage-spillover hypothesis from the
+  pseudotime era, now quantified per gene: the program-vs-leak split works.
+  Writeup caveat, pre-stated: annotation niches (rim/core) would populate
+  the supported tier; data-defined niches cannot.
+
+**Steps 6.5/7.5 closed + matrix rendering fixed (user-caught).**
+
+- **§6.5 κ-survival** (`experiments/atlas_kappa_survival{,_internal}.json`):
+  vs the s1 reference, signature correlation is ~0.34–0.41 and flat in κ —
+  but that read confounds κ with the budget/optimum gap (s1 is a
+  long-budget optimum). The sweep-internal read (reference sweep3_k0.1_s0)
+  separates it: **along κ within seed 0.62–0.64, across seeds 0.25–0.32** —
+  programs are κ-stable, seed-variable, the same pattern B has always
+  shown. Consensus-programs over seeds remains the reporting rule; per-
+  program identity should travel by hallmark label, not raw correlation.
+- **§7.5 transport sensitivity** (`experiments/transport_kappa_sensitivity
+  .json`, seed 0 across κ): the attribution split moves with κ exactly as
+  designed — leak-channel R² 0.000 (κ=0, sanity) → 0.084 (κ=0.4) while
+  program falls 0.056 → 0.042; the **total** transported prediction is
+  κ-robust on the plateau (full 0.10–0.11 for κ ≤ 0.2) and degrades past
+  it (0.084 at 0.4) with "full beats both" declining 128 → 75/155. Quote
+  the split as a κ-range, never a point.
+- **Allegiance matrix rendering** (user-caught defect): rows were
+  auto-included and per-row normalised — a −0.01-vs-0.02 row painted the
+  0.02 side fully hot, and the flagged niche-z (0.65 > ℓ 0.59) rendered
+  warm with no warning. Fixed: one absolute strength scale (AUC 0.5→0,
+  0.85→1; R² 0→0, 0.5→1), cells that fail to clear max(floor, ℓ)+margin
+  grey out as "n.s.", and significant signal in the UNEXPECTED column gets
+  a dagger + title footnote (niche-z now carries the §4.3 flag visibly;
+  the mid-band row reads as the near-null it is).
+- **Report integration**: `report.py` now appends the §6 atlas (program
+  table + figures) and §7 transport (two-tier summary + the new
+  `transport_summary.png`: tier bars + the per-panel program-vs-leak
+  attribution map) whenever those artefacts exist for the run; sweep3's
+  200-epoch κ=0.1 seeds are tight (±0.0014) — the strong-family optimum
+  is a long-budget phenomenon, so the pinned s1 is a selected optimum,
+  not a sweep-reachable one.
+
+**Transport correction (user-caught, the second matrix-grade catch).** The
+question "are we leaking from the old neighbours or the new ones?" exposed
+that the implemented "full" prediction deviated from doc-08 §7.2: it used
+the actual niche-B populations' complete rates, silently letting a THIRD
+thing vary — the type's intrinsic mix across niches (selection) — where
+the doc's counterfactual is Δ̂prog + Δ̂leak with z held fixed. (The direct
+answer: leakage always comes from the NEW neighbours; κ never changes.)
+Fixed: the **counterfactual total** (program + leak, z fixed) is now the
+headline — extrapolation tier mean R² **0.099**, slope **0.92**, beats
+both single channels in **100/155 (65%)** — the §7.4 claim passes on the
+correct object; the old "full" stays as the *model account*, and its
+excess over the counterfactual (0.146 − 0.099 ≈ **0.05**) is now a
+measurement in its own right: the selection share of observed niche
+differences. Observed niche difference = context response + contamination
++ selection, all three quantified. Report §7 updated (z-fixed statement,
+new-neighbours statement, four-bar summary figure).
+
+### Doc-11 received: z-applications A1–A6 — flags baked, dependencies building
+
+**The two architect flags, resolved first (they gate everything):**
+
+1. **"Ceiling" renamed to the 50-PC linear expression reference** across the
+   codebase: producer key `cycle.linear_ref` (train evaluate + TB scalar
+   `val/cycle_r2_linear_ref*`), readers with pre-rename fallbacks (report,
+   sweep, validate matrix — old runs and old TB events keep loading), all
+   user-facing labels now say "linear expression reference — not a ceiling:
+   z may legitimately exceed it" (it does, ~2x; M6 documented why).
+2. **Hallmark background VERIFIED correct** — `read_hallmarks` intersects
+   every set with the expressed panel and the hypergeometric population is
+   the expressed-panel size; the genome-background bug the architect
+   suspected is absent. The actual defect: labels shipped ungated
+   (SPERMATOGENESIS at p = 0.08, ADIPOGENESIS at p = 0.3). Fixed:
+   **BH correction across the sets tested per program, label ships only at
+   q ≤ 0.05**, otherwise "(none significant)"; q shown in the report table.
+   Atlas/matrix/report regenerating with both changes.
+
+**Doc-11 structure decision** (user: "well separated for less confusion"):
+new package `discell/applications/` — one module per application with its
+own CLI and pre-registered pass/fail, nothing imported by model/training
+code; shared data dependencies in `applications/shared.py`, built once.
+Sequencing per the doc: A4 → A1 → A3 → A6 → A5 → A2.
+
+**Shared dependencies building now** (the doc's two new data extractions):
+`transcripts.parquet` pulled from the ovarian archive; `qc/nuclear_dapi.
+parquet` (integrated nuclear DAPI + area per cell, morphology image x
+nucleus polygons — A4's orthogonal-physics ground truth) and
+`qc/nuclear_counts.npz` (nucleus-flagged q20 transcripts only — the
+segmentation-perturbation arm for A4/A1) both extracting in background.
+One dependency swap: polygon rasterisation via matplotlib.path instead of
+adding scikit-image.
+
+### A4 (decontaminated cycle call) — INCONCLUSIVE on this slide, reported honestly
+
+A4 built and run on `ablation_gat_type_only_s1` (three implementable legs;
+planted-world leg 4 stubbed). The verdict is *inconclusive*, and per doc-11
+("a failed leg is reported as a finding, not tuned away") that is the
+result, not something to tune:
+
+- **Leg 1 (DAPI ground truth) is at chance for BOTH callers** — AUROC(call
+  -> nuclear DNA content) raw 0.498, z 0.480; group median DAPI-z all within
+  ±0.07. The orthogonal-physics adjudicator cannot separate cycling from
+  non-cycling here at all, so it cannot arbitrate raw-vs-z. Two compounding
+  causes: (i) integrated nuclear DAPI from the 0.21 µm/px morphology image
+  is a weak ploidy proxy at this resolution; (ii) within the four MKI67-high
+  cycling types the raw Tirosh phase call fires on **92%** of cells, leaving
+  the contrast groups tiny (raw-only 1889, both-neg 2867). The cycling-type
+  restriction that A4 needs for power is exactly what collapses the DAPI
+  contrast.
+- **Leg 2 (exposure fingerprint) is confounded as specified** — the z
+  cycle-projection's slope on neighbour exposure (2.32) sits far outside a
+  permutation band [-0.35, 0.33] built by shuffling exposure within type.
+  But that band destroys the *real* spatial clustering of cycling cells
+  (proliferative niches are genuinely contiguous, §3.2's benign case), so
+  the test conflates real niche clustering with contamination. The band is
+  the wrong null; the leg needs a contamination-specific control (e.g. the
+  §7-style program-vs-leak split), not a spatial-structure null.
+- **Leg 3 (nuclear recomputation) technically "passes" but is
+  uninformative** — raw-only positives lose nuclear signal (nuclear -0.004
+  vs both-pos 0.045), *but* raw-only cells have raw cycle level ~0.001 to
+  begin with (they are marginal phase calls, barely above both-neg -0.041).
+  The drop is "weak calls are weak", not "contamination stripped".
+
+**Design conclusion for the architect**: A4 as specified needs a slide where
+the cycle signal is strong enough that (a) DAPI separates phases and (b) the
+raw call is not near-saturated within cycling types. This HGSOC slide fails
+both (cycle split-half reliability S 0.22 / G2M 0.52 already warned of it).
+Options: run A4 on a higher-cycling-fraction reference, or replace the DAPI
+leg with the planted world (leg 4) as the primary adjudicator here and
+demote the real-data legs to supporting. Not tuned away; carried as the A4
+finding. Proceeding to A1 (mirage states), which does not depend on the
+cycle signal.
+
+### A4 v2 — the doc-11 v1 redesign (motivation written before the run)
+
+Doc-11 v1 returns A4 with a redesign that accepts the diagnosis above: the
+flaw was the *instrument*, not the tissue, so no new slide. What changes and
+why, pre-registered before the rerun:
+
+- **Contrast population moves to post-mitotic types.** Within the MKI67-high
+  types the global Tirosh phase threshold fires on 92% of cells, so the
+  "raw-positive / z-negative" contrast group is tiny and least separable.
+  The predicted leak victims are stromal/immune cells at the edges of
+  proliferative niches: unsaturated base rates, maximal DAPI contrast.
+  Population = every labelled, connected type that is not one of the top-4
+  MKI67 types and not Unassigned, with ≥ 2 000 cells. Calls: raw = Tirosh
+  phase ≠ G1; z = rate-matched per type (top-k by the probe projection
+  `max(z·β_S, z·β_G2M)`, β fitted in the cycling types on training folds, k
+  = the raw-positive count of that type) so the two callers can only differ
+  in *which* cells they pick, not how many.
+- **Stratified test replaces the slope-on-exposure.** Exposure = β-weighted
+  neighbour cycle score. Statistic = positive rate in the top exposure
+  quartile minus the bottom, within type, averaged; band = the same
+  statistic under within-type exposure shuffles (200). This is still a
+  spatial-structure null (the objection stands for interpretation), so it
+  is demoted to "does raw track exposure, and does z track it less" — the
+  mechanism claim is not carried by it.
+- **Leg 2's null replaced by the gene-split fingerprint.** Contamination
+  transfers *transcripts*; niche co-clustering transfers *state*. Split the
+  S+G2M set into disjoint random halves A/B: Δ = corr(own_A, nbr_A) −
+  corr(own_A, nbr_B), averaged over 40 splits, within type. Under homophily
+  the neighbours' A and B halves are equally informative about a cell's A
+  score (state is set-independent) → Δ ≈ 0; leakage inflates only the
+  same-half correlation → Δ > 0. Physics check: leak is one-hop, so Δ on
+  ring 1 must exceed Δ on exact ring 2. Run on the post-mitotic population
+  (the claim) and on the cycling types (contrast). Detection rule: ring-1
+  CI excludes 0 *and* ring-1 mean > ring-2 mean.
+- **Planted world promoted to primary adjudicator** (`planted.py` +
+  `planted_world`): gate scaffold (6 000 cells, 8 types, κ = 0.2), a
+  cycle-like program (+1.0 log-fold on 12 genes) planted in 30% of the
+  cells of two "cycling" types, re-mixed through the true leak operator,
+  counts resampled. Short DisCell fit (400 epochs, `fit_synthetic`, nothing
+  tuned per world). Raw score = mean log-normalised planted-gene expression;
+  z score = the same probe projection as on real data, fitted on training
+  folds. Read-outs in the *victims* (non-cycling cells in the top exposure
+  quartile to planted cells): FPR at the threshold that reproduces the 30%
+  planted rate inside the cycling types; and AUROC(planted | score) within
+  the cycling types (sensitivity kept?). Pass per seed: z victim FPR < raw
+  victim FPR **and** z AUROC ≥ raw AUROC − 0.02. Three seeds.
+- **DAPI retained, group level only** (FFPE sectioning truncates nuclei;
+  integrated intensity is a weak ploidy proxy). Groups both-positive /
+  raw-only / neither in the post-mitotic population, `dapi_sum`
+  standardised within type; medians and KS vs neither. Supporting evidence
+  only — no AUROC claim.
+- **Pre-registered honest outcome**: if the raw gap sits inside its shuffle
+  band *and* the gene-split fingerprint is null in the post-mitotic
+  population, the report line is "leak-induced cycle false-positives are
+  rare at κ = 0.1 on this slide" — consistent with doc-09's aggregate-small
+  picture, and a finding rather than a failure. The planted world then
+  still carries the mechanism claim (can z reject leak-induced positives
+  when they *do* occur).
+
+Module: `discell/applications/a4_cycle.py` (rewritten; v1 is gone),
+`discell/applications/planted.py` (shared synthetic fit for all doc-11
+planted worlds). Output `runs/<run>/applications/a4_cycle.{json,png}`.
+
+### A4 v2 results — honest outcome triggered; the planted adjudicator needs rework; A4 PARKED (2026-09-11)
+
+Run: `ablation_gat_type_only_s1`, `applications/a4_cycle.{json,png,log}`;
+the run report now carries an "A4" section (`report.a4_section`). Numbers:
+
+- **Population**: 12 post-mitotic types, 342 743 connected cells; raw
+  Tirosh phase ≠ G1 fires on 45.5% of them (unsaturated, as the redesign
+  wanted; contrast v1's 92% inside the cycling types).
+- **Stratified gap** (Q4 − Q1 call rate by neighbour-cycle exposure,
+  within type): raw **0.159** (0.35 → 0.51), z rate-matched **0.068**
+  (0.38 → 0.45); both far outside the within-type shuffle band
+  [−0.009, 0.008]. Per type the raw/z contrast is largest in macrophages
+  0.37/0.05, T-NK 0.17/0.01, tumour-associated fibroblasts 0.18/0.04;
+  tumour-associated endothelium 0.20 vs stroma-associated 0.06 (raw) is
+  the pattern real angiogenic proliferation would also produce.
+- **Gene-split fingerprint** (the leak-specific leg): post-mitotic Δ ring 1
+  = **0.006, CI [−0.006, 0.020]**, ring 2 0.003 — null; cycling types
+  0.008 [−0.009, 0.037] — null. No transcript-transfer signature in the
+  predicted victims, on either ring.
+- **DAPI** (group level): both-positive median **−0.17** (KS 0.14 vs
+  neither, n 82k), raw-only +0.04 (KS 0.04), neither +0.13. The DNA-content
+  proxy does not place either caller's post-mitotic positives above the
+  negatives — if anything below.
+- **Planted world**: **0/3 seeds pass**; victim FPR raw 0.21 vs z 0.32,
+  AUROC raw 0.68 vs z 0.64 (seed means).
+
+**Reading, per the pre-registration.** The raw call tracks exposure, but
+the fingerprint says that tracking is *state*, not transcript transfer —
+so the pre-registered honest outcome stands: **leak-induced cycle false
+positives are rare at κ = 0.1 on this slide**, consistent with doc-09's
+aggregate-small picture. The flatter z line is therefore not a
+decontamination win; it is closer to doc-11's named fail state (z
+*under-calls* a real spatial gradient of post-mitotic cycling —
+sensitivity, not specificity). DAPI supports neither caller.
+
+**The planted adjudicator did not adjudicate — two defects, recorded as
+found, not fixed (A4 parked by the user before either was verified):**
+
+1. *Read-out inconsistency + under-power.* The planted leg thresholds
+   globally (70th percentile inside the cycling types) while the real-data
+   leg rate-matches within type; the JSON's `control_fpr` (unexposed,
+   non-planted cells) ranges 0.02–0.45 for raw and 0.32–0.37 for z across
+   seeds, so "victim FPR" is dominated by synthetic type offsets. The
+   leak-attributable excess (victim − control) is raw 0.11/0.00/0.02, z
+   0.08/−0.08/−0.09: in two of three seeds the leak is invisible even to
+   the raw score, and raw detects the planted cells themselves at only
+   AUROC ≈ 0.67 (+1.0 log-fold on 12/60 genes is far weaker than real
+   MKI67/TOP2A). A power gate (raw AUROC ≥ 0.9 and raw excess ≥ 0.1, else
+   the world is uninformative) must precede any z verdict. This is my
+   implementation flaw, not a finding about z.
+2. *Amortisation-gap hypothesis (UNVERIFIED).* `enc_z` conditions on
+   `[counts_i, log ℓ_i, onehot t_i]` only (`networks.py`, by design —
+   "enc_z never sees c"). The true posterior p(z_i | x_i, ρ̄_i) depends
+   on the cell's own neighbours; the amortised q(z_i | x_i, t_i) cannot.
+   If so, the leak is removed on the decoder side (B, the decoder, the
+   population-level z law) but the **per-cell** posterior mean inherits
+   whatever leaked into x_i, and a per-cell "decontaminated call through
+   z" is not something the architecture can deliver as stated. The route
+   the model does license is counts-level: x̃_i = x_i − κ ℓ_i ρ̄_i with
+   the model's own ρ̄_i, then rescore. This bears on A1/A2/A5 as well
+   (per-cell z, `softmax(a(z))`). To be adjudicated by a planted world
+   with the power gate above, comparing raw / z-probe / leak-subtracted
+   counts — not started.
+
+Status: **A4 and all doc-11 applications parked** (user, 2026-09-11) in
+favour of consolidating the project state; the two items above are the
+first things to pick up when A4 resumes.
+
+### Crystallisation: registers brought current, `docs/handover.md` written (2026-09-14)
+
+User request after parking A4: consolidate. Done in this order —
+(1) the A4 v2 results entry above; (2) `docs/issues.md`: new V1–V9 table
+(doc-08/09/11 instrument defects incl. the open A4 planted-adjudicator
+defect V9), the low-α_w bistability item marked SETTLED (strong family =
+better optimum; select by battery), three new watch items (amortised
+per-cell z cannot see its own neighbours — UNVERIFIED; doc-09 61% is
+uncalibrated; A4's honest outcome), duplicate mirror item struck;
+(3) `docs/spec_deviations.md`: `type_only` registered as a §4.1 departure
+with its empirical-only case, GAT-query sizing text corrected, current
+defaults + budget note, doc-08 §5 rendering / §6.1 / §6.3 / §6.5 /
+§7.2–7.4 rows, new doc-09 table, doc-10 park record, doc-11 A4 table;
+(4) `docs/handover.md` — the state document: operating point and seeds,
+how to run everything, results by claim with artefact pointers, κ and
+seed envelopes, retractions table, ranked limitations (type-label
+circularity first, the amortisation gap second), a quality verdict
+(publishable / suggestive / unsupported), open architect questions, next
+steps (doc-08 §8 baselines first). One number surfaced while
+cross-checking that had not been written down: the ovarian graphclust
+control's invariance probe re-fitted against the *curated* labels reads
+ΔCE 0.061 (reference 0.004) — coarser training labels leave finer-label
+niche information in z; recorded in handover §4.8. The report for
+`ablation_gat_type_only_s1` was regenerated with the A4 section. Suite:
+132 passed, 1 skipped (2026-09-11). Nothing committed yet — the working
+tree carries all of doc-08 §6 onward.
+
+### Three user questions on the cons — measured, not argued (2026-09-14)
+
+Ad-hoc analysis on the type_only seed triple (best checkpoints, all
+407k cells via `Trainer._sweep`; script in the session scratchpad, numbers
+below are the record).
+
+**1. KL_w: is there per-cell variance, and what does it mean in % terms?**
+KL_w is against the *learned* conditional prior m_ψ(c,t), so it counts
+only what w knows beyond context (KL_z, against N(0,I), counts everything
+z knows — not comparable). 93–97% of it is mean shift, so KL ≈ ‖μ_w −
+m_ψ‖²/2: at s1 the median cell deviates by ‖dev‖ 0.08 against a prior
+field with per-dim SD 0.4–5.1 — the per-cell part is **0.01–0.1% of w's
+variance per dim**. Distribution at s1: mean 0.0047 nats, median 0.0028,
+p99 0.028, max 0.14; the top 1% of cells carry 8% of the total (no heavy
+tail → no anomaly channel to read); per type macrophages / TAFs highest
+(0.007), proliferative tumour lowest (0.002). s2 identical in shape.
+**s0's best checkpoint is different: KL_w 0.108 mean, 62% of cells above
+0.05, uniform (top 1% carry 3%), ‖dev‖ 0.40, 0.2–2.3% of variance per
+dim, highest in proliferative tumour (0.20).** Reconciled with
+`history.jsonl`: KL_w **oscillates 20–100× between evaluations five epochs
+apart** in every seed (s0: 0.008 → 0.124 at epoch 59 → 0.006; s1 spikes
+0.37 at 29, 0.28 at 59; s2 0.78 at 54) — the posterior deviates, the
+prior catches up within ≤ 5 epochs. s0's `best.pt` (epoch 59) sits on a
+spike. Consequence: a checkpoint's KL_w is a snapshot of a chase, not a
+property of the solution; the α_w-study's "channel opens" reads were
+single snapshots too. Recorded as a watch item.
+
+**2. B seed variance — is it because d_w is small?** The opposite. The
+eigen-spectrum of cov(μ_w) is **[0.83, 0.17, 0, 0, 0, 0]** at s1 and
+[0.98, 0.02, 0, …] at s0/s2: w occupies a 2-D (s1) or ~1-D (s0, s2)
+subspace of its 6 dims; the realised shift μ_w·B has the same spectrum
+(0.85/0.15; 0.99/0.01). The four null directions carry no variance, so
+their B columns are unconstrained by the data and arbitrary across seeds
+— that is what `matched_correlation` (0.47–0.60 here, 0.43–0.52 in
+sweep3) measures. The invariant object agrees across seeds: per-cell
+shift vectors correlate 0.90–0.93 (median; p10 0.72), A's shift variance
+lies 97–99% inside B's shift span (82–96% inside the top-1 direction),
+dominant gene direction cosine 0.89–0.95. So: d_w = 6 is 3–6× more than
+w uses; "B is seed-bistable" was a metric artefact of the null columns
+(the κ = 0 → κ > 0 drop 0.70 → 0.45 may still carry §7.7's confound —
+unresolved without those latents). Two fixes to propose: (i) B stability
+= shift-space overlap, not matched columns; (ii) a d_w ablation {2, 3, 6}
+× 3 seeds — prediction: at d_w = 2 matched|corr| ≈ 0.9 with recon /
+cycle / niche unchanged.
+
+**Correction to the §6 atlas (same root).** `atlas.py` judges activity on
+the variance of the *varimax-rotated* coordinates (≥ 1% of the max); a
+rank-2 w rotated onto 6 axes gives six correlated coordinates that all
+pass (rotated variances 2.35 / 1.09 / 1.03 / 0.93 / 0.51 / 0.11). The
+honest read of the pinned reference is **two programs (s1) — one
+dominant (83%), one secondary (17%) — not six**; the two EMT-labelled
+programs 0 and 1 are the top-variance ones and the four "(none
+significant)" programs are the null directions. Drivers R² 0.92–0.98 and
+Moran 0.36–0.70 on the null coordinates are inherited from the two real
+ones through collinearity. Fix: activity by the eigen-spectrum of
+cov(μ_w) (effective rank r), varimax *within* the r-dim subspace, report
+r. Handover §4.4 and the report table are wrong until then; issues V10.
+
+**3. The amortisation gap — feed the encoder x − κℓρ̄?** Design note for
+the architect, not run. The true posterior is p(z_i | x_i, ρ̄_i);
+subtracting the expected influx keeps §4.2's "enc_z never sees c" (the
+correction *removes* neighbour signal; conditioning q(z | x, t, ρ̄) would
+re-open the channel). ρ̄ is why the batch has two rings, and §4.5 forbids
+ρ_j ≈ softmax(a(z_j)) (w_j must stay in it). Ordering is the cost: ρ̄_i is
+computed after the seeds are encoded, and the exact form regresses (ring
+1 corrected needs ring 2's ρ needs ring 3's types …). Practical scheme:
+pass 1 as now (raw inputs, all nodes) → ρ_j for ring 1 → ρ̄_i; pass 2
+re-encodes **seeds only** from x̃_i = clip(x_i − κℓ_iρ̄_i, 0), decodes,
+likelihood unchanged on raw x with p = (1−κ)ρ_i + κρ̄_i (ρ̄ stop-gradient).
+Ring-1 ρ_j from uncorrected encoders is an O(κ²) inconsistency; cost ≈
++35% (seeds encoded/decoded twice), no cache. Pre-registered tests: the
+flagged niche-z residual (AUC 0.654 vs ℓ 0.585) should drop if part of it
+is leaked transcripts; cycle_z must not fall; A4's planted world becomes
+answerable. Spec change → architect.

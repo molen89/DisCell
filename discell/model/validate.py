@@ -4,7 +4,8 @@
 Every analysis probes a target with a *known* allegiance from BOTH latents
 and reports the asymmetry against reference rows: *floor* (within-type target
 permutation), *l-baseline* (the probe from ``log l`` alone), and, for
-expression-derived targets, the 50-PC *ceiling*. Everything is fitted within
+expression-derived targets, the 50-PC *linear expression reference*
+(named honestly: z beats it, it is not a ceiling). Everything sits within
 type with spatial-block CV over the training tiles -- random CV is invalid
 for spatial targets, autocorrelation leaks the answer through neighbours.
 
@@ -60,6 +61,9 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
     run_dir = paths.dataset(dataset).root / "runs" / run
     payload = torch.load(run_dir / "best.pt", map_location="cpu",
                          weights_only=False)
+    # runs from before the field existed were type_z -- never let the new
+    # default reshape an old checkpoint's architecture
+    payload["config"].setdefault("gat_sources", "type_z")
     config = TrainConfig(**payload["config"])
     data = assemble(dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
@@ -70,7 +74,8 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
                     phi_dim=data.phi.shape[1],
                     median_counts=data.median_counts, d_z=config.d_z,
                     d_w=config.d_w, hidden=config.hidden,
-                    gat_dim=config.gat_dim, heads=config.heads).to(device)
+                    gat_dim=config.gat_dim, heads=config.heads,
+                    gat_sources=config.gat_sources).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()
@@ -673,7 +678,8 @@ def landmark_figure(result: dict, path: Path) -> None:
 def cycle_row(data: ModelData, latents: dict, max_cells: int,
               seed: int) -> dict:
     """S/G2M from both latents under this doc's conventions (block CV,
-    within cycling types), with floor, l-baseline and 50-PC ceiling."""
+    within cycling types), with floor, l-baseline and the 50-PC linear
+    expression reference (not a ceiling -- z may exceed it)."""
     rng = np.random.default_rng(seed)
     cyc = data.cycle
     names = [str(n) for n in data.type_names]
@@ -688,7 +694,7 @@ def cycle_row(data: ModelData, latents: dict, max_cells: int,
     fold = latents["fold"][members]
     log_l = np.log(data.totals.clip(min=1.0))[:, None]
     designs = {"z": latents["mu_z"][members], "w": latents["mu_w"][members],
-               "ceiling": cyc["x_pcs"][members],
+               "linear_ref": cyc["x_pcs"][members],
                "lbaseline": log_l[members]}
     out = {}
     for name, design in designs.items():
@@ -730,45 +736,77 @@ def allegiance_matrix(results: dict, pseudo: dict, path: Path) -> dict:
     matrix = {
         "S/G2M score (intrinsic)": {
             "z": cycle["z"], "w": cycle["w"], "floor": cycle["floor"],
-            "lbaseline": cycle["lbaseline"], "ceiling": cycle["ceiling"],
-            "unit": "R²"},
+            "lbaseline": cycle["lbaseline"],
+            "linear_ref": cycle["linear_ref"],
+            "unit": "R²", "expect": "z"},
         "niche label (spatial)": {
             "z": niche["z"], "w": niche["w"], "floor": niche["floor"],
-            "lbaseline": niche["lbaseline"], "unit": "macro AUC"},
+            "lbaseline": niche["lbaseline"], "unit": "macro AUC",
+            "expect": "w"},
         "mid-band landmark distance (spatial)": {
             "z": mid_all["z"], "w": mid_all["w"], "floor": mid_all["floor"],
-            "lbaseline": mid_all["lbaseline"], "unit": "R²"},
+            "lbaseline": mid_all["lbaseline"], "unit": "R²", "expect": "w"},
         "pseudotime tissue-gradient (existing)": {
             "z": pseudo["z"]["niche_r2"], "w": pseudo["w"]["niche_r2"],
-            "unit": "niche R² (type-partialled)"},
+            "unit": "niche R² (type-partialled)", "expect": "w"},
     }
 
-    fig, ax = plt.subplots(figsize=(7.2, 3.6))
+    # Absolute strength on one shared scale -- never per-row normalisation,
+    # which paints the larger side of a null row fully hot (a -0.01-vs-0.02
+    # row must read as "nothing", not as a w win). AUC maps (0.5 -> 0,
+    # 0.85 -> 1); R² maps (0 -> 0, 0.5 -> 1). A cell that fails to clear its
+    # strongest reference by a margin is greyed "n.s."; a cell hot in the
+    # UNEXPECTED column keeps its colour but is dagger-flagged.
+    def strength(value: float, unit: str) -> float:
+        if "AUC" in unit:
+            return float(np.clip((value - 0.5) / 0.35, 0.0, 1.0))
+        return float(np.clip(value / 0.5, 0.0, 1.0))
+
+    fig, ax = plt.subplots(figsize=(7.6, 3.8))
     rows = list(matrix)
     cells = np.zeros((len(rows), 2))
+    significant = np.zeros((len(rows), 2), dtype=bool)
+    flagged: list[str] = []
     for r, row in enumerate(rows):
         entry = matrix[row]
-        floor = entry.get("floor", 0.0)
-        span = max(abs(entry["z"] - floor), abs(entry["w"] - floor), 1e-9)
-        cells[r] = [(entry["z"] - floor) / span, (entry["w"] - floor) / span]
+        reference = max(entry.get("floor", 0.0), entry.get("lbaseline", 0.0))
+        margin = 0.03 if "AUC" not in entry["unit"] else 0.02
+        for c, col in enumerate(("z", "w")):
+            significant[r, c] = entry[col] > reference + margin
+            cells[r, c] = strength(entry[col], entry["unit"]) \
+                if significant[r, c] else 0.0
+            if significant[r, c] and col != entry["expect"]:
+                flagged.append(f"{col} on '{row.split(' (')[0]}'")
     ax.imshow(cells, cmap="viridis", vmin=0, vmax=1, aspect="auto")
     for r, row in enumerate(rows):
         entry = matrix[row]
         for c, col in enumerate(("z", "w")):
-            refs = " ".join(f"{k[0]}={entry[k]:.2f}" for k in
-                            ("floor", "lbaseline", "ceiling") if k in entry)
-            ax.text(c, r, f"{entry[col]:.2f}\n[{refs}]", ha="center",
-                    va="center", fontsize=7,
+            letters = {"floor": "f", "lbaseline": "\u2113",
+                       "linear_ref": "x"}
+            refs = " ".join(f"{letters[k]}={entry[k]:.2f}" for k in
+                            ("floor", "lbaseline", "linear_ref")
+                            if k in entry)
+            dagger = "†" if significant[r, c] and col != entry["expect"] \
+                else ""
+            label = f"{entry[col]:.2f}{dagger}" if significant[r, c] \
+                else f"{entry[col]:.2f}\nn.s."
+            ax.text(c, r, f"{label}\n[{refs}]", ha="center", va="center",
+                    fontsize=7,
                     color="white" if cells[r, c] < 0.6 else "black")
     ax.set_xticks([0, 1], ["mu_z", "mu_w"])
     ax.set_yticks(range(len(rows)),
                   [f"{r} ({matrix[r]['unit']})" for r in rows], fontsize=7)
-    ax.set_title("allegiance matrix: each target hot in exactly one column",
-                 fontsize=10)
+    title = "allegiance matrix: colour = absolute strength; n.s. = within " \
+            "references"
+    if flagged:
+        title += "\n† unexpected-column signal, open item: " \
+                 + "; ".join(flagged)
+    ax.set_title(title, fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)
     matrix["mid_band_first_class_only"] = mid
+    matrix["flagged"] = flagged
     return matrix
 
 

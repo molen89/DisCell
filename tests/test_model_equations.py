@@ -273,3 +273,29 @@ def test_principal_curve_works_in_full_dimensional_space():
     pseudotime, curve = principal_curve(coords)
     assert abs(spearmanr(pseudotime, s).statistic) > 0.95
     assert curve.shape[1] == 6
+
+
+def test_w_mirror_delta_r2_separates_planted_mirror_from_honest_w():
+    """The detector's planted truth: an honest w (composition field) reads
+    delta ~ 0; a mirror w (feeding on neighbour-state detail beyond
+    composition) reads large -- and both share the same y-driven baseline."""
+    import numpy as np
+
+    from discell.model.metrics import w_mirror_delta_r2
+
+    rng = np.random.default_rng(0)
+    n, d_z, d_w = 8000, 5, 3
+    t = rng.integers(0, 4, n)
+    y = rng.dirichlet(np.ones(4), size=n)
+    # neighbour-state aggregate: partly composition-driven, partly independent
+    independent = rng.normal(size=(n, d_z))
+    neighbour_z = y @ rng.normal(size=(4, d_z)) + independent
+    base = y @ rng.normal(size=(4, d_w))          # the composition field
+    honest = base + 0.1 * rng.normal(size=(n, d_w))
+    mirror = base + independent @ rng.normal(size=(d_z, d_w)) * 0.7
+    train = rng.random(n) < 0.5
+    honest_read = w_mirror_delta_r2(honest, neighbour_z, y, t, train, ~train)
+    mirror_read = w_mirror_delta_r2(mirror, neighbour_z, y, t, train, ~train)
+    assert abs(honest_read["delta_r2"]) < 0.05
+    assert mirror_read["delta_r2"] > 0.3
+    assert honest_read["r2_y"] > 0.5              # both see the y baseline

@@ -145,19 +145,24 @@ class DisCell(nn.Module):
 
     def __init__(self, n_genes: int, n_types: int, phi_dim: int,
                  median_counts: float, d_z: int = 20, d_w: int = 6,
-                 hidden: int = 256, gat_dim: int = 32, heads: int = 4):
+                 hidden: int = 256, gat_dim: int = 32, heads: int = 4,
+                 gat_sources: str = "type_only"):
         super().__init__()
         self.n_types, self.d_z, self.d_w = n_types, d_z, d_w
         self.median_counts = float(median_counts)
+        self.gat_sources = gat_sources
         # The type embedding exists ONLY as the GAT query: it stands in for the
         # z_i the centre cell deliberately does not contribute to its own
-        # context, so it is sized K + d_z -- the same dimension as the source
-        # features [onehot(t_j), z_j] it is queried against. Everywhere t is a
-        # plain input (enc_z, enc_w, m_psi) it enters as a one-hot.
-        self.embed_t = nn.Embedding(n_types, n_types + d_z)
+        # context, so it is sized to match the source features it is queried
+        # against -- onehot(t_j) alone under the default "type_only" (ratified
+        # 2026-09-12), or [onehot(t_j), sg z_j] (K + d_z) under the original
+        # spec-4.1 "type_z". Everywhere t is a plain input (enc_z, enc_w,
+        # m_psi) it enters as a one-hot.
+        src_dim = n_types + (d_z if gat_sources == "type_z" else 0)
+        self.embed_t = nn.Embedding(n_types, src_dim)
         # spec 4.2: normalised counts + log-depth scalar + one-hot type
         self.enc_z = mlp([n_genes + 1 + n_types, hidden, hidden, 2 * d_z])
-        self.gat = GATv2(src_dim=n_types + d_z, dst_dim=n_types + d_z,
+        self.gat = GATv2(src_dim=src_dim, dst_dim=src_dim,
                          out_dim=gat_dim, heads=heads)
         c_dim = gat_dim + phi_dim + 1                     # +1: isolated flag
         self.prior_w = mlp([c_dim + n_types, hidden // 4, d_w])
@@ -182,8 +187,9 @@ class DisCell(nn.Module):
         Sources are ``[onehot(t_j), sg mu_z(x_j)]``: the stop-gradient keeps the
         niche encoder from training the ego encoder through the neighbours.
         """
-        h_src = torch.cat([F.one_hot(t, self.n_types).float(),
-                           mu_z.detach()], dim=-1)
+        h_src = F.one_hot(t, self.n_types).float()
+        if self.gat_sources == "type_z":
+            h_src = torch.cat([h_src, mu_z.detach()], dim=-1)
         gat, alpha = self.gat(h_src, self.embed_t(t[:n_context]),
                               edge_src, edge_dst)
         flag = isolated[:n_context].float()[:, None]

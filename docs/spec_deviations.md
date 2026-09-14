@@ -16,7 +16,7 @@ decision to surface, not a bug; bugs live in `docs/issues.md`.
 | where | spec says | code does | rationale |
 |---|---|---|---|
 | `enc_w`'s x input | `enc_w(c, t, z, x)` — transform unspecified | same `encode_counts` as `enc_z` (library-normalised + log ℓ) | **RESOLVED 2026-08-21**: author confirms x means the log1p-transformed counts, i.e. the §4.2 representation |
-| `t` into `enc_w` / `m_ψ` | one-hot (author clarification) | **corrected**: one-hot everywhere t is an input; `embed(t)` exists only as the GAT query, sized **K + d_z** to match the source features `[onehot(t_j), z_j]` it stands in for | **RESOLVED 2026-08-21**: was `embed(t)` at a free width; fixed per author |
+| `t` into `enc_w` / `m_ψ` | one-hot (author clarification) | **corrected**: one-hot everywhere t is an input; `embed(t)` exists only as the GAT query, sized to match the GAT source features it stands in for — **K** under the default `type_only` (sources = onehot(t_j) only), K + d_z under the spec-4.1 `type_z` sources | **RESOLVED 2026-08-21**: was `embed(t)` at a free width; fixed per author; sizing follows `gat_sources` since 2026-09-11 |
 | `w_j` for ring-1 `ρ_j` | "`ρ_j` needs `w_j`" — which w unspecified | a sample from `q(w_j)`, same batched call as seeds, **detached** | **RATIFIED 2026-09-01** (architect: "agree without reservation") |
 | isolated cells' leak | ~~silent~~ **now spec behaviour**: §4.1 as patched prescribes the per-row renormalisation, `κ_i = 0` | matches | **closed** — no longer a deviation |
 | `v`-block parameterisation | `v = [y, PCs(Φ)]` | `[y minus one column, PCs(Φ)]` | `y` on the simplex makes Σ_v singular by construction; MI unchanged (issues M4). **RATIFIED 2026-09-01** |
@@ -41,6 +41,7 @@ decision to surface, not a bug; bugs live in `docs/issues.md`.
 | `Φ_i` dimensionality | "Project to 32–64 dims" (§2) | **full-dimension by default** (384), `--phi-pca` to compress | mask arms landed (they answer type-AUC only); the deciding test is the **Φ ablation in the running calibration** — resolve on its Δ-recon |
 | probe target for Φ | CE against `eΦ` clusters (`E_Φ ≈ 15–20`, soft k-means) | Gaussian CE (ridge/MSE) on the continuous `[y', PCs(Φ)]` block | **RATIFIED 2026-09-01**, with the architect's condition attached: one small-MLP probe cross-check at the decision point (running in `calibrate.py`) |
 | graph construction | Delaunay; Voronoi faces | the bundle's stored Voronoi-face graph (Delaunay candidates, faces from a partition **clipped to 30 µm discs**) | clipping only removes faces between cells >~60 µm apart, all of which the 40 µm prune removes anyway — no observable difference, but the mechanism differs |
+| GAT sources (§4.1) | sources `[onehot(t_j), sg μ_z(x_j)]` | **`gat_sources = "type_only"`** by default: sources = onehot(t_j) only; `"type_z"` selectable for era reproduction, and pre-field checkpoints reload as type_z (`load_run` era guard) | **measured, then ratified by the user 2026-09-11** (doc-08 v6 step 0): 3-seed ablation better on nearly every axis — recon −7.2586 (type_z reference) → −7.2527 / −7.1924 / −7.2310, mirror 0.056 → 0.044–0.046, cycle_w 0.034 → 0.007–0.010, NMI held, w's spatial character intact; doc-09 showed neighbour-state detail in c bought nothing (exposure null in every arm). The case is **empirical only** — the mechanistic motivation (w-mirror) was falsified (devlog 2026-09-11) |
 
 ## Spec'd but not yet built (deliberately deferred)
 
@@ -50,7 +51,7 @@ decision to surface, not a bug; bugs live in `docs/issues.md`.
 | `eΦ` image-niche clusters and `Φ̄(t)` lookup | §2, §4.6 | **built** with the adversary (`soft_clusters`, E_Φ = K) |
 | `α_a` operating-point sweep (ΔCE vs z–type NMI crossing) | §4.6 | **done** — four rounds; adversarial α_a = 0.3 (14% of uncontrolled, zero NMI cost); 1.0 reaches the floor |
 | Dirichlet-Multinomial likelihood | §7.6 | posterior-predictive under-dispersion at higher depth |
-| counterfactual machinery (`do(c = c′)` with abduction) | §7.9 | after a κ sweep produces stable effects worth interrogating |
+| counterfactual machinery (`do(c = c′)` with abduction) | §7.9 | **type-level version built** as the doc-08 §7 transport check (`discell/model/transport.py`: Δ̂prog + Δ̂leak with z fixed, scored on held-out tiles); per-cell abduction stays out of scope by design |
 | bounded learned `σ_w(c,t) ∈ [0.5, 2]` | §7.12 | explicitly optional; fixed `σ_w = 1` until a reason appears |
 | κ estimation via nuclear/extranuclear split | §7.11 | out of scope for DisCell-simple |
 
@@ -71,6 +72,15 @@ the sweep runs with `invariance = adversary`, `α_a = 0.3`, `adv_steps = 6`,
 `adv_lr = 2e-3` — MLP-ΔCE 14% of uncontrolled at zero NMI cost. Lesson kept in
 issues A2: a weak adversary is a placebo; only the independent probe grades it.
 
+**Current defaults (`TrainConfig`, 2026-09-11)**: `gat_sources = type_only`,
+`invariance = adversary` (α_a = 0.3, 6 steps, lr 2e-3), κ = 0.1, α_z = 0.007
+(lung: 0.004, the 1/ℓ̄ rule at its depth), α_w = 0.1 (the α_w study of
+2026-09-10/11 found no safe re-calibration below it — seed-bistable), ω = 1,
+d_z = 20, d_w = 6, v_pcs = 12, tiles 4096, lr 1e-3. `epochs = 200` /
+`patience = 20` are the *sweep* budget; reference runs use `--epochs 500
+--patience 40` — the strong-family optimum (recon −7.19) is a long-budget
+phenomenon that 200-epoch sweep seeds do not reach (−7.256 ± 0.001).
+
 # Deviations from doc 08 (`08-validation-analyses_1.md`, validation handover)
 
 Same discipline as above: each row is a surfaced decision, evidence in the
@@ -87,3 +97,40 @@ devlog carry the deltas (ready for architect ratification like the 07 rounds).
 | §3.1 weights | "binary or β_ij" | binary, row-normalised | β adds no discriminative value for the I asymmetry; one fewer knob |
 | §4.3 expectation | "z within noise of max(floor, ℓ-baseline)" | measured **above** it: AUC z 0.65 vs ℓ 0.59 (w 0.76) | not silently accepted: registered as a watch item (issues), triaged benign (hot z dims y-R² ≤ 3.6%), and shown κ-reducible (+0.062 → +0.039 over the grid) |
 | §5 matrix | rows incl. "mid-band landmark distances" | row present but averages three classes, diluting the interface read (0.069 shown as 0.029) | split into interface row + vessel-null-in-text proposed, **decision pending** |
+| §5 matrix rendering | (unspecified) | one **absolute** strength scale (AUC 0.5→0, 0.85→1; R² 0→0, 0.5→1); cells that fail max(floor, ℓ)+margin grey out as "n.s."; significant signal in the *unexpected* column gets a dagger + footnote | per-row normalisation painted a −0.01-vs-0.02 row fully hot and hid the §4.3 niche-z flag (user-caught, 2026-09-11) |
+| §6.1 basis | canonical basis unspecified beyond rotation-invariance | varimax on B's columns weighted by each dimension's realised variance | the *procedure* reproduces, raw columns do not; certified on planted sparsity (`tests/test_model_atlas.py`) |
+| §6.3 hallmark labels | hypergeometric enrichment | on the **expressed-panel** background (verified — the suspected genome-background bug is absent), **BH across the sets tested per program, label ships only at q ≤ 0.05** | ungated labels shipped SPERMATOGENESIS at p = 0.08 (architect flag, doc-11) |
+| §6.5 κ-survival | signature correlation vs the reference across the sweep | reported **sweep-internal** (reference `sweep3_k0.1_s0`) next to the vs-pinned-reference read | vs-s1 confounds κ with the long-budget optimum gap (0.29–0.43, flat); sweep-internal separates κ (0.62–0.64 within seed) from seed (0.25–0.34) |
+| §7.2 counterfactual | Δ̂prog + Δ̂leak with z fixed | **as specified** — after a user-caught correction (the first build let the type's intrinsic mix vary across niches); the all-vary "model account" is kept as an extra row and its excess over the counterfactual (≈ 0.05 R²) is reported as the **selection share** | selection became a measurement in its own right |
+| §7.3 pairs | the most composition-distinct pairs | **all** type × niche pairs evaluated; the overlap guard (1-D **along the gap direction**) assigns the tier | pre-selecting distinct pairs is self-defeating — they are exactly what the guard flags |
+| §7.4 tiers | supported / extrapolation | with k-means niches the supported tier is near-empty *by construction* (3/158 panels); extrapolation (155 panels) is the informative regime and is named as such in the report | annotation niches (rim/core) would populate the supported tier; data-defined ones cannot |
+
+# Deviations from doc 09 (`09-communication-experiment_1.md`)
+
+| where | doc says | code does | rationale |
+|---|---|---|---|
+| §3.6 low-α_w arm | ablation at a lower α_w | run at α_w = 0.05 seed 0 (the clean sub-0.1 instance); 0.03 is seed-bistable | verdict unchanged: exposure visibility null in every arm (w-R² ≈ −0.01 in four arms), programs *degrade* in the low arm |
+| §5a planted worlds A/B | calibration of the reattribution threshold | **not run** — the "61% leak-attributed" figure is uncalibrated and must not be quoted | doc-10/doc-11 took precedence; the gate scaffold (`synthetic.py`) + `applications/planted.py` now exist for it |
+| §5f stability | (a winning pair) | the cross-model tally is the result: POSTN 2/3 arms, PDGFB 2/3, nothing 3/3; CD99 decoy-rejected | pre-registered stability doctrine; at most 1–2 fragile candidates is the cellAdmix expectation |
+| exposure visibility | measured per arm | under `type_only` the null is **architectural**: c = f(type attention, composition, Φ) carries no channel for neighbour expression detail | measured in four arms before the architecture made it provable |
+
+# Doc 10 (`10-zw-guard-test`): built, parked, removed
+
+Guard built per §2 including the guard-view routing (naive build trained
+`enc_z` through `enc_w`'s z input; caught by the routing test), arm 0 run
+per §3 (grid α_w × α_zw on the planted world-A gate), verdict **PARK** per
+the pre-registered §4 clause (guard-on never held what guard-off lost; KL_w
+closed monotonically with α_zw — the backdoor-α_w failure). **Removed from
+the code entirely** (user decision, 2026-09-11); what remains is
+`data/experiments_synthetic/guard_gate.{json,png}` and the devlog record.
+Any second attempt must first reproduce the historical M3 cliff in the
+current loss configuration.
+
+# Deviations from doc 11 (`11-z-applications_1.md`) — A4 only so far
+
+| where | doc says | code does | rationale |
+|---|---|---|---|
+| A4 z call | per-cell calls from `z·β_S`, `z·β_G2M` | **rate-matched** per type: top-k by max(z·β_S, z·β_G2M), k = that type's raw-positive count | the two callers then differ only in *which* cells, never how many |
+| A4 leg 3 (nuclear-only recomputation) | in the original A4 list | **dropped in v2** — the redesign names DAPI / gene-split / planted only; v1 showed the leg reads "weak calls are weak" | `qc/nuclear_counts.npz` stays built for A1's segmentation-perturbation leg |
+| A4 planted-world read-out | phase-label recovery z vs raw at planted κ | victim FPR at a global threshold set inside the cycling types — **defective**: synthetic type offsets dominate (`control_fpr` 0.02–0.45 across seeds); the leak-attributable excess is victim − control, and no power gate exists | recorded, not fixed — A4 parked 2026-09-11 (devlog "A4 v2 results") |
+| A4 DAPI | group-level violin | group-level medians + KS on `dapi_sum` standardised within type, boxes | FFPE sectioning truncates nuclei; supporting evidence only |

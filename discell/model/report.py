@@ -83,11 +83,16 @@ def progress_figure(scalars: dict, history: list[dict], best_epoch: int,
         ("cycle lands in z, not w",
          [("val/cycle_r2_z_pooled", "z", {}),
           ("val/cycle_r2_w_pooled", "w", {}),
-          ("val/cycle_r2_ceiling_pooled", "50-PC reference", {"ls": "--"})],
+          ("val/cycle_r2_linear_ref_pooled",
+           "50-PC linear expression ref", {"ls": "--"})],
          "pooled R2"),
         ("channel usage (KL to prior)",
          [("train/kl_z", "KL_z", {}), ("train/kl_w", "KL_w", {})], "nats"),
     ]
+    # old runs logged the linear expression reference as "ceiling"
+    alias = ("val/cycle_r2_ceiling_pooled", "val/cycle_r2_linear_ref_pooled")
+    if alias[0] in scalars and alias[1] not in scalars:
+        scalars[alias[1]] = scalars[alias[0]]
     for ax, (title, series, ylabel) in zip(axes.ravel(), panels):
         for tag, label, style in series:
             if tag not in scalars:
@@ -255,6 +260,7 @@ def build(args: argparse.Namespace) -> Path:
                (run_dir / "history.jsonl").read_text().splitlines()]
     payload = torch.load(run_dir / "best.pt", map_location="cpu",
                          weights_only=False)
+    payload["config"].setdefault("gat_sources", "type_z")   # pre-field era
     config = TrainConfig(**payload["config"])
     run_meta = json.loads((run_dir / "config.json").read_text())
 
@@ -272,7 +278,8 @@ def build(args: argparse.Namespace) -> Path:
                     phi_dim=data.phi.shape[1],
                     median_counts=data.median_counts, d_z=config.d_z,
                     d_w=config.d_w, hidden=config.hidden,
-                    gat_dim=config.gat_dim, heads=config.heads).to(device)
+                    gat_dim=config.gat_dim, heads=config.heads,
+                    gat_sources=config.gat_sources).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()
@@ -296,9 +303,225 @@ def build(args: argparse.Namespace) -> Path:
 
     text = render(args.run, run_meta, config, metrics, history, images,
                   pseudo, names, groups)
+    text += (atlas_section(run_dir) + transport_section(run_dir)
+             + a4_section(run_dir))
     (out_dir / "report.md").write_text(text)
     log.info("wrote %s", out_dir / "report.md")
     return out_dir
+
+
+def atlas_section(run_dir: Path) -> str:
+    """The section-6 w-program atlas, when it has been run for this model."""
+    path = run_dir / "atlas" / "atlas.json"
+    if not path.exists():
+        return ""
+    atlas = json.loads(path.read_text())
+    active = [p for p in atlas["programs"] if p.get("active")]
+    spare = len(atlas["programs"]) - len(active)
+    rows = ["| # | hallmark (BH-gated) | Moran I | driver R² (joint) | top type |",
+            "|---|---|---|---|---|"]
+    figures = []
+    for p in active:
+        top_hm = p["hallmarks"][0] if p["hallmarks"] else None
+        hallmark = (f"{top_hm['hallmark'][:28]} (q={top_hm['q']:.1e})"
+                    if top_hm and top_hm.get("significant")
+                    else "(none significant)")
+        top_type = next(iter(p["type_activity"]), "-")
+        rows.append(f"| {p['program']} | {hallmark} | "
+                    f"{p['moran_I']:.2f} | {p['drivers']['joint']:.2f} | "
+                    f"{top_type[:26]} |")
+        figures.append(f"![program {p['program']}]"
+                       f"(../atlas/program_{p['program']}.png)")
+    return f"""
+
+## The w-program atlas (doc-08 section 6)
+
+**How**: a canonical basis is fixed by varimax-rotating B's columns
+weighted by each dimension's realised variance (raw dims are
+rotation-arbitrary; the *procedure* is what reproduces). Per program:
+Moran's I of its per-cell coordinate (spatial territoriality, permutation
+null), held-out ridge R² of the coordinate from three context blocks --
+neighbour composition, image PCs, landmark distances -- reported marginal
+and partial (the blocks overlap), and hypergeometric hallmark enrichment
+of the top loadings. **Good**: high Moran's I (a program should be
+territorial), high joint driver R² (the program is anchored to nameable
+context -- this is the composition-level effect claim), an interpretable
+hallmark label, and stable gene signatures across runs; inactive
+dimensions are fine (spare capacity supports "few programs suffice").
+
+{len(active)} of {len(atlas['programs'])} dimensions
+are active ({spare} spare capacity); every active program is almost
+entirely context-explained -- the composition-level effect story, no
+communication claim required.
+
+{chr(10).join(rows)}
+
+kappa-survival: {atlas.get('kappa_survival', 'see experiments/')}
+
+""" + "\n\n".join(figures) + "\n"
+
+
+def transport_section(run_dir: Path) -> str:
+    """The section-7 counterfactual transport check, when present."""
+    path = run_dir / "transport" / "transport.json"
+    if not path.exists():
+        return ""
+    res = json.loads(path.read_text())
+    ex = res.get("summary", {}).get("extrapolation", {})
+    sup = res.get("summary", {}).get("supported", {})
+    if not ex:
+        return ""
+    kappa = res.get("kappa", "?")
+    flagged = [p for p in res["panels"] if p.get("overlap_flag")]
+    top = max(flagged, key=lambda p: p["counterfactual"]["r2"]) \
+        if flagged else None
+    example = ""
+    if top is not None:
+        example = f"""**A worked panel** — the best-predicted one:
+{top['type']}, niches {top['pair'][0]} vs {top['pair'][1]}. The
+counterfactual (context response + new neighbours' influx, z fixed)
+predicts the per-gene shift with held-out R²
+**{top['counterfactual']['r2']:.2f}** at slope
+{top['counterfactual']['slope']:.2f}; the program channel alone reaches
+{top['program_only']['r2']:.2f} and the leak channel alone
+{top['leak_only']['r2']:.2f} — a substantial part of this type's
+apparent between-niche signature is its neighbours' transcripts,
+quantified gene by gene.
+
+"""
+    return f"""
+
+## Counterfactual transport check (doc-08 section 7)
+
+**The question.** If w really captures how a neighbourhood changes a
+cell's expression, the model must be able to forecast: "cells of type t
+in niche B vs the same type in niche A — how does each gene's measurement
+differ?" — and the forecast must match reality on tissue the model never
+trained on. This is the counterfactual claim at the only level it is
+answerable: the same *type* across contexts, averaged (per-cell
+counterfactuals are out of scope by design).
+
+**How, step by step:**
+
+1. **Neighbourhood kinds**: k-means on neighbour composition defines the
+   niches — data-defined labels for kinds of surroundings, no latents
+   involved.
+2. **A panel** = one type × one niche pair, kept only when the type has
+   enough cells on both sides (training and held-out).
+3. **Spatial split**: every model quantity comes from training tiles;
+   every observation from held-out tiles.
+4. **The predicted per-gene shift**, two channels: the *program channel*
+   pushes the difference of mean context priors through B (the expression
+   response w attributes to swapping the neighbourhood); the *leak
+   channel* is the change in foreign influx — kappa times the difference
+   of mean neighbour-shed rates. **Kappa itself is never changed**: it is
+   the model's fixed global mixing constant ({kappa}); what differs
+   between niches is the *content* of the influx (what the neighbours
+   shed — i.e. leakage comes from the NEW neighbours, never the old), not
+   the mixing rate. Kappa varies only across *models* in the
+   sweep-sensitivity analysis, never inside a prediction. **The cell's own
+   intrinsic state z is held fixed** — the counterfactual changes the
+   context response and the leak source, nothing else. A separate "model
+   account" score additionally lets the type's intrinsic mix differ across
+   niches; its excess over the counterfactual measures how much of an
+   observed niche difference is *selection* rather than context.
+5. **The observed shift**: depth-normalised mean expression of the type's
+   held-out cells, niche B minus niche A, same log scale; both sides
+   mean-centred (softmax normaliser and depth are per-panel constants).
+6. **Scores per panel**: calibration slope and R² of predicted vs
+   observed across genes, against three references — zero-prediction,
+   program-only, leak-only.
+
+**What good looks like**: slope ≈ 1 (predicted shift *sizes* are right,
+not just directions); R² as high as Xenium depth allows; and the
+pre-registered requirement — **the full model beats both single-channel
+references** — because if program-alone sufficed the leak channel is
+decoration, and if leak-alone sufficed the "biology" is contamination.
+
+**How to read the summary figure** (below): *left*, mean held-out R² of
+the three predictors — good = the full-model bar clearly tallest, with
+the beats-both count and slope in the title. *Right*, one point per
+panel: x = program-channel (biology) R², y = leak-channel (contamination)
+R²; above the dashed diagonal the panel's niche difference is
+contamination-dominated. **Position on this map is not good or bad — it
+IS the finding** (which niche signatures are biology, which are spillage);
+good = many large/bright points (well-predicted panels). The per-panel
+scatters (`pair*.png`) show single panels gene-by-gene: good = a tight
+cloud on the diagonal.
+
+**Tiering (the honesty guard)**: with data-defined niches,
+composition-distinct pairs are disjoint by construction, so the supported
+(interpolation) tier is structurally near-empty
+({sup.get('n_panels', 0)} panels, mean R²
+{sup.get('full', float('nan')):.2f} — adjacent niches, little to
+predict) and the informative regime is **extrapolation, named as such**:
+{ex['n_panels']} panels, counterfactual mean held-out R²
+**{ex['counterfactual']:.2f}** (program-only {ex['program_only']:.2f},
+leak-only {ex['leak_only']:.2f}), median calibration slope
+**{ex['median_slope']:.2f}**, counterfactual beats both single channels
+in **{ex['full_beats_both']}/{ex['n_panels']}** panels. The model
+account reaches {ex['full']:.2f} — the gap
+(≈{ex['full'] - ex['counterfactual']:.2f}) is the measured *selection*
+share of observed niche differences.
+
+{example}![transport summary](../transport/transport_summary.png)
+"""
+
+
+def a4_section(run_dir: Path) -> str:
+    """Doc-11 A4 (decontaminated cycle call) verdicts, when it has been run."""
+    path = run_dir / "applications" / "a4_cycle.json"
+    if not path.exists():
+        return ""
+    res = json.loads(path.read_text())
+    st, fp, pl = res["stratified"], res["fingerprint"], res["planted"]
+    rows = ["| leg | raw | z | band / rule | reads |",
+            "|---|---|---|---|---|",
+            f"| exposure gap (Q4 − Q1 call rate) | {st['raw']['gap']:.3f} | "
+            f"{st['z']['gap']:.3f} | shuffle [{st['raw']['null_band'][0]:.3f}, "
+            f"{st['raw']['null_band'][1]:.3f}] | raw above band = calls track "
+            f"exposure; z lower = rejection |",
+            f"| gene-split Δ ring 1 (post-mitotic) | "
+            f"{fp['post_mitotic']['ring1']['mean']:.4f} "
+            f"[{fp['post_mitotic']['ring1']['ci'][0]:.4f}, "
+            f"{fp['post_mitotic']['ring1']['ci'][1]:.4f}] | — | ring 2 "
+            f"{fp['post_mitotic']['ring2']['mean']:.4f} | > 0 and > ring 2 = "
+            f"transcript leak; ≈ 0 = homophily only |",
+            f"| planted victim FPR (3 seeds, mean) | "
+            f"{np.mean([p['raw']['victim_fpr'] for p in pl]):.2f} | "
+            f"{np.mean([p['z']['victim_fpr'] for p in pl]):.2f} | pass = z < raw "
+            f"and AUROC kept | {sum(p['pass'] for p in pl)}/3 pass |"]
+    verdicts = "\n".join(f"- {v}" for v in res["verdict"])
+    return f"""
+
+## A4 — decontaminated cycle call (doc-11)
+
+**How**: calls in the **post-mitotic** types (not the top-4 MKI67 types,
+not Unassigned, ≥ 2 000 cells; {res['population']['n_post']} cells in
+{len(res['population']['post_mitotic'])} types): raw = Tirosh phase ≠ G1,
+z = rate-matched top-k per type by the probe projection max(z·β_S,
+z·β_G2M) (β fitted in the cycling types, training folds). Exposure =
+β-weighted neighbour cycle score. Three legs: (1) call rate in the top vs
+bottom exposure quartile, within type, against a within-type exposure
+shuffle band; (2) the gene-split fingerprint — split S+G2M into random
+halves A/B, Δ = corr(own_A, nbr_A) − corr(own_A, nbr_B): transcript leak
+inflates only the same-half term (Δ > 0, one-hop: ring 1 > ring 2),
+niche co-clustering does not (Δ ≈ 0); (3) the planted world (gate
+scaffold, κ = 0.2, cycle-like program planted in 30% of two types, leaked
+through the true operator) — victim FPR and planted-cell AUROC, raw vs z.
+DAPI is kept group-level only (weak ploidy proxy in FFPE sections).
+**Evaluated by**: the pre-registered rules in the table. **Wished for**:
+if leak-induced positives exist, raw above its band and z below raw with
+Δ > 0 one-hop; the planted world must pass regardless (the mechanism
+claim). If the real-data legs are null, the honest outcome is "such
+false-positives are rare at κ = 0.1 on this slide".
+
+{chr(10).join(rows)}
+
+{verdicts}
+
+![A4 summary](../applications/a4_cycle.png)
+"""
 
 
 def render(run: str, run_meta: dict, config: TrainConfig, metrics: dict,
@@ -306,6 +529,8 @@ def render(run: str, run_meta: dict, config: TrainConfig, metrics: dict,
            groups) -> str:
     best, final = metrics["best"], metrics["final"]
     cycle = final.get("cycle") or {}
+    if "linear_ref" not in cycle and "ceiling" in cycle:
+        cycle["linear_ref"] = cycle["ceiling"]      # pre-rename runs
     pool = lambda latent: (cycle.get(latent) or {}).get("r2_pooled",
                                                         float("nan"))
     by_z = (cycle.get("z") or {}).get("by_type") or {}
@@ -366,6 +591,13 @@ reconstruction must improve *and* z-type NMI must not collapse):
 
 ## Reconstruction
 
+**How**: mean per-count multinomial log-likelihood of the held-out
+validation tiles under the model's leak-mixed rates, evaluated with
+posterior means (no sampling noise); the best checkpoint is chosen jointly
+with the NMI guard, never on reconstruction alone. **Good**: higher (less
+negative). Scale: ±0.005 is seed noise; ±0.01 is a real architectural
+effect (the Φ ablation's size).
+
 Held-out per-count log-likelihood **{final['recon_val']:.4f}** nats
 (≈ e^{final['recon_val']:.2f} ≈ {np.exp(final['recon_val']):.5f}
 multinomial probability per transcript over 5,101 genes; the uniform
@@ -376,8 +608,14 @@ convergence certainty, not a different model.
 ## The disentanglement quadrant
 
 The core claim is a division of labour, so each channel must *pass its
-own* analysis and *fail the other's*. Four cells, two shown as figures
-apiece:
+own* analysis and *fail the other's*. **How**: every cell is a fresh probe
+(ridge for continuous targets, principal curves for orderings) fitted
+within type on spatially separated folds, and judged against reference
+rows — a within-type permutation floor, a log-depth (ℓ) baseline, and for
+expression-derived targets a 50-PC expression reference. **Good**: each
+target hot in exactly its own column and near the references in the
+other; a hot cell only counts if it clears its references. Four cells,
+two shown as figures apiece:
 
 | | cell cycle (intrinsic dynamics) | pseudotime (tissue gradient, beyond type) |
 |---|---|---|
@@ -385,7 +623,8 @@ apiece:
 | **w** | fails: pooled R² {pool('w'):.2f} | **works**: niche R² {pseudo['w']['niche_r2']:.2f}, coherence {pseudo['w']['neighbour_coherence']:.2f} |
 
 (Cycle references: within-type-permuted control ≈ 0, 50-PC expression
-reference {pool('ceiling'):.2f}. The pseudotime columns are
+reference {pool('linear_ref'):.2f} — a linear reference line, not a
+ceiling: z may legitimately exceed it. The pseudotime columns are
 **type-partialled** — z legitimately carries type and type is spatially
 predictable through homophily, so raw numbers conflate the two; raw
 values appear in the sections below.)
@@ -394,10 +633,13 @@ values appear in the sections below.)
 
 {fig('z_cycle_projection', 'z cycle projection')}
 
-Projected onto the probe's own axes (z·β_S vs z·β_G2M), the cycling
-types show the expected geometry — a G1 blob at the origin with an arc
+**Wished for**: pooled within-type R² from z well above the permuted
+control and at or above the 50-PC reference — higher means more intrinsic
+state retained. Projected onto the probe's own axes (z·β_S vs z·β_G2M),
+the cycling types show the expected geometry — a G1 blob at the origin with an arc
 through S into G2M. Pooled within-type R² **{pool('z'):.2f}**, roughly
-double the 50-PC linear reference ({pool('ceiling'):.2f}); the S-side
+double the 50-PC linear expression reference
+({pool('linear_ref'):.2f} — not a ceiling); the S-side
 diffuseness is target noise, not model failure (split-half score
 reliability S {rel.get('s', float('nan')):.2f} /
 G2M {rel.get('g2m', float('nan')):.2f}).
@@ -406,7 +648,9 @@ G2M {rel.get('g2m', float('nan')):.2f}).
 
 ![cycle projection z vs w](figures/cycle_projection_zw.png)
 
-The *identical* probe construction on w
+**Wished for**: ≈ 0 — any cycle signal in w above the control means
+intrinsic state leaked into the context channel. The *identical* probe
+construction on w
 ({', '.join(names[g] for g in groups)}): no arc, no phase separation —
 pooled R² **{pool('w'):.2f}**. A faint in-sample trend can appear for
 the inflammatory type, whose cycle genuinely co-varies with its
@@ -422,7 +666,9 @@ proliferative neighbourhoods would light this up; they do not.
 
 ![pseudotime on tissue](figures/pseudotime_tissue.png)
 
-A principal curve fitted in the full w-space orders cells along a
+**Wished for**: high niche R² and neighbour coherence — higher means
+w's ordering is a genuine tissue gradient. A principal curve fitted in
+the full w-space orders cells along a
 **niche gradient**: even after removing every per-type mean, neighbour
 composition predicts the ordering (held-out R²
 **{pseudo['w']['niche_r2']:.2f}**; raw
@@ -435,8 +681,10 @@ recovers contiguous tissue domains.
 
 {fig('z_trajectories_umap', 'z trajectories')}
 
-The same machinery on z produces a valid ordering — but of intrinsic
-state, not space. Its raw niche R² ({pseudo['z']['niche_r2_raw']:.2f})
+**Wished for**: ≈ 0 after type-partialling (the partialling matters:
+z legitimately carries type, and type is spatially predictable through
+homophily, so raw numbers overstate). The same machinery on z produces a
+valid ordering — but of intrinsic state, not space. Its raw niche R² ({pseudo['z']['niche_r2_raw']:.2f})
 is mostly type read through homophily: once per-type means are removed,
 niche composition explains only **{pseudo['z']['niche_r2']:.2f}** of it
 and neighbour coherence drops to
@@ -451,8 +699,10 @@ them.
 
 {fig('w_norm_by_type', 'per-type w norm boxplot')}
 
-The per-type norm of the spatial response, stable in rank across all 18
-sweep runs, and biologically coherent:
+**How**: ‖μ_w‖ per cell, grouped by type, on validation cells.
+**Read**: this is a *ranking*, not a score — no direction is "better";
+what matters is that the ordering is stable across independent runs and
+biologically coherent. Both hold:
 
 - **VEGFA⁺ tumour cells sit on top** — VEGFA transcription is the
   canonical hypoxia/HIF response, a state *imposed by position* (distance
@@ -481,9 +731,10 @@ reportable.
 
 {fig('B_loadings', 'B loadings')}
 
-The d_w = {config.d_w} columns of B are the gene programmes w mixes;
-identified only up to an invertible mix (report consensus-B over seeds
-before interpreting single columns).
+**How**: the decoder's B matrix, top genes per column. **Read**:
+descriptive only — columns are identified up to an invertible mix, so
+compare *gene signatures* across runs, never raw columns; the atlas
+section below fixes a canonical basis for exactly this reason.
 
 ## Provenance
 
