@@ -107,6 +107,7 @@ def report(args: argparse.Namespace) -> dict:
             payload = torch.load(run_dir / "best.pt", map_location="cpu",
                                  weights_only=False)
             payload["config"].setdefault("gat_sources", "type_z")
+            payload["config"].setdefault("subtract_leak", False)
             metrics = json.loads((run_dir / "metrics.json").read_text())
             b_matrix = payload["model"]["B.weight"].numpy()      # (G, d_w)
             loaded[(kappa, seed)] = {"B": b_matrix, "payload": payload}
@@ -162,7 +163,8 @@ def report(args: argparse.Namespace) -> dict:
                         hidden=state["config"]["hidden"],
                         gat_dim=state["config"]["gat_dim"],
                         heads=state["config"]["heads"],
-                        gat_sources=state["config"]["gat_sources"]).to(device)
+                        gat_sources=state["config"]["gat_sources"],
+                        subtract_leak=state["config"]["subtract_leak"]).to(device)
         model.load_state_dict(state["model"])
         trainer = Trainer(TrainConfig(**state["config"]), data)
         trainer.model = model.eval()

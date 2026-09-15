@@ -40,13 +40,14 @@ archetype coordinate; here the treatment is **observed** — neighbour ligand ex
 
 ## 3. Allegiance and gene program (per pair × receiver type)
 
-1. Ridge `Ẽ ~ mu_w` vs `mu_z` vs {floor, ℓ-baseline, y-baseline}. **What this row
-   certifies is asymmetric**: `z` cold is allegiance evidence; `w` hot is NOT response
-   evidence — the GAT's source features include neighbour `sg z_j`, which carries the
-   sender's ligand state, so w's prior can echo `Ẽ` with no receiver response at all,
-   and the y-baseline (composition only) does not catch that richer echo. Read w-hot as
-   "exposure visibility" (expected), z-cold as the claim. The induced-response claim is
-   carried by the program (step 3) plus the decoy control (§5c), not by this R².
+1. Ridge `Ẽ ~ mu_w` vs `mu_z` vs {floor, ℓ-baseline, y-baseline}. Asymmetric read,
+   updated for type-only GAT sources (07 §4.1): `z` cold is allegiance evidence, and
+   `w` hot is now *partially* evidential — the prior can no longer echo
+   within-composition sender state (neighbour `μ_z` is not an input), so beating the
+   y-baseline on `Ẽ` requires either the deviation channel (receiver's own x — the
+   response, i.e. evidence) or an echo through `Φ` (morphology tracking ligand state —
+   bounded, but real). The decoy control (§5c) is the certificate that separates those
+   two; the program (step 3) carries the gene-level claim.
 2. `θ_L` = the w-probe coefficients (unit-normalised); program `B θ̂_L` ∈ R^G = the
    expression response the model attributes to that ligand exposure.
 3. Gene-level validation: AUROC of NicheNet targets of L in the `B θ̂_L` ranking, null =
@@ -57,11 +58,14 @@ archetype coordinate; here the treatment is **observed** — neighbour ligand ex
    are dominated by the receptor itself.
 5. Optional (SIMVI's s′×z analog): interaction — response strength stratified by receiver
    receptor level (terciles of receptor expression); expect monotone modulation.
-6. **Operating point**: this experiment needs the deviation channel open. At α_w = 0.1
-   the receiver-side counts path is closed and the idiosyncratic response has nowhere to
-   live in w. Run at the α_w-study operating point (0.03 pending seed confirmation), and
-   keep a 0.1-vs-0.03 comparison as a deliverable ablation — the cleanest demonstration
-   that the channel matters.
+6. **Operating point — RESOLVED (doc-10 grid, 2026-09-12)**: run at the standard
+   operating point. The open-channel premise is retired: the α_w grid showed opening the
+   deviation channel never improves NMI, costs B recovery (0.76 → 0.57), and surfaces no
+   dose signal — the 0.1-vs-0.03 ablation is thereby delivered, with the answer "open
+   buys nothing". Consequence: both routes to communication-in-w are closed for this
+   architecture (prior blind to dose by construction, deviation empirically empty); the
+   §5 arms stand as certified negatives, and the only remaining route is the fork's
+   designed channel (§7), gated on the MDE titration.
 
 ## 4. Leak reattribution (the DisCell-only deliverable)
 
@@ -143,3 +147,111 @@ raw dims (08 §2.6).
 - ℓ-baseline stays mandatory: dense regions have both high exposure and depth structure.
 - Order: run after 08's precondition checks; κ at the operating point, survival curves
   across the sweep.
+
+## 7. Results addendum and fork decision (2026-09-11, post type-only)
+
+Status after the first full pass: the prior path to communication is closed **by
+construction** (type-only sources see composition + Φ, never neighbour expression);
+whether the deviation path is also empirically null is settled only by arms run at the
+open-channel operating point (α_w study + doc-10 guard) — nulls at α_w = 0.1 are
+architecturally guaranteed and count as no evidence. Record which applies.
+
+**MDE titration (required before any "dead" claim ships).** World A with planted
+response at log-fold {0.1 … 0.7}: recovery vs amplitude for (i) the pooled naive
+detector and (ii) the w-mediated detector at open channel. Deliverable: the
+minimum-detectable-effect curve — converts the negatives into "effects below X are
+undetectable per cell at ~100 tx/cell", a statement about the modality, not the model.
+
+**Fork rule (pre-registered).** If the *pooled* floor sits above realistic amplitudes:
+option 1 is final — w is the composition/context summary, 09 is a debunking instrument,
+and no architecture at this depth would have found discovery-grade communication. If
+pooled detects but w does not: option 2 earns one guarded spike run — a curated
+ligand-exposure panel as **designed context features** (`E` is data, same status as y;
+"2× ligand in this niche" is a well-posed `do(c′)`), with the ego-echo-via-leakage
+caveat and the §5c controls attached, certified on worlds A/B. Either way option 2 is
+the designated successor model, not a patch to the current paper.
+
+**Reattribution calibration.** The 9/28 planted-fake miss makes every "X% reattributed"
+figure non-quotable until diagnosed: classify the misses by amplitude, expression level,
+and marker class; if the detector is at fault, replace coefficient-vanishing-on-ρ with a
+κρ̄-prediction / likelihood-ratio test (the model absorbing the fake defeats the former).
+External concordance worth one line: the sole survivor (PDGFB→PDGFRB) matches
+cellAdmix's "~2 robust pairs", and it is the textbook paracrine pair.
+
+**Seed discipline.** Battery-clean seed selection (pre-registered gates: w-mirror, NMI
+floor, recon envelope) picks the *artifact*; all reported findings remain multi-seed
+envelopes. Never select seeds on the analyses' own outcome metrics.
+
+**Anomaly claim — RESOLVED (doc-10 parked, 2026-09-12).** The anomaly score is cut from
+the claims; 03's goal list is trimmed at writing time. Fork-record addition from the
+same grid: under maximal z-purge with the channel open, w specialised to planted
+exposure dose (dose-R² 0.40, AUROC 0.65) — the receiver-side dose signal is extractable
+when nothing competes for w, i.e. option 2 (a designed communication channel) is
+feasible in principle at planted amplitudes; the MDE titration remains its gate.
+
+## 8. LR co-occurrence map (SIMVI-fig-6h style, controlled)
+
+Purpose: simple, descriptive proof that w carries organised, nameable context signal —
+in the field's standard visual language — with the control panel that keeps it honest.
+No communication claim; this is a co-occurrence figure. Priority is that it works, not
+that it is fancy. All inputs exist (B, w, doc-09 exposure, CellChatDB annotations).
+
+### 8.1 Panel A — the co-occurrence map
+- **Rows (genes, stated rule, no hand-picking)**: top ±10 B-loadings per *active*
+  program (effective-rank programs only, V10), deduplicated.
+- **Row value per cell**: the model's context effect `⟨w_i, B_g⟩`.
+- **Columns (LR pairs)**: gate-zero survivors ranked by Var(exposure) × receiver
+  prevalence, top ~30, grouped and labelled by CellChatDB pathway family (ECM,
+  MHC, …).
+- **Column value per cell (receiver side)**: `LR_i = R_g(i) × E_i` — depth-normalised
+  log1p receptor expression × one-hop exposure (§2).
+- **Entry**: Spearman within receiver type (types with ≥ 500 receptor-positive cells),
+  Fisher-z pooled, validation tiles. Significance: within-type permutation of the LR
+  score (~200 perms), BH per map, n.s. greyed.
+
+### 8.2 Panel B — the control (same map, composition-partialled)
+Partial Spearman given y: rank-transform, ridge-residualise both row and column
+variables on y within type, correlate the residuals. Expectation, pre-registered:
+Panel A dense (composition-mediated co-occurrence — exactly what fig-6h-style maps
+show), Panel B sparse to empty (doc-09 §4.6), survivors highlighted and
+cross-referenced against the §4.6 tally (PDGFB→PDGFRB if it holds).
+
+### 8.2b Revision after the first render (2026-09-15)
+Three processing fixes and one keeper:
+1. **Rows**: at effective rank 2, per-gene rows are duplicates within program-sign
+   blocks — collapse to the program coordinates (or one stated representative gene per
+   block).
+2. **The ladder**: add the missing rung. Three panels — A′ *uncontrolled* pooled
+   Spearman (the SIMVI-comparable view; expected dense with large |ρ|), A within-type
+   (expected collapse), B composition-partialled (expected empty). The ladder shows the
+   published-map structure is type composition.
+3. **LR score smoothing**: raw receptor counts starve the Spearman (0–2 counts/cell).
+   Use model clean rates ρ_g for the receptor side (note the mild circularity;
+   descriptive map) or kNN-spatial smoothing.
+3b. **Column rule v2 (coder, ratified)**: the v1 rule produced the redundancy and the
+   grey columns by construction (shared-ligand pairs have identical exposure; raw
+   Var(E) is mostly sender proximity). New rule, still no hand-picking: rank by
+   **Var(Ẽ)** (the §2 composition-residualised exposure), keep **one column per
+   ligand** (its best-ranked receptor), require **≥ 2 eligible receiver types**.
+4. **Keeper**: the spatial-shift null (coder addition) stays as the printed verdict
+   line — zero survivors even in co-occurrence at autocorrelation-aware significance is
+   a finding; SIMVI-style maps carry no such null, and the caption says so.
+
+### 8.3 Reading (caption text, fixed in advance)
+"Left: w's programs co-occur with curated ligand–receptor axes — the context field
+carries recognisable biology. Right: after composition control, the density collapses —
+the map measures *where* pairs and programs co-locate, not signalling. Methods that
+show only the left panel are reporting composition."
+
+### 8.4 Optional supplement — attention vs LR connectivity
+The type_only attention collapses to a K×K "who listens to whom" matrix; correlate it
+(one Spearman) against curated LR connectivity per ordered type pair
+(Σ_pairs mean ligand in sender × mean receptor in receiver). One heatmap, descriptive
+only — attention is weakly constrained at rank-2 w; supplementary grade.
+
+### 8.5 Mechanics
+One script over existing modules (exposure from `communication.py`, basis from
+`atlas.py`, folds from `validate.py`); outputs `lr_map.{json,png}` under the run.
+Operating κ only; one line in the JSON joins survivors against the sweep runs' metrics
+for a stability note. Multi-seed: entries compared across seeds by sign agreement of
+significant cells, nothing fancier.

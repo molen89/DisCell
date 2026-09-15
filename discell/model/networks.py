@@ -29,8 +29,13 @@ def mlp(dims: list[int]) -> nn.Sequential:
     return nn.Sequential(*layers)
 
 
-def encode_counts(x: torch.Tensor, median_counts: float) -> torch.Tensor:
+def encode_counts(x: torch.Tensor, median_counts: float,
+                  log_depth: torch.Tensor | None = None) -> torch.Tensor:
     """Counts as an encoder sees them: ``[log1p(x/l * median(l)), log l]``.
+
+    *log_depth* overrides the depth scalar: the leak-subtracted view ``x~``
+    is normalised by its own sum (~(1-kappa) l) but reports the cell's raw
+    ``l`` (architect condition 3, 2026-09-14).
 
     Library-normalised before ``log1p`` -- raw ``log1p(x)`` entangles depth with
     composition, and since ``l`` is conditioned on rather than modelled, ``z``
@@ -39,8 +44,8 @@ def encode_counts(x: torch.Tensor, median_counts: float) -> torch.Tensor:
     (spec 4.2).
     """
     totals = x.sum(dim=-1, keepdim=True).clamp(min=1.0)
-    return torch.cat([torch.log1p(x / totals * median_counts),
-                      totals.log()], dim=-1)
+    depth = totals.log() if log_depth is None else log_depth
+    return torch.cat([torch.log1p(x / totals * median_counts), depth], dim=-1)
 
 
 class GATv2(nn.Module):
@@ -146,11 +151,14 @@ class DisCell(nn.Module):
     def __init__(self, n_genes: int, n_types: int, phi_dim: int,
                  median_counts: float, d_z: int = 20, d_w: int = 6,
                  hidden: int = 256, gat_dim: int = 32, heads: int = 4,
-                 gat_sources: str = "type_only"):
+                 gat_sources: str = "type_only", subtract_leak: bool = False):
         super().__init__()
         self.n_types, self.d_z, self.d_w = n_types, d_z, d_w
         self.median_counts = float(median_counts)
         self.gat_sources = gat_sources
+        # spec 7.13 (2026-09-14): encoders read the leak-subtracted view
+        # x~ = x - kappa*l*rho_bar in a second pass over the seeds
+        self.subtract_leak = subtract_leak
         # The type embedding exists ONLY as the GAT query: it stands in for the
         # z_i the centre cell deliberately does not contribute to its own
         # context, so it is sized to match the source features it is queried
@@ -239,6 +247,33 @@ class DisCell(nn.Module):
         # through the stop-gradient (spec 4.5).
         rho_bar = foreign_influx(log_rho.detach().exp(), leak_src, leak_dst,
                                  leak_beta, n_dst=n_seeds)
+        if self.subtract_leak:
+            # Pass 2 (spec 7.13): the true posterior is p(z | x, rho_bar) and
+            # the bias kappa*l*rho_bar cannot be removed by any function of x
+            # alone, so the seeds are re-encoded from x~ = x - kappa*l*rho_bar
+            # (rho_bar is data). Features only -- the likelihood below stays
+            # on raw x. Ring-1 rho_j keep their pass-1 (raw-input) encoding:
+            # an O(kappa^2) inconsistency accepted by the spec. enc_w reads
+            # x~ as well; x~ is normalised by its own sum, log-depth stays l.
+            x_s = x[:n_seeds]
+            depth = x_s.sum(dim=-1, keepdim=True)
+            x_tilde = (x_s - kappa * depth * rho_bar).clamp(min=0.0)
+            feat = encode_counts(x_tilde, self.median_counts,
+                                 log_depth=depth.clamp(min=1.0).log())
+            t_s = t_c[:n_seeds]
+            mu_z2, logvar_z2 = self.enc_z(
+                torch.cat([feat, t_s], dim=-1)).chunk(2, dim=-1)
+            z2 = mu_z2 + noise[:n_seeds] * (0.5 * logvar_z2).exp()
+            mu_w2, logvar_w2 = self.enc_w(torch.cat(
+                [c[:n_seeds], t_s, z2, feat], dim=-1)).chunk(2, dim=-1)
+            w2 = mu_w2 + w_noise[:n_seeds] * (0.5 * logvar_w2).exp()
+            mu_z = torch.cat([mu_z2, mu_z[n_seeds:]])
+            logvar_z = torch.cat([logvar_z2, logvar_z[n_seeds:]])
+            z = torch.cat([z2, z[n_seeds:]])
+            mu_w = torch.cat([mu_w2, mu_w[n_seeds:]])
+            logvar_w = torch.cat([logvar_w2, logvar_w[n_seeds:]])
+            w = torch.cat([w2, w[n_seeds:]])
+            log_rho = torch.cat([self.log_rho(z2, w2), log_rho[n_seeds:]])
         log_p = leakage_mix(log_rho[:n_seeds].exp(), rho_bar, kappa)
 
         # term (b): same seeds, w drawn from the prior instead of the posterior

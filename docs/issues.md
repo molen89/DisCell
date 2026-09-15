@@ -173,9 +173,19 @@ below was confirmed by direct inspection instead.
   floor). A checkpoint's KL_w is a snapshot of the prior chasing the
   posterior, not a solution property; any α_w / channel claim must be read
   over the trajectory, not at one checkpoint (2026-09-14).
-- **w occupies 1–2 of its 6 dims** (cov eigen-fractions 0.83/0.17 at s1,
-  0.98/0.02 at s0/s2). d_w = 6 is over-provisioned; a d_w ∈ {2, 3, 6}
-  ablation is the cheap decisive test (proposed, not run).
+- **w occupies 1–2 of its 6 dims at α_w = 0.1** (cov eigen-fractions
+  0.83/0.17 at s1, 0.98/0.02 at s0/s2; rank 1 even at d_w = 2). **It is an
+  α_w effect in the prior field itself**: r = 3 at 0.05, 4 at ≤ 0.03,
+  carried by m_ψ and the realised shift, not by the deviation channel
+  (2026-09-14). d_w = 6 stays; the operating point is the open question.
+  **Extended 2026-09-15**: the effective rank is a (d_w, α_w, budget)
+  property of the optimiser, not of the tissue — at the 200-epoch budget
+  d_w = 6 is rank ~1 (second axis 0.1–4%), d_w = 3 rank 2 (second axis
+  3–27%, seed-variable), d_w = 2 rank 1, d_w = 8 rank 2 (9–14%, seed-
+  stable, but cycle_w rises to 0.008–0.020 — watch); at α_w = 0.05 a second axis reproduces across
+  seeds (cosine 0.77–0.90), at 0.10 it does not (0.50–0.77). Any "N
+  programs" statement must name d_w, α_w and the budget. Candidate
+  re-calibration α_w = 0.05 under type_only awaits the architect.
 - **Encoder input x̃ = x − κℓρ̄** (two-pass, seeds only) proposed as the
   structural fix for the amortisation gap — design note in the devlog
   2026-09-14; spec change pending the architect.

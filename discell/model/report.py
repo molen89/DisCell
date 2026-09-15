@@ -261,6 +261,7 @@ def build(args: argparse.Namespace) -> Path:
     payload = torch.load(run_dir / "best.pt", map_location="cpu",
                          weights_only=False)
     payload["config"].setdefault("gat_sources", "type_z")   # pre-field era
+    payload["config"].setdefault("subtract_leak", False)
     config = TrainConfig(**payload["config"])
     run_meta = json.loads((run_dir / "config.json").read_text())
 
@@ -279,7 +280,8 @@ def build(args: argparse.Namespace) -> Path:
                     median_counts=data.median_counts, d_z=config.d_z,
                     d_w=config.d_w, hidden=config.hidden,
                     gat_dim=config.gat_dim, heads=config.heads,
-                    gat_sources=config.gat_sources).to(device)
+                    gat_sources=config.gat_sources,
+                    subtract_leak=config.subtract_leak).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()
@@ -304,7 +306,7 @@ def build(args: argparse.Namespace) -> Path:
     text = render(args.run, run_meta, config, metrics, history, images,
                   pseudo, names, groups)
     text += (atlas_section(run_dir) + transport_section(run_dir)
-             + a4_section(run_dir))
+             + lr_map_section(run_dir) + a4_section(run_dir))
     (out_dir / "report.md").write_text(text)
     log.info("wrote %s", out_dir / "report.md")
     return out_dir
@@ -521,6 +523,48 @@ false-positives are rare at κ = 0.1 on this slide".
 {verdicts}
 
 ![A4 summary](../applications/a4_cycle.png)
+"""
+
+
+def lr_map_section(run_dir: Path) -> str:
+    """Doc-09 section 8: the LR co-occurrence map with its two nulls."""
+    path = run_dir / "communication" / "lr_map.json"
+    if not path.exists():
+        return ""
+    res = json.loads(path.read_text())
+    ap, a, b = res["panel_A_prime"], res["panel_A"], res["panel_B"]
+    n = len(res["rows"]) * len(res["columns"])
+    return f"""
+
+## LR co-occurrence ladder (doc-09 section 8)
+
+**How**: rows = the effective-rank w programs (rank
+{res['effective_rank']['rank']} here; per-cell program coordinates,
+labelled by each program's top ± loadings); columns = gate-zero
+ligand–receptor pairs ranked by the variance of the composition-
+residualised exposure × receiver prevalence, one column per ligand, ≥ 2
+receptor-eligible receiver types (top {len(res['columns'])}, CellChatDB
+pathway in brackets); column value per cell = log1p of the model's clean
+receptor rate × one-hop exposure (receptor side from ρ, mildly circular —
+descriptive map). Entry = pooled Spearman, Fisher-z, validation tiles.
+Three rungs: **A′** uncontrolled over all cells (the SIMVI-comparable
+view), **A** within receiver type, **B** within type after rank-
+transforming and ridge-residualising both sides on neighbour
+composition. **Evaluated by** two nulls per rung: the doc's permutation of
+the LR score (colour; BH q ≤ 0.05, grey = n.s.) and a Moran-preserving
+spatial shift of the LR field (boxed entries survive it). Counts below are
+heatmap entries (programs × pairs), each a pooled Spearman over all
+eligible validation cells. **Wished for**: A′
+dense with large |ρ|, A collapsed, B empty — the published-map structure
+is type composition; nothing is claimed about signalling.
+
+Permutation null: A′ **{ap['n_significant']} / {n}** (max |ρ|
+{ap['max_abs_rho']:.2f}) → A **{a['n_significant']} / {n}** (max |ρ|
+{a['max_abs_rho']:.2f}) → B **{b['n_significant']} / {n}** (max |ρ|
+{b['max_abs_rho']:.2f}). Spatial-shift null: **{ap['n_significant_shift']} /
+{a['n_significant_shift']} / {b['n_significant_shift']}**. {res['caption']}
+
+![LR co-occurrence ladder](../communication/lr_map.png)
 """
 
 

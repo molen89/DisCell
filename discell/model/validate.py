@@ -64,6 +64,7 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
     # runs from before the field existed were type_z -- never let the new
     # default reshape an old checkpoint's architecture
     payload["config"].setdefault("gat_sources", "type_z")
+    payload["config"].setdefault("subtract_leak", False)
     config = TrainConfig(**payload["config"])
     data = assemble(dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
@@ -75,7 +76,8 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
                     median_counts=data.median_counts, d_z=config.d_z,
                     d_w=config.d_w, hidden=config.hidden,
                     gat_dim=config.gat_dim, heads=config.heads,
-                    gat_sources=config.gat_sources).to(device)
+                    gat_sources=config.gat_sources,
+                    subtract_leak=config.subtract_leak).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()

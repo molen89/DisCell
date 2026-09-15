@@ -11,7 +11,7 @@ import numpy as np
 
 
 def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
-                  seed: int = 0) -> dict:
+                  seed: int = 0, subtract_leak: bool = False) -> dict:
     """Returns {"z", "w", "b_matrix", "fold"} for *sim* (all cells)."""
     import torch
 
@@ -26,7 +26,8 @@ def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
     d_z, d_w = 8, 2
     model = DisCell(genes, k, sim.phi.shape[1],
                     median_counts=float(np.median(sim.totals)),
-                    d_z=d_z, d_w=d_w, hidden=128, gat_dim=16).to(device)
+                    d_z=d_z, d_w=d_w, hidden=128, gat_dim=16,
+                    subtract_leak=subtract_leak).to(device)
     cov = TypeCovariances(k, d_z, k - 1 + sim.phi.shape[1],
                           ema=0.05, min_count=100).to(device)
     weights = Weights(omega=1.0, alpha_z=0.007, alpha_w=0.1, alpha_a=0.02)

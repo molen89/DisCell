@@ -2199,3 +2199,554 @@ Ring-1 ρ_j from uncorrected encoders is an O(κ²) inconsistency; cost ≈
 flagged niche-z residual (AUC 0.654 vs ℓ 0.585) should drop if part of it
 is leaked transcripts; cycle_z must not fall; A4's planted world becomes
 answerable. Spec change → architect.
+
+### x̃ = x − κℓρ̄ as the encoder input — architect-approved spec change, gated on results (2026-09-14)
+
+Architect ruling on the design note above (quoted in full in the session;
+the substance): the true posterior is p(z | x, ρ̄) and a per-cell bias
+κℓρ̄ cannot be removed by any function of x alone — today's enc_z is the
+input that carries context; E[x̃ | z, ρ̄] = ℓ(1−κ)ρ, so the subtraction
+removes the systematic context component and leaves mean-zero leak
+noise. Features only, likelihood untouched on raw x. Approved with five
+conditions, all built in:
+
+1. one encoder, two input distributions (raw x on ring 1 / pass 1, x̃ on
+   seeds) is an accepted O(κ²) inconsistency — stated in the code, and
+   the planted-κ gate asserts it is harmless;
+2. enc_w's x input becomes x̃ too (same posterior argument);
+3. normalisation: x̃ is normalised by **its own sum** (≈ (1−κ)ℓ), the log-
+   depth scalar stays **raw ℓ** — no κ-dependent depth shift across sweep
+   points;
+4. penalty and probes read **pass-2** μ_z; pass-1 z's exist only to feed
+   ρ̄ (they still must be computed: fellow seeds are leak sources);
+5. acceptance, pre-registered: niche-z residual drops toward the ℓ-
+   baseline (0.654 → toward 0.585; not necessarily to it — leak noise
+   remains), cycle_z within the seed envelope (0.44–0.50), held-out recon
+   within envelope (−7.19…−7.25), planted-κ gate recovery unchanged, and
+   the w-side battery (Moran, niche AUC, transport) unmoved — the change
+   touches z's evidence, not w's.
+
+Expectation tempered per the architect: x̃ removes the *mean* leak from
+the encoder's view; the invariance penalty keeps its job for the rest
+(niche-induced real expression, leak noise). A bias fix, not a penalty
+replacement. Green → the architect patches 07 (§2 notation, §4.2 input,
+§4.5 two-pass, §7.13 why-x̃).
+
+Implementation: `DisCell(subtract_leak=True)` / `TrainConfig.subtract_leak`
+/ `--subtract-leak` (default **off** until green). Pass 1 as before; after
+ρ̄ (data) the seeds are re-encoded from x̃ = clip(x − κℓρ̄, 0), enc_w reads
+x̃, the seeds' rows of μ_z/z/μ_w/w/log ρ are replaced, term (a)/(b)
+likelihoods computed from pass 2 on raw x. κ = 0 ⇒ x̃ ≡ x (exact no-op),
+isolated seeds ⇒ ρ̄ = 0 ⇒ x̃ ≡ x. Era guards at every checkpoint reload.
+Plan: unit tests → planted gate κ ∈ {0, 0.2} with/without → three 500-
+epoch seeds `xtilde_s{0,1,2}` on the ovarian slide → validate/report/
+transport → verdict against the five criteria.
+
+### d_w ablation — is B's seed variance the empty dimensions? (motivation, 2026-09-14)
+
+Measured above: cov(μ_w) has effective rank 2 (s1) / ~1 (s0, s2) inside
+d_w = 6, and the matched-column B cosine across seeds (0.43–0.52 in
+sweep3) is dominated by the four null directions while the realised shift
+μ_w·B agrees at 0.97–0.99. Prediction if that reading is right: at
+d_w = 2 (and 3) the matched-column cosine across seeds rises to the level
+of the shift-space overlap (≳ 0.9), with recon, NMI, cycle_z/w, probe,
+mirror and the w-side battery unchanged — d_w = 6 is capacity that is
+never used. If instead recon or the w reads *drop* at d_w = 2, w's rank-2
+appearance was a property of the optimum, not of the data, and d_w must
+stay ≥ 6. Design: `dw2_s{0,1,2}`, `dw3_s{0,1,2}` at the sweep budget (200
+epochs, patience 20, defaults otherwise) so the controls are the three
+sweep3 κ = 0.1 seeds (d_w = 6, same budget; recon −7.2562 ± 0.0011,
+cycle_z 0.450 ± 0.027, B cosine 0.49). Read-outs: matched-column cosine
+and shift-space overlap across seeds, recon/NMI/cycle/probe/mirror from
+`metrics.json`, niche AUC and Moran for w from the §3–4 battery. Not a
+new operating point yet — a diagnosis of the metric and of d_w.
+
+**x̃ planted gate (condition 1/5), result.** κ = 0 is an exact no-op
+(differences at the third decimal = CUDA nondeterminism). κ = 0.2, two
+seeds, without → with x̃: NMI 0.735/0.763 → **0.703/0.708**, w-CCA
+0.906/0.755 → 0.893/0.736, B cosine 0.787/0.803 → 0.763/0.789, niche-R²
+in z 0.125/0.090 → 0.122/0.093. Every gate threshold still passes (NMI >
+0.45, B > 0.45, niche-R² < 0.25), so "recovery unchanged" holds at the
+gate's own resolution — but the z-type NMI moves down by 0.03–0.055 in
+both seeds, a consistent direction, not noise. Reading offered, to be
+judged on the slide: at κ = 0.2, 20% of a cell's counts are its
+neighbours', and in a homophilous tissue those carry the *same type*;
+x̃ strips a leak-borne type cue the raw encoder was silently using, and
+the clipped view has ~20% fewer effective counts. If the slide (κ = 0.1,
+seed spread ±0.015) shows the same, it is the price of the bias fix,
+and the honest number; the acceptance criterion for the slide is
+cycle_z and recon within envelope, not NMI parity.
+
+### Third slide intake: fresh-frozen ovarian adenocarcinoma (`xenium_prime_human_ovary_ff`) (2026-09-14)
+
+Motivation: a second ovarian slide under a different preservation method
+(fresh frozen vs FFPE), for the transfer story and for the image-derived
+landmark upgrade the interface analysis asked for. The request named
+`downloads/Xenium_Prime_Ovarian_Cancer_FFPE_XRrun_outs.zip`; that archive
+**is the development slide** — same `analysis_uuid` (39f5fc8e…), same
+Xenium Ranger relabel run (`Xenium_Prime_Ovarian_Cancer_FFPE_XRrun`),
+byte-identical `metrics_summary.csv` to `extracted/Xenium_Prime_Ovarian_
+Cancer_FFPE/`, and `paths.slug` maps it to `xenium_prime_ovarian_cancer_
+ffpe` by design. The fresh-frozen slide is the third zip in that folder,
+`Xenium_Prime_Human_Ovary_FF_outs.zip` (10x "Fresh Frozen Human Ovarian
+Adenocarcinoma with 5K Human Pan Tissue and Pathways Panel", published
+2024-09-04, bundle 5.0.0, analysis xenium-3.0.0.15, chemistry v2). Its
+tabular members and the four `morphology_focus` channels are extracted to
+`extracted/Xenium_Prime_Human_Ovary_FF/` (15.5 GB; the 37 GB
+`morphology.ome.tif` and the transcript tables stay in the zip).
+
+Slide facts, from `experiment.xenium`, `cells.parquet`, `analysis.tar.gz`,
+the OME headers, and an intake check with the standard loader and the
+`egomask_ego_v1` crop recipe (`figures/intake_image_check.{json,png}` under
+the new dataset; the spike script itself is not kept):
+
+- 1,157,659 cells (1,157,637 with expression + geometry; 22 degenerate
+  polygons and 22 matrix-only cells dropped) × 5,001 genes — the base
+  Prime 5K panel, identical to lung's; ovarian FFPE's 100 custom add-on
+  genes absent. Region 198 mm² (FFPE 87); image 54,013 × 101,928 px.
+- **Depth 8× the FFPE slides**: transcripts/cell median 1,401, mean 1,668
+  (ovarian FFPE 178 / 262; lung 242 / 440), 76 zero-count cells. By the §5
+  rule α_z = 1/ℓ̄ ≈ 0.0007 — to be set at training, with the caveat that
+  the rule was calibrated over a 143–242 range and is extrapolated here.
+- Segmentation: 69.5% interior (18S), 28.0% boundary, 2.5% nucleus
+  expansion — same stain kit (`xenium_cell_segmentation_stains_v1`) and
+  fractions as FFPE (69.4 / 28.6 / 2.0). Cells larger: median area 88 µm²
+  vs 60 (ovarian FFPE) / 52 (lung); high-quality transcript thickness
+  6.3 µm vs 4.3.
+- **Labels: no curated `cell_groups.csv`** on the 10x CDN (403 at
+  3.0.0/3.0.1/3.1.0; the catalogue's file list carries none) → graphclust
+  default, **38 clusters** (538–134,246 cells), the 76 zero-count cells
+  unclustered → Unassigned via the P3 fold. Cycle instruments portable:
+  MKI67 present, 18 S + 34 G2M panel hits, identical to both FFPE slides.
+- Images: `morphology_focus` with the same four channels (DAPI;
+  ATP1A1/CD45/E-Cadherin; 18S; αSMA/Vimentin), 0.2125 µm/px, uint16,
+  1024-px JPEG 2000 tiles, 9 pyramid levels — `tiff.py` and `crops.py`
+  read it unchanged. Registration (DAPI in a 9 × 9 px window at 400
+  centroids vs 400 random points in the cell bounding box): median 2,434 vs
+  169 (FFPE 1,671 vs 81); no centroid outside the image.
+- Mask radius (E1 rule re-run): covering radius p50 7.3 µm, p99 14.5,
+  p99.9 18.4, p100 32.7; **31 of 1.16 M cells exceed the 25 µm disk**
+  (ovarian FFPE 6, lung 2) → 25 µm stands.
+- Crop intensities (256 px @ 0.5 µm/px, 192 random cells, /65535):
+  per-channel means 0.021 / 0.029 / 0.014 / 0.008 vs FFPE 0.009 / 0.011 /
+  0.007 / 0.006 — **FF is 1.4–2.7× brighter in every channel** and visibly
+  softer (larger, less condensed nuclei; thicker section). KRONOS v1
+  z-scores with fixed marker statistics (DAPI 0.083, NAKATP 0.044, A-SMA
+  0.030), so both slides sit below its reference and FF is the nearer of
+  the two. Φ is consumed within a slide, so this is a note for any
+  cross-slide Φ comparison, not a blocker.
+
+Decisions: pipeline unchanged — `python -m discell.preprocess --sample
+data/raw/xenium/extracted/Xenium_Prime_Human_Ovary_FF`, dataset id
+`xenium_prime_human_ovary_ff`, bundle first (CPU; the FF load without
+graphs took 137 s), embeddings with the standard arm (`--model v1
+--target-mpp 0.5 --mask ego --embeddings-name egomask_ego_v1`, ~3 h at
+~110 cells/s) once a GPU is free of the x̃ runs. Open, for the user: full
+slide vs a `--max-cells` window — resident training needs 1.16 M × 5,001 ×
+fp16 ≈ 11.6 GB, the whole of a 24 GB card; and whether this slide replaces
+lung or joins it as a third transfer target.
+
+**x̃ seeds, training stage** (`runs/xtilde_s{0,1}/metrics.json`, 500-epoch
+budget, best epochs 64 / 84): recon **−7.2525 / −7.1932** vs the same
+seeds without x̃ −7.2527 / −7.1924 — identical families, within ±0.001;
+cycle_z 0.399 / **0.491** vs 0.440 / 0.499; cycle_w 0.005 / 0.009; mirror
+0.042 / 0.045; probe ΔCE −0.009 / −0.005 at the floor; NMI **0.640 /
+0.644 vs 0.667 / 0.654** (−0.027 / −0.010, the gate's direction on the
+slide too). Battery (§3–5 + transport + report) launched on both; the
+decision waits for niche-z AUC vs the ℓ-baseline and the w-side rows.
+
+**Bundle result** (`data/datasets/xenium_prime_human_ovary_ff/bundle/`,
+`logs/bundle.log`, 1,494 s; 9.05 GB, of which `full.h5ad` 8.6 GB):
+750 invalid polygons repaired, 22 degenerate dropped; Delaunay 3,472,886
+edges; **contact (1 µm) 2,130,754 edges, mean degree 3.68, isolated 3.2%**
+(ovarian FFPE 3.12 / 9.6%, lung 2.48 / 10.8% — larger, more tightly packed
+cells); **voronoi (clip 30 µm) 3,458,443 edges, mean degree 5.98, isolated
+0.0%, median shared wall 7.46 µm** (FFPE 5.88 / 6.85 µm, lung 5.87 /
+7.41 µm); apposed wall contact 100% nonzero median 7.81 µm, voronoi 61.6%
+nonzero median 7.82 µm (lung 42.0%). The loader opens it in 9 s
+(`CellGraphDataset.from_dataset("xenium_prime_human_ovary_ff")`): 39 types
+(38 clusters + Unassigned), β defined on every non-isolated cell (277
+isolated), batches draw with the standard edge attributes. No code
+changed. Embeddings not yet run (GPU held by the x̃ seeds).
+Embedding queued (user: all cells, first free GPU): `logs/embed_launcher.sh`
+polls both GPUs every 30 s and, on the first with no compute process, runs
+the standard arm (`--only embed --model v1 --target-mpp 0.5 --mask ego
+--embeddings-name egomask_ego_v1`) → `embeddings/egomask_ego_v1.pt`,
+`logs/embed.log`. As on lung, every cell is embedded — the 31 cells wider
+than the 25 µm disk are not dropped by the standard path (the ovarian
+`egomask_ego_v1` with 407,114 cells came from the ego-masking experiment,
+which did drop its 6). Expected ~3 h at the lung rate (~110 cells/s).
+
+**x̃ battery, seed 1** (`runs/xtilde_s1/{validation,transport}`; reference
+= `ablation_gat_type_only_s1`, same seed, same budget):
+
+| read | reference | x̃ | criterion |
+|---|---|---|---|
+| niche-z AUC (ℓ-baseline 0.585) | 0.654 (residual +0.069) | **0.641 (+0.056)** | drops toward ℓ — yes, by ~20% of the gap |
+| cycle_z (battery / training) | 0.440 / 0.499 | 0.456 / 0.491 | within envelope — yes |
+| held-out recon | −7.1924 | −7.1932 | within envelope — yes |
+| NMI | 0.654 | 0.644 | not a criterion; −0.010 (gate's direction) |
+| Moran mean |I| z / w | 0.061 / 0.628 | 0.064 / 0.642 | w unmoved — yes |
+| niche-w AUC | 0.768 | 0.773 | unmoved — yes |
+| pseudotime w (niche R² / coherence) | 0.565 / 0.489 | 0.509 / 0.571 | unmoved within noise |
+| transport counterfactual / slope / beats-both | 0.099 / 0.92 / 100 | 0.104 / 0.95 / 103 | unmoved (slightly up) |
+
+The flagged cell stays flagged (z on niche label still > ℓ + margin); the
+triage is unchanged (max y-R² 0.028). Reading: the bias fix moves the
+niche-z residual in the predicted direction and costs nothing on any
+other row, but on one seed the move is modest — most of the residual is
+not leaked transcripts (the triage's "benign intrinsic spatial structure"
+reading stands for the remainder). Seeds 0 and 2 pending (s0's first
+battery OOM'd next to the d_w chain; re-queued on GPU 0).
+
+**Two TensorBoard figures added (user request, 2026-09-14)** in
+`Trainer.figures`: `figures/kl_spatial` — per-cell KL(q(z)‖N(0,I)) and
+KL(q(w)‖m_ψ(c,t)) painted on the tissue, one row for all cells and one
+per panel type on its own cells (per-panel 2–98% colour scale, median in
+the title; `_sweep` now also returns per-cell `kl_z`); and
+`figures/zw_std_trajectories_{umap,pca}` — the existing full-space
+principal-curve figure on the joint state [z, w] standardised per
+dimension (w's top dim carries ~25× a z dim's variance, so raw
+concatenation would be w alone). Both fire at every `figures_every`
+event of any run trained from now on; +9 UMAP fits per event. Suite:
+`test_model_train` 5/5 (the smoke fit renders them).
+
+### Doc-09 §8 — LR co-occurrence map (SIMVI fig-6h style, controlled): motivation (2026-09-14)
+
+Purpose per the doc: a descriptive figure in the field's standard visual
+language showing that w carries organised, nameable context signal — with
+the control panel that keeps it honest. No communication claim. Panel A:
+rows = top ±10 B-loadings per **effective-rank** program (V10: programs
+from the top-r principal directions of cov(μ_w), r = components ≥ 1% of
+the variance, varimax within that subspace — not the six rotated raw
+dims), row value per cell ⟨w_i, B_g⟩; columns = gate-zero LR pairs ranked
+by Var(exposure) × receiver prevalence, top 30, labelled by CellChatDB
+pathway; column value per cell LR_i = R_i × E_i (depth-normalised log1p
+receptor × one-hop exposure); entry = Spearman within receiver type (≥ 500
+receptor-positive validation cells), Fisher-z pooled, validation tiles;
+within-type permutation of the LR score (200), BH per map, n.s. greyed.
+Panel B: the same after rank-transforming and ridge-residualising both
+sides on neighbour composition y within type. Pre-registered expectation:
+A dense (composition-mediated co-occurrence), B sparse to empty; B's
+survivors cross-referenced against the doc-09 §4.6 tally (PDGFB→PDGFRB if
+it holds). Caption fixed in advance (§8.3). Build order: pure functions +
+a planted unit test (composition-mediated pair → A hot / B cold; genuine
+within-composition pair → both hot), then `lr_map.py` on the pinned
+reference with timing; if fast, a reduced version (fewer perms) as a
+TensorBoard figure at validation time.
+
+**d_w = 2 result (3 seeds, sweep budget; `runs/dw2_s{0,1,2}`)** — the
+prediction was only half right, and the half that failed is the finding.
+Training reads at d_w = 2 vs the d_w = 6 controls (sweep3 κ = 0.1): recon
+−7.2564 / **−7.1829** / −7.23 vs −7.2546 / −7.2566 / −7.2573 (nothing
+lost; seed 1 lands in the strong family inside the 200-epoch budget), NMI
+0.672 / 0.667 / – vs 0.667 / 0.636 / 0.674, cycle_w ≤ 0.003, probe and
+mirror unchanged, KL_w 0.003–0.008. **cov(μ_w) eigen-fractions at d_w = 2:
+[1.00, 0.00], [1.00, 0.00], [0.92, 0.08]** — w collapses to rank **one**
+(rank 1.1 in one seed), exactly as it was rank 1–2 inside d_w = 6. The
+realised shift agrees across seeds as before (shift-space overlap
+0.98–0.99, dominant gene direction cosine 0.83–0.95); the matched-column
+cosine rises only to 0.56–0.77, because one of the two columns is still a
+null direction. So the seed variance of B was never about d_w: **at this
+operating point the model uses one context program** (the tumour ↔ stroma
+composition axis; a weak second appears in some seeds), and any B metric
+that compares columns beyond the effective rank measures noise. Reporting
+rule from here: programs = effective rank (V10), stability = shift-space
+overlap (V11); the atlas' "few programs" becomes "one, sometimes two".
+Open, and cheap to check on disk (CPU latents of the α_w-study runs):
+whether the rank is a property of α_w = 0.1 (the KL_w pressure keeping w
+on a 1-D prior manifold) or of the data — launched on `alphaw_0.02 /
+0.03 / 0.05 / 0.07` (seed 0, type_z era) and `reference_best`.
+
+**w's rank is an α_w effect, in the prior itself (2026-09-14).** CPU
+latents of the α_w-study runs (type_z era, seed 0) and the type_only
+seeds; eigen-fractions of cov(μ_w), of cov(m_ψ) (the prior field) and the
+singular fractions of the realised shift μ_w·B, with r = components ≥ 1%:
+
+| α_w | run | recon | cov(μ_w) | r | cov(m_ψ) r | shift r | deviation share/dim |
+|---|---|---|---|---|---|---|---|
+| 0.02 | alphaw_0.02 | −7.2518 | .71/.17/.07/.04/.01 | 4–5 | 4 | 4 | ≤ 1.7% |
+| 0.03 | alphaw_0.03 | −7.2510 | .76/.15/.05/.04 | 4 | 4 | 4 | ≤ 1.2% |
+| 0.05 | alphaw_0.05 | −7.2534 | .76/.21/.04 | 3 | 3 | 3 | ≤ 0.8% |
+| 0.07 | alphaw_0.07 | −7.2586 | .79/.20 | 2 | 2 | 2 | ≤ 5.6% |
+| 0.10 | reference_best (type_z) | −7.2586 | .90/.10 | 2 | 2 | 2 | ≤ 3.7% |
+| 0.10 | type_only s0 / s1 / s2 | −7.25/−7.19/−7.23 | .98/.02, .83/.17, .98/.02 | 2 | 2 | 2 | ≤ 0.1% |
+| 0.10 | dw2 s0 / s1 | −7.26/−7.18 | 1.0 | 1 | 1 | 1 | 0 |
+
+Three readings. (1) **The rank rises monotonically as α_w falls** — 1–2
+axes at 0.1, 3 at 0.05, 4 at ≤ 0.03 — and it rises **in the prior field
+m_ψ and in the realised shift**, not through the deviation channel (the
+per-cell deviation contributes ≤ 2% of variance per dim everywhere). So
+the extra axes are context-field structure, not posterior noise; they are
+consistent with the α_w-study's recon gain (+0.0076 at 0.03). (2) The
+mechanism is the scout dynamic seen in the KL_w spikes: at high α_w the
+posterior is pinned and the prior/B must discover context axes on their
+own; at lower α_w the posterior explores (KL_w 0.09–0.2 during training)
+and the prior chases it into more directions. (3) The "one programme"
+reading is therefore a property of the α_w = 0.1 operating point, not of
+the tissue — the earlier α_w verdict ("stays 0.1") was made when the
+bistability was read as a hazard; with the strong family now understood
+as the better optimum, α_w ≈ 0.03–0.05 with seed-ensemble + battery
+selection is a live candidate operating point again. Pending before any
+recommendation: do the extra axes reproduce across seeds (shift-space
+overlap on alphaw_0.03_s1/s2, 0.05_s1/s2 — collecting), do they carry
+likelihood when ablated, and are they context-driven (atlas drivers)?
+A rank regulariser is not the answer (it would manufacture axes without
+likelihood); the KL-floor (free bits per w dim) remains the one
+principled candidate if the seed check passes — architect question.
+
+**x̃ verdict — three seeds, every acceptance row (2026-09-14).** Reference
+batteries re-run for s0 (full, post-era) and s2 so every seed has its
+own control. Mean x̃ − reference over seeds, and the per-seed sign:
+
+| row | Δ mean | per seed | criterion |
+|---|---|---|---|
+| niche-z residual over ℓ | **−0.006** | −0.011 / −0.013 / **+0.005** | "drops toward ℓ": 2 of 3, ~9% of the residual |
+| cycle_z (battery / training) | −0.006 / −0.028 | 0.381→0.360, 0.440→0.456, 0.416→0.402 (battery) | inside the envelope, low side |
+| held-out recon | 0.000 | ±0.001 | yes |
+| NMI | −0.017 | −0.027 / −0.010 / −0.016 | not a criterion; consistent, the gate's direction |
+| niche-w AUC / transport cf / slope | 0.000 / +0.001 / +0.02 | unmoved | yes |
+| Moran-w | **−0.061** | 0.531→0.454, 0.628→0.642, 0.575→0.453 | down in 2 of 3 (the most seed-variable row) |
+| planted gate | thresholds pass | NMI −0.03…−0.05 at κ = 0.2 | pass with caveat |
+
+Reading, as pre-registered: the change is structurally right and costs
+nothing in likelihood, but **on this slide at κ = 0.1 it is empirically
+near-neutral** — the leak bias in the encoder's view is a minority of the
+niche-z residual (the triage's benign-intrinsic reading holds for the
+rest), the headline drop is small and not seed-consistent (2/3), and the
+small consistent costs (NMI −0.017, training-time cycle_z −0.03, Moran-w
+down in 2/3) are of the same size as the benefit. **Not green enough to
+change the default.** `subtract_leak` stays available (default off) for
+the per-cell applications — A4's powered planted world is where a
+per-cell decontamination effect would show, and that is the test to run
+before the flag is judged again. Sent to the architect as such; the 07
+patch (§7.13) waits.
+
+**Do the extra context axes reproduce across seeds? (2026-09-14)** Shift-
+space overlap and dominant-axis cosines across the three seeds at each
+α_w (type_z era for 0.03/0.05; type_only for 0.10):
+
+| α_w | ranks (seeds) | axis-1 cosine | axis-2 cosine | axis-3 cosine | shift inside other seed's top-2 |
+|---|---|---|---|---|---|
+| 0.03 | 4 / 4 / 4 | 0.86–0.89 | 0.76–0.89 | 0.15–0.67 | 0.82–0.89 |
+| 0.05 | 3 / 2 / 3 | 0.91–0.95 | 0.77–0.90 | 0.32–0.85 | 0.90–0.96 |
+| 0.10 | 2 / 2 / 2 (≈1) | 0.89–0.95 | 0.50–0.77 | ≈ 0 | 0.98 |
+
+Reading: lowering α_w reliably adds **one** robust context axis — at
+0.03/0.05 a second axis is present at ≥ 15% of w's variance in every seed
+and reproduces across seeds at cosine 0.76–0.90, whereas at 0.10 it is
+seed-dependent (2–17%) and only half-reproducible (0.50–0.77). The third
+and fourth axes at ≤ 0.03 do *not* reproduce (cosine 0.15–0.67) — seed-
+specific optima, not tissue structure. Likelihood/z cost: at 0.05 recon
+−7.2534 / −7.1857 / −7.2285 with cycle_z 0.454 / 0.478 / 0.470 (all
+inside the 0.1 envelope); at 0.03 one seed drains cycle_z to 0.354 (the
+known bad instance) — so 0.05 is the point where the second axis is
+bought without a z cost. **Candidate re-calibration, for the architect:
+α_w = 0.05 under type_only**, 3 seeds at the 500-epoch budget, battery
+selection; acceptance pre-registered: two robust axes by shift-space
+overlap (axis-2 cosine ≥ 0.75 across seeds), cycle_z ≥ 0.44, recon
+inside the envelope, w-side rows intact, and atlas context drivers for
+axis 2. Not launched — an operating-point change is the user's call. The
+0.05 seed runs on disk are type_z era, so this is not yet a measured
+number for the current architecture.
+
+**Doc-09 §8 result on the pinned reference (`communication/lr_map.{json,
+png}`; 79 s incl. the model load, the map itself ~10 s).** Effective rank
+2 → 38 row genes (P0: F13A1/MRC1/TNXB/DPT… vs ESM1/MMP11/COL11A1/SLC2A1…;
+P1: VEGFA/ADM/LCN2/IL6… vs COMP/SFRP4/COL10A1/ELN…); 30 columns after
+dropping pairs with no receptor-eligible type (BMP4, C4A, IL6, POSTN,
+TGFB3 fell out — the pair the §4.6 tally named, PDGFB→PDGFRB, did not
+rank into the top 30 by Var(E) × prevalence). Under the doc's within-type
+permutation null: **panel A 650 / 1140 cells significant, panel B 438 /
+1140** — B does not collapse in *count*; it collapses in *effect size*
+(max |ρ| 0.086 → 0.059, nothing ≥ 0.1 in B; |ρ| median 0.018 → 0.012),
+and with ~60k validation cells and two spatially smooth fields the plain
+permutation is anti-conservative (the A4/V8 lesson). Under a Moran-
+preserving null (each cell takes the LR score of the same-type cell at a
+random 500–1000 µm displacement; the shuffled field keeps its smoothness
+and loses its alignment): **0 / 0 cells in either panel**. The structure
+in A is the dominant w axis (stroma/macrophage vs tumour genes) against
+pair scores that track tumour/stroma proximity (SEMA4C/D→PLXNB2,
+CLDN1→CLDN1, CXCL12→CXCR4, DSC3→DSG2). Reading, honest: the map cannot
+distinguish w-program/LR co-occurrence from domain-scale co-location —
+which is the caption's message made stronger: the fig-6h genre reports
+where things are, not signalling; DisCell's own w sits in the same genre
+here. Reported with both nulls (permutation = the doc's significance;
+shift = the stringent control, boxed cells = survivors, none). Seeds s0
+and s2 to be re-run with the two-null script for the sign-agreement
+note. Verdict on TensorBoard: fast enough (~10 s + one DB load), but as
+a *training monitor* it adds nothing niche-AUC does not already track and
+would show the same dense panel every event — kept as a per-run artefact
+in the report instead, pending the user's call.
+
+**§8 map, three seeds (two-null script; `communication/lr_map.json` per
+run; s1 report regenerated with the section).** Permutation null: A 650 /
+760 / 829 of 1140 cells, B 438 / 627 / 781 (max |ρ| A 0.09 / 0.08 / 0.16,
+B 0.06 / 0.07 / 0.11) — the count-level "collapse" is absent in every
+seed; the effect-size collapse holds (B's max |ρ| 0.6–0.7× A's). Spatial-
+shift null: **0 / 0 in all three seeds, both panels.** Cross-seed sign
+agreement among cells significant in both seeds (rows are re-selected
+per seed, so the shared set is the same gene × same pair): A 91 / 85 /
+78 %, B 89 / 96 / 86 % — where two seeds both call a cell, they agree on
+its sign; which cells get called varies with the seed's row set and
+effect scale (s2's map is ~2× hotter). Standing reading unchanged: the
+map is domain-scale co-location under both w and LR; nothing survives a
+Moran-preserving null. Kept as a per-run artefact + report section; not
+wired into TensorBoard (user's call pending).
+
+**§8 column rule tightened (user-caught: redundant and empty columns).**
+The doc's rule — Var(exposure) × receiver prevalence, top 30 — produced
+five FGF, three JAG1→NOTCH and two SEMA4→PLXNB2 columns (pairs sharing a
+ligand share E and differ only in the receptor factor) and several all-
+grey columns (raw Var(E) is sender proximity, which the within-type
+Spearman on the LR score cannot see). Still no hand-picking, three rule
+changes: rank by the variance of the **composition-residualised**
+exposure (doc-09 §2's own step, within receiver types) × prevalence; **one
+column per ligand** (its best-ranked receptor pair); a column needs
+**≥ 2 receptor-eligible receiver types** to pool. Re-running the three
+seeds and the s1 report.
+
+**§8.2b received (architect, 2026-09-15) — the ladder.** Four items, all
+built: (1) rows = the effective-rank **program coordinates** (per-gene
+rows at rank 2 were duplicates within program-sign blocks), labelled by
+each program's top ± genes; (2) the missing rung — three panels: **A′**
+uncontrolled pooled Spearman over all validation cells (the SIMVI-
+comparable view), **A** within-type, **B** composition-partialled — so
+the figure shows that published-map structure is type composition; (3)
+receptor side from the model's **clean rates ρ_g** (softmax(a(z) + Bw),
+one sweep over the tiles for the receptor genes only; raw 0–2 counts per
+cell starve the Spearman; mild circularity stated in the JSON and the
+caption); (3b) the column rule v2 already in place (Var(Ẽ), one column
+per ligand, ≥ 2 eligible types) — ratified; (4) the spatial-shift null
+stays as the printed verdict line (boxed survivors). Re-running the three
+seeds and the s1 report with this version; the earlier per-gene maps are
+superseded.
+
+**§8.2b ladder, three seeds (`communication/lr_map.{json,png}`, s1 report
+regenerated).** Rows = the two effective-rank programs (P0 stroma/
+macrophage F13A1/MRC1/TNXB ↔ tumour ESM1/MMP11/CLEC5A; P1 hypoxia/growth
+TFRC/VEGFA/CYP24A1 ↔ matrix COMP/SFRP4/COL10A1); 30 columns, one per
+ligand, now including PDGFB→PDGFRB and the PDGF family, GAS6/PROS1→AXL,
+VEGFB→FLT1, WNT5A/B→FZD4. Cells (of 60) significant under the permutation
+null / max |ρ| / surviving the spatial-shift null, per seed s1 / s0 / s2:
+
+| rung | s1 | s0 | s2 |
+|---|---|---|---|
+| A′ uncontrolled, all cells | 57, 0.71, **29** | 55, 0.57, 20 | 56, 0.62, 22 |
+| A within receiver type | 48, 0.28, 5 | 46, 0.34, 10 | 47, 0.26, 1 |
+| B composition-partialled | 35, 0.16, **0** | 44, 0.14, 0 | 48, 0.14, 0 |
+
+The ladder does what §8.2b predicted: uncontrolled, w's programs co-occur
+with LR axes at |ρ| up to 0.7 and a third to a half of the cells survive
+even the Moran-preserving null (that is the SIMVI-comparable view — real,
+strong, and type composition: VEGFB→FLT1 / NECTIN3→NECTIN2 / APP→TNFRSF21
+vs P0 is tumour-vs-stroma); within type the effect sizes drop 2–3× and
+1–10 cells survive the shift null; after composition control nothing
+survives it in any seed and max |ρ| is 0.14–0.16. The two rungs the doc
+asked for now show the collapse in *effect size* clearly (0.7 → 0.3 →
+0.15), while the permutation-null *counts* stay high at every rung — the
+figure's own demonstration that a permutation null on ~60k spatially
+smooth cells is not a null. Caption text as fixed in §8.3, extended with
+the shift-null sentence. Verdict line for the report: "zero survivors at
+autocorrelation-aware significance after composition control, in three
+seeds". Descriptive figure; no communication claim; kept per-run + report
+(not a TensorBoard monitor, per the user's pending call).
+
+**d_w = 3 (two of three seeds) and the budget-matched d_w = 6 control
+(2026-09-15).** All at the sweep budget (200 epochs, patience 20):
+
+| d_w | seed | recon | NMI | cycle_z | cov(μ_w) eigen-fractions | r |
+|---|---|---|---|---|---|---|
+| 2 | 0 / 1 / 2 | −7.2564 / −7.1829 / −7.2255 | .672 / .667 / .667 | .405 / .386 / .485 | 1.00 / 1.00 / .92-.08 | 1 / 1 / 1 |
+| 3 | 0 / 1 / (2 running) | −7.2613 / −7.1835 | .637 / .644 | .337 / .490 | .73-.27 / .82-.19 | 2 / 2 |
+| 6 (sweep3) | 0 / 1 / 2 | −7.2546 / −7.2566 / −7.2573 | .667 / .636 / .674 | .413 / .469 / .470 | 1.00 / .96-.04 / .96-.04 | 1 / 2 / 2 |
+
+Reading. (1) Likelihood and the z-side reads are indifferent to d_w in
+{2, 3, 6} at this budget (the strong family appears once in each triple;
+cycle_z spreads 0.34–0.49 across seeds regardless of d_w — the d_w = 3
+s0 low value is inside the seed envelope of the d_w = 6 controls). (2) At
+matched budget, **d_w = 6 is effectively rank 1** (second axis 0.1–4% of
+w's variance — the 2–17% quoted earlier was the 500-epoch triple), **d_w
+= 3 is rank 2 with a substantial second axis (19–27%)**, and d_w = 2 is
+rank 1. So the fill is 1 of 2, 2 of 3, ~1 of 6: the model leaves one
+direction empty at small d_w and, given six, concentrates on one axis.
+That is not a tissue property — it is how the KL_w pressure and the
+prior-chasing dynamic distribute a fixed budget of context variance over
+the available dims; more empty dims, more concentration. (3) The two
+d_w = 3 seeds share the 2-D shift space (overlap 0.97) but split it
+differently (dominant-axis cosine 0.35), so "which two axes" is not
+seed-stable at this budget either. Consequence for the atlas and for
+the α_w question: the effective rank is a **(d_w, α_w, budget)** property
+of the optimiser, and any "N programs" statement must name all three.
+Cheapest next probe if the second axis matters to the paper: the 500-
+epoch budget at d_w = 3 (does the second axis reproduce across seeds by
+axis cosine, as it does at α_w = 0.05?). d_w stays 6 for now — nothing
+is lost, and the spec's value needs no change to fix a reporting issue.
+
+*Wording fix (user-caught):* in the §8 entries above, "cells of 60" means
+heatmap **entries** (2 programs × 30 pairs), each a pooled Spearman over
+all eligible validation cells (~60k) — not a cell count. Figure titles,
+caption, log line and report section now say "entries".
+
+**d_w = 3, third seed — the triple closes (2026-09-15).** `dw3_s2`: recon
+−7.2339, NMI 0.642, cycle_z 0.437, cycle_w 0.002, probe −0.003; cov(μ_w)
+= [.966, .034] — rank 2 by the 1% rule but with the second axis at 3%,
+like the d_w = 6 controls, not the 19–27% of s0/s1. So the "d_w = 3 gives
+a substantial second axis" reading is **two seeds of three**; the honest
+statement is that the second axis's share is seed-variable at every d_w
+(3–27% at d_w = 3, 0.1–4% at d_w = 6/200 epochs, 2–17% at d_w = 6/500
+epochs) and only becomes seed-stable at α_w = 0.05 (15–21%). Cross-seed
+axis cosines at d_w = 3: axis 1 0.35 / 0.89 / 0.64, axis 2 0.81 / 0.72 /
+0.58 — the 2-D shift plane is shared (overlap 0.96–0.98) and split
+differently per seed. Conclusion unchanged: d_w stays 6; the effective
+rank is a (d_w, α_w, budget) property; report programs at the effective
+rank with the second axis's share and its cross-seed cosine, never a
+count. d_w ablation closed; the six runs stay on disk
+(`runs/dw{2,3}_s{0,1,2}`), no metrics file beyond `metrics.json`.
+
+### d_w = 8 — closing the ablation from above (motivation, 2026-09-15)
+
+User request: bracket the d_w question on the large side too. Prediction,
+pre-registered: at α_w = 0.1 and the sweep budget the fill is set by the
+operating point, not the box — d_w = 8 will use 1–2 of 8 (second axis
+0–5%, as d_w = 6 at this budget), recon / NMI / cycle_z / cycle_w / probe
+/ mirror inside the d_w ∈ {2, 3, 6} envelope, shift-space overlap across
+seeds ≥ 0.95. If the second axis's share instead grows with d_w, the
+"(d_w, α_w, budget) optimiser property" reading is wrong and d_w matters
+in its own right. Design: `dw8_s{0,1,2}`, `--d-w 8`, 200 epochs / patience
+20, defaults otherwise; read-outs as for d_w = 2/3 (metrics.json + CPU
+latents: cov(μ_w) spectrum, shift-space overlap, axis cosines). Not an
+operating-point change; ~40 min per seed.
+**Embedding result** (`embeddings/egomask_ego_v1.pt`, 1.8 GB; `logs/embed.log`):
+launched 12:19 on GPU 0 once `xtilde_s2` finished, 1,157,637 × 384 in
+16,382 s (4 h 33 min, 71 cells/s cumulative — below lung's 113 because the
+decode is single-threaded and the machine sat at load 35–53 under the
+other session's d_w fits). Every cell embedded, all finite, no zero rows,
+row-norm median 53.9; metadata identical to the ovarian and lung files
+(kronos1, 256 px @ 0.5 µm/px, ego 25 µm, markers 4/442/505/130). The
+loader pairs it with the bundle for 100% of cells in 16 s. The slide is
+now at parity with lung: bundle + embeddings, graphclust labels, no runs.
+
+**d_w = 8 result (three seeds, `runs/dw8_s{0,1,2}`) — prediction half
+wrong, in an informative way.** recon −7.2645 / **−7.1858** / −7.2401
+(strong family once again), NMI 0.662 / 0.669 / 0.658, probe and mirror
+at reference; cov(μ_w) = [.86, .14], [.91, .09], [.89, .11] — **rank 2 of
+8 with a 9–14% second axis in every seed**, and the two axes reproduce
+across seeds (axis-1 cosine 0.83–0.94, axis-2 0.70–0.92, shift-space
+overlap 0.99). Predicted was 0–5% as at d_w = 6 / 200 epochs; the fill
+is still 2, as predicted, but the second axis's share is 3× larger and
+seed-stable at d_w = 8. Full bracket at the sweep budget, second-axis
+share by seed: d_w 2 → 0 / 0 / 8%; 3 → 27 / 19 / 3%; 6 → 0.1 / 4 / 4%;
+8 → 14 / 9 / 11%. Not monotone in d_w and, with three seeds per cell,
+consistent with "the share is seed-noise on top of a weak dependence on
+the box" — the optimiser-property reading (fill ≪ d_w, set by α_w and
+budget) stands; the box is not *irrelevant* to the share. Costs at
+d_w = 8, small but in the wrong direction: cycle_z 0.428 / 0.356 / 0.367
+(d_w = 6 controls 0.41–0.47) and **cycle_w 0.020 / 0.014 / 0.008** (every
+other type_only run ≤ 0.010; s0's 0.020 is the highest on record) — a
+hint of intrinsic state seeping into the extra context capacity. **Verdict
+for the finalized analysis: keep d_w = 6.** Nothing in likelihood or the
+w-side favours 8, the z/w separation reads are slightly worse, and the
+lever that makes a second context axis seed-stable *without* that cost is
+α_w (0.05: 15–21%, cosine 0.77–0.90). Ablation table for the paper:
+d_w ∈ {2, 3, 6, 8} × 3 seeds, all on disk. Watch item: cycle_w at d_w ≥ 8.

@@ -73,6 +73,7 @@ class TrainConfig:
     #: removes the neighbour-z channel entirely); "type_z" = the original
     #: spec-4.1 sources [onehot(t_j), sg mu_z_j], kept for era-reproduction
     gat_sources: str = "type_only"
+    subtract_leak: bool = False         # spec 7.13: encoders read x - kappa*l*rho_bar
     invariance: str = "adversary"       # "closed_form" before spec 4.6 escalation
     adv_lr: float = 2e-3
     adv_steps: int = 6
@@ -128,6 +129,7 @@ class Trainer:
             d_z=config.d_z, d_w=config.d_w, hidden=config.hidden,
             gat_dim=config.gat_dim, heads=config.heads,
             gat_sources=config.gat_sources,
+            subtract_leak=config.subtract_leak,
         ).to(self.device)
         self.covariances = None
         self.adversary = self.adversary_optimiser = None
@@ -244,7 +246,7 @@ class Trainer:
         """Collect per-seed arrays over *batches* in eval mode."""
         self.model.eval()
         out = {k: [] for k in ("nodes", "mu_z", "mu_w", "prior_w", "c",
-                               "kl_w", "log_p")}
+                               "kl_w", "kl_z", "log_p")}
         for batch in batches:
             fwd = self.model(**self._forward_kwargs(batch),
                              kappa=self.config.kappa, sample=False)
@@ -259,6 +261,9 @@ class Trainer:
                              + fwd.logvar_w[:n].exp()
                              + (fwd.mu_w[:n] - fwd.prior_mean_w[:n]) ** 2 - 1.0)
             out["kl_w"].append(per_dim.cpu().numpy())
+            out["kl_z"].append((0.5 * (-fwd.logvar_z[:n] + fwd.logvar_z[:n].exp()
+                                       + fwd.mu_z[:n] ** 2 - 1.0)
+                                ).sum(dim=-1).cpu().numpy())
             if want_log_p:
                 out["log_p"].append(fwd.log_p.cpu().numpy())
         self.model.train()
@@ -325,7 +330,8 @@ class Trainer:
                           "w": np.vstack([train["mu_w"], val["mu_w"]]),
                           "prior_w": np.vstack([train["prior_w"],
                                                 val["prior_w"]]),
-                          "kl_w": np.vstack([train["kl_w"], val["kl_w"]])},
+                          "kl_w": np.vstack([train["kl_w"], val["kl_w"]]),
+                          "kl_z": np.concatenate([train["kl_z"], val["kl_z"]])},
         }
 
     # -- figures -----------------------------------------------------------
@@ -468,8 +474,8 @@ class Trainer:
                         ax.scatter(coords[sel, 0], coords[sel, 1], s=0.6,
                                    color=palette(g % 20),
                                    label=names[g][:16], rasterized=True)
-                ax.set_title(f"{source_tag} {method.upper()} | all cells",
-                             fontsize=8)
+                ax.set_title(f"{source_tag} {method.upper()} | all cells | "
+                             "colour = cell type", fontsize=8)
                 ax.set_xticks([]); ax.set_yticks([])
                 if c == len(columns) - 1:
                     ax.legend(fontsize=4, markerscale=6, ncol=2)
@@ -488,13 +494,17 @@ class Trainer:
                         ax.scatter(coords[sel, 0], coords[sel, 1], s=0.8,
                                    color=palette(int(nb) % 20),
                                    label=names[nb][:14], rasterized=True)
+                    # one type per row: the colour is NOT the cell's type
+                    # (all cells here share it) but the type that dominates
+                    # its neighbourhood -- z should mix, w should organise
                     ax.set_title(f"{source_tag} {method.upper()} | "
-                                 f"{names[g][:22]}", fontsize=8)
+                                 f"{names[g][:22]} | colour = dominant "
+                                 "NEIGHBOUR type", fontsize=7)
                     ax.set_xticks([]); ax.set_yticks([])
                     if c == len(columns) - 1:
                         ax.legend(fontsize=4, markerscale=5, ncol=1,
-                                  title="dominant neighbour",
-                                  title_fontsize=4)
+                                  title="dominant neighbour type",
+                                  title_fontsize=6)
             fig.suptitle(f"{tag}: all cells by type, then within-type by "
                          "dominant neighbour", fontsize=10)
             fig.tight_layout(rect=(0, 0, 1, 0.98))
@@ -691,7 +701,44 @@ class Trainer:
             fig.tight_layout(rect=(0, 0, 1, 0.97))
             writer.add_figure("figures/z_cycle_projection", fig, step)
 
+        # -- per-cell KL to the priors on the tissue: all cells, then each
+        # panel type on its own cells. KL_z is against N(0, I) -- how much
+        # the cell's counts pin its state; KL_w is against m_psi(c, t) -- how
+        # far the cell deviates from its niche's expected response.
+        def kl_spatial() -> None:
+            grid_pick = rng.choice(len(rows), min(len(rows), 40_000),
+                                   replace=False)
+            scopes = [("all cells", grid_pick)]
+            scopes += [(names[g], members_of[g]) for g in members_of]
+            columns = ((collected["kl_z"], "KL(q(z) ‖ N(0,I))", "viridis"),
+                       (anomaly, "KL(q(w) ‖ m_ψ(c,t))", "magma"))
+            fig, axes = plt.subplots(len(scopes), 2,
+                                     figsize=(6.4, 3.0 * len(scopes)))
+            for r, (label, members) in enumerate(scopes):
+                for c, (values, title, cmap) in enumerate(columns):
+                    ax = axes[r, c]
+                    if len(members) < 50:
+                        ax.axis("off")
+                        continue
+                    sample = values[members]
+                    position = self.data.positions[rows[members]]
+                    points = ax.scatter(position[:, 0], position[:, 1], c=sample,
+                                        s=0.5, cmap=cmap,
+                                        vmin=np.percentile(sample, 2),
+                                        vmax=np.percentile(sample, 98),
+                                        rasterized=True)
+                    fig.colorbar(points, ax=ax, fraction=0.046, pad=0.02
+                                 ).ax.tick_params(labelsize=5)
+                    ax.set_title(f"{title} | {label[:20]} | median "
+                                 f"{np.median(sample):.3f}", fontsize=7)
+                    ax.set_aspect("equal"); ax.set_xticks([]); ax.set_yticks([])
+            fig.suptitle("per-cell KL to the priors in tissue coordinates "
+                         "(colour scale per panel, 2-98%)", fontsize=9)
+            fig.tight_layout(rect=(0, 0, 1, 0.98))
+            writer.add_figure("figures/kl_spatial", fig, step)
+
         w_spatial_extended()
+        kl_spatial()
         spatial_grid(z, "z")
         w_norm_boxplot()
         variable_panels(z, "z")
@@ -700,6 +747,12 @@ class Trainer:
         trajectories(w, "w", "pca")
         trajectories(z, "z", "umap")
         trajectories(z, "z", "pca")
+        # the joint state: [z, w] standardised per dimension, so neither
+        # block wins by scale (w's top dim has ~25x the variance of a z dim)
+        zw = np.hstack([z, w])
+        zw = (zw - zw.mean(axis=0)) / (zw.std(axis=0) + 1e-6)
+        trajectories(zw, "zw_std", "umap")
+        trajectories(zw, "zw_std", "pca")
         if self.data.cycle is not None:
             z_cycle_panels()
             z_cycle_projection()
@@ -869,6 +922,8 @@ def build_parser() -> argparse.ArgumentParser:
                         choices=("closed_form", "adversary"))
     parser.add_argument("--gat-sources", default=defaults.gat_sources,
                         choices=("type_z", "type_only"))
+    parser.add_argument("--subtract-leak", action="store_true",
+                        help="spec 7.13: encoders read x - kappa*l*rho_bar")
     parser.add_argument("--device", default=defaults.device)
     parser.add_argument("--quiet", action="store_true")
     return parser

@@ -81,18 +81,19 @@ tasks die with the session.
 | step | command | output |
 |---|---|---|
 | preprocess (bundle, graphs, image embeddings, figures) | `uv run python -m discell.preprocess --sample <sample> [--only bundle\|graph\|embed\|figures]` | `data/datasets/$DS/bundle/full.h5ad`, `embeddings/*.pt` |
-| train one run | `uv run python -m discell.model.train --dataset $DS --run-name $RUN --epochs 500 --patience 40 [--seed N] [--label-key graphclust] [--gat-sources type_z]` | `runs/$RUN/{best.pt,config.json,history.jsonl,metrics.json,events.*}` |
+| train one run | `uv run python -m discell.model.train --dataset $DS --run-name $RUN --epochs 500 --patience 40 [--seed N] [--label-key graphclust] [--gat-sources type_z] [--subtract-leak] [--d-w 6]` | `runs/$RUN/{best.pt,config.json,history.jsonl,metrics.json,events.*}` |
 | run report (quadrant, ‖w‖, B, + atlas/transport/A4 sections when present) | `uv run python -m discell.model.report --dataset $DS --run $RUN` | `runs/$RUN/report/report.md` + `figures/` |
 | doc-08 §§3–5 battery (Moran, niche, landmarks, matrix) | `uv run python -m discell.model.validate --dataset $DS --run $RUN [--analyses morans,niche,landmarks,matrix] [--n-perms 1000]` | `runs/$RUN/validation/validation.json` + png |
 | doc-08 §6 atlas | `uv run python -m discell.model.atlas --dataset $DS --run $RUN` | `runs/$RUN/atlas/atlas.json`, `program_*.png` |
 | doc-08 §7 transport | `uv run python -m discell.model.transport --dataset $DS --run $RUN [--niches 10]` | `runs/$RUN/transport/transport.json`, `transport_summary.png`, `pair*.png` |
 | doc-09 communication | `uv run python -m discell.model.communication --dataset $DS --run $RUN [--pairs 20] [--stages …]` | `runs/$RUN/communication/communication.json` |
+| doc-09 §8 LR co-occurrence ladder | `uv run python -m discell.model.lr_map --dataset $DS --run $RUN [--pairs 30] [--n-perms 200]` | `runs/$RUN/communication/lr_map.{json,png}` (+ report section) |
 | κ sweep (6 κ × 3 seeds, idempotent via `metrics.json`) | `uv run python -m discell.model.sweep --dataset $DS --tag sweep3` | `runs/sweep3_k<κ>_s<seed>/`, `experiments/kappa_sweep_sweep3.json` |
 | sweep companion (κ-survival, sensitivity) | `uv run python -m discell.model.validate --dataset $DS --sweep-tag sweep3` | `experiments/atlas_kappa_survival*.json`, `transport_kappa_sensitivity.json` |
 | doc-11 shared data | `uv run python -m discell.applications.shared --dataset $DS --stage dapi` / `--stage nuclear-counts` | `qc/nuclear_dapi.parquet`, `qc/nuclear_counts.npz` |
 | doc-11 A4 | `uv run python -m discell.applications.a4_cycle --dataset $DS --run $RUN` | `runs/$RUN/applications/a4_cycle.{json,png}` |
 | lung transfer | same `train` with `--dataset xenium_prime_human_lung_cancer_ffpe --label-key graphclust --alpha-z 0.004` | `…lung…/runs/reference_graphclust/` |
-| tests | `uv run pytest -q` (132 passed, 1 skipped, 3½ min on 2026-09-11) | — |
+| tests | `uv run pytest -q` (139 passed, 1 skipped, 5½ min on 2026-09-15) | — |
 
 Experiment-level artefacts (ovarian): `data/datasets/$DS/experiments/`
 — `kappa_sweep{,_sweep2,_sweep3}.json`, `validation_sweep2.json`,
@@ -112,7 +113,8 @@ TypeCovariances), `prepare.py` (graph, tiles, ModelData), `train.py`
 w-mirror ΔR²), `cell_cycle.py` (Tirosh scores, MKI67 ranking),
 `report.py`, `validate.py` (doc-08 §§3–5 + `load_run`/`collect_latents`),
 `atlas.py` (§6), `transport.py` (§7), `communication.py` (doc-09),
-`sweep.py`, `calibrate.py`, `synthetic.py` (gate scaffold);
+`lr_map.py` (doc-09 §8 ladder), `sweep.py`, `calibrate.py`, `synthetic.py`
+(gate scaffold);
 `discell/applications/` — `shared.py` (DAPI / nuclear counts), `planted.py`
 (`fit_synthetic`), `a4_cycle.py`; `discell/preprocess/`, `discell/data/`
 (bundle, loader, embeddings); `tests/` (17 files).
@@ -296,6 +298,42 @@ linear ref 0.166, cycle_w −0.000, probe ΔCE −0.010 (floor −0.021), mirror
 **The full allegiance structure transfers with one knob (α_z) changed.**
 Only §§3–4 of the battery ran on lung; landmarks/atlas/transport did not.
 
+### 4.9 Findings of 2026-09-14/15 (after the handover was first written)
+
+- **x̃ = x − κℓρ̄ as the encoder input** (`--subtract-leak`, architect-
+  approved spec change, gated on results; `runs/xtilde_s{0,1,2}`): recon
+  identical (±0.001), niche-z residual −0.006 mean (−0.011 / −0.013 /
+  +0.005 by seed), cycle_z inside envelope, w-side rows unmoved, NMI
+  −0.017 and Moran-w down in 2/3. **Near-neutral; default stays off.** The
+  per-cell benefit it was built for is A4's (parked) planted-world test.
+- **w's effective rank is an optimiser property**: cov(μ_w) is rank 1–2 at
+  α_w = 0.1 (d_w = 6), rank 3 at 0.05, rank 4 at ≤ 0.03 — in the prior
+  field itself, not the deviation channel; a second axis reproduces across
+  seeds at 0.05 (cosine 0.77–0.90) but not at 0.10 (0.50–0.77). At the
+  sweep budget d_w = 6 is rank ~1, d_w = 3 rank 2 (second axis 3–27%,
+  seed-variable), d_w = 2 rank 1, d_w = 8 rank 2 (9–14%, seed-stable, at
+  a small cycle_w cost 0.008–0.020). **d_w stays 6**; ablation table
+  d_w ∈ {2, 3, 6, 8} × 3 seeds on disk (`runs/dw{2,3,8}_s*`, sweep3 for 6). The atlas' "6 programs" is superseded by "one, sometimes
+  two" (issues V10); B stability by shift-space overlap (V11: 0.97–0.99
+  across seeds) replaces the matched-column cosine. **Candidate
+  re-calibration α_w = 0.05 under type_only** — architect's call.
+- **KL_w is a snapshot of a chase**: it oscillates 20–100× between
+  evaluations five epochs apart in every seed; s0's `best.pt` sits on a
+  spike. Per-cell KL_w at the strong optimum is 0.01–0.1% of w's variance
+  per dim with no heavy tail (no anomaly channel).
+- **Doc-09 §8 ladder** (`lr_map.py`, three seeds): uncontrolled A′ |ρ| to
+  0.7 with 20–29 of 60 cells surviving a Moran-preserving null (type
+  composition); within type max |ρ| 0.26–0.34, 1–10 survive; composition-
+  partialled max |ρ| 0.14–0.16, **0 survive in every seed**. Descriptive;
+  no communication claim; the permutation-null counts barely move down the
+  ladder, which is the figure's own lesson about that null.
+- New TensorBoard figures for runs trained from 2026-09-14: `kl_spatial`
+  (per-cell KL_z / KL_w on the tissue, per type, colour bars),
+  `zw_std_trajectories_{umap,pca}` (principal curve on standardised
+  [z, w]); within-type panel titles now say the colour is the dominant
+  *neighbour* type. Rendered for the pinned reference under
+  `runs/ablation_gat_type_only_s1/{report/figures,figures_render}/`.
+
 ## 5. Retractions, falsified hypotheses, parked work
 
 | item | what was claimed | what killed it | what remains |
@@ -397,6 +435,9 @@ decontamination through μ_z (A4 planted 0/3, adjudicator defective).
    doc-11's order, with the reference atlas pinned once.
 5. Transport κ-sensitivity rerun on the counterfactual object; lung
    landmarks/atlas/transport for the transfer story.
+6. α_w = 0.05 under type_only, 3 seeds at the 500-epoch budget, battery
+   selection — the operating-point question reopened by the rank finding
+   (pre-registered acceptance in the devlog 2026-09-14).
 
 ## 8. Registers — where things are written down
 
@@ -423,7 +464,7 @@ decontamination through μ_z (A4 planted 0/3, adjudicator defective).
   untracked `discell/applications/`, `discell/model/{atlas,transport}.py`,
   `tests/test_model_atlas.py`, `11-z-applications_1.md`, `docs/handover.md`.
   Nothing has been committed since doc-08 §6; commit before handing over.
-- Tests: `uv run pytest -q` → 132 passed, 1 skipped (2026-09-11).
+- Tests: `uv run pytest -q` → 139 passed, 1 skipped (2026-09-15; incl. the x̃ two-pass and lr_map tests).
 - Data dependencies present: `qc/nuclear_dapi.parquet` (407,120 rows,
   5,720 without nucleus), `qc/nuclear_counts.npz` (55.8 M nuclear q20
   transcripts, 37.8% of all), `data/external/` (CellChatDB, NicheNet v2

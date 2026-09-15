@@ -97,6 +97,7 @@ def load_databases(panel: set[str]) -> tuple[list[dict], "object"]:
         if len(targets) < MIN_TARGETS_IN_PANEL:
             continue
         pairs.append({"name": str(row["interaction_name"]),
+                      "pathway": str(row["pathway_name"]),
                       "ligand": ligand, "ligand_subunits": lig_subs,
                       "receptor_subunits": rec_subs,
                       "secreted": row["annotation"] == "Secreted Signaling",

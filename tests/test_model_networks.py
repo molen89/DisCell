@@ -164,3 +164,51 @@ def test_enc_z_signature_admits_no_context():
 
     params = inspect.signature(DisCell.posterior_z).parameters
     assert set(params) == {"self", "x", "t"}
+
+
+def _with_leak_subtraction(model):
+    model.subtract_leak = True
+    return model
+
+
+def test_leak_subtraction_rewrites_seeds_only_and_is_a_no_op_at_kappa_zero(tiny):
+    """Spec 7.13: pass 2 replaces the seeds' rows from x~ = x - kappa*l*rho_bar;
+    ring rows keep pass 1; at kappa = 0 (x~ == x) both paths agree exactly,
+    and the isolated seed (rho_bar = 0) is unchanged at any kappa."""
+    model, tensors, batch = tiny
+    torch.manual_seed(0)
+    raw = model(**tensors, kappa=0.2, sample=False)
+    _with_leak_subtraction(model)
+    two = model(**tensors, kappa=0.2, sample=False)
+    n_seeds = batch.n_seeds
+    assert two.mu_z.shape == raw.mu_z.shape and two.log_rho.shape == raw.log_rho.shape
+    assert torch.allclose(two.mu_z[n_seeds:], raw.mu_z[n_seeds:])
+    assert torch.allclose(two.mu_w[n_seeds:], raw.mu_w[n_seeds:])
+    assert torch.equal(two.rho_bar, raw.rho_bar)             # pass-1 rho_bar is data
+    connected = ~tensors["isolated"][:n_seeds]
+    assert not torch.allclose(two.mu_z[:n_seeds][connected], raw.mu_z[:n_seeds][connected])
+    iso = tensors["isolated"][:n_seeds]
+    assert torch.allclose(two.mu_z[:n_seeds][iso], raw.mu_z[:n_seeds][iso])
+    assert torch.allclose(model(**tensors, kappa=0.0, sample=False).mu_z,
+                          _no_subtraction(model, tensors).mu_z)
+    for field in ("log_p", "log_p_breve", "log_rho", "mu_z", "mu_w"):
+        assert torch.isfinite(getattr(two, field)).all(), field
+
+
+def _no_subtraction(model, tensors):
+    model.subtract_leak = False
+    out = model(**tensors, kappa=0.0, sample=False)
+    model.subtract_leak = True
+    return out
+
+
+def test_leak_subtraction_trains_enc_z_through_pass_two_only(tiny):
+    """Condition 4: the likelihood gradient reaches enc_z through the x~ view;
+    nothing flows back into pass 1 through rho_bar (still data)."""
+    model, tensors, batch = tiny
+    _with_leak_subtraction(model)
+    out = model(**tensors, kappa=0.2)
+    out.log_p.sum().backward()
+    assert out.rho_bar.grad_fn is None
+    assert all(p.grad is not None and torch.isfinite(p.grad).all()
+               for p in model.enc_z.parameters())
