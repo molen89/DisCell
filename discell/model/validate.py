@@ -65,6 +65,7 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
     # default reshape an old checkpoint's architecture
     payload["config"].setdefault("gat_sources", "type_z")
     payload["config"].setdefault("subtract_leak", False)
+    payload["config"].setdefault("gat_sink", False)
     config = TrainConfig(**payload["config"])
     data = assemble(dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
@@ -77,7 +78,8 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
                     d_w=config.d_w, hidden=config.hidden,
                     gat_dim=config.gat_dim, heads=config.heads,
                     gat_sources=config.gat_sources,
-                    subtract_leak=config.subtract_leak).to(device)
+                    subtract_leak=config.subtract_leak,
+                    gat_sink=config.gat_sink).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()

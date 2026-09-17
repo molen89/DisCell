@@ -2750,3 +2750,986 @@ w-side favours 8, the z/w separation reads are slightly worse, and the
 lever that makes a second context axis seed-stable *without* that cost is
 α_w (0.05: 15–21%, cosine 0.77–0.90). Ablation table for the paper:
 d_w ∈ {2, 3, 6, 8} × 3 seeds, all on disk. Watch item: cycle_w at d_w ≥ 8.
+
+### FF slide, first fit: `reference_graphclust` on `xenium_prime_human_ovary_ff` (motivation, 2026-09-15)
+
+Motivation: the transfer test on the third slide — fresh frozen, 8× deeper,
+annotation-free (graphclust, 38 clusters + Unassigned) — run with the lung
+protocol and two per-dataset decisions, both derived rather than tuned:
+
+- **α_z = 0.0007** by the §5 rule, 1/median ℓ = 1/1,401. The rule is the
+  ELBO, not an empirical fit: `multinomial_loglik` divides each cell's
+  reconstruction by ℓ_i (nats per count, O(1)) while the KLs are per cell,
+  so 1/ℓ̄ is the weight that restores the ELBO at the slide's depth — the
+  same operating point as ovarian (0.007) and lung (0.004) in ELBO units.
+  An "in-between" value would be a β-VAE at β ≈ 4, the direction the
+  recovery gate showed collapses z. α_w 0.1, α_a 0.3, κ 0.1, ω 1 unchanged;
+  α_w now sits 140× above 1/ℓ̄ (ovarian 14×), i.e. further into the
+  prior-pinned regime every result lives in — read KL_w, change nothing.
+- **Resident counts as int16.** Measured footprint on this slide: 512
+  tiles, 1,370,917 nodes incl. rings (×1.18 seeds), float32 x 27.4 GB +
+  Φ 2.1 GB — over a 24 GB card (ovarian: 128 tiles, ×1.14, 9.5 + 0.7 GB,
+  matching the observed 13 GB). Tile size does not change this: every tile
+  is resident. Counts are integer-valued with max entry 856, so int16 is
+  exact: `Trainer._to_device` stores int16 (with a < 32768 assert),
+  `_forward_kwargs` casts the tile to float32, `_step` reads the cast tile
+  for the loss; every post-hoc module already goes through
+  `_forward_kwargs`. Test: `test_resident_counts_are_int16_and_cast_per_tile`.
+  Expected on device ≈ 13.7 + 2.1 + working ≈ 18–20 GB.
+- Budget 500 / patience 40, seed 0, tiles 4096 → 435 train / 77 val tiles;
+  per epoch 3–4× the dev slide (512 vs 128 tiles) → ~1.5–2 h.
+
+Pre-registered reads, as on lung: recon, NMI over the 39 classes, probe
+ΔCE vs its floor, mirror vs control, KL_z / KL_w per dim from
+`metrics.json`; then the §§3–4 battery (Moran |I| w vs z, niche AUC
+w / z / ℓ / floor, cycle pooled z vs the 50-PC frame with w ≈ 0). Pass =
+the ovarian/lung allegiance shape reproduces. A collapsed z (NMI ≪ 0.6,
+KL_z → 0) or an opened w channel (KL_w ≫ 0.002/dim) triggers the
+×2 / ×½ α_z bracket at the 200-epoch budget; nothing else is tuned.
+
+### Fourth intake: GSE315411 — a two-section pediatric-lung TMA, for a held-out-slide protocol (motivation, 2026-09-15)
+
+Motivation: every validation so far is a random 15 % of spatial tiles
+*within* one slide. GSE315411 gives the missing design — the same tissue
+measured twice: TMA `PDLTMA006` (17 donor cores, pediatric lung disease)
+sectioned at 10 and 11 and run as two Xenium Prime 5K slides. Plan (a) of
+the three discussed: **two datasets, one label vocabulary; train on one
+slide, evaluate the checkpoint on the other**. The obstacle is the label
+space — the model's `t` is `sorted(unique(label))` per bundle, so a
+cross-slide evaluation needs identical class sets with identical
+meanings on both slides, which per-slide graphclust cannot give. Hence
+the shared-label pipeline below, run *before* any bundle.
+
+Slide facts (`experiment.xenium`, `metrics_summary.csv`, `cells.parquet`,
+the series Seurat object `GSE315411_prime_slides_2025_11_20.rds`):
+
+- GSM9427181 "prime solo" = section 11, 1,100,358 cells, median 115
+  transcripts / 100 genes per cell; GSM9427182 "prime dual" = section 10,
+  run with both the Prime 5K and the V1 lung panel, 1,115,068 cells,
+  median 100 / 88. Panel `hAtlas_v1.1`, 5,001 genes — the base Prime 5K,
+  identical to lung and FF. FFPE, chemistry v2, xenium-3.3.0.1, bundle 5.2,
+  `Xenium Multi-Tissue Stain` (interior 86.7 %, boundary 12.2 %, nucleus
+  expansion 1.0 % — far fewer boundary-stain cells than the 10x slides'
+  ~28 %). Four `morphology_focus` channels, 0.2125 µm/px; `analysis/` as a
+  directory (graphclust present). **Shallowest slides yet** (ovarian FFPE
+  178, lung 242, FF 1,401): by the §5 rule α_z = 1/ℓ̄ ≈ 0.0087 (solo) /
+  0.010 (dual) — to be set at training, noted now.
+- Donors: 17 cores, every one on both slides, per-core cell counts within
+  2 % (e.g. PDL034D 153,822 / 156,158; PDL033T 7,679 / 7,627); ~3.4k /
+  2.0k cells per slide lie outside every core (Seurat `sample = dropped`).
+  Assignment is a per-cell lookup in `series/cell_stats/` — Xenium
+  Explorer selection exports, `Cell ID,Cluster,Transcripts,Area (µm^2)`
+  under two `#` comment lines. Verified: the solo bundle's ids match the
+  `*_prime_solo_*` files and the dual bundle's the `*_prime_V1_*` files
+  (100 % overlap on PDL061; the `prime_with_V1_segmentation` / `V1_*`
+  variants are other segmentations of the same sections, 0 % overlap).
+- **No author cell types anywhere**: the Seurat object carries only
+  `slide_type` and `sample` (donor). Labels have to be made.
+
+**Shared-label pipeline** — scripts received from the user, adapted, kept
+at `scripts/annotate_gse315411/` (outside the package; its own venv there,
+an overlay on the `gaston-mix` conda env for scvi-tools 1.4.0 + torch
+2.5.1/cu124, plus igraph, leidenalg, pyarrow), working directory
+`<GSE315411>/annotate/`. Four stages:
+
+0. `00_build_query.py` — one AnnData from both bundles: real genes only
+   (control probes/codewords dropped), gene panels intersected, cell
+   metadata joined, donor from cell_stats, QC `min_counts 10` /
+   `min_cells_per_gene 5`, out-of-core cells **kept** with donor `NA`.
+   Adapted: `assign_donors` reads the `Cell ID` column through a
+   hand-rolled header skip — two of the 34 files (PDL026A, PDL085A on the
+   solo slide) have their first `#` line *quoted* by Explorer, which
+   pandas' `comment='#'` does not recognise; the first attempt (pandas
+   comment handling, skip-on-failure) left those two cores as `NA`
+   (143,774 solo cells) and was discarded before any downstream stage;
+   a file without a cell-id column now aborts. The received version would
+   have produced all-`NA`.
+1. `01_embed_cluster.py` — joint scVI (`batch_key = slide`, n_latent 30,
+   2 layers, NB) + Leiden at resolution 2.0 (over-cluster on purpose;
+   stage 3 merges by name). scvi's epoch heuristic gives 4 epochs at 2.2 M
+   cells; set **30 epochs with early stopping (patience 10)** instead —
+   the one budget decision, made before the run.
+2. `02_transfer.py` — scANVI trained *from scratch on the reference
+   restricted to the panel genes* (the published HLCA scArches model
+   takes 2,000 HVGs and `prepare_query_anndata` zero-pads the ~75 % a
+   Xenium panel lacks — confident labels from a broken mapping), then
+   scArches surgery onto the query and soft predictions. Two references,
+   both from CELLxGENE as h5ad (no Seurat conversion): **HLCA core**
+   (584,944 cells, 5.9 GB, `ann_finest_level`, batch `dataset`,
+   stratified subsample 300k) as primary and **LungMAP CellRef 1.0**
+   (347,970 cells, 4.2 GB) as the second opinion. Adapted: CELLxGENE
+   h5ads index genes by Ensembl id with symbols in `var['feature_name']`
+   and raw counts in `.raw.X` — added `--ref-gene-col` / `--ref-use-raw`;
+   the ≥ 800 shared-gene abort stays. Query epochs 30 (early stopping),
+   not the received 100, for the same 2.2 M-cell reason.
+3. `03_name_and_report.py` — the final label is **per Leiden cluster**
+   (mean soft probability, argmax, gates `mean_prob ≥ 0.5` and majority
+   ≥ 0.5; failing clusters become `Unknown_<k>` rather than the nearest
+   adult type — HLCA/CellRef are adult/healthy, this TMA is pediatric
+   disease), plus the cross-slide report.
+4. (new, small) write `<sample>_cell_groups.csv` (`cell_id, group, donor`)
+   beside each outs directory so the standard bundle picks the labels up
+   as `cell_group` (the curated-label path, default label); `donor` rides
+   along through a one-column extension of `read_cell_groups`.
+
+Pre-registered reads on the labels, before any DisCell run: (i) every
+Leiden cluster draws ≥ 5 % of its cells from each slide — a cluster below
+that is a dual-chemistry artefact and is reported, not used; (ii) global
+composition JSD between the slides (serial sections of the same cores)
+< 0.05, per-donor JSD listed, a high donor is checked on the H&E before
+the pipeline is blamed; (iii) the label vocabulary is **identical on both
+slides** — required by design (a), checked explicitly; (iv) HLCA-vs-CellRef
+ARI/NMI reported, `Unknown_*` count reported; nothing is tuned to move
+these. Cells failing QC (< 10 transcripts) get no label and become
+`Unassigned` in the loader (the P3 fold), count reported.
+
+Then, in order on **one GPU (GPU 1; GPU 0 stays with the FF fit)**:
+references download (network only) → stage 0 (CPU) → stages 1–2 (GPU 1)
+→ stage 3 (CPU) → cell_groups + bundles for both slides
+(`data/raw/gse315411/GSE315411_PDLTMA06_11_prime_solo` → id
+`gse315411_pdltma06_11_prime_solo`, and `…_10_prime_dual`; symlinks onto
+the outs directories, `--sample` on the symlink so the id is the readable
+name while `xenium_dir` resolves to the real bundle) → `egomask_ego_v1`
+embeddings for both (~3 h each at the lung rate). Training and the
+cross-slide evaluation path (`load_run` + `assemble` on the other
+dataset under the same vocabulary) come after and get their own entry.
+
+### GSE315411 shared labels — the scANVI leg fails, pseudobulk naming replaces it (2026-09-15, same day)
+
+Stages 0–1 as planned: 2,102,535 cells after QC (min 10 transcripts:
+52,406 / 60,485 dropped = 4.8 % / 5.4 % per slide — they will be
+`Unassigned`), all 17 cores on both slides, 3,405 / 2,104 cells outside every
+core (`NA`). Joint scVI (30 epochs, early-stopped) + Leiden 2.0 → **44
+clusters, every one drawing ≥ 5 % from each slide** (read i ✓). A
+reference-free check (`diag_cluster_markers.py`, top log-fold genes per
+cluster from the query counts alone → `annotate/cluster_markers.csv`) finds
+the clusters textbook-clean: CD163/MRC1 and MARCO macrophages, CD3E/MS4A1
+lymphocytes, MPO/DEFA1 neutrophils, FOXJ1/DNAH ciliated, AGER/HOPX AT1,
+ABCA3/LAMP3 AT2, PDGFRB/NOTCH3 pericytes, PROX1/FLT4 lymphatics, mast,
+plasma, GRP/ASCL1 neuroendocrine, MKI67 proliferating, plus tissue the TMA
+carries beyond alveolar lung — COL2A1 cartilage, MYH1/MYH2 skeletal muscle,
+HBG1 erythroid, ITGA2B megakaryocytes, MPZ/SOX10 Schwann — and three
+low-depth clusters (17: 154k cells at median 20 transcripts; 11: 113k at 33;
+8: 32k at 27).
+
+**The scANVI transfer (stage 2, HLCA) is a failed instrument at this
+depth.** Per-cell calls: 60 % of all cells "Alveolar fibroblasts" (1.26 M),
+immune classes an order of magnitude too small, median max-probability
+1.000, 1.1 % below 0.5. Per cluster: the majority HLCA label is "Alveolar
+fibroblasts" in **26 of 44 clusters** — including the macrophage (0), T
+cell (6), neutrophil (14), pericyte (19), Schwann (31), lymphatic (32),
+erythroid (34), megakaryocyte (40), cartilage (41), skeletal muscle (10)
+and one AT2 (12) cluster — at mean max-probability 0.92–1.00, i.e. every
+one would pass the stage-3 gates (`mean_prob ≥ 0.5`, majority ≥ 0.5). The
+frozen scArches classifier, trained on ~10³-UMI scRNA-seq, collapses
+~100-transcript query cells onto one default class and reports it with
+full confidence; the pre-registered gate cannot see this. The CellRef
+leg collapses harder still: 97 % of cells → CAP1 (capillary EC), 42 of 44
+clusters; the two scANVI label sets agree with each other at ARI 0.026 /
+NMI 0.068. Stage 3's scANVI-based report is kept as the record of the leg
+(`report_hlca.txt`, `labels_{hlca,cellref}*.csv`); stage 4 now refuses to
+hand labels over without `--accept`, so nothing from it reached an outs
+directory.
+
+**Replacement — pseudobulk correlation** (`02b_pseudobulk.py`,
+`03b_name_pseudobulk.py`): each Leiden cluster's counts summed
+(0.39–27 M transcripts per profile, the depth problem gone), log1p(CP10k)
+on the shared genes, Spearman r against each reference type's mean profile
+over the 1,500 most type-variable reference genes; HLCA core
+(`ann_finest_level`, 60 types ≥ 50 cells, 4,864 shared genes) and CellRef
+1.0 (`celltype_level3`, 45 types, 4,718 genes). Gate, fixed in the script
+before its first run: (1) cluster median depth ≥ 40 transcripts, (2) the
+two references' best types agree at lineage level 1
+(Immune/Epithelial/Endothelial/Stroma≡Mesenchymal), (3) name = HLCA finest
+of the best type, CellRef reported beside it; (4) marker overrides, behind
+a flag, for identities neither reference carries.
+
+Result (`labels_pb_clusters.csv`, `report_pb.txt`): 39 of 44 clusters
+named, **5 Unknown_** — 8, 11, 17 by depth (299k cells) and 3 (HSPA6/
+SERPINE1 stress signature; HLCA says fibroblast, CellRef capillary) and 23
+(SLC6A4/GJA5; pericyte vs capillary) by lineage disagreement — 20.1 % of
+cells in Unknown_* in total, the three depth clusters being 14 %. The two
+references agree at lineage level on 42/44 and on the fine name (up to
+vocabulary) on most; both are lineage-right but wrong on the
+out-of-reference clusters (erythroid → "EC general capillary", cartilage →
+"Peribronchial fibroblasts"), which is what the overrides are for: 10
+Skeletal muscle, 14 Neutrophils (CellRef's own call, r 0.72, margin 0.15;
+HLCA core has none), 31 Schwann cells, 34 Erythroid, 40 Megakaryocytes,
+41 Chondrocytes. **Reads: 32 classes, vocabulary identical on both slides
+(iii ✓); composition JSD between slides 0.0005 (ii ✓, threshold 0.05);
+per-donor JSD 0.0002–0.0029, mean 0.0011 — no torn core.**
+
+Fine-level calls the markers contradict, left for the user's decision
+(the two references disagree and a wrong one has downstream teeth — the
+doc-08 vasculature landmark is endothelial ∪ pericytes): cluster 2
+(103k cells, WNT2/RSPO2/FABP7 = alveolar fibroblast; HLCA "Pericytes"
+r 0.699 over "Alveolar fibroblasts" 0.660, CellRef AF1); cluster 9
+(PLVAP/SELP/SELE = venous EC; HLCA "EC arterial", CellRef SVEC); cluster 6
+(mixed CD3E/MS4A1/GZMB lymphocytes, "NK cells"); cluster 1 (MFAP5/PI16 =
+adventitial; "Peribronchial fibroblasts", HLCA second Adventitial).
+Bundles wait for that decision; embeddings (label-independent) start on
+GPU 1 the moment the label pipeline exits (`logs/embed_after_labels.sh`).
+
+### GSE315411 — curated (annotator-style) names, per the user's steer "as close to hand-labelled as possible" (2026-09-15, pending acceptance)
+
+Protocol, written as it was done: names come from each cluster's own
+markers first — log-fold genes against the rest (`cluster_markers.csv`),
+a canonical-marker table (`diag_canonical_markers.py` →
+`canonical_markers.csv`; note the Prime 5K panel lacks PTPRC, COL1A1,
+ACTA2, SFTPC and all keratins, so fold-change lists carry the weight) and
+the donor distribution — with the two references' pseudobulk calls as a
+guide, not a verdict. Clusters that mixed lineages were subclustered on
+the scVI latent (`diag_subcluster.py`, Leiden 0.3 within the cluster):
+6 → cytotoxic T/NK (21k), CD4 T (9k), proliferating T (1.2k), **B cells**
+(6.1k: MS4A1 CD19 PAX5), stressed T (0.6k); 23 → gCap endothelium (33k:
+SLC6A4 HPGD PECAM1), alveolar fibroblasts (27k: TCF21 PHEX), adventitial
+PRG4⁺ fibroblasts (13k); 3 → capillary EC (19k), fibroblasts (6k),
+CXCL13⁺ fibroblasts (15k), activated EC (10k) — the HSPA6 heat-shock
+state that defined cluster 3 (PDL029A, PDL042D) is thereby spread over
+identities, which is where a state belongs for a model whose z is meant
+to carry it; 27 → capillary EC (17k), PTX3⁺ activated fibroblasts (43k),
+adventitial fibroblasts (5k); 36 → two ductal-like distal-epithelium
+subunits kept under one name. Several clusters are single-donor disease
+states (16: 84 % PDL032D; 22: 83 % PDL026A; 27: 84 % PDL040A; 36: 89 %
+PDL034D — 60 % of that core; 42: 99 % PDL055T; 24: 77 % PDL072): scVI
+corrected slide, not donor, and a pediatric lung-disease TMA has
+donor-specific biology; they are named by identity with the state as a
+qualifier in the evidence column, never by donor. Where markers and HLCA
+disagree the markers win: 2 (WNT2 RSPO2 FABP7 TCF21) → Alveolar
+fibroblasts, not Pericytes; 9 (PLVAP SELP SELE) → EC venous, not
+arterial; 26 (APLN CA4 F2RL3) → EC aerocyte capillary; 1 (MFAP5 PI16) →
+Adventitial fibroblasts. Identities absent from both references get
+their marker name (Skeletal muscle, Chondrocytes, Schwann cells,
+Erythroid, Megakaryocytes, Neutrophils). The three low-depth clusters
+(8, 11, 17; median 20–33 transcripts, 299k cells = 14.2 %) are
+`Unassigned`, one class, which the loader also gives the 5.1 % QC-dropped
+cells — ~19 % Unassigned in total, the price of the shallowest slides in
+the project. The full unit → name → evidence table is
+`scripts/annotate_gse315411/curated_names.csv` (56 units), applied by
+`03c_curate.py` → `annotate/labels_curated.csv`, `labels_curated_units.csv`,
+`report_curated.txt`.
+
+Result: **35 classes, vocabulary identical on both slides; cross-slide
+composition JSD 0.0005; per-donor JSD 0.0002–0.0029 (max PDL047T), mean
+0.0011; smallest class 1,191 cells on a slide (Mast cells).** Largest:
+Unassigned 299k, Alveolar fibroblasts 291k, EC general capillary 231k,
+AT2 122k, Distal epithelium 94k, Multiciliated 92k. Awaiting the user's
+acceptance before stage 4 hands the labels to the bundles.
+
+**Accepted by the user (2026-09-15 14:20), Unassigned kept as one class.**
+Before handing over, the low-depth cells were characterised: real
+segmented objects (median area 47 vs 55 µm², nuclei present) at 4.5× lower
+transcript density (0.6 vs 2.7 per µm², median 24 vs 136 transcripts),
+and **core-level**: PDL097 100 % low-depth (the whole core, 30k cells),
+PDL085A 60 %, PDL031A 32 %, PDL026A 26 %, most other cores 2–10 % — tissue
+/ RNA quality of particular cores, not scattered cells. Cells at 20–40
+transcripts split ~half/half between named and low-depth clusters, so the
+low clusters are depth *and* no lineage signal. Other slides had 0–0.5 %
+Unassigned; here ≈ 19 % (299k + 113k QC-dropped). Kept in the graph as
+neighbours rather than dropped (holes would distort the leak model); a
+kNN rescue in the scVI latent was offered with a thinning calibration and
+declined. `04_write_cell_groups.py --tag curated --accept` wrote
+`GSE315411_prime_solo_cell_groups.csv` / `GSE315411_prime_V1_cell_groups.csv`
+(`cell_id, group, donor`) beside the outs directories; bundles launched
+(`logs/bundle_both.sh`), the dual-slide embedding still running on GPU 1
+(solo done 10:50–13:34, 2 h 44 min).
+
+**Solo bundle** (`gse315411_pdltma06_11_prime_solo/bundle/`, 703 s, 2.4 GB):
+1,100,349 cells (9 degenerate polygons dropped) × 5,001 genes; contact
+(1 µm) 1,705,421 edges, mean degree 3.10, isolated 6.2 %; Voronoi (clip
+30 µm) 3,229,397 edges, mean degree 5.87, isolated 0.1 %, median shared
+wall 6.29 µm, apposed wall 52.6 % nonzero (lung 42 %, FF 62 %). Loader
+check: `label_key = cell_group`, **K = 35**, Unassigned 193,477 (141,073
+low-depth + 52,406 QC-dropped, folded onto the existing spelling), `donor`
+in obs (17 cores; NaN for the 3,405 out-of-core and the QC-dropped cells),
+`egomask_ego_v1.pt` (1,100,349 × 384) found for 100 % of cells, 951
+isolated on the Voronoi graph. Median transcripts 115 → α_z = 1/ℓ̄ ≈
+0.0087 for the first fit (dual: 100 → 0.010). Dual bundle building;
+dual embedding at ~120 cells/s.
+
+### GSE315411 — the `strong3` variant: three strong-disease-state parenchyma cores (motivation, 2026-09-15)
+
+The TMA is heterogeneous (per-core composition, this day's entry above):
+eight alveolar-parenchyma cores, three airway/bronchus cores (no AT1/AT2;
+cartilage, skeletal muscle, goblet metaplasia), two malformation-like
+cores (PKHD1/HNF1B/CFTR epithelium), one failed core, and three
+parenchyma cores dominated by a single activated population — **PDL026A**
+(EC activated 34 %: ESM1/ANGPT2/SELE/IL6 inflamed endothelium, plus
+inflammatory fibroblasts), **PDL040A** (PTX3⁺/THBS1⁺ activated
+fibroblasts 36 %), **PDL018D** (POSTN⁺/TNC⁺ myofibroblasts 27 %, fibrotic).
+User's choice: model these three. They are the cores where the question
+DisCell asks is sharpest — an activated state that is either intrinsic to
+the cell (z) or imposed by an inflamed / fibrotic neighbourhood (w), with
+the leak channel in between — and they are alveolar tissue, so the
+cell-cycle and niche instruments transfer from ovarian/lung unchanged.
+Not chosen: adding PDL029A/PDL031A (inflamed parenchyma) — it would raise
+the set to 335k cells per slide but with 37 % Unassigned (PDL031A is a
+third low-depth) and dilute the states.
+
+Facts of the set (from `labels_curated.csv`): 214,294 (solo) / 214,917
+(dual) cells; all 35 classes present on both slides, so K is identical by
+construction (three classes are near-empty: Basal 17/38, Goblet 8/13,
+Plasma 11/7 — they stay as types, nothing is relabelled); Unassigned 15 %;
+top classes EC activated 47.6k, Activated fibroblasts 39.6k,
+Myofibroblasts 36.8k, Multiciliated 31.2k, AT2 29.6k, EC general
+capillary 20.6k, Interstitial macrophages 19.1k. ~52 tiles of 4096 per
+slide → ~8 validation tiles at 15 %.
+
+Implementation, minimal: a `--donors` option on `discell.preprocess`
+(bundle stage) that keeps the cells whose `donor` (from the cell_groups
+file) is in the list, applied inside `load_xenium_sample` after the
+labels attach and before the graphs — the cores are 3 mm punches with
+gaps far beyond the 30 µm Voronoi clip, so a per-core subset has the same
+graphs the full slide would give those cells. Bundle variant `strong3`
+in both datasets; the embeddings file is per dataset and covers every
+cell, so it serves the variant unchanged. Fit protocol as for lung/FF:
+`--variant strong3`, α_z = 1/median ℓ of the subset (set when computed),
+α_w 0.1, α_a 0.3, κ 0.1, 500 epochs / patience 40, seed 0, `type_only`;
+pre-registered reads as in the FF entry (recon, NMI, probe ΔCE vs floor,
+mirror, KL_z/KL_w per dim; then Moran / niche / cycle rows). The
+cross-slide evaluation path gets its own entry once the fit exists.
+
+**Narrowed to one donor (user, 2026-09-15 15:05): `pdl018d`.** Single-core
+candidates among the three: PDL026A 89k cells per section but **26 %
+Unassigned** (a quarter of the core is low-depth), K = 34; PDL040A 56k,
+13 % Unassigned, seven classes under 20 cells; **PDL018D 69k per section
+(70,003 / 68,840), 3.7 % Unassigned, K = 35 on both sections**, the
+fibrotic core — Myofibroblasts 36k (POSTN TNC ASPN ELN COMP), EC aerocyte
+capillary 15k, Multiciliated 15k, AT2 11k, Adventitial fibroblasts 11k,
+Neutrophils 7k, Interstitial macrophages 7k, Pericytes 6k. Chosen for RNA
+quality and lineage diversity around one strong state. Three classes are
+near-empty there (Basal 11/21, Goblet 6/8, Plasma cells 1/1); they stay
+in the vocabulary — `TypeCovariances` drops types below 10·dim effective
+count and every read has a ≥ 200 / ≥ 1,000-cell guard, so they carry
+nothing and break nothing. The `strong3` set is not built. Image
+embeddings: the standard `egomask_ego_v1` arm (KRONOS v1, 256 px at
+0.5 µm/px, the 25 µm disk over the centre cell zeroed) is per dataset
+and covers every cell of a slide, so the variant reuses it. `--donors`
+implemented as planned (`discell.preprocess --donors PDL018D --variant
+pdl018d`, recorded in `pdl018d_params.json`; guard test
+`test_donor_subset_needs_a_donor_column`, suite 7/7).
+
+### Cross-slide evaluation: apply a fit to the other section (motivation, 2026-09-15)
+
+What design (a) needs and the code base lacks: every evaluation so far
+runs on the fit's own dataset (`load_run` rebuilds the run's data;
+`Trainer.evaluate` reads its own val tiles). Add one module,
+`discell/model/crossslide.py`: `--dataset A --run R --eval-dataset B
+[--eval-variant]` loads R's best weights (`validate.load_run`), assembles
+B under R's `label_key`, `variant` (or `--eval-variant`), embeddings name,
+tile size and seed, **asserts B's sorted type vocabulary equals A's**
+(the one-hot `t` and every per-type table are index-aligned; a mismatch
+is refused, not remapped), builds a `Trainer` on B and swaps in R's
+model, then reports (i) the same reads as `metrics.json` — recon on B's
+val tiles, NMI, probe ΔCE vs floor, mirror, cycle rows, KL_w per dim —
+computed exactly as during training but on B, and (ii) **held-out
+reconstruction over every tile of B** (the whole section is held out, so
+the 15 % split is only the probe's block-CV), beside R's own
+`metrics.json` numbers for the same-section comparison. Output
+`runs/R/crossslide/<B>.json`. Nothing about the model or the readers
+changes; `median_counts`, `p_t` and the covariance/adversary state stay
+R's (they are evaluation-irrelevant or part of the trained model).
+Pre-registered read: the held-out-section recon and the z/w allegiance
+rows on B should sit within the seed envelope of the same-section values
+(recon ±0.06, the seed spread seen on ovarian); a larger gap is the
+section-to-section (and, for dual vs solo, chemistry) generalisation cost,
+reported as such. Test: a run evaluated on its own dataset reproduces its
+own `evaluate()` numbers (synthetic smoke fit).
+
+**Dual bundle** (`gse315411_pdltma06_10_prime_dual/bundle/full`, 729 s,
+2.3 GB): 1,115,054 cells (14 degenerate polygons dropped) × 5,001;
+contact 1,739,659 edges, mean degree 3.12, isolated 6.0 %; Voronoi
+3,271,738 edges, mean degree 5.87, isolated 0.1 %, median wall 6.28 µm,
+apposed 53.0 %. Loader: K = 35, Unassigned 218,681 (158,203 low-depth +
+60,483 QC-dropped), 1,095 isolated; **type vocabularies of the two full
+bundles identical**. The two full bundles were built from cell_groups
+files that carried rows only for annotated cells, so their QC-dropped
+cells have `donor = NaN` (label unaffected: the loader folds them to
+`Unassigned`). Stage 4 was then changed to write a row for **every** cell
+of `cells.parquet` — `Unassigned` for the 52,406 / 60,485 QC-dropped
+cells, donor from the cell_stats files directly — so that a per-donor
+variant keeps those cells as neighbours the way the full slide does; the
+`pdl018d` variants are built from the rewritten files (a first build
+from the old files, 68,840 solo cells = annotated only, was discarded).
+
+Two fixes on the way: `--donors` first raised inside `load_xenium_sample`
+("truth value of a Series") because the cell_groups block assigned a
+local `donors` Series that shadowed the new parameter — invisible to the
+guard test (the ovarian file has no donor column); renamed, and a
+positive-path test on a synthetic 27-cell Xenium directory with three
+donors (`_write_fake_xenium`, `test_donor_subset_keeps_only_those_cores`)
+now covers the subset, the label/donor pass-through and graph alignment.
+`discell/model/crossslide.py` implemented as motivated (`apply_fit` +
+`evaluate_on`, CLI `--dataset --run --eval-dataset [--eval-variant]`);
+test `test_apply_fit_on_own_data_matches_own_evaluate` (a smoke fit
+applied to its own tiles reproduces its `evaluate()` reads).
+
+**`pdl018d` bundles** (104 s each, ~210 MB): solo 69,422 cells (68,840
+annotated + 582 QC-dropped as Unassigned), Voronoi 205,929 edges, mean
+degree 5.93, 0 isolated at build (20 after the loader's edge rules),
+median wall 7.24 µm; dual 70,757 cells, 209,862 edges, 5.93, 7.21 µm.
+Loader: **K = 35 on both, vocabularies identical**, Unassigned 2,899 /
+3,370 (4.2 % / 4.8 %), embeddings found for 100 % of solo cells. The
+core is deep: median **279 (solo) / 253 (dual) transcripts per cell**
+against slide medians of 115 / 100 — PDL018D is high-quality tissue, and
+α_z = 1/ℓ̄ = **0.0036** (solo), the lung operating point (0.004) within
+rounding.
+
+### First fit on the core: `reference` on `gse315411_pdltma06_11_prime_solo` / `pdl018d` (motivation, 2026-09-15)
+
+Protocol as for lung/FF, two size adaptations stated: **α_z = 0.0036**
+(rule above); **tile 2048 cells** instead of 4096 — 69k cells give 17
+tiles of 4096, i.e. 2–3 validation tiles and five block-CV folds of 3–4
+tiles; 2048 gives 34 tiles, 5 validation, ~7 per fold. Nothing in the
+model depends on the tile (two-hop rings are exact), only the split and
+the fold granularity. Everything else at the defaults: `type_only`, α_w
+0.1, α_a 0.3, κ 0.1, ω 1, d_z 20, d_w 6, 500 epochs / patience 40, seed 0,
+`egomask_ego_v1`. Command: `uv run python -m discell.model.train --dataset
+gse315411_pdltma06_11_prime_solo --variant pdl018d --run-name reference
+--alpha-z 0.0036 --tile-cells 2048 --epochs 500 --patience 40 --seed 0`.
+
+Pre-registered reads, same-section (its `metrics.json`): recon, NMI over
+35 classes, probe ΔCE vs floor, mirror vs permuted, cycle_z vs the 50-PC
+reference with cycle_w ≈ 0, KL_z / KL_w per dim. Pass = the ovarian/lung
+allegiance shape. Then the **held-out section**:
+`python -m discell.model.crossslide --dataset gse315411_pdltma06_11_prime_solo
+--run reference --eval-dataset gse315411_pdltma06_10_prime_dual` (variant
+`pdl018d` inherited) once the dual embeddings exist — recon over all 35
+dual tiles and the same rows; pre-registered expectation: within the seed
+envelope of the same-section numbers (recon ±0.06); a larger gap is the
+section/chemistry generalisation cost, reported as such. A collapsed z
+or an opened w channel triggers the ×2 / ×½ α_z bracket at 200 epochs;
+nothing else is tuned.
+
+**Results — `reference` on `pdl018d` solo, and held out on the dual
+section (2026-09-15 16:24).** Fit: 54 train / 10 val tiles of 2048,
+1 s/epoch, early stop at 94 (best 54), 11.7 min; cycle-score reliability
+S 0.35 / G2M 0.57 (ovarian 0.22 / 0.52), cycling types by MKI67:
+Proliferating, Erythroid, EC aerocyte capillary, Lymphatic EC.
+
+| read | same section (solo, `metrics.json`) | held-out section (dual, `crossslide/…dual.json`) |
+|---|---|---|
+| recon, val tiles (nats/count) | −7.2201 best / −7.2272 final | −7.2354 |
+| **recon, all 64 tiles** | — | **−7.2348** (gap 0.015 to the same-section best) |
+| NMI (35 classes) | 0.625 / 0.620 | 0.596 |
+| probe ΔCE (floor) | −0.003 (−0.0095) | +0.0015 (−0.0085) |
+| mirror R² (permuted) | 0.027 (0.014) | 0.043 (0.014) |
+| cycle_z pooled / cycle_w | **0.478 / 0.002** | **0.508 / 0.005** |
+| 50-PC linear reference / ℓ-baseline | 0.497 / 0.029 | 0.473 / — |
+| KL_w per dim | 0.0000–0.0006 | 0.0003–0.0094 |
+
+Reading: every pre-registered read passes on the held-out section — the
+reconstruction gap (0.015) is a quarter of the seed envelope (±0.06); z
+carries the cycle (0.51, above the 50-PC linear reference 0.47) and w
+does not (0.005); the probe sits at its floor and the mirror stays at
+the ovarian level (0.043–0.046); NMI drops 0.02–0.03. Two things to note
+rather than claim: on this core z does not exceed the linear reference
+~2× as on ovarian (0.478 vs 0.497 same-section; 0.508 vs 0.473 held-out)
+— a 279-transcript core with a curated 35-class vocabulary gives the
+linear probe more to work with; and KL_w rises 5–15× on the other section
+while staying ≤ 0.01/dim — the context prior `m_ψ(c,t)` is section-
+specific to that small extent. Dual `pdl018d` graph after the loader's
+rules: 207,899 of 209,862 edges kept, 38 isolated. Single seed; the
+seed-triple and the §§3–4 battery on both sections are the next step.
+
+### The w gauge: per-type offsets dominate ‖w‖ — weight-decay pair (motivation, 2026-09-15)
+
+Motivation: the decoder is `a(z) + B·w` and z carries the type, so for any
+per-type constant `μ_t` the model `(a(z) − B·μ_t, w + μ_t)` is identical:
+`m_ψ` takes `t`, KL_w is against `m_ψ`, term (b) uses `m_ψ`. The optimiser
+is plain Adam with no decay, so nothing pins that direction — where the
+type offset lands is decided by dynamics, not by the objective. Measured
+on `ablation_gat_type_only_s1` (scratch, `mu_w` from `collect_latents`,
+connected cells, types ≥ 500):
+
+| type | ‖mean_t w‖ (offset) | mean ‖w − mean_t w‖ (context-varying) | ‖B·mean_t w‖ |
+|---|---|---|---|
+| VEGFA⁺ Tumor | 7.39 | 0.77 | 28.4 |
+| Smooth Muscle | 6.73 | 1.09 | 24.2 |
+| Stromal Fibroblasts | 6.44 | 1.37 | 23.1 |
+| Proliferative Tumor | 5.93 | 1.18 | 22.6 |
+| Tumor Cells | 4.90 | 2.14 | 18.2 |
+| T and NK | 2.61 | 3.78 | 9.7 |
+| SOX2-OT⁺ Tumor | 0.71 | 4.75 | 2.6 |
+| Macrophages | 0.55 | 5.08 | 1.8 |
+
+For most types the offset is 4–10× the context-varying part; isolated
+cells (no neighbours) still carry ‖w‖ = 4.8 (connected 5.6). Two
+consequences already in the record: (i) the per-type ‖w‖ ranking in the
+report is the offset, not context-dependence — Spearman between the
+raw-‖w‖ ranking and the within-type-centred ranking is **−0.41** (the
+actually context-modulated types are macrophages, SOX2-OT⁺ tumour, T/NK;
+VEGFA⁺ tumour is among the least); (ii) `softmax(a(z))` as "the clean
+profile" (doc-11 A2/A5) drops the type offset along with the niche
+effect. Transport is unaffected (differences, both sides centred).
+
+Experiment: a pair of fits differing only in Adam's **coupled** L2
+(`--weight-decay`, new `TrainConfig` knob, default 0 = every pinned run).
+Coupled rather than AdamW deliberately: in Adam's normalised update a flat
+direction whose only gradient is λθ drifts toward zero at ~lr per step
+whatever λ is, whereas decoupled decay at 1e-4 would move the gauge by
+~0.15 % over the fit. λ = 1e-4, one value; seed 1 so the λ = 0 arm is
+also a replicate of the pinned `ablation_gat_type_only_s1` under the
+current code (int16 resident counts). Everything else as the reference:
+`type_only`, d_w 6, d_z 20, α_z 0.007, α_w 0.1, α_a 0.3, κ 0.1, ω 1,
+500 epochs / patience 40, `egomask_ego_v1`.
+
+Runs: `gat_type_only_wd0_s1` (GPU 0), `gat_type_only_wd1e-4_s1` (GPU 1);
+logs `logs/gat_type_only_wd{0,1e-4}_s1.log`.
+
+Pre-registered reads (both arms, same scratch measurement):
+1. ‖mean_t w‖ per type and ‖B·mean_t w‖ — wished for: offsets collapse
+   toward the within-type spread under decay, unchanged in the λ = 0 arm.
+2. Spearman(raw ‖w‖ ranking, centred ranking) — wished for: → ≈ +1 under
+   decay (the ranking then means what the report says it means).
+3. The battery guards must stay inside the seed envelope: val recon
+   (±0.06 nats), NMI, cycle_z / cycle_w, KL_w per dim, probe ΔCE vs floor,
+   mirror R². Recon worse than the envelope = the decay is too strong for
+   the rest of the network, and the read is "gauge fixed at a cost", not
+   a pass.
+4. The λ = 0 arm vs `ablation_gat_type_only_s1`: same offsets and same
+   guards = the int16 change is inert and the offsets are reproducible.
+If the offsets do not move under decay, the honest reading is that the
+gauge is set by initialisation/early dynamics faster than L2 drifts it;
+the fix then stays at read time (centre w per type at a reference
+context) rather than in training.
+
+**Results — weight-decay pair (2026-09-16).** `wd0` early-stopped at
+104 (best 64, 56 min); `wd1e-4` at 419 (best 379, 105 min). Both
+`metrics.json`, plus the scratch offset read (`mu_w` via
+`collect_latents`, connected cells, types ≥ 500):
+
+| read | pinned `ablation_gat_type_only_s1` | `wd0_s1` | `wd1e-4_s1` |
+|---|---|---|---|
+| best recon (epoch) | −7.192 (64) | −7.189 (64) | −7.212 (379) |
+| NMI best / final | 0.654 / 0.648 | 0.670 / 0.646 | 0.648 / 0.649 |
+| cycle_z pooled (final) / cycle_w | 0.499 / 0.008 | 0.415 / 0.006 | 0.390 / 0.006 |
+| probe ΔCE (floor) | 0.002 (−0.046) | 0.011 (−0.045) | −0.008 (−0.045) |
+| mirror R² (permuted) | 0.046 (0.016) | 0.047 (0.016) | 0.045 (0.014) |
+| KL_w per dim, max | 0.009 | 0.002 | 0.0006 |
+| ‖global mean w‖ | 0.77 | 1.76 | **23.1** (dim 5 = −22.3) |
+| ‖mean_t w‖: VEGFA⁺ / SM / Prolif / SOX2-OT⁺ / Mac | 7.4 / 6.7 / 5.9 / 0.7 / 0.6 | 8.0 / 6.5 / 6.8 / 1.2 / 1.4 | 23.9 / 24.3 / 24.3 / 22.4 / 23.4 |
+| mean ‖w − mean_t w‖: same types | 0.8 / 1.1 / 1.2 / 4.8 / 5.1 | 0.7 / 0.8 / 0.8 / 4.0 / 4.5 | 2.4 / 3.7 / 2.8 / 8.3 / 7.6 |
+| ‖B·mean_t w‖ range | 1.8–28 | 3.4–29 | **81–92** |
+| Spearman(raw ‖w‖ rank, centred rank) | −0.41 | −0.57 | 0.40 (all raw norms ≈ 24; not meaningful) |
+| isolated cells ‖w‖ (connected) | 4.8 (5.6) | 4.5 (5.4) | 23.9 (24.6) |
+| Σ‖params‖² / ‖a(z) output bias‖ | 34.0k / 6.2 | 33.8k / 6.3 | **1.6k / 1.1** |
+| B column norms | 2.5 3.6 1.4 1.8 2.6 2.1 | 2.3 3.7 1.5 1.9 1.3 2.4 | 1.6 2.3 1.8 1.7 0.8 **3.7** |
+
+Reads against the pre-registration:
+1. **Offsets did not collapse — they grew ~4× and became global.** Every
+   type now sits at ‖mean_t w‖ ≈ 22–25, almost all of it one shared
+   vector on dim 5 (−22.3 for every cell, isolated ones included); the
+   per-type component is small relative to it. Mechanism, confirmed from
+   the parameters: L2 decays *parameters* (B, the decoder's per-gene
+   output bias) but not the *latent* w, which is a network output. A
+   fixed gene-bias vector `b` costs ‖b‖² sitting in `a(z)`'s output bias
+   and ‖b/s‖² sitting in `B_5·w_5` with `w_5 = s` — so decay pushes the
+   global gene bias out of `a(z)` (bias norm 6.3 → 1.1) into a small B
+   column times a huge constant w (both gauges — offset and scale — move
+   *toward* w). Coupled Adam-L2 does exactly the wrong thing here.
+2. The Spearman moved to +0.40 only because every raw norm is ≈ 24; the
+   ranking is noise around one global offset. Not a pass.
+3. Guards: inside the envelope (recon −0.02 vs pinned; NMI, probe at
+   floor, mirror, KL_w all in range). cycle_z 0.39 vs 0.42 (`wd0`) vs
+   0.50 (pinned) — the `wd0`↔pinned gap (same config, same seed,
+   non-deterministic scatter kernels) already spans 0.08, so the decay
+   arm's cycle_z is not distinguishable from run-to-run spread.
+4. **`wd0` reproduces the pinned run**: same best epoch, recon within
+   0.003, same offset pattern per type (VEGFA⁺ 8.0 vs 7.4, SM 6.5 vs 6.7,
+   Mac 1.4 vs 0.6), same inverted ranking (−0.57 vs −0.41). The int16
+   change is inert; the type offsets are a reproducible product of the
+   dynamics, not a one-seed accident.
+
+Conclusion: parameter weight decay cannot fix a latent's gauge, and makes
+it worse. The offsets are real, reproducible, and meaningless (§7.12's
+rescaling argument extended to translation). Standing decisions: (a) the
+per-type ‖w‖ ranking in the report and handover is withdrawn as a
+context-dependence read — the within-type-centred spread is the read
+(macrophages, SOX2-OT⁺ tumour, T/NK most context-modulated; VEGFA⁺
+tumour least); (b) doc-11 A2/A5's `softmax(a(z))` must decode at a
+reference context, `softmax(a(z) + B·m_ψ(c̄_t, t))`, never at w = 0;
+(c) if the gauge is to be fixed in training it needs a penalty on the
+latent's mean itself (e.g. ‖E_batch[m_ψ(c,t)]‖² per type), not on
+parameters — not attempted; read-time centring is sufficient for every
+current use. `--weight-decay` stays in `TrainConfig` at default 0.
+Issue V12.
+
+### Neighbour dose: what `c` (and `B·m_ψ`) can and cannot see (motivation, 2026-09-16)
+
+Motivation: under `type_only` the GAT part of `c_i` is `Σ_j α_ij W·onehot(t_j)`
+with `Σ α = 1` — a type-pair-reweighted *composition*. One tumour neighbour
+and nothing else gives the same `c` as eight; the only count information is
+the isolated flag. On this graph the pruned Delaunay degree is tight (median
+6, 96 % in 4–8), so count ≈ 6 × fraction almost everywhere, and Φ does not
+recover count (ridge Φ → log degree R² 0.23; Φ → tumour count | fraction
+R² 0.02). The user's question: how much does `c` actually move when the
+neighbourhood is manipulated, and through which channel?
+
+Instrument (`discell/experiments/neighbour_dose.py`, no retraining): the
+pinned `ablation_gat_type_only_s1`; a one-cell tile — receiver of type `t`,
+`n` synthetic neighbours of chosen types, Φ fixed at the receiver type's
+mean — through `model.context` → `model.prior_w`; the read is the realised
+shift `B·m_ψ` in gene space, always as a difference (the w gauge).
+Receivers: Macrophages, T and NK, Tumor Associated Fibroblasts, Tumor Cells.
+
+Setups and pre-registered expectations:
+- A. **count at fixed composition** — 1…8 tumour neighbours only, and
+  k tumour + k own (50/50): `‖B·(m_ψ(n) − m_ψ(1))‖` = 0 exactly (the
+  invariance, shown rather than asserted); n = 0 (isolated) differs.
+- B. **fraction at degree 6** — k tumour + (6−k) own, k = 0…6:
+  `‖B·(m_ψ(k) − m_ψ(0))‖`; the curve the model can express. Expected
+  monotone; its size vs the receiver's measured within-type realised shift
+  (mean `‖B·(w − mean_t w)‖`: Mac 18.5, T/NK 13.5, TAF 9.2, Tumor 8.0)
+  says how much of w's context-dependence one composition axis explains.
+- C. **composition swap at degree 6** — all-of-one source type vs all own,
+  per source: the effect-size scale of the composition channel.
+- D. **image channel** — composition fixed at 6 own, Φ from 500 real cells
+  of the receiver type: mean `‖B·(m_ψ(Φ_i) − mean)‖`. Read: if D ≳ B/C,
+  w's context-dependence is mostly image-driven; that bears on the
+  interventionability claim, because Φ is not an exposure `do(c′)` can set.
+
+Outputs: `experiments/neighbour_dose_<run>.{json,png}`. Characterisation, not a
+pass/fail; the one pre-registered comparison is D vs B/C.
+
+**Results — neighbour dose (2026-09-16, `experiments/neighbour_dose_ablation_gat_type_only_s1.{json,png}`,
+pinned `ablation_gat_type_only_s1`).** Gene-space norms of `B·Δm_ψ`.
+
+- **A. Count invariance is exact**: 1…8 tumour neighbours (and 1…4 pairs of
+  tumour+own) change the shift by ≤ 1.3e-6. The isolated state (n = 0:
+  GAT zeroed + flag) is a different context altogether — 10–17 from the
+  one-neighbour state, as large as the largest composition swap. With 899
+  isolated cells in training, their `m_ψ` is an extrapolation, not a fit.
+- **B. The fraction response is receiver- and source-specific and
+  non-linear.** Macrophages ← tumour saturate: one tumour neighbour in six
+  gives 12 of the 17.5 at full replacement (concave — "any tumour
+  contact"). T/NK ← tumour is convex: < 5 until fraction 0.5, 10 at 0.83,
+  24 at 1.0 — close to a threshold at "fully surrounded" (intratumoural vs
+  marginal). TAF ← tumour is small and near-linear (4.1). Macrophages ← TAF
+  also saturating (10.7 → 16.5); T/NK ← TAF near-linear to 22. Full
+  replacement reaches the measured within-type shift for immune receivers
+  (Mac 17.5 vs 18.5; T/NK 24 vs 13.5) but not for TAF (4 vs 9.2) or tumour
+  (0/4 vs 8.0) — their context-dependence is not about tumour/TAF fraction.
+- **C. Composition-swap scale**: 4–25. Largest: smooth muscle for TAF (25)
+  and tumour cells (24.5); tumour for T/NK (24); tumour/TAF for macrophages
+  (17.5/16.5).
+- **D/E. The image channel.** Against the *maximal* swap, Φ's natural
+  spread is 24–62 % (D / max C). But like-for-like on the same 500 real
+  cells (E: real neighbours with mean Φ vs mean composition with real Φ):
+
+  | receiver | composition only | Φ only | both | measured within-type shift |
+  |---|---|---|---|---|
+  | Macrophages | 10.8 | 10.9 | 18.0 | 18.5 |
+  | T and NK | 7.0 | 8.0 | 13.5 | 13.5 |
+  | TAF | 2.9 | **7.2** | 8.9 | 9.2 |
+  | Tumor Cells | 4.1 | **6.0** | 7.8 | 8.0 |
+
+  "both" reproduces the measured spread within 3 % — the synthetic-tile
+  instrument is faithful and `w ≈ m_ψ` end to end. Under natural
+  variation the image channel carries **as much as composition for immune
+  receivers and 1.5–2.5× more for TAF and tumour cells**. The
+  pre-registered read therefore lands on the uncomfortable side: a large
+  part of w's context-dependence is Φ-driven, and Φ is not an exposure
+  `do(c′)` can set. Composition and Φ are also not additive (Mac 10.8 +
+  10.9 vs 18.0): `m_ψ` mixes them.
+
+Reading for the design: (i) the softmax makes `c` blind to dose at one hop,
+exactly, and on this graph that costs little (degree ≈ 6); the real range
+limitation is multi-hop (paracrine) count, untested here; (ii) the isolated
+flag is an unfitted regime; (iii) the interventionable share of w's
+context-dependence is roughly half for immune receivers and a third for
+stromal/tumour receivers — a transport counterfactual that changes
+composition but carries each niche's real Φ is mixing an intervention
+with a description. Standing decision: none yet; candidates are a
+Φ-partialled transport read (hold Φ at the receiver type's mean in both
+niches) and a count-within-radius test before any architecture change.
+
+### Attention sink as an option: `gat_sink` (design note, 2026-09-16)
+
+Following the neighbour-dose result (count invariance is exact under the
+softmax), the user asked for dose to have a meaning inside the GNN. Of the
+candidates — sum/ReLU aggregation (unbounded; conflates sparse regions with
+few sources), precomputed multi-radius counts appended to `c` (paracrine
+range, but density back in the estimand), and an attention sink — the sink
+is the minimal change: a fixed null logit 0 joins every destination's
+softmax, `α_ij = e^{e_ij} / (1 + Σ_j' e^{e_ij'})`, so for n identical
+neighbours the aggregate is `n e^e / (1 + n e^e) · W h` — Michaelis–Menten
+in n with the half-point `e^{−e}` learned per (t_i, t_j). Bounded, receptor-
+saturation-shaped, and the isolated contract holds with no flag needed (all
+mass on the sink, zero out; the flag stays for interface stability).
+
+Built as `GATv2(sink=…)` → `DisCell(gat_sink=…)` → `TrainConfig.gat_sink`
+(default **False**, every pinned run unchanged) → `--gat-sink`; the three
+checkpoint loaders default old payloads to False. Test:
+`test_attention_sink_makes_dose_count_and_keeps_isolated_zero` (4 identical
+neighbours ≠ 1 with the sink, = without; empty destinations zero in both).
+Registered in `spec_deviations.md` (§4.1). Not yet trained: a first fit
+would be a seed-1 `type_only` run with `--gat-sink`, read first through
+`experiments/neighbour_dose.py` (panel A should stop being flat) and then
+the battery + transport, as for any change to `c`.
+
+### Nuclear vs extranuclear counts on every dataset (motivation, 2026-09-16)
+
+User's request: the nuclear / extranuclear split of each cell's counts
+on all five datasets, as a shared check. The instrument exists —
+`discell.applications.shared --stage nuclear-counts` (doc-11's
+segmentation-perturbation dependency) rebuilds a cells × genes matrix
+from the transcripts flagged `overlaps_nucleus` at q ≥ 20, aligned to the
+bundle; extranuclear = bundle counts − nuclear, per cell and gene. What
+it is for here: the extranuclear share is the part of a cell's profile
+that lives in the segmentation's cytoplasmic expansion — the transcripts
+the leak channel is about — so the per-dataset, per-segmentation-method
+and per-type nuclear fraction is the first-order read of how much
+spill-over each slide can carry, and the base for any per-cell
+decontamination test (A4's nuclear arm) beyond the ovarian slide.
+
+State: ovarian FFPE has it (`qc/nuclear_counts.npz`, 55.8 M nuclear q20
+transcripts = 37.8 %). GSE315411 solo / dual carry `transcripts.parquet`
+on disk (3.6 / 3.2 GB). Lung (2.3 GB) and FF ovary (33.7 GB) keep it in
+their download zips — extracted into the existing `extracted/` dirs
+(other members untouched), then the stage runs on the four datasets in
+sequence on CPU (`logs/nuclear_counts_all.sh`), full bundles (the
+`pdl018d` variants are row subsets of the same cell ids). Pre-registered
+reads, descriptive: per dataset the overall nuclear fraction and the
+distribution over cells; by segmentation method (boundary stain / interior
+18S / nucleus expansion — the last has by construction a 5 µm cytoplasm
+ring, so its fraction is the reference for "expansion-only" cells); by
+type from the bundle's default label; and the sanity check nuclear ≤
+bundle counts for every cell (both are q20-assigned). No claim attached
+to a number before it exists.
+
+**Results (2026-09-16 12:23).** Lung and FF `transcripts.parquet`
+extracted (2.3 GB / 33.7 GB, 8 s / 2 min); the stage took 27 s (lung),
+48 / 45 s (GSE solo / dual), 12 min (FF, 2.70 G transcripts read).
+Summary stage added to the same module (`--stage nuclear-summary` →
+`qc/nuclear_summary.json`). Nuclear share of **cell-assigned q20
+counts** (the earlier "37.8 %" for ovarian was over all transcripts,
+unassigned included; the sanity check nuclear ≤ total holds for every
+cell on every slide):
+
+| dataset | cells | tx/cell | nuclear, pooled | per-cell p25 / p50 / p75 | boundary stain | interior 18S | nucleus expansion |
+|---|---|---|---|---|---|---|---|
+| ovarian FFPE | 407,120 | 262 | **0.524** | 0.43 / 0.56 / 0.67 | 0.561 | 0.489 | 0.620 |
+| lung FFPE | 278,324 | 440 | **0.446** | 0.34 / 0.48 / 0.62 | 0.537 | 0.424 | 0.484 |
+| ovary FF | 1,157,637 | 1,668 | **0.580** | 0.46 / 0.60 / 0.70 | 0.608 | 0.564 | 0.668 |
+| GSE315411 solo (11) | 1,100,349 | 161 | **0.496** | 0.36 / 0.52 / 0.66 | 0.498 | 0.495 | 0.477 |
+| GSE315411 dual (10) | 1,115,054 | 142 | **0.503** | 0.37 / 0.53 / 0.67 | 0.501 | 0.503 | 0.468 |
+
+Reading, descriptive: roughly half of every cell's assigned counts lie
+outside its nucleus on every slide, with a wide per-cell spread (IQR
+≈ 0.3) — the extranuclear half is the material the leak channel and
+any decontamination claim act on. Slides differ modestly (lung lowest at
+0.45, FF highest at 0.58); the two GSE sections agree to 0.007 pooled and
+to the same per-type ordering — B cells / inflammatory fibroblasts /
+distal epithelium ≈ 0.57, goblet 0.40–0.43, secretory 0.38, alveolar
+macrophages 0.33–0.34 — cells with large cytoplasm and cytoplasm-resident
+mRNAs (mucins, macrophage programmes) sit low, small lymphocytes high, as
+expected. On ovarian the extremes are stromal fibroblasts / smooth muscle
+0.59 vs tumour-associated fibroblasts **0.415** and cyst-lining malignant
+cells 0.43 — a candidate leak signature (TAFs sit against tumour) worth a
+targeted look, not a claim. Segmentation method is not a fixed offset:
+nucleus-expansion cells are the most nuclear on the 10x slides (0.62 /
+0.67; lung 0.48) but the *least* on GSE315411 (0.47), where the
+expansion cells are the 1 % without a usable membrane stain. Outputs:
+`qc/nuclear_counts.npz` and `qc/nuclear_summary.json` per dataset;
+per-type tables in the JSON.
+
+### First sink fit: `gat_sink_s1` on the ovarian slide (motivation, 2026-09-16)
+
+Motivation: the sink makes `c` count neighbours (saturating, per type pair)
+instead of seeing fractions only. One fit, the reference protocol so the
+comparison is against the pinned `ablation_gat_type_only_s1` and nothing
+else moves: `--gat-sink --seed 1 --epochs 500 --patience 40`, all other
+`TrainConfig` defaults (`type_only`, d_w 6, d_z 20, α_z 0.007, α_w 0.1,
+α_a 0.3, κ 0.1, ω 1, `egomask_ego_v1`, no weight decay). Then the full
+artefact chain the pinned run carries, in order, in one detached script
+(`logs/gat_sink_s1_pipeline.log`): `validate` → `transport` →
+`communication` → `lr_map` → `atlas` → `applications.a4_cycle` → `report` →
+`experiments.neighbour_dose`.
+
+Pre-registered reads, `gat_sink_s1` vs `ablation_gat_type_only_s1` (and its
+`wd0` replicate for the run-to-run band):
+1. **Guards inside the envelope**: val recon (±0.06), NMI, probe ΔCE at
+   floor, mirror, KL_w, cycle_z / cycle_w. Recon outside the band = the
+   sink costs fit; cycle_z below the band = it leaks into z.
+2. **Neighbour dose, panel A no longer flat**: `‖B·(m_ψ(n) − m_ψ(1))‖ > 0`
+   for 1…8 tumour neighbours, saturating; the isolated point should now
+   sit at the n → 0 end of that curve rather than off it. Panel B/E as a
+   before/after of the composition-vs-Φ split — wished for: composition's
+   share up, since dose is composition information the softmax discarded.
+3. **w-side battery** (niche AUC, Moran, pseudotime niche R²) and
+   **transport** (counterfactual R², beats-both, slope): ≥ the pinned run.
+   Transport is the one held-out test of the response channel; a sink that
+   raises it is evidence dose matters, one that lowers it is evidence the
+   softmax's fraction view was the better inductive bias on this graph.
+4. z-side reads unchanged (cycle_z, probe) — the sink touches `c` only.
+No pass/fail on 2 beyond "not flat"; 1 and 3 decide whether the option is
+worth a seed pair.
+
+**Addendum (2026-09-16, while `gat_sink_s1` trains) — the invariance target
+under the sink.** Every invariance instrument targets fractions and image:
+the adversary's y-head sees `y_i = counts/degree` (soft CE vs `ȳ(t)`), its
+Φ-head the soft k-means membership of Φ's PCs, the held-out probe and the
+closed-form penalty the block `[y[:, :−1], 12 PCs(Φ)]`. Under the plain
+softmax that is exactly what `c` contains. With the sink `c` also carries
+count, and none of the three can see z predicting count-beyond-fraction —
+a hole the user pointed at. Size on the softmax runs (within-type ridge
+from z, held-out folds, permuted floor ≈ 0): log degree R² 0.005 / 0.003,
+tumour count | fraction 0.001 / 0.001, tumour fraction 0.023 / 0.048
+(pinned / wd0) — z carries no count today, and the known niche-z residual
+lives in the fraction. **Pre-registered read 5 for `gat_sink_s1`**: the
+same probe; if z → log degree or count | fraction rises above the floor,
+the target must grow with `c` — the consistent minimal fix is a third
+adversary head on a degree bin (1–2, 3, …, 8, ≥ 9; CE against the type's
+bin distribution) and `log(1+degree)` appended to `v` for the probe and the
+closed form. Also noted: isolated cells have a zero `y` row, so their soft
+CE is 0 — silently absent from the y-head; and the hole grows on any graph
+with variable degree (radius graphs), so the sink and the target should be
+changed together if the option is adopted.
+
+**Results — `gat_sink_s1` (2026-09-16).** Train 17.7 min, early stop 99
+(best 59); chain clean, every reference artefact present. Band = the
+pinned `ablation_gat_type_only_s1` and its `wd0` replicate (battery and
+transport run on `wd0` today for this purpose).
+
+| read | pinned s1 | wd0 (replicate) | **gat_sink_s1** |
+|---|---|---|---|
+| best recon (epoch) | −7.192 (64) | −7.189 (64) | −7.194 (59) |
+| NMI best | 0.654 | 0.670 | 0.635 |
+| probe ΔCE at best epoch (history) / final | 0.013 / 0.002 | 0.031 / 0.011 | 0.010 / 0.034 |
+| independent z-probe, held-out: composition / Φ block R² | 0.017 / 0.014 | — | 0.017 / 0.008 |
+| **read 5**: z → log degree / tumour count │ fraction | 0.005 / 0.001 | 0.003 / 0.001 | 0.003 / 0.002 (floor ≈ 0) |
+| mirror R² / KL_w max | 0.046 / 0.009 | 0.047 / 0.002 | 0.048 / 0.027 |
+| cycle_z pooled (metrics / battery) | 0.499 / 0.440 | 0.415 / 0.388 | 0.435 / 0.386 |
+| cycle_w | 0.008 / 0.006 | 0.006 / 0.002 | 0.009 / 0.005 |
+| niche AUC z / w | 0.654 / 0.768 | 0.655 / 0.750 | 0.646 / 0.768 |
+| pseudotime niche R² z / w | 0.005 / 0.565 | 0.025 / 0.648 | 0.031 / 0.545 |
+| Moran mean│I│ z / w | 0.061 / 0.628 | — | 0.079 / 0.614 |
+| transport counterfactual / full / program / leak | 0.099 / 0.146 / 0.068 / 0.063 | 0.092 / 0.143 / 0.056 / 0.063 | 0.103 / 0.149 / 0.068 / 0.062 |
+| transport beats-both / slope | 100/155 / 0.92 | 99/155 / 0.92 | **104/155 / 0.97** |
+
+Neighbour dose (`experiments/neighbour_dose_gat_sink_s1.png`):
+
+| receiver | A: max over n = 1…8 tumour (pinned → sink) | isolated | E comp / Φ / both (sink) | ref |
+|---|---|---|---|---|
+| Macrophages | 0.00 → **0.17** | 15.1 → 15.3 | 10.8 / 9.7 / 17.3 | 16.4 |
+| T and NK | 0.00 → **0.63** | 16.4 → 7.7 | 5.5 / 7.3 / 12.1 | 11.4 |
+| TAF | 0.00 → **0.38** | 12.2 → 12.3 | 2.9 / 6.9 / 8.5 | 8.4 |
+| Tumor Cells | 0.00 → **0.12** | 10.2 → 9.4 | 4.2 / 5.4 / 7.0 | 6.7 |
+
+Reads against the pre-registration:
+1. **Guards inside the envelope** — recon, mirror, cycle_z/w, niche AUC all
+   in band; NMI 0.635 is 0.02 below the two-run band; KL_w max 0.027 is
+   above (still ≈ 0). The final-epoch probe ΔCE +0.034 looked like a leak
+   but is epoch-to-epoch noise of that probe (±0.03 in every run's
+   history; 0.010 at the best epoch), and the independent held-out probe
+   on the best checkpoint shows z **no less invariant** than the pinned
+   run (composition 0.017 = 0.017, Φ 0.008 < 0.014).
+2. **Panel A is no longer flat — but nearly**: the dose response over
+   1…8 tumour neighbours is 0.1–0.6 against composition effects of 5–17,
+   i.e. the learned half-point is below one neighbour: given the freedom
+   to count, the model saturates at n = 1 and reproduces the softmax's
+   fraction view. On a graph with degree ≈ 6 everywhere there is no
+   gradient signal from which to learn a dose curve. The isolated state
+   stays a separate regime (7.7–15.3 away), except T/NK where it halved.
+   The composition-vs-Φ split (E) did not move: Φ still ≥ composition for
+   TAF and tumour cells; w's total spread is 5–15 % smaller than pinned.
+3. **w-side / transport**: niche AUC w equal, pseudotime R² w and Moran w
+   slightly lower (in or at the band); transport counterfactual R² 0.103
+   (band 0.092–0.099), beats-both 104 (band 99–100), slope 0.97 (band
+   0.92). Marginally the best of the three on every transport read, by
+   amounts comparable to the replicate spread. One seed: suggestive, not
+   evidence.
+4. z-side unchanged; **read 5 at the floor** — z picked up no degree or
+   count, so the invariance-target mismatch is empty on this graph as it
+   was for the softmax.
+
+Standing decision: `gat_sink` stays an **option, off by default**. On the
+Voronoi graph the sink is a no-op in substance (dose saturates below one
+neighbour), which is itself the finding: the count blindness costs
+nothing here because the data carry no count variation to learn from.
+The option becomes meaningful only with a graph where degree varies
+(radius / contact graphs, or multi-hop counts), and there the invariance
+target must grow with it (addendum above). Transport +0.004 / +4 panels /
++0.05 slope is the one lead; a seed pair would settle whether it is real.
+
+### Sink seed pair: `gat_sink_s0`, `gat_sink_s2` (motivation, 2026-09-16)
+
+Motivation: the user asked what stands between `gat_sink` and default.
+The one empirical lead is transport (+0.004 counterfactual R², +4
+beats-both panels, +0.05 slope on s1), inside the replicate spread. Seeds
+0 and 2 against the existing references `ablation_gat_type_only` (s0) and
+`ablation_gat_type_only_s2`, same protocol (`--gat-sink --epochs 500
+--patience 40`, defaults otherwise), decision chain only: `validate` →
+`transport` → `experiments.neighbour_dose`. Logs
+`logs/gat_sink_s{0,2}_pipeline.log`, GPU 0 / GPU 1 in parallel.
+
+Pre-registered decision rule (three paired seeds, sink vs reference):
+- **Adopt as default** only if transport counterfactual R² and beats-both
+  are ≥ the reference in 3/3 seeds *and* the guards (recon ±0.06, NMI
+  within 0.02, cycle_z inside the seed band, probe at floor) hold in 3/3.
+- **Keep as option** otherwise — including "wins 2/3": on this graph the
+  sink is a near no-op (half-point < 1 neighbour), so a 2/3 result is
+  seed noise, not a mechanism.
+Independent of the numbers, three structural conditions for a default
+change are recorded in the results entry below.
+
+**Addendum — KL_w under the sink is a worse prior, not a richer w
+(2026-09-16).** The user flagged KL_w max/dim 0.027 vs 0.009 / 0.002.
+Decomposed on validation tiles (scratch `klw_anatomy`): the sink's KL_w
+(0.025/dim total) is almost entirely the mean-term (0.106 on one dim);
+posterior sd unchanged (≈ 0.99); ‖μ_w − m_ψ‖ in gene space 1.77 vs
+0.26 / 0.25; prior-R² per dim 0.74–0.996 vs ≥ 0.998; the posterior's
+reconstruction gain over the prior draw, (a) − (b), is 0.00046 vs
+0.00051 / 0.00037 — **no gain**; and the displacement is **64 %
+predictable from `[y, PCs(Φ)]`** on held-out folds vs 8 % on both softmax
+runs. Signature of `m_ψ` under-reading context, with `enc_w` (which also
+sees `x`) recovering it per cell. Mechanism (plausible, untested): under
+the sink the GAT output's magnitude varies with the learned type-pair
+logits (`Σα < 1`), so composition reaches `m_ψ` entangled with scale and
+the MLP decodes it less faithfully than from the softmax's convex
+combination. Remedy if the option is pursued: give `m_ψ` both the softmax
+composition and the sink mass, not one in place of the other. Also
+reframes the s1 transport uptick: transport runs on `m_ψ`, and a prior
+that reads context worse should not forecast held-out niche shifts better
+— noise is the likelier reading, pending the seed pair.
+
+**Results — sink seed pair, decision (2026-09-16).** `gat_sink_s0` (best
+epoch 74, 65 min — slow: two runs in parallel oversubscribe the CPU in the
+figure step, noted in the background-jobs memory) and `gat_sink_s2` (best
+69, 68 min); chains clean. Paired against `ablation_gat_type_only{,_s1,_s2}`:
+
+| seed | recon ref → sink | NMI | cycle_z (metrics) | probe / KL_w max | niche AUC w | Moran w | transport cf R² | beats-both | slope |
+|---|---|---|---|---|---|---|---|---|---|
+| s0 | −7.253 → −7.255 | 0.667 → 0.652 | 0.440 → 0.440 | 0.017 / 0.002 | 0.743 → 0.740 | 0.531 → 0.678 | 0.085 → **0.081** | 103 → **95** | 0.97 → 0.95 |
+| s1 | −7.192 → −7.194 | 0.654 → 0.635 | 0.499 → 0.435 | 0.034* / 0.027 | 0.768 → 0.768 | 0.628 → 0.614 | 0.099 → 0.103 | 100 → 104 | 0.92 → 0.97 |
+| s2 | −7.231 → −7.233 | 0.666 → 0.663 | 0.465 → 0.472 | −0.012 / 0.059 | 0.754 → 0.753 | 0.575 → 0.400 | 0.092 → **0.090** | 92 → 95 | 0.91 → 0.92 |
+
+(* final-epoch value; 0.010 at the best epoch, independent probe at
+floor.) Neighbour-dose panel A on every seed: max over 1…8 tumour
+neighbours 0.0–1.2 against composition effects of 5–17 — the sink never
+learns a dose response on this graph; isolated-state distance varies by
+seed (1.9–15). E-split unchanged (Φ ≥ composition for TAF and tumour).
+
+Against the pre-registered rule — transport counterfactual R² and
+beats-both ≥ reference in 3/3, guards in 3/3: **1/3** on counterfactual
+R² (s1 only), 2/3 on beats-both, recon identical in all three (±0.002),
+NMI −0.003 to −0.019, cycle_z inside the seed band. The s1 transport
+uptick was seed noise, as the KL_w decomposition predicted. The
+worse-prior signature (KL_w 0.027 / 0.059) appears in two of three seeds
+(s0 stays at 0.002); Moran w moves both ways (+0.15, −0.01, −0.18) — a
+large seed spread with no direction.
+
+**Decision: `gat_sink` stays an option, off by default.** Recorded
+reasons, in order of weight: (1) on a Voronoi graph the mechanism cannot
+be exercised — degree ≈ 6 gives no dose variation to learn from, and the
+fitted half-point sits below one neighbour; (2) in 2/3 seeds the prior
+`m_ψ` reads context worse (posterior displacement 6× larger, 64 %
+context-predictable, zero reconstruction gain), and `m_ψ` is the object
+every counterfactual and transport read uses; (3) the invariance target
+covers fractions only — empty here, not on a variable-degree graph, so
+adopting the sink means adopting a degree-aware target with it; (4) no
+transport benefit in 3 seeds. The option earns a second look only paired
+with a graph whose degree varies (radius / contact) plus the degree head,
+and with `m_ψ` fed both the softmax composition and the sink mass.
+`spec_deviations.md` §4.1 row unchanged (option only).

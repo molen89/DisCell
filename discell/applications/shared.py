@@ -11,6 +11,9 @@ Two extraction stages, both writing under ``data/datasets/<id>/qc/``:
   segmentation-perturbation arm of A4/A1: signal that vanishes when the
   cytoplasmic expansion is dropped travels with the boundary, i.e. is a
   segmentation/leak artifact.
+- ``nuclear-summary``: the nuclear share of each cell's counts from the
+  two matrices above — overall, per segmentation method, per type — as
+  ``qc/nuclear_summary.json``.
 
 Usage::
 
@@ -136,19 +139,74 @@ def extract_nuclear_counts(dataset: str) -> Path:
     return out
 
 
+def summarise_nuclear_fraction(dataset: str) -> Path:
+    """Nuclear share of each cell's counts, overall / by segmentation method /
+    by type, from ``qc/nuclear_counts.npz`` against the bundle's counts."""
+    import json
+
+    import anndata as ad
+    import pandas as pd
+    import scipy.sparse as sp
+
+    ds = paths.dataset(dataset)
+    adata = ad.read_h5ad(ds.root / "bundle" / "full.h5ad", backed="r")
+    nuclear = sp.load_npz(ds.root / "qc" / "nuclear_counts.npz")
+    total = np.asarray(adata[:].X.sum(axis=1)).ravel()
+    nuc = np.asarray(nuclear.sum(axis=1)).ravel()
+    if nuclear.shape != adata.shape:
+        raise ValueError(f"nuclear matrix {nuclear.shape} vs bundle {adata.shape}")
+    excess = int((nuc > total).sum())
+    with np.errstate(invalid="ignore", divide="ignore"):
+        frac = np.where(total > 0, nuc / total, np.nan)
+    obs = adata.obs
+    label = adata.uns.get("default_label", "cell_group")
+
+    def by(column) -> dict:
+        # a categorical's NaN survives astype(str); fold it as the loader does
+        groups = obs[column].astype(object).fillna("Unassigned").astype(str).to_numpy()
+        out = {}
+        for g in sorted(set(groups)):
+            m = groups == g
+            out[g] = {"n_cells": int(m.sum()),
+                      "nuclear_fraction_pooled": float(nuc[m].sum() / max(total[m].sum(), 1)),
+                      "nuclear_fraction_median_cell": float(np.nanmedian(frac[m]))}
+        return out
+
+    summary = {
+        "dataset": dataset, "n_cells": int(len(total)),
+        "transcripts_total": int(total.sum()), "transcripts_nuclear": int(nuc.sum()),
+        "nuclear_fraction_pooled": float(nuc.sum() / total.sum()),
+        "nuclear_fraction_cell_quantiles": {
+            str(q): float(np.nanpercentile(frac, q)) for q in (5, 25, 50, 75, 95)},
+        "cells_with_zero_counts": int((total == 0).sum()),
+        "cells_nuclear_exceeds_total": excess,
+        "by_segmentation_method": by("xenium_segmentation_method")
+        if "xenium_segmentation_method" in obs else {},
+        "by_type": by(label) if label in obs else {},
+    }
+    out = ds.root / "qc" / "nuclear_summary.json"
+    out.write_text(json.dumps(summary, indent=2))
+    log.info("%s: nuclear fraction %.3f pooled, median cell %.3f; %d cells with "
+             "nuclear > total; wrote %s", dataset, summary["nuclear_fraction_pooled"],
+             summary["nuclear_fraction_cell_quantiles"]["50"], excess, out)
+    return out
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--stage", required=True,
-                        choices=("dapi", "nuclear-counts"))
+                        choices=("dapi", "nuclear-counts", "nuclear-summary"))
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s",
                         datefmt="%H:%M:%S")
     if args.stage == "dapi":
         extract_nuclear_dapi(args.dataset)
-    else:
+    elif args.stage == "nuclear-counts":
         extract_nuclear_counts(args.dataset)
+    else:
+        summarise_nuclear_fraction(args.dataset)
     return 0
 
 

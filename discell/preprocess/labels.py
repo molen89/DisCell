@@ -29,7 +29,7 @@ def read_cell_groups(xenium_dir: Path) -> pd.DataFrame:
         curl -O https://cf.10xgenomics.com/samples/xenium/3.0.0/<SAMPLE>/<SAMPLE>_cell_groups.csv
 
     Returns a frame indexed by ``cell_id`` with ``group`` and optionally
-    ``color``; empty if no such file is present.
+    ``color`` and ``donor`` (TMA cores); empty if no such file is present.
     """
     hits = sorted(xenium_dir.glob("*cell_groups.csv"))
     if not hits:

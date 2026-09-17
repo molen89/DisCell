@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """The w-program atlas (doc 08 section 6): the positive w story.
 
-One row per w-dimension after fixing a canonical basis: varimax on B's
-columns weighted by ``std(w_k)`` -- raw dims are rotation-arbitrary, the
-*procedure* is what reproduces. The rotation is applied to the effect
-decomposition ``<w, B> = sum_k u_k L_k`` (u standardised w, L the weighted
-loadings), so the decoder's output is invariant under it by construction.
+One row per *effective* program of w. The per-type mean of w is a gauge
+(``(a(z) - B mu_t, w + mu_t)`` is the same model; issues V12), so w is
+centred within type first; the programs are the r principal directions of
+cov(w) carrying >= 1% of its trace (issues V10), varimax-rotated within
+that subspace in gene space (``lr_map.program_basis``, shared). The
+remaining d_w - r directions carry no variance and are reported as null
+directions, not as programs. The rotation is applied to the effect
+decomposition ``<w, B> = sum_k u_k L_k`` (u whitened coordinates, L the
+effect-scale loadings), so the decoder's output is invariant under it.
 
-Per program: gene signature with MSigDB hallmark labels, tissue territory
-with Moran's I, context drivers (y, Phi-PCs, landmark distances -- the
-section-2.5 collinearity logic), per-type activity, and inactive dims as
-spare capacity. Section 6.5 (kappa-survival) is deferred until the
-post-park sweep finishes and is stubbed in the output.
+Per program: variance share (in w and in the realised shift B w), gene
+signature with BH-gated MSigDB hallmark labels, tissue territory with
+Moran's I, type-partialled context drivers (y, Phi-PCs, landmark distances
+-- the section-2.5 collinearity logic), per-type within-type activity,
+and -- with ``--compare-runs`` -- the matched cross-seed loading cosine
+and shift-space overlap (issues V11). Section 6.5 (kappa-survival) lives
+in ``validate --sweep-tag`` and is stubbed in the output.
 
 Usage::
 
-    python -m discell.model.atlas --dataset <id> --run ablation_gat_type_only_s1
+    python -m discell.model.atlas --dataset <id> --run ablation_gat_type_only_s1 \
+        --compare-runs ablation_gat_type_only ablation_gat_type_only_s2
 """
 
 from __future__ import annotations
@@ -29,15 +36,14 @@ from typing import Sequence
 
 import numpy as np
 
-from discell.model.validate import (collect_latents, landmark_inventory,
-                                    load_run, morans_i, ridge_cv, r2,
-                                    row_normalised_graph)
+from discell.model.lr_map import VAR_FRACTION, program_basis
+from discell.model.validate import (center_per_type, collect_latents,
+                                    landmark_inventory, load_run, morans_i,
+                                    ridge_cv, r2, row_normalised_graph)
 
 log = logging.getLogger("discell.model.atlas")
 
 HALLMARKS_GMT = Path("data/external/msigdb_hallmarks_h.all.v2023.2.Hs.symbols.gmt")
-#: a rotated dim below this share of the largest dim's variance is inactive
-INACTIVE_VAR_FRACTION = 0.01
 TOP_GENES = 15
 ENRICH_TOP = 50
 
@@ -58,6 +64,67 @@ def varimax(loadings: np.ndarray, max_iter: int = 100,
             break
         variance = s.sum()
     return rotation
+
+
+def centred_program_basis(mu_w: np.ndarray, t: np.ndarray,
+                          b_matrix: np.ndarray, expressed: np.ndarray):
+    """Effective-rank programs of w read on within-type-centred w.
+
+    Centring removes the per-type offset gauge (issues V12) before the
+    spectrum of cov(w) is read; ``program_basis`` (lr_map, shared) then
+    keeps the r directions with >= VAR_FRACTION of the trace and varimax-
+    rotates them in gene space (issues V10). Programs are ordered by their
+    share of w's variance, signed so the largest expressed loading is
+    positive. Returns whitened coordinates ``u`` (N, r), effect-scale
+    loadings (G, r) and ``{"rank", "variance_fraction", "variance_share",
+    "shift_share"}`` -- the eigen-spectrum of cov(w), each program's share
+    of w's variance and of the realised shift's variance on the subspace.
+    """
+    centred = center_per_type(mu_w, t, np.ones(len(t), dtype=bool))
+    u, loadings, info = program_basis(centred, b_matrix, expressed)
+    # u is whitened and uncorrelated, so program k occupies the w-direction
+    # a_k = cov(u_k, w) with variance ||a_k||^2
+    axes = u.T @ centred / len(u)                              # (r, d_w)
+    share = (axes ** 2).sum(axis=1) / max(centred.var(axis=0).sum(), 1e-12)
+    order = np.argsort(-share)
+    u, loadings, share = u[:, order], loadings[:, order], share[order]
+    sign = np.sign(loadings[expressed][
+        np.abs(loadings[expressed]).argmax(axis=0), np.arange(len(share))])
+    u, loadings = u * sign, loadings * sign
+    shift = (loadings[expressed] ** 2).sum(axis=0)
+    info["variance_share"] = share.round(4).tolist()
+    info["shift_share"] = (shift / max(shift.sum(), 1e-12)).round(4).tolist()
+    return u, loadings, info
+
+
+def cross_seed(loadings: np.ndarray, other: np.ndarray) -> dict:
+    """Agreement of two runs' program loadings (rows = the same genes).
+
+    ``axis_cosine``: |cos| of each program of ``loadings`` with its best
+    one-to-one match in ``other`` (None when ``other`` has fewer programs).
+    ``shift_overlap``: the fraction of this run's realised-shift variance
+    lying inside the other run's program span, and the reverse -- the
+    invariant object across seeds (issues V11), where matched B columns
+    read the null directions as instability.
+    """
+    from scipy.optimize import linear_sum_assignment
+
+    def unit(m):
+        return m / np.linalg.norm(m, axis=0, keepdims=True).clip(min=1e-12)
+
+    cosines = np.abs(unit(loadings).T @ unit(other))            # (r, r')
+    rows, cols = linear_sum_assignment(-cosines)
+    matched = [None] * loadings.shape[1]
+    for i, j in zip(rows, cols):
+        matched[i] = {"program": int(j), "cosine": float(cosines[i, j])}
+
+    def inside(a, b):
+        q, _ = np.linalg.qr(b)
+        return float(((q.T @ a) ** 2).sum() / (a ** 2).sum())
+
+    return {"axis_cosine": matched,
+            "shift_overlap": {"this_inside_other": inside(loadings, other),
+                              "other_inside_this": inside(other, loadings)}}
 
 
 def read_hallmarks(panel: set[str]) -> dict[str, set[str]]:
@@ -138,21 +205,18 @@ def build_atlas(args: argparse.Namespace) -> dict:
     expressed = prevalence >= 0.01
     hallmarks = read_hallmarks(set(gene_names[expressed]))
 
-    # -- canonical basis: varimax on std-weighted loadings ------------------
-    mu_w = latents["mu_w"]
-    std_w = mu_w.std(axis=0)
-    loadings = b_matrix * std_w[None, :]              # (G, d_w), effect scale
-    rotation = varimax(loadings[expressed])
-    programs = loadings @ rotation                    # columns = programs
-    u = ((mu_w - mu_w.mean(axis=0)) / (std_w + 1e-12)) @ rotation
-    order = np.argsort(-u.var(axis=0))                # activity order
-    programs, u = programs[:, order], u[:, order]
+    # -- canonical basis: effective rank of within-type-centred w, varimax
+    # within the r-dim subspace (V10, V12) ---------------------------------
+    u, programs, info = centred_program_basis(latents["mu_w"], data.t,
+                                              b_matrix, expressed)
+    r, d_w = info["rank"], b_matrix.shape[1]
+    log.info("effective rank %d of %d (eigen-fractions %s); program shares %s",
+             r, d_w, info["variance_fraction"], info["variance_share"])
 
     # shared context blocks for the drivers
     connected = data.graph.degrees > 0
     weights, _ = row_normalised_graph(data)
     weights_cc = weights[connected][:, connected]
-    from discell.model.validate import center_per_type
     u_centred = center_per_type(u, data.t, connected)
     moran = morans_i(u_centred[connected], weights_cc,
                      n_perms=args.n_perms, seed=config.seed)
@@ -169,32 +233,49 @@ def build_atlas(args: argparse.Namespace) -> dict:
             cKDTree(data.positions[entry["constituents"]]).query(
                 data.positions)[0], 500.0))
         for entry in classes.values()], axis=1)
+    # type-partialled, like the target: a program's drivers are the cell's
+    # context within its type, not its type identity via homophilous y
+    everyone = np.ones(len(data.t), dtype=bool)
     blocks = {"composition_y": data.graph.y.astype(np.float64),
               "phi_pcs": phi_pcs, "landmark_distances": distances}
+    blocks = {n: center_per_type(b, data.t, everyone) for n, b in blocks.items()}
 
     sample = np.flatnonzero(connected)
     if len(sample) > 30_000:
         sample = np.sort(rng.choice(sample, 30_000, replace=False))
 
-    variances = u.var(axis=0)
-    active = variances >= INACTIVE_VAR_FRACTION * variances.max()
+    out_dir = run_dir / "atlas"
+    out_dir.mkdir(exist_ok=True)
+    for stale in out_dir.glob("program_*.png"):
+        stale.unlink()
+    np.save(out_dir / "programs.npy", programs.astype(np.float32))
     names = [str(n) for n in data.type_names]
-    atlas: dict = {"run": args.run, "rotation_order": order.tolist(),
+    atlas: dict = {"run": args.run, "d_w": d_w, "rank": r,
+                   "rank_var_fraction": VAR_FRACTION,
+                   "variance_fraction": info["variance_fraction"],
                    "landmark_classes": list(classes),
-                   "kappa_survival": "deferred until the post-park sweep "
-                                     "(doc-08 section 6.5)",
-                   "programs": []}
+                   "kappa_survival": "see experiments/atlas_kappa_survival*.json "
+                                     "(validate --sweep-tag; doc-08 section 6.5)",
+                   "cross_seed": {}, "programs": []}
+    for other in args.compare_runs:
+        path = run_dir.parent / other / "atlas" / "programs.npy"
+        if not path.exists():
+            log.warning("no atlas for %s -- build it first; skipped", other)
+            continue
+        other_programs = np.load(path)
+        atlas["cross_seed"][other] = cross_seed(programs[expressed],
+                                                other_programs[expressed])
+        atlas["cross_seed"][other]["rank"] = int(other_programs.shape[1])
+        log.info("vs %s: %s", other, atlas["cross_seed"][other])
     show = np.sort(rng.choice(np.flatnonzero(connected),
                               min(120_000, int(connected.sum())),
                               replace=False))
-    for k in range(u.shape[1]):
-        entry: dict = {"program": k, "variance": float(variances[k]),
-                       "active": bool(active[k]),
+    for k in range(r):
+        entry: dict = {"program": k, "active": True,
+                       "variance_share": info["variance_share"][k],
+                       "shift_share": info["shift_share"][k],
                        "moran_I": moran["I"][k],
                        "moran_null_hi": moran["null_hi"][k]}
-        if not active[k]:
-            atlas["programs"].append(entry)      # spare capacity, no figure
-            continue
         loading = np.where(expressed, programs[:, k], 0.0)
         top = np.argsort(-np.abs(loading))
         entry["signature_high"] = [(str(gene_names[i]), float(loading[i]))
@@ -223,7 +304,8 @@ def build_atlas(args: argparse.Namespace) -> dict:
                              vmax=np.percentile(u[show, k], 98),
                              rasterized=True)
         axes[0].set_aspect("equal"); axes[0].set_xticks([]); axes[0].set_yticks([])
-        axes[0].set_title(f"program {k} territory "
+        axes[0].set_title(f"program {k} ({100 * entry['variance_share']:.0f}% "
+                          f"of w variance) territory "
                           f"(Moran I {entry['moran_I']:.2f})", fontsize=9)
         plt.colorbar(sc, ax=axes[0], fraction=0.04)
         genes = entry["signature_high"][:10] + entry["signature_low"][:5]
@@ -247,17 +329,13 @@ def build_atlas(args: argparse.Namespace) -> dict:
                           fontsize=8)
         axes[2].legend(fontsize=7)
         fig.tight_layout()
-        out_dir = run_dir / "atlas"
-        out_dir.mkdir(exist_ok=True)
         fig.savefig(out_dir / f"program_{k}.png", dpi=130)
         plt.close(fig)
         atlas["programs"].append(entry)
-        log.info("program %d: var %.3f, Moran %.2f, hallmark %s, joint R² %.2f",
-                 k, variances[k], entry["moran_I"], label,
+        log.info("program %d: share %.3f, Moran %.2f, hallmark %s, joint R² %.2f",
+                 k, entry["variance_share"], entry["moran_I"], label,
                  entry["drivers"]["joint"])
 
-    out_dir = run_dir / "atlas"
-    out_dir.mkdir(exist_ok=True)
     (out_dir / "atlas.json").write_text(json.dumps(atlas, indent=2,
                                                    default=float))
     log.info("wrote %s", out_dir / "atlas.json")
@@ -269,6 +347,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--run", required=True)
     parser.add_argument("--n-perms", type=int, default=500)
+    parser.add_argument("--compare-runs", nargs="*", default=[],
+                        help="other runs of this dataset whose atlas exists; "
+                             "cross-seed loading cosines and shift overlap")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)

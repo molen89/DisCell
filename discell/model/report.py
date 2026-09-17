@@ -262,6 +262,7 @@ def build(args: argparse.Namespace) -> Path:
                          weights_only=False)
     payload["config"].setdefault("gat_sources", "type_z")   # pre-field era
     payload["config"].setdefault("subtract_leak", False)
+    payload["config"].setdefault("gat_sink", False)
     config = TrainConfig(**payload["config"])
     run_meta = json.loads((run_dir / "config.json").read_text())
 
@@ -281,7 +282,8 @@ def build(args: argparse.Namespace) -> Path:
                     d_w=config.d_w, hidden=config.hidden,
                     gat_dim=config.gat_dim, heads=config.heads,
                     gat_sources=config.gat_sources,
-                    subtract_leak=config.subtract_leak).to(device)
+                    subtract_leak=config.subtract_leak,
+                    gat_sink=config.gat_sink).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()
@@ -318,43 +320,105 @@ def atlas_section(run_dir: Path) -> str:
     if not path.exists():
         return ""
     atlas = json.loads(path.read_text())
-    active = [p for p in atlas["programs"] if p.get("active")]
-    spare = len(atlas["programs"]) - len(active)
-    rows = ["| # | hallmark (BH-gated) | Moran I | driver R² (joint) | top type |",
-            "|---|---|---|---|---|"]
-    figures = []
-    for p in active:
+    programs = atlas["programs"]
+    r, d_w = atlas["rank"], atlas["d_w"]
+    spectrum = ", ".join(f"{f:.2f}" for f in atlas["variance_fraction"])
+    cross = atlas.get("cross_seed", {})
+    head = ("| # | share of w var | share of shift | hallmark (BH q ≤ 0.05) | "
+            "Moran I (null 97.5%) | driver R² joint | partial: composition / "
+            "image / landmarks | most modulated type |")
+    sep = "|---|---|---|---|---|---|---|---|"
+    if cross:
+        head += " cross-seed \\|cos\\| vs " + " / ".join(cross) + " |"
+        sep += "---|"
+    rows, figures = [head, sep], []
+    for p in programs:
         top_hm = p["hallmarks"][0] if p["hallmarks"] else None
         hallmark = (f"{top_hm['hallmark'][:28]} (q={top_hm['q']:.1e})"
                     if top_hm and top_hm.get("significant")
                     else "(none significant)")
         top_type = next(iter(p["type_activity"]), "-")
-        rows.append(f"| {p['program']} | {hallmark} | "
-                    f"{p['moran_I']:.2f} | {p['drivers']['joint']:.2f} | "
-                    f"{top_type[:26]} |")
+        drv = p["drivers"]
+        partial = " / ".join(f"{drv['partial'][n]:.2f}" for n in
+                             ("composition_y", "phi_pcs", "landmark_distances"))
+        row = (f"| {p['program']} | {p['variance_share']:.2f} | "
+               f"{p['shift_share']:.2f} | {hallmark} | {p['moran_I']:.2f} "
+               f"({p['moran_null_hi']:.2f}) | {drv['joint']:.2f} | {partial} | "
+               f"{top_type[:26]} |")
+        if cross:
+            matched = [c["axis_cosine"][p["program"]]
+                       if p["program"] < len(c["axis_cosine"]) else None
+                       for c in cross.values()]
+            row += " " + " / ".join(f"{m['cosine']:.2f}" if m else "–"
+                                    for m in matched) + " |"
+        rows.append(row)
         figures.append(f"![program {p['program']}]"
                        f"(../atlas/program_{p['program']}.png)")
+    cross_text = "".join(
+        f" Against `{other}` (rank {c['rank']}): shift-space overlap "
+        f"{c['shift_overlap']['this_inside_other']:.2f} of this model's "
+        f"realised-shift variance lies inside that model's program span "
+        f"({c['shift_overlap']['other_inside_this']:.2f} the other way); "
+        f"matched loading |cos| per program in the table."
+        for other, c in cross.items()) or (
+        " No other seed's atlas was passed (`--compare-runs`), so "
+        "reproducibility is not judged here.")
     return f"""
 
 ## The w-program atlas (doc-08 section 6)
 
-**How**: a canonical basis is fixed by varimax-rotating B's columns
-weighted by each dimension's realised variance (raw dims are
-rotation-arbitrary; the *procedure* is what reproduces). Per program:
-Moran's I of its per-cell coordinate (spatial territoriality, permutation
-null), held-out ridge R² of the coordinate from three context blocks --
-neighbour composition, image PCs, landmark distances -- reported marginal
-and partial (the blocks overlap), and hypergeometric hallmark enrichment
-of the top loadings. **Good**: high Moran's I (a program should be
-territorial), high joint driver R² (the program is anchored to nameable
-context -- this is the composition-level effect claim), an interpretable
-hallmark label, and stable gene signatures across runs; inactive
-dimensions are fine (spare capacity supports "few programs suffice").
+**What a program is.** w is the cell's context response: the decoder adds
+B·w to the intrinsic profile a(z), so a direction v in w-space is a gene
+program with loadings B·v -- the realised expression shift the model
+attributes to context along that direction. Two things about w carry no
+information and are removed before reading: raw w dimensions are
+rotation-arbitrary, and w's per-type mean is a gauge -- (a(z) − B·μ_t,
+w + μ_t) is the same model for any per-type constant μ_t (issues V12) --
+so raw ‖w‖ and per-type ‖w‖ rankings mean nothing; only the within-type
+variation of w, read through a fixed procedure, reproduces.
 
-{len(active)} of {len(atlas['programs'])} dimensions
-are active ({spare} spare capacity); every active program is almost
-entirely context-explained -- the composition-level effect story, no
-communication claim required.
+**How.** w is centred within type. The programs are the r principal
+directions of cov(w) carrying ≥ {100 * atlas['rank_var_fraction']:.0f}% of
+its trace (the effective rank; issues V10), varimax-rotated *within* that
+subspace in gene space so each program has a sparse signature; the
+rotation is applied to coordinates and loadings together, so the decoder's
+output is unchanged. The remaining d_w − r directions carry no variance:
+they are null directions, not spare programs -- the data do not constrain
+their B columns, which is why matched-column B correlation across seeds
+reads as instability and is not reported (issues V11). Per program: its
+share of w's variance and of the realised shift's variance; its signature
+(top ± loadings) with hypergeometric hallmark enrichment on the
+expressed-panel background, BH-corrected over the sets tested, the label
+shipped only at q ≤ 0.05; Moran's I of its per-cell coordinate on the
+neighbour graph against a permutation null (territoriality); held-out
+spatial-block ridge R² of the coordinate from three context blocks --
+neighbour composition, image PCs, landmark distances -- with target and
+blocks both within-type-centred (type-partialled: the drivers are the
+cell's context, not its type identity via homophilous composition),
+reported joint and partial (the blocks overlap: vessel density itself
+varies rim to core); and the within-type variance of the coordinate per
+type (which types the program modulates -- offset-free by construction).
+Across seeds: the one-to-one matched |cos| between program loadings in
+gene space, and the shift-space overlap -- the fraction of one seed's
+realised-shift variance inside the other seed's program span -- which is
+the invariant object.
+
+**Evaluated by.** r against d_w and the eigen-spectrum; each program's
+variance share; the BH-gated hallmark label; Moran's I against its null;
+joint and partial driver R²; cross-seed |cos| and shift-space overlap.
+
+**What is wished for.** Few programs (r ≪ d_w), each territorial (Moran's
+I well above the null), context-explained (high joint driver R² with
+nameable partial shares -- a composition-level effect, not a communication
+claim), carrying an interpretable hallmark label, and reproducing across
+seeds (loading |cos| ≳ 0.8, shift-space overlap ≳ 0.95). A program with a
+low cross-seed cosine is seed-specific structure of the optimum, not
+tissue; a second program whose share is small and seed-variable is
+reported as such, never as a count.
+
+**This model.** r = {r} of d_w = {d_w} directions carry variance
+(eigen-fractions of within-type cov(w): {spectrum}); {d_w - r} null
+directions.{cross_text}
 
 {chr(10).join(rows)}
 

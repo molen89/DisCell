@@ -58,11 +58,19 @@ class GATv2(nn.Module):
     averaged (``concat=False``). No self-loops -- the edge list has none -- and
     no edge features (spec 7.3). A destination with no in-edges aggregates
     nothing and comes out exactly zero, which is the isolated-cell contract.
+
+    ``sink=True`` adds a fixed null logit 0 to every destination's softmax
+    (an attention sink): the weights then sum to < 1 and the aggregate grows
+    with the number of neighbours, ``n e^e / (1 + n e^e)`` for n identical
+    ones -- a saturating dose whose half-point ``e^-e`` is learned per type
+    pair. Plain softmax sees fractions only (devlog 2026-09-16, neighbour
+    dose). The isolated contract is unchanged: all mass on the sink, zero out.
     """
 
-    def __init__(self, src_dim: int, dst_dim: int, out_dim: int, heads: int = 4):
+    def __init__(self, src_dim: int, dst_dim: int, out_dim: int, heads: int = 4,
+                 sink: bool = False):
         super().__init__()
-        self.heads, self.out_dim = heads, out_dim
+        self.heads, self.out_dim, self.sink = heads, out_dim, sink
         self.w_src = nn.Linear(src_dim, heads * out_dim, bias=False)
         self.w_dst = nn.Linear(dst_dim, heads * out_dim, bias=False)
         self.attn = nn.Parameter(torch.empty(heads, out_dim))
@@ -81,11 +89,13 @@ class GATv2(nn.Module):
 
         # segment softmax over each destination's in-edges; empty segments are
         # never gathered, so the -inf initial max cannot produce a NaN.
-        peak = logits.new_full((n_dst, self.heads), -torch.inf)
+        peak = logits.new_full((n_dst, self.heads), 0.0 if self.sink else -torch.inf)
         peak = peak.scatter_reduce(0, edge_dst[:, None].expand_as(logits),
                                    logits, "amax", include_self=True)
         weight = (logits - peak[edge_dst]).exp()
         norm = logits.new_zeros(n_dst, self.heads).index_add_(0, edge_dst, weight)
+        if self.sink:
+            norm = norm + (-peak).exp()          # the null edge, logit 0
         alpha = weight / norm[edge_dst].clamp(min=1e-30)
 
         out = source.new_zeros(n_dst, self.heads, self.out_dim)
@@ -151,7 +161,8 @@ class DisCell(nn.Module):
     def __init__(self, n_genes: int, n_types: int, phi_dim: int,
                  median_counts: float, d_z: int = 20, d_w: int = 6,
                  hidden: int = 256, gat_dim: int = 32, heads: int = 4,
-                 gat_sources: str = "type_only", subtract_leak: bool = False):
+                 gat_sources: str = "type_only", subtract_leak: bool = False,
+                 gat_sink: bool = False):
         super().__init__()
         self.n_types, self.d_z, self.d_w = n_types, d_z, d_w
         self.median_counts = float(median_counts)
@@ -171,7 +182,7 @@ class DisCell(nn.Module):
         # spec 4.2: normalised counts + log-depth scalar + one-hot type
         self.enc_z = mlp([n_genes + 1 + n_types, hidden, hidden, 2 * d_z])
         self.gat = GATv2(src_dim=src_dim, dst_dim=src_dim,
-                         out_dim=gat_dim, heads=heads)
+                         out_dim=gat_dim, heads=heads, sink=gat_sink)
         c_dim = gat_dim + phi_dim + 1                     # +1: isolated flag
         self.prior_w = mlp([c_dim + n_types, hidden // 4, d_w])
         self.enc_w = mlp([c_dim + n_types + d_z + n_genes + 1, hidden, 2 * d_w])

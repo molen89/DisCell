@@ -21,9 +21,17 @@ headline figure. Guards: composition-overlap check per pair (else
 extrapolation -- flagged, not reported), near-zero genes excluded, counts
 reported.
 
+A companion row holds Phi at the receiver type's mean in both niches
+(``*_phi_fixed``): the program channel then answers to neighbour
+composition alone, the part of the context an intervention can set; its
+share of the counterfactual's R² is the interventionable share (the
+neighbour-dose experiment, devlog 2026-09-16, motivates the row).
+
 Usage::
 
     python -m discell.model.transport --dataset <id> --run <run>
+    python -m discell.model.transport --dataset <id> --sweep-tag sweep3 \
+        --seeds 0 --sweep-out transport_kappa_sensitivity_v2.json
 """
 
 from __future__ import annotations
@@ -46,25 +54,57 @@ N_PAIRS = 4              #: most composition-distinct niche pairs
 EPS = 1e-8
 
 
-def collect_channels(trainer, data) -> dict:
-    """Per-seed prior mean, decontaminated rate, and foreign influx."""
+def collect_channels(trainer, data, phi_by_type: np.ndarray | None = None
+                     ) -> dict:
+    """Per-seed prior mean, decontaminated rate, and foreign influx.
+
+    With *phi_by_type* ``(K, phi_dim)`` every node's Phi is replaced by its
+    type's mean before the forward pass, so ``m_psi`` answers to neighbour
+    composition (and t) only. Only the prior mean is collected then: rho
+    and rho_bar are the real neighbours' and come from the plain pass.
+    """
     import torch
 
-    out = {k: [] for k in ("nodes", "prior_w", "rho", "rho_bar")}
+    keys = ("prior_w",) if phi_by_type is not None else (
+        "prior_w", "rho", "rho_bar")
+    out = {k: [] for k in ("nodes",) + keys}
     with torch.no_grad():
         for batch in trainer.train_batches + trainer.val_batches:
-            fwd = trainer.model(**trainer._forward_kwargs(batch),
-                                kappa=trainer.config.kappa, sample=False)
+            kwargs = trainer._forward_kwargs(batch)
+            if phi_by_type is not None:
+                kwargs["phi"] = torch.as_tensor(
+                    phi_by_type, device=kwargs["phi"].device,
+                    dtype=kwargs["phi"].dtype)[kwargs["t"]]
+            fwd = trainer.model(**kwargs, kappa=trainer.config.kappa,
+                                sample=False)
             n = batch["n_seeds"]
             out["nodes"].append(batch["nodes"][:n])
             out["prior_w"].append(fwd.prior_mean_w[:n].cpu().numpy())
-            out["rho"].append(fwd.log_rho[:n].exp().cpu().numpy()
-                              .astype(np.float32))
-            out["rho_bar"].append(fwd.rho_bar.cpu().numpy()
+            if "rho" in out:
+                out["rho"].append(fwd.log_rho[:n].exp().cpu().numpy()
                                   .astype(np.float32))
+                out["rho_bar"].append(fwd.rho_bar.cpu().numpy()
+                                      .astype(np.float32))
     nodes = np.concatenate(out["nodes"])
     order = np.argsort(nodes)
     return {k: np.concatenate(v)[order] for k, v in out.items()}
+
+
+def score_shift(prediction: np.ndarray, observed: np.ndarray) -> dict:
+    """Held-out R², calibration slope and correlation of a predicted
+    per-gene log-rate shift against the observed one.
+
+    Both sides are centred: the softmax normaliser and depth enter as
+    per-panel constants and must not be charged to the model. R² is
+    against the zero-prediction null (no fitted slope), so a prediction of
+    the right direction but wrong size is penalised -- the slope says
+    which."""
+    p = prediction - prediction.mean()
+    o = observed - observed.mean()
+    slope = float(np.polyfit(p, o, 1)[0]) if p.std() > 1e-9 else float("nan")
+    ss = 1.0 - ((o - p) ** 2).sum() / max((o ** 2).sum(), 1e-12)
+    return {"r2": float(ss), "slope": slope,
+            "corr": float(np.corrcoef(p, o)[0, 1])}
 
 
 def pick_pairs(labels: np.ndarray, y: np.ndarray, connected: np.ndarray,
@@ -96,11 +136,13 @@ def summary_figure(results: dict, path) -> None:
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.2),
                              gridspec_kw={"width_ratios": [1, 1.5]})
     summary = results.get("summary", {}).get("extrapolation", {})
-    keys = ("counterfactual", "full", "program_only", "leak_only")
-    axes[0].bar(range(4), [summary.get(k, float("nan")) for k in keys],
-                color=("#2c7fb8", "#7fb8d4", "#41ab5d", "#c9662a"),
+    keys = ("counterfactual", "counterfactual_phi_fixed", "full",
+            "program_only", "leak_only")
+    axes[0].bar(range(5), [summary.get(k, float("nan")) for k in keys],
+                color=("#2c7fb8", "#9ecae1", "#7fb8d4", "#41ab5d", "#c9662a"),
                 width=0.6)
-    axes[0].set_xticks(range(4), ("counter-\nfactual", "model\naccount",
+    axes[0].set_xticks(range(5), ("counter-\nfactual", "counterfactual\n"
+                                  "Φ fixed", "model\naccount",
                                   "program\nonly", "leak\nonly"),
                        fontsize=8)
     axes[0].set_ylabel("mean held-out R² (extrapolation tier)", fontsize=8)
@@ -144,8 +186,14 @@ def transport_check(args: argparse.Namespace) -> dict:
         args.dataset, args.run, args.device)
     latents = collect_latents(trainer, data)
     channels = collect_channels(trainer, data)
-    labels = niche_labels(data, args.niches, config.seed)
     connected = data.graph.degrees > 0
+    # Phi at the receiver type's mean (over connected cells, as in the
+    # neighbour-dose instrument) in BOTH niches: m_psi's composition-only
+    # response
+    phi_by_type = np.stack([data.phi[connected & (data.t == g)].mean(axis=0)
+                            for g in range(len(data.p_t))])
+    prior_w_phi_fixed = collect_channels(trainer, data, phi_by_type)["prior_w"]
+    labels = niche_labels(data, args.niches, config.seed)
     held_out = latents["fold"] == 0            # spatial-block held-out tiles
     gene_names = np.asarray([str(g) for g in data.gene_names])
     kappa = config.kappa
@@ -156,6 +204,7 @@ def transport_check(args: argparse.Namespace) -> dict:
     pairs = pick_pairs(labels, data.graph.y, connected)
     names = [str(n) for n in data.type_names]
     results: dict = {"run": args.run, "kappa": kappa, "panels": []}
+    curves: dict = {}          # per panel: (counterfactual, observed) per gene
     out_dir = run_dir / "transport"
     out_dir.mkdir(exist_ok=True)
 
@@ -199,8 +248,14 @@ def transport_check(args: argparse.Namespace) -> dict:
             rho_a, bar_a, mpsi_a = mean_channels(members["A"][0])
             rho_b, bar_b, mpsi_b = mean_channels(members["B"][0])
 
-            # predicted shifts, log-rate scale, from TRAINING folds
+            # predicted shifts, log-rate scale, from TRAINING folds. Same
+            # type on both sides, so the per-type offset gauge of w
+            # (issues V12) cancels here; rho is gauge-invariant by
+            # construction (a(z) + B w is what the gauge leaves fixed)
             program = b_matrix @ (mpsi_b - mpsi_a)
+            program_phi_fixed = b_matrix @ (
+                prior_w_phi_fixed[members["B"][0]].mean(axis=0)
+                - prior_w_phi_fixed[members["A"][0]].mean(axis=0))
             full = (np.log((1 - kappa) * rho_b + kappa * bar_b + EPS)
                     - np.log((1 - kappa) * rho_a + kappa * bar_a + EPS))
             leak_only = (np.log((1 - kappa) * rho_a + kappa * bar_b + EPS)
@@ -213,15 +268,7 @@ def transport_check(args: argparse.Namespace) -> dict:
             observed = np.log(obs_b[keep] + EPS) - np.log(obs_a[keep] + EPS)
 
             def score(prediction):
-                # both sides centred: the softmax normaliser and depth enter
-                # as per-panel constants and must not be charged to the model
-                p = prediction[keep] - prediction[keep].mean()
-                o = observed - observed.mean()
-                slope = float(np.polyfit(p, o, 1)[0]) \
-                    if p.std() > 1e-9 else float("nan")
-                ss = 1.0 - ((o - p) ** 2).sum() / max((o ** 2).sum(), 1e-12)
-                return {"r2": float(ss), "slope": slope,
-                        "corr": float(np.corrcoef(p, o)[0, 1])}
+                return score_shift(prediction[keep], observed)
 
             panel = {"pair": (int(niche_a), int(niche_b)),
                      "type": names[g],
@@ -238,27 +285,45 @@ def transport_check(args: argparse.Namespace) -> dict:
                      "full": score(full),
                      "program_only": score(program),
                      "leak_only": score(leak_only),
+                     # the same counterfactual with Phi held at the type
+                     # mean in both niches: composition-only response +
+                     # the new neighbours' influx
+                     "counterfactual_phi_fixed": score(
+                         program_phi_fixed + leak_only),
+                     "program_phi_fixed": score(program_phi_fixed),
                      "zero_null_r2": 0.0}
             results["panels"].append(panel)
+            curves[(niche_a, niche_b, g)] = (
+                (program + leak_only)[keep], observed)
 
-            if len(results["panels"]) <= args.figures and not overlap_flag:
-                fig, ax = plt.subplots(figsize=(4.6, 4.2))
-                ax.scatter(full[keep], observed, s=2, alpha=0.4,
-                           rasterized=True)
-                lims = np.percentile(np.concatenate([full[keep], observed]),
-                                     [1, 99])
-                ax.plot(lims, lims, color="0.4", lw=0.8, ls="--")
-                ax.set_xlabel("predicted log-rate shift (program + leak)")
-                ax.set_ylabel("observed (held-out)")
-                ax.set_title(f"{names[g][:26]} | niche {niche_a}->{niche_b}\n"
-                             f"full R² {panel['full']['r2']:.2f} "
-                             f"(prog {panel['program_only']['r2']:.2f}, "
-                             f"leak {panel['leak_only']['r2']:.2f})",
-                             fontsize=9)
-                fig.tight_layout()
-                fig.savefig(out_dir / f"pair{niche_a}-{niche_b}_"
-                                      f"type{g}.png", dpi=130)
-                plt.close(fig)
+    # per-gene calibration of the best-predicted panels -- the object scored
+    # (the counterfactual), both sides centred as in the score, tier named
+    ranked = sorted(results["panels"],
+                    key=lambda p: -p["counterfactual"]["r2"])
+    for panel in ranked[:args.figures]:
+        niche_a, niche_b = panel["pair"]
+        g = names.index(panel["type"])
+        pred, obs = curves[(niche_a, niche_b, g)]
+        pred, obs = pred - pred.mean(), obs - obs.mean()
+        fig, ax = plt.subplots(figsize=(4.6, 4.2))
+        ax.scatter(pred, obs, s=2, alpha=0.4, rasterized=True)
+        lims = np.percentile(np.concatenate([pred, obs]), [1, 99])
+        ax.plot(lims, lims, color="0.4", lw=0.8, ls="--", label="1:1")
+        ax.plot(lims, panel["counterfactual"]["slope"] * lims, color="#c9662a",
+                lw=0.8, label=f"fit, slope {panel['counterfactual']['slope']:.2f}")
+        ax.legend(fontsize=7, loc="upper left")
+        ax.set_xlabel("counterfactual log-rate shift (program + leak, z fixed)")
+        ax.set_ylabel("observed shift (held-out tiles)")
+        ax.set_title(f"{panel['type'][:26]} | niche {niche_a}->{niche_b} "
+                     f"({'extrapolation' if panel['overlap_flag'] else 'supported'})\n"
+                     f"counterfactual R² {panel['counterfactual']['r2']:.2f} "
+                     f"(prog {panel['program_only']['r2']:.2f}, "
+                     f"leak {panel['leak_only']['r2']:.2f}, "
+                     f"Φ fixed {panel['counterfactual_phi_fixed']['r2']:.2f})",
+                     fontsize=8)
+        fig.tight_layout()
+        fig.savefig(out_dir / f"pair{niche_a}-{niche_b}_type{g}.png", dpi=130)
+        plt.close(fig)
 
     # two tiers: with data-defined (k-means) niches, distinct pairs are
     # composition-disjoint BY CONSTRUCTION, so the interpolation tier is
@@ -273,19 +338,24 @@ def transport_check(args: argparse.Namespace) -> dict:
             continue
         summary = {key: float(np.mean([p[key]["r2"] for p in tier]))
                    for key in ("counterfactual", "full", "program_only",
-                               "leak_only")}
+                               "leak_only", "counterfactual_phi_fixed",
+                               "program_phi_fixed")}
         summary["n_panels"] = len(tier)
         summary["median_slope"] = float(np.median(
             [p["counterfactual"]["slope"] for p in tier]))
+        summary["median_slope_phi_fixed"] = float(np.median(
+            [p["counterfactual_phi_fixed"]["slope"] for p in tier]))
         # doc 7.4: the claim rides on the counterfactual total
         summary["full_beats_both"] = int(sum(
             p["counterfactual"]["r2"] > max(p["program_only"]["r2"],
                                             p["leak_only"]["r2"])
             for p in tier))
         results["summary"][name] = summary
-        log.info("transport [%s]: %d panels | mean R² full %.3f, program "
-                 "%.3f, leak %.3f | slope %.2f | full beats both %d/%d",
-                 name, summary["n_panels"], summary["full"],
+        log.info("transport [%s]: %d panels | mean R² counterfactual %.3f "
+                 "(Φ fixed %.3f), model account %.3f, program %.3f, leak "
+                 "%.3f | slope %.2f | counterfactual beats both %d/%d",
+                 name, summary["n_panels"], summary["counterfactual"],
+                 summary["counterfactual_phi_fixed"], summary["full"],
                  summary["program_only"], summary["leak_only"],
                  summary["median_slope"], summary["full_beats_both"],
                  summary["n_panels"])
@@ -297,10 +367,49 @@ def transport_check(args: argparse.Namespace) -> dict:
     return results
 
 
+def sweep_sensitivity(args: argparse.Namespace) -> dict:
+    """Doc-08 section 7.5: the transport summary of every run of a kappa
+    sweep, one model resident at a time. Keyed by run name, each entry the
+    run's two-tier summary plus its kappa and seed."""
+    import gc
+
+    import torch
+
+    from discell import paths
+    from discell.model.sweep import run_name
+
+    out = paths.dataset(args.dataset).root / "experiments" / args.sweep_out
+    table: dict = {}
+    for seed in args.seeds:
+        for kappa in args.kappas:
+            run = run_name(kappa, seed, args.sweep_tag)
+            run_dir = paths.dataset(args.dataset).root / "runs" / run
+            if not (run_dir / "best.pt").exists():
+                log.warning("missing %s -- skipped", run)
+                continue
+            results = transport_check(
+                argparse.Namespace(**{**vars(args), "run": run}))
+            table[run] = {"kappa": kappa, "seed": seed, **results["summary"]}
+            del results
+            gc.collect()
+            torch.cuda.empty_cache()
+            out.write_text(json.dumps(table, indent=2, default=float))
+    log.info("wrote %s", out)
+    return table
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--dataset", required=True)
-    parser.add_argument("--run", required=True)
+    parser.add_argument("--run", default=None)
+    parser.add_argument("--sweep-tag", default=None,
+                        help="run every model of a kappa sweep instead")
+    parser.add_argument("--kappas", type=float, nargs="*",
+                        default=[0.0, 0.05, 0.1, 0.2, 0.3, 0.4])
+    parser.add_argument("--seeds", type=int, nargs="*", default=[0])
+    parser.add_argument("--sweep-out",
+                        default="transport_kappa_sensitivity.json",
+                        help="file name under experiments/ (sweep mode)")
     parser.add_argument("--niches", type=int, default=10)
     parser.add_argument("--figures", type=int, default=8)
     parser.add_argument("--device", default="cuda")
@@ -309,7 +418,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(
         level=logging.WARNING if args.quiet else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
-    transport_check(args)
+    if args.sweep_tag:
+        sweep_sensitivity(args)
+    elif args.run:
+        transport_check(args)
+    else:
+        parser.error("one of --run / --sweep-tag is required")
     return 0
 
 

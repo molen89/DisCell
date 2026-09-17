@@ -36,7 +36,7 @@ import torch
 from discell import paths
 from discell.model import metrics as M
 from discell.model.elbo import Weights, adversary_terms, discell_loss
-from discell.model.equations import TypeCovariances
+from discell.model.equations import TypeCovariances, leakage_mix
 from discell.model.networks import DisCell
 from discell.model.prepare import ModelData, assemble, tile_batch
 
@@ -74,6 +74,7 @@ class TrainConfig:
     #: spec-4.1 sources [onehot(t_j), sg mu_z_j], kept for era-reproduction
     gat_sources: str = "type_only"
     subtract_leak: bool = False         # spec 7.13: encoders read x - kappa*l*rho_bar
+    gat_sink: bool = False              # attention sink: neighbour dose, saturating
     invariance: str = "adversary"       # "closed_form" before spec 4.6 escalation
     adv_lr: float = 2e-3
     adv_steps: int = 6
@@ -87,6 +88,7 @@ class TrainConfig:
     epochs: int = 200
     tile_cells: int = 4096
     lr: float = 1e-3
+    weight_decay: float = 0.0          # Adam's coupled L2; 0 = the pinned runs
     grad_clip: float = 10.0
     val_fraction: float = 0.15
     patience: int = 20
@@ -130,6 +132,7 @@ class Trainer:
             gat_dim=config.gat_dim, heads=config.heads,
             gat_sources=config.gat_sources,
             subtract_leak=config.subtract_leak,
+            gat_sink=config.gat_sink,
         ).to(self.device)
         self.covariances = None
         self.adversary = self.adversary_optimiser = None
@@ -151,7 +154,8 @@ class Trainer:
             self.ybar_t = torch.tensor(data.graph.ybar_t, device=self.device)
             self.phibar_t = torch.tensor(data.phibar_t, device=self.device)
         self.p_t = torch.tensor(data.p_t, device=self.device)
-        self.optimiser = torch.optim.Adam(self.model.parameters(), lr=config.lr)
+        self.optimiser = torch.optim.Adam(self.model.parameters(), lr=config.lr,
+                                          weight_decay=config.weight_decay)
         self.schedule = torch.optim.lr_scheduler.CosineAnnealingLR(
             self.optimiser, T_max=config.epochs)
 
@@ -165,7 +169,12 @@ class Trainer:
     def _to_device(self, tile: np.ndarray) -> dict:
         """One tile's tensors, resident on the device for the whole fit."""
         b = tile_batch(self.data.graph, tile)
-        dense = torch.tensor(self.data.x[b.nodes].toarray(), device=self.device)
+        # Counts are small integers (max 856 on the deepest slide), so int16 is
+        # exact and halves the resident footprint -- what lets a 1.16M-cell
+        # slide fit a 24 GB card. _forward_kwargs casts a tile back to float32.
+        counts = self.data.x[b.nodes].toarray()
+        assert counts.max() < 32768, "counts exceed int16; widen the resident dtype"
+        dense = torch.tensor(counts.astype(np.int16), device=self.device)
         return dict(
             nodes=b.nodes,
             x=dense,
@@ -192,7 +201,9 @@ class Trainer:
     def _forward_kwargs(batch: dict) -> dict:
         keep = ("x", "t", "phi", "isolated", "gat_src", "gat_dst",
                 "leak_src", "leak_dst", "leak_beta", "n_seeds", "n_context")
-        return {k: batch[k] for k in keep}
+        out = {k: batch[k] for k in keep}
+        out["x"] = batch["x"].float()          # resident int16 -> float32 per tile
+        return out
 
     # -- steps -------------------------------------------------------------
 
@@ -203,7 +214,8 @@ class Trainer:
         from discell.model.networks import soft_cross_entropy
 
         config = self.config
-        fwd = self.model(**self._forward_kwargs(batch), kappa=config.kappa)
+        kwargs = self._forward_kwargs(batch)
+        fwd = self.model(**kwargs, kappa=config.kappa)
         n = batch["n_seeds"]
         weights = config.weights()
         extras: dict = {}
@@ -211,14 +223,14 @@ class Trainer:
             adv = adversary_terms(self.adversary, fwd.mu_z[:n], batch["t"][:n],
                                   batch["y_seed"], batch["ephi_seed"],
                                   self.ybar_t, self.phibar_t)
-            terms = discell_loss(fwd, batch["x"][:n], batch["t"][:n],
+            terms = discell_loss(fwd, kwargs["x"][:n], batch["t"][:n],
                                  weights=dc.replace(weights, alpha_a=0.0))
             loss = terms.loss + weights.alpha_a * adv.encoder_term
             terms.penalty = float(adv.encoder_term.detach())
             extras = {"adv_excess_y": adv.excess_y,
                       "adv_excess_phi": adv.excess_phi}
         else:
-            terms = discell_loss(fwd, batch["x"][:n], batch["t"][:n],
+            terms = discell_loss(fwd, kwargs["x"][:n], batch["t"][:n],
                                  weights=weights, v=batch["v"],
                                  covariances=self.covariances, p_t=self.p_t)
             loss = terms.loss
@@ -241,12 +253,26 @@ class Trainer:
             extras["adv_head_loss"] = float(head_loss.detach())
         return terms, extras
 
+    def _decode_seeds(self, fwd, z_seeds: torch.Tensor, n: int) -> torch.Tensor:
+        """``log p`` of the seeds with *z_seeds* in place of their own z.
+
+        w, the foreign influx and kappa stay as the forward pass left them, so
+        at ``z_seeds = fwd.mu_z[:n]`` (sample=False) this is ``fwd.log_p``.
+        """
+        log_rho = self.model.log_rho(z_seeds, fwd.mu_w[:n])
+        return leakage_mix(log_rho.exp(), fwd.rho_bar, self.config.kappa)
+
     @torch.no_grad()
-    def _sweep(self, batches: list[dict], want_log_p: bool = False) -> dict:
-        """Collect per-seed arrays over *batches* in eval mode."""
+    def _sweep(self, batches: list[dict], want_log_p: bool = False,
+               z_bar: torch.Tensor | None = None) -> dict:
+        """Collect per-seed arrays over *batches* in eval mode.
+
+        *z_bar* (K, d_z): also decode every seed with its type's mean z in
+        place of its own (``log_p_typemean``) -- the spec 7.10 degeneracy gap.
+        """
         self.model.eval()
         out = {k: [] for k in ("nodes", "mu_z", "mu_w", "prior_w", "c",
-                               "kl_w", "kl_z", "log_p")}
+                               "kl_w", "kl_z", "log_p", "log_p_typemean")}
         for batch in batches:
             fwd = self.model(**self._forward_kwargs(batch),
                              kappa=self.config.kappa, sample=False)
@@ -266,14 +292,21 @@ class Trainer:
                                 ).sum(dim=-1).cpu().numpy())
             if want_log_p:
                 out["log_p"].append(fwd.log_p.cpu().numpy())
+            if z_bar is not None:
+                out["log_p_typemean"].append(self._decode_seeds(
+                    fwd, z_bar[batch["t"][:n]], n).cpu().numpy())
         self.model.train()
         return {k: np.concatenate(v) if v else None for k, v in out.items()}
 
     # -- evaluation --------------------------------------------------------
 
     def evaluate(self) -> dict:
-        val = self._sweep(self.val_batches, want_log_p=True)
         train = self._sweep(self.train_batches)
+        t_train = self.data.t[train["nodes"]]
+        # type mean of mu_z over TRAINING cells: the "z is just t" decode
+        z_bar = M.type_means(train["mu_z"], t_train, len(self.data.p_t))
+        val = self._sweep(self.val_batches, want_log_p=True,
+                          z_bar=torch.tensor(z_bar, device=self.device))
 
         x_val = np.vstack([self.data.x[b["nodes"][:b["n_seeds"]]].toarray()
                            for b in self.val_batches])
@@ -319,12 +352,25 @@ class Trainer:
                                 )[:, None].astype(np.float64),
                          t_all, scores, cycling, train_mask, ~train_mask,
                          seed=self.config.seed)}
+        # spec 7.10 degeneracy pair: I(z;t)/H(t) + within-type variance, and
+        # the held-out recon lost when each cell's z is its type's mean z
+        recon = M.held_out_reconstruction(x_val, val["log_p"])
+        recon_typemean = M.held_out_reconstruction(x_val, val["log_p_typemean"])
+        recon_gap = {
+            "recon": recon, "recon_typemean_z": recon_typemean,
+            "gap": recon - recon_typemean,
+            "recon_type_profile": M.type_profile_reconstruction(
+                self.data.x[train["nodes"]], t_train, x_val,
+                self.data.t[val["nodes"]])}
         return {
             "cycle": cycle,
-            "recon_val": M.held_out_reconstruction(x_val, val["log_p"]),
+            "recon_val": recon,
             "nmi": M.z_type_nmi(z_all, t_all, seed=self.config.seed),
             "mirror": M.mirror_r2(z_all, c_all, t_all, seed=self.config.seed),
             "probe": probe,
+            "degeneracy": M.type_degeneracy(z_all, t_all, train_mask,
+                                            ~train_mask, seed=self.config.seed),
+            "recon_gap": recon_gap,
             "kl_w_per_dim": val["kl_w"].mean(axis=0).tolist(),
             "collected": {"rows": rows_all, "z": z_all,
                           "w": np.vstack([train["mu_w"], val["mu_w"]]),
@@ -813,6 +859,12 @@ class Trainer:
                               report["probe"]["delta_ce"], step)
             writer.add_scalar("val/probe_noise_floor",
                               report["probe"]["noise_floor"], step)
+            writer.add_scalar("val/degeneracy_mi_ratio",
+                              report["degeneracy"]["mi_ratio"], step)
+            writer.add_scalar("val/degeneracy_within_var_fraction",
+                              report["degeneracy"]["within_var_fraction"], step)
+            writer.add_scalar("val/recon_gap_typemean_z",
+                              report["recon_gap"]["gap"], step)
             if report.get("cycle"):
                 type_names = [str(n) for n in self.data.type_names]
                 for latent in ("z", "w", "linear_ref", "lbaseline"):
@@ -908,7 +960,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--embeddings", default=defaults.embeddings)
     parser.add_argument("--run-name", default=None)
     for field in ("kappa", "omega", "alpha_z", "alpha_w", "alpha_a", "lr",
-                  "adv_lr", "val_fraction", "nmi_guard", "cov_ema", "grad_clip"):
+                  "weight_decay", "adv_lr", "val_fraction", "nmi_guard",
+                  "cov_ema", "grad_clip"):
         parser.add_argument(f"--{field.replace('_', '-')}", type=float,
                             default=getattr(defaults, field))
     for field in ("d_z", "d_w", "hidden", "gat_dim", "heads", "adv_steps",
@@ -924,6 +977,9 @@ def build_parser() -> argparse.ArgumentParser:
                         choices=("type_z", "type_only"))
     parser.add_argument("--subtract-leak", action="store_true",
                         help="spec 7.13: encoders read x - kappa*l*rho_bar")
+    parser.add_argument("--gat-sink", action="store_true",
+                        help="attention sink: c grows with neighbour count "
+                             "(saturating dose) instead of seeing fractions only")
     parser.add_argument("--device", default=defaults.device)
     parser.add_argument("--quiet", action="store_true")
     return parser

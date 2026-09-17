@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Planted worlds on the gate scaffold -- the shared adjudicator (doc 11).
 
+``plant_programme``: a gene programme written into chosen cells' clean
+compositions and re-mixed through the true leak operator.
 ``fit_synthetic``: one short DisCell fit on a synthetic tissue, posterior
 means for every cell; the gate's calibration, nothing tuned per world.
 """
@@ -10,9 +12,37 @@ from __future__ import annotations
 import numpy as np
 
 
+def plant_programme(sim, planted: np.ndarray, genes: np.ndarray,
+                    share: float, rng: np.random.Generator):
+    """``rho_i <- (1 - share) rho_i + share * uniform(genes)`` for planted cells.
+
+    A programme defined by the transcript share it takes, not by a log-fold:
+    on the simulator's skewed compositions a log-fold on random genes moves
+    almost nothing (issues V9, the under-powered plant), a share moves the
+    same mass in every seed. Leak re-mixed through the true operator, counts
+    resampled; ``sim`` is updated in place (x, rho_true, p_true) and returned.
+    """
+    rho = sim.rho_true.copy()
+    programme = np.zeros(rho.shape[1])
+    programme[genes] = 1.0 / len(genes)
+    rho[planted] = (1.0 - share) * rho[planted] + share * programme
+    rho_bar = sim.graph.in_edges @ rho
+    p = (1.0 - sim.kappa) * rho + sim.kappa * rho_bar
+    p /= p.sum(axis=1, keepdims=True).clip(min=1e-12)
+    sim.x = np.stack([rng.multinomial(int(sim.totals[i]), p[i])
+                      for i in range(len(sim.t))]).astype(np.float32)
+    sim.rho_true, sim.p_true = rho, p
+    return sim
+
+
 def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
                   seed: int = 0, subtract_leak: bool = False) -> dict:
-    """Returns {"z", "w", "b_matrix", "fold"} for *sim* (all cells)."""
+    """Returns {"z", "w", "b_matrix", "fold", "rho_bar"} for *sim* (all cells).
+
+    ``rho_bar`` is the model's own foreign influx per cell (posterior means,
+    the pass-1 encoding), the quantity the counts-level correction
+    ``x~ = x - kappa l rho_bar`` needs.
+    """
     import torch
 
     from discell.model.elbo import Weights, discell_loss
@@ -72,6 +102,7 @@ def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
     n_cells = len(sim.t)
     z_hat = np.zeros((n_cells, d_z), dtype=np.float32)
     w_hat = np.zeros((n_cells, d_w), dtype=np.float32)
+    rho_bar = np.zeros((n_cells, genes), dtype=np.float32)
     fold = np.zeros(n_cells, dtype=np.int64)
     with torch.no_grad():
         for j, (nodes, tensors) in enumerate(batches):
@@ -79,6 +110,7 @@ def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
             s = tensors["n_seeds"]
             z_hat[nodes[:s]] = fwd.mu_z[:s].cpu().numpy()
             w_hat[nodes[:s]] = fwd.mu_w[:s].cpu().numpy()
+            rho_bar[nodes[:s]] = fwd.rho_bar[:s].cpu().numpy()
             fold[nodes[:s]] = j % 5
-    return {"z": z_hat, "w": w_hat, "fold": fold,
+    return {"z": z_hat, "w": w_hat, "fold": fold, "rho_bar": rho_bar,
             "b_matrix": model.B.weight.detach().cpu().numpy()}

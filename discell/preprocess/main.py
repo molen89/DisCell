@@ -115,6 +115,7 @@ class Run:
                 self.args.sample,
                 clip_radius_um=self.args.clip_radius_um,
                 max_cells=self.args.max_cells,
+                donors=self.args.donors,
                 contact_tolerance_um=self.args.contact_tolerance_um,
                 wall_tolerance_um=self.args.wall_tolerance_um,
                 build_graphs=need_graphs,
@@ -141,6 +142,7 @@ class Run:
                 "wall_tolerance_um": self.args.wall_tolerance_um,
                 "clip_radius_um": self.args.clip_radius_um,
                 "max_cells": self.args.max_cells,
+                "donors": self.args.donors,
             },
             dataset_id=self.dataset.dataset_id,
         )
@@ -308,6 +310,9 @@ def build_parser() -> argparse.ArgumentParser:
     graph.add_argument("--clip-radius-um", type=float, default=30.0)
     graph.add_argument("--max-cells", type=int, default=None,
                        help="limit to the N cells nearest the tissue centre")
+    graph.add_argument("--donors", nargs="+", default=None,
+                       help="TMA: keep only these cores (donor column of the "
+                            "cell_groups file); pair with --variant")
 
     image = parser.add_argument_group("embeddings")
     image.add_argument("--model", default="v1", choices=("v1", "v2"),

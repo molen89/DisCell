@@ -63,7 +63,7 @@ technical layer.
 |---|---|
 | `c_i` | context descriptor, `GATv2((x_src, x_dst), edges) ⊕ Φ_i`. **No edge features** — §7.3 |
 | `x_dst` | GAT query, `embed(t_i)`. **Not `z_i`** — §7.2 |
-| `x_src` | GAT key/value, `[onehot(t_j), sg μ_z(x_j)]` |
+| `x_src` | GAT key/value, `onehot(t_j)` — **types only, no `sg μ_z`** — §7.2 |
 | `α_ij` | attention weight, `Σ_j α_ij = 1`. Distinct from loss weights `α_z, α_w, α_a` |
 | `ρ_i ∈ Δ^{G−1}` | cell's **own clean** composition |
 | `ρ̄_i ∈ Δ^{G−1}` | **foreign influx**, `Σ_j β_ij ρ_j` |
@@ -97,7 +97,7 @@ neighbour composition per type, `Φ̄(t)` = mean image-niche distribution per ty
 
 ```
 z_i               ~  𝒩(0, I)
-c_i               =  GATv2( query=embed(t_i), src={[onehot t_j, sg z_j]} ) ⊕ Φ_i
+c_i               =  GATv2( query=embed(t_i), src={onehot t_j} ) ⊕ Φ_i
 w_i | c_i, t_i    ~  𝒩( m_ψ(c_i,t_i) , σ_w² I )
 
 log ρ̃_ig          =  a_g(z_i) + ⟨w_i, B_g⟩          ρ_i = softmax_g(ρ̃_i)
@@ -109,7 +109,8 @@ x_i | ℓ_i         ~  Multinomial( ℓ_i , p_i )
 
 **Conditional independencies.** `z_i ⊥ [y_i,Φ_i] | t_i` — within a type, intrinsic state says
 nothing further about location. `x_i ⊥ c_i | z_i, w_i, {ρ_j}` — the environment reaches the cell
-only through `w` and through leakage.
+only through `w` and through leakage. Note `c_i` is a **pure function of data** — types, graph,
+image; no latent enters it.
 
 ---
 
@@ -120,13 +121,22 @@ only through `w` and through leakage.
 *One vector per cell summarising who and what is nearby. Deterministic, shared by co-located cells.*
 
 ```
-x_dst = embed(t_i)                    x_src = [ onehot(t_j) , sg μ_z(x_j) ]
+x_dst = embed(t_i)                    x_src = onehot(t_j)
 GATv2: add_self_loops = False, 1 layer, 4 heads, concat = False, NO edge features
 c_i   = GATv2((x_src, x_dst), edges) ⊕ Φ_i
 ```
 
 - **Query is the type, not `z_i`.** Using `z_i` lets attention mirror the cell through similar
   neighbours, making the prior ego-informed and killing the anomaly score (§7.2).
+- **Sources are types only — no `sg μ_z(x_j)`.** The source side was the mirror's second head
+  (§7.2): homophily makes neighbour `μ_z` a linear proxy for ego `μ_z`, so `m_ψ` can book
+  intrinsic variance as context effect. The route lives in the prior mean — KL-free at
+  convergence, so `α_w` prices only the optimisation path (seed-bistable at every tested
+  `α_w < 0.1`) — and stop-gradient is no guard: it stops `z_j` being *shaped* for the read, not
+  being *read*. Removing the input deletes the raw material. Ratified by ablation 2026-09-11:
+  held-out recon **improved** (+0.006), NMI up, mirror-R² down, `w`'s spatial character (Moran,
+  niche AUC) unchanged. Cost owned: the prior's ceiling is composition-level context — response
+  to neighbour *state given type* can enter only through the deviation channel (`x_i` in `q(w)`).
 - **No geometry edge features.** The Delaunay graph already encodes *who* is adjacent; `Φ_i`
   encodes *how packed* the region is. Continuous geometry in `c_i` would put un-interventionable
   variation into the estimand (§7.3).
@@ -190,7 +200,7 @@ amplification is `1/(1−κ)`.
 ```
 seeds          the tile
 ring1          graph neighbours of seeds        enc_z, GAT, enc_w, decode
-ring2          graph neighbours of ring1        enc_z only
+ring2          graph neighbours of ring1        type/Φ lookup only — no encoder pass
 ```
 
 Build both rings by **index gather on the same edge list `β` uses** — graph hops, never a distance
@@ -200,7 +210,7 @@ it, and if the halo and the leak kernel disagree, `ρ̄` is silently wrong.
 **One pass, four batched calls.** No per-neighbour loops, no seed-spacing constraint:
 
 ```
-H_src = cat([onehot(T), Z.detach()], -1) @ W_src      # (|nodes|, heads·d_c)   once per node
+H_src = onehot(T) @ W_src                             # (|nodes|, heads·d_c)   once per node
 H_dst = embed(T)                         @ W_dst      # (|nodes|, heads·d_c)   once per node
 msg   = leaky_relu( H_dst[dst] + H_src[src] )         # per edge, pure gather
 c     = segment_sum( segment_softmax((msg*a).sum(-1), dst)[...,None] * H_src[src], dst )
@@ -211,9 +221,10 @@ also another seed's neighbour just reads different rows. **Filter edges to `dst 
 a ring-2 node's `c` would normalise over a truncated neighbourhood and is wrong — harmless if never
 read, corrupting if it is.
 
-**No `ρ` cache.** With `enc_z ≈ 5000→128` and the decoder `≈ 128→5000`, a ring-2 cell costs ~49% of
-a full one, giving **~13% overhead at 2048 seeds, ~7% at 8192** — cheaper than a multi-GB buffer
-plus staleness bookkeeping. Scattered seeds would cost ~30× more nodes than a contiguous tile, so
+**No `ρ` cache.** With type-only sources a ring-2 cell costs nothing beyond an embedding lookup,
+so the halo's compute overhead is ring-1 only — strictly below the 21% / 9.7% measured at
+1.6k / 6.4k-seed tiles when ring 2 still ran `enc_z`; re-measure once. Still cheaper than a
+multi-GB buffer plus staleness bookkeeping. Scattered seeds would cost ~30× more nodes than a contiguous tile, so
 spacing seeds apart is the expensive option, not the cheap one.
 
 Do **not** shortcut with `ρ_j ≈ softmax(a_g(z_j))`. Neighbours share niches, so `w_j ≈ w_i`;
@@ -417,6 +428,21 @@ Zeroing `z_i` while keeping self-loops is **not** an alternative: softmax still 
 mass on the self-edge, down-weighting neighbours, and under `z ∼ 𝒩(0,I)` the origin is the prior
 mean, so a zero vector asserts "this cell is average" rather than "ignore this cell".
 
+**The source-side head (closed 2026-09-11).** Fixing the query is not enough: with `sg μ_z(x_j)`
+in the sources, homophily makes neighbour `μ_z` a linear proxy for ego `μ_z`, and `m_ψ(c,t)`
+reconstructs the cell from its neighbours — booking intrinsic variance as context effect. Three
+properties made it dangerous. The route lives in the **prior mean**, so it is KL-free at
+convergence and `α_w` penalises only the path to it: 0/21+ runs fell in at `α_w = 0.1`, 3/6 seeds
+at every tested `α_w < 0.1`, with held-out recon *inflated* and the basin invisible to NMI, the
+§4.6 probe, and the z-mirror metric above. Stop-gradient is no defence — it stops `z_j` being
+*shaped* for the read, not being *read*. And the basin is seed-selected, so the operating point
+was protected only by an optimisation accident. Fix: sources are `onehot(t_j)` only — prevention
+by architecture. The adoption ablation inverted the expected trade (recon +0.006 for removal, NMI
+up, mirror down, `w` untouched): the input's only measurable use was the trick. Residual guard:
+the **w-mirror metric** (§7.10), kept in the battery regardless. Closure gate: any reopened `α_w`
+study starts with a seed battery at the previously bistable point under type-only sources,
+expecting 0/N in the basin.
+
 ### 7.3 Why the GAT gets no geometry, and why the graph is Delaunay
 
 **The decisive argument is the counterfactual, not collinearity.** `c_i` is the conditioning
@@ -477,7 +503,7 @@ identical for co-located similar cells — and `KL_w → 0`.
 | Cause | Check | Fix |
 |---|---|---|
 | Posterior collapse | `α_w` large vs reconstruction | lower `α_w`, free-bits |
-| Mirror attractor | `R²` of `z_i` on `c_i` vs permuted control | `embed(t_i)` as query |
+| Mirror attractor (query or source side) | z-mirror `R²`; w-mirror partial `R²` (§7.10) | `embed(t_i)` query; `onehot(t_j)`-only sources |
 | `w` starved of ego evidence | is `x_i` wired into `enc_w`? | add the direct path |
 
 ### 7.5 Why the invariance target includes `Φ`
@@ -538,6 +564,8 @@ anomalies, per-cell responses, and counterfactuals with abduction
 ```
 R²(z_i ~ c_i) WITHIN TYPE, vs within-type permuted control — pooled R² partly
                                       measures type separability, which z and c both carry legitimately
+partial R²( within-type μ_w resid ~ neighbour μ̄_z | y, Φ )   w-mirror: hot = state smuggling;
+                                      hot through y alone = legitimate composition context
 corr(α_ij, β_ij)                      only if the edge-feature fallback is on (§7.3)
 KL_w per dimension                    → 0: rule out the mirror BEFORE free-bits
 z–type NMI                            hard floor; the CSVAE failure mode

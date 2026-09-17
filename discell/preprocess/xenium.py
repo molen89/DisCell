@@ -242,12 +242,16 @@ def load_xenium_sample(
     precision_um: float | None = DEFAULT_PRECISION_UM,
     wall_tolerance_um: float | None = DEFAULT_WALL_TOLERANCE_UM,
     max_cells: int | None = None,
+    donors: Sequence[str] | None = None,
 ):
     """Load a Xenium sample: raw counts, polygons, metadata and neighbour graphs.
 
     Builds the same AnnData structure the rest of the pipeline expects, so
     the plotting and graph tooling works unchanged. *max_cells* takes a spatially
     contiguous subset, which is useful for iterating on a 280k-cell slide.
+    *donors* keeps only the TMA cores named (needs a ``donor`` column in the
+    cell_groups file); cores are punches with gaps far beyond any graph
+    clip, so the subset's graphs equal the full slide's on those cells.
     """
     xenium_dir = locate_xenium_dir(sample_path)
     experiment = read_experiment(xenium_dir)
@@ -315,10 +319,27 @@ def load_xenium_sample(
         if "color" in matched:
             colours = matched["color"].map(lambda v: None if pd.isna(v) else str(v))
             adata.obs["cell_group_color"] = pd.Categorical(colours.astype(object))
+        # TMA slides: the core (donor) each cell was cut from, for held-out
+        # donor splits; absent from 10x's own single-donor files.
+        if "donor" in matched:
+            core = matched["donor"].map(lambda v: None if pd.isna(v) else str(v))
+            adata.obs["donor"] = pd.Categorical(core.astype(object))
         n_missing = int(labels.isna().sum())
         log.info("  attached cell_group to %d cells (%d unlabelled)",
                  adata.n_obs - n_missing, n_missing)
         label_columns.insert(0, "cell_group")
+
+    if donors:
+        if "donor" not in adata.obs:
+            raise XeniumError("donors were given but no cell_groups.csv carries a donor column")
+        keep = adata.obs["donor"].astype(object).isin(list(donors)).to_numpy()
+        if not keep.any():
+            raise XeniumError(f"no cells from donors {list(donors)}")
+        adata = adata[keep].copy()
+        polys = [poly for poly, k in zip(polys, keep) if k]
+        metrics = metrics[keep]
+        log.info("Subset to %d cells from %d donor(s): %s", adata.n_obs, len(donors),
+                 ", ".join(donors))
 
     adata.uns["label_columns"] = label_columns
     if "cell_group" in label_columns:
@@ -385,6 +406,7 @@ def load_sample(
     sample_path: str, clip_radius_um: float = DEFAULT_CLIP_RADIUS_UM,
     max_cells: int | None = None, contact_tolerance_um: float | None = None,
     wall_tolerance_um: float | None = None, build_graphs: bool = True,
+    donors: Sequence[str] | None = None,
 ):
     """Load a sample and its graphs. Returns ``(adata, sample_dir)``.
 
@@ -398,5 +420,5 @@ def load_sample(
 
     sample_dir = locate_xenium_dir(Path(sample_path).expanduser().resolve())
     adata = load_xenium_sample(sample_dir, clip_radius_um=clip_radius_um,
-                               max_cells=max_cells, **extra)
+                               max_cells=max_cells, donors=donors, **extra)
     return adata, sample_dir
