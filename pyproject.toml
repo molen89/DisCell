@@ -44,6 +44,11 @@ kronos = [
 # discell.preprocess.plotting.show. Qt drives a local or X-forwarded display;
 # tornado serves the WebAgg fallback when X is too slow to be usable.
 viz = ["pyqt6>=6.11", "tornado>=6.5"]
+# External baselines (devlog 4.2). resolVI ships inside scvi-tools and resolves
+# here with zero downgrades, so it is an extra rather than a separate env; SIMVI
+# and MintFlow cannot be (old scvi-tools pin, zarr < 3) and live in their own
+# venvs under ../DisCell-baselines.
+baselines = ["scvi-tools>=1.5.1"]
 
 [dependency-groups]
 dev = ["pytest>=8.0", "ruff>=0.6"]

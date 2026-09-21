@@ -112,7 +112,8 @@ class Forward:
     ``alpha`` exist for the diagnostics (mirror check, attention entropy).
     """
 
-    mu_z: torch.Tensor          # (n_nodes, d_z)
+    mu_z: torch.Tensor          # (n_encoded, d_z); n_encoded is
+    #: n_nodes under type_z, n_context (ring 2 skipped) under type_only
     logvar_z: torch.Tensor
     z: torch.Tensor
     c: torch.Tensor             # (n_context, c_dim)
@@ -155,6 +156,31 @@ def soft_cross_entropy(target: torch.Tensor, log_pred: torch.Tensor) -> torch.Te
     return -(target * log_pred).sum(dim=-1)
 
 
+class ClassMeanPrior(nn.Module):
+    """DisCoVR's prior, standing in for ``m_psi(c, t)`` -- ablation (iii), 6b.5.
+
+    ``p(w | t) = N(mu_t, I)`` with ``mu_t`` a learned per-type vector, so the
+    prior no longer reads the context ``c`` at all: DisCoVR's class-mean prior
+    ``mu_k = E[z | y = k]``, here on the w channel and learned rather than
+    accumulated. The posterior ``q(w | c, t, z, x)`` is untouched, so the KL
+    still pulls a context-dependent posterior toward a context-free target.
+
+    It is a drop-in for the ``prior_w`` MLP -- same call signature, the
+    ``[c, onehot(t)]`` concatenation -- so ``transport.py``, ``degeneracy.py``
+    and ``neighbour_dose.py`` keep working unchanged; the ``c`` block is simply
+    ignored and the one-hot tail is read back as the type index.
+    """
+
+    def __init__(self, n_types: int, d_w: int):
+        super().__init__()
+        self.n_types = n_types
+        self.mu_t = nn.Embedding(n_types, d_w)
+
+    def forward(self, joined: torch.Tensor) -> torch.Tensor:
+        t = joined[:, -self.n_types:].argmax(dim=-1)
+        return self.mu_t(t)
+
+
 class DisCell(nn.Module):
     """The five networks of the spec, plus the tile forward pass."""
 
@@ -162,7 +188,7 @@ class DisCell(nn.Module):
                  median_counts: float, d_z: int = 20, d_w: int = 6,
                  hidden: int = 256, gat_dim: int = 32, heads: int = 4,
                  gat_sources: str = "type_only", subtract_leak: bool = False,
-                 gat_sink: bool = False):
+                 gat_sink: bool = False, class_mean_prior: bool = False):
         super().__init__()
         self.n_types, self.d_z, self.d_w = n_types, d_z, d_w
         self.median_counts = float(median_counts)
@@ -184,7 +210,10 @@ class DisCell(nn.Module):
         self.gat = GATv2(src_dim=src_dim, dst_dim=src_dim,
                          out_dim=gat_dim, heads=heads, sink=gat_sink)
         c_dim = gat_dim + phi_dim + 1                     # +1: isolated flag
-        self.prior_w = mlp([c_dim + n_types, hidden // 4, d_w])
+        # ablation (iii): p(w|t) = N(mu_t, I), the context-free DisCoVR prior.
+        # Default False = the spec's m_psi(c, t) = every pinned run.
+        self.prior_w = (ClassMeanPrior(n_types, d_w) if class_mean_prior
+                        else mlp([c_dim + n_types, hidden // 4, d_w]))
         self.enc_w = mlp([c_dim + n_types + d_z + n_genes + 1, hidden, 2 * d_w])
         # the decoder: a_g(z) + <w, B_g>. No t anywhere below this line.
         self.dec_a = mlp([d_z, hidden, n_genes])
@@ -229,17 +258,29 @@ class DisCell(nn.Module):
                 sample: bool = True) -> Forward:
         """One tile: all nodes in [seeds | ring1 | ring2] layout.
 
-        ``z`` is encoded for every node (ring2 feeds the GAT), ``c``/``w``/
-        ``rho`` for seeds and ring1 (ring1's rho feeds the leak), the losses for
-        seeds only. Exact two hops, no cache.
+        ``c``/``w``/``rho`` are built for seeds and ring1 (ring1's rho feeds
+        the leak), the losses for seeds only. Exact two hops, no cache.
+
+        ``z`` is encoded for every node under ``type_z``, where ring 2's
+        ``sg mu_z`` is a GAT source for ring 1. Under the default
+        ``type_only`` the GAT sources are ``onehot(t_j)`` alone, so ring-2
+        ``mu_z`` is never read and the encoder runs on seeds u ring1 only --
+        spec 4.5 ("ring2: type/Phi lookup only -- no encoder pass").
         """
         from discell.model.equations import foreign_influx, leakage_mix
 
-        mu_z, logvar_z = self.posterior_z(x, t)
+        n_nodes = t.shape[0]
+        n_enc = n_nodes if self.gat_sources == "type_z" else n_context
+        mu_z, logvar_z = self.posterior_z(x[:n_enc], t[:n_enc])
         # sample=False: posterior means throughout, so an evaluation sweep is
         # deterministic -- early stopping should not ride reparameterisation
         # noise. Training always samples.
-        noise = torch.randn_like(mu_z) if sample else torch.zeros_like(mu_z)
+        # The draw keeps the *node* count even when only n_enc rows are
+        # encoded, so skipping ring 2 leaves the RNG stream -- and therefore
+        # the whole loss trajectory -- bit-identical to the pre-skip pass.
+        noise = (torch.randn(n_nodes, self.d_z, dtype=mu_z.dtype,
+                             device=mu_z.device)[:n_enc] if sample
+                 else torch.zeros_like(mu_z))
         z = mu_z + noise * (0.5 * logvar_z).exp()
 
         c, alpha = self.context(mu_z, t, phi, isolated, gat_src, gat_dst, n_context)

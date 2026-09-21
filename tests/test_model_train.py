@@ -97,3 +97,86 @@ def test_matched_correlation_recovers_permuted_and_flipped_columns():
     scrambled = np.stack([-2.0 * b[:, 2], 0.5 * b[:, 0], b[:, 1]], axis=1)
     assert matched_correlation(b, scrambled) > 0.999
     assert matched_correlation(b, rng.standard_normal((60, 3))) < 0.35
+
+
+def test_degeneracy_diagnostics_are_recorded(small_fit):
+    """Spec 7.10's pair lands in metrics.json and history.jsonl."""
+    trainer, summary = small_fit
+    final = summary["final"]
+    assert {"degeneracy", "recon_gap"} <= set(summary["best"])   # selected epoch
+    degeneracy, gap = final["degeneracy"], final["recon_gap"]
+    assert np.isfinite(degeneracy["mi_ratio"])
+    assert 0.0 <= degeneracy["within_var_fraction"] <= 1.0
+    assert len(degeneracy["within_var_fraction_per_dim"]) == trainer.config.d_z
+    assert gap["recon"] == final["recon_val"]
+    assert np.isfinite(gap["gap"]) and np.isfinite(gap["recon_type_profile"])
+    assert abs(gap["recon"] - gap["recon_typemean_z"] - gap["gap"]) < 1e-12
+    history = [json.loads(line) for line in
+               (trainer.run_dir / "history.jsonl").read_text().splitlines()]
+    assert {"degeneracy", "recon_gap"} <= set(history[0])
+
+
+def test_type_mean_decode_reproduces_the_forward_at_the_cells_own_z(small_fit):
+    """The substituted decode path is the model's own: fed the cell's own
+    mu_z it returns log_p exactly, so a z constant within type gives a gap of
+    exactly zero; fed something else it changes the decode."""
+    import torch
+
+    trainer, _ = small_fit
+    batch = trainer.val_batches[0]
+    n = batch["n_seeds"]
+    with torch.no_grad():
+        fwd = trainer.model(**trainer._forward_kwargs(batch),
+                            kappa=trainer.config.kappa, sample=False)
+        own = trainer._decode_seeds(fwd, fwd.mu_z[:n], n)
+        other = trainer._decode_seeds(fwd, torch.zeros_like(fwd.mu_z[:n]), n)
+    assert torch.allclose(own, fwd.log_p, atol=1e-5)
+    assert not torch.allclose(other, fwd.log_p, atol=1e-3)
+    swept = trainer._sweep([batch], want_log_p=True,
+                           z_bar=torch.zeros(len(trainer.data.p_t),
+                                             trainer.config.d_z))
+    assert swept["log_p_typemean"].shape == swept["log_p"].shape == (n, trainer.data.x.shape[1])
+
+
+def test_w_substitution_reproduces_the_forward_at_the_cells_own_w(small_fit):
+    """The w arm of the substituted decode is the model's own: fed the cell's
+    own mu_w (with its own mu_z) it returns log_p exactly, so a w substitution
+    that plants each cell's own w has a gap of exactly zero; fed the prior mean
+    or a constant it moves. rho_bar and kappa are untouched throughout."""
+    import torch
+
+    trainer, _ = small_fit
+    batch = trainer.val_batches[0]
+    n = batch["n_seeds"]
+    with torch.no_grad():
+        fwd = trainer.model(**trainer._forward_kwargs(batch),
+                            kappa=trainer.config.kappa, sample=False)
+        planted = trainer._decode_seeds(fwd, fwd.mu_z[:n], n, fwd.mu_w[:n])
+        prior = trainer._decode_seeds(fwd, fwd.mu_z[:n], n,
+                                      fwd.prior_mean_w[:n])
+        zeroed = trainer._decode_seeds(fwd, fwd.mu_z[:n], n,
+                                       torch.zeros_like(fwd.mu_w[:n]))
+    assert torch.allclose(planted, fwd.log_p, atol=1e-6)
+    assert not torch.allclose(zeroed, fwd.log_p, atol=1e-3)
+    assert torch.isfinite(prior).all()
+
+
+def test_w_contribution_decodes_are_ordered_and_planted(small_fit):
+    """``degeneracy.w_contribution``: the six decodes of todo 2.3, with the
+    reference-context w built from the per-type mean context. The full decode
+    must equal the trainer's own held-out recon, and the substitutions may only
+    lose likelihood relative to it."""
+    from discell.model.degeneracy import w_contribution
+
+    trainer, summary = small_fit
+    out = w_contribution(trainer)
+    recon = out["recon"]
+    assert abs(recon["full"] - summary["final"]["recon_val"]) < 1e-9
+    for key in ("typemean_z", "typemean_z_prior_w", "typemean_z_ref_w",
+                "own_z_ref_w"):
+        assert np.isfinite(recon[key]) and recon[key] <= recon["full"] + 1e-9
+    # the lookup reference is not a substitution in the fitted model, so it is
+    # only required to be finite (a short fit can be beaten by it)
+    assert np.isfinite(recon["type_profile"])
+    assert abs(out["gaps"]["b_minus_d"]
+               - (recon["typemean_z"] - recon["typemean_z_ref_w"])) < 1e-12

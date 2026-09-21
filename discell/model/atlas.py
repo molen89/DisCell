@@ -12,12 +12,17 @@ decomposition ``<w, B> = sum_k u_k L_k`` (u whitened coordinates, L the
 effect-scale loadings), so the decoder's output is invariant under it.
 
 Per program: variance share (in w and in the realised shift B w), gene
-signature with BH-gated MSigDB hallmark labels, tissue territory with
-Moran's I, type-partialled context drivers (y, Phi-PCs, landmark distances
--- the section-2.5 collinearity logic), per-type within-type activity,
-and -- with ``--compare-runs`` -- the matched cross-seed loading cosine
-and shift-space overlap (issues V11). Section 6.5 (kappa-survival) lives
-in ``validate --sweep-tag`` and is stubbed in the output.
+signature, a rank-based MSigDB hallmark label (Mann-Whitney on the full
+loading vector against the expressed-panel background, BH per program,
+q <= 0.05), tissue territory with Moran's I, type-partialled context
+drivers (y, Phi-PCs, and landmark distances where the slide has landmarks
+-- the section-2.5 collinearity logic), per-type within-type activity.
+Concordance: per-axis cross-seed cosines and shift-space overlap with
+``--compare-runs`` (issues V11; the matched-column B correlation is
+dropped), hallmark-label recurrence across seeds (``--compare-runs``) and
+across slides (``--compare-atlas``, gene panels need not agree), and
+kappa-survival, which is sweep-internal (``validate --sweep-tag``) and
+pointed at from the output.
 
 Usage::
 
@@ -45,7 +50,6 @@ log = logging.getLogger("discell.model.atlas")
 
 HALLMARKS_GMT = Path("data/external/msigdb_hallmarks_h.all.v2023.2.Hs.symbols.gmt")
 TOP_GENES = 15
-ENRICH_TOP = 50
 
 
 def varimax(loadings: np.ndarray, max_iter: int = 100,
@@ -138,24 +142,42 @@ def read_hallmarks(panel: set[str]) -> dict[str, set[str]]:
     return sets
 
 
-def hallmark_labels(signature_genes: list[str], hallmarks: dict[str, set],
-                    panel_size: int) -> list[dict]:
-    """Top-3 hallmark enrichments of a gene list (hypergeometric)."""
-    from scipy.stats import hypergeom
+def hallmark_labels(loading: np.ndarray, gene_names: np.ndarray,
+                    expressed: np.ndarray, hallmarks: dict[str, set],
+                    top: int = 3) -> list[dict]:
+    """Rank-based hallmark enrichment of one program's *full* loading vector.
 
+    The statistic is a two-sided Mann-Whitney U on the ranks of |loading|
+    over the expressed panel: set members against the rest of the panel.
+    No top-k cut is taken, so the label does not depend on an arbitrary
+    signature length, and the background is the expressed panel, not the
+    genome. Sets with < 5 panel genes are untestable and were dropped by
+    ``read_hallmarks``. BH is applied across the sets tested for this
+    program; a label ships only at q <= 0.05. ``direction`` is the mean
+    signed loading of the members (the program's sign is itself arbitrary,
+    so it orients the label, it does not gate it).
+    """
+    from scipy.stats import mannwhitneyu
+
+    panel = gene_names[expressed]
+    values = np.abs(loading[expressed])
+    signed = loading[expressed]
+    index = {g: i for i, g in enumerate(panel)}
     rows = []
-    chosen = set(signature_genes)
     for name, members in hallmarks.items():
-        overlap = len(chosen & members)
-        if overlap < 2:
+        idx = np.array([index[g] for g in members if g in index], dtype=int)
+        if len(idx) < 5 or len(idx) >= len(panel):
             continue
-        p = float(hypergeom.sf(overlap - 1, panel_size, len(members),
-                               len(chosen)))
-        rows.append({"hallmark": name, "overlap": overlap,
-                     "set_size": len(members), "p": p})
-    # Benjamini-Hochberg across the sets tested for this signature: a label
-    # only ships when it survives correction (architect flag, doc 11 -- the
-    # background was verified panel-based; the missing piece was the gate)
+        mask = np.zeros(len(panel), dtype=bool)
+        mask[idx] = True
+        stat = mannwhitneyu(values[mask], values[~mask],
+                            alternative="two-sided", method="asymptotic")
+        # AUC in [0, 1]: > 0.5 means the set's loadings are larger than the
+        # panel's, the direction of interest; < 0.5 is a depleted set
+        auc = float(stat.statistic) / (mask.sum() * (~mask).sum())
+        rows.append({"hallmark": name, "n_panel": int(mask.sum()),
+                     "auc": auc, "p": float(stat.pvalue),
+                     "direction": float(signed[mask].mean())})
     rows.sort(key=lambda r: r["p"])
     m = len(rows)
     for i, row in enumerate(rows):
@@ -163,8 +185,61 @@ def hallmark_labels(signature_genes: list[str], hallmarks: dict[str, set],
     for i in range(m - 2, -1, -1):
         rows[i]["q"] = min(rows[i]["q"], rows[i + 1]["q"])
     for row in rows:
-        row["significant"] = bool(row["q"] <= 0.05)
-    return rows[:3]
+        row["significant"] = bool(row["q"] <= 0.05 and row["auc"] > 0.5)
+    return [r for r in rows if r["auc"] > 0.5][:top]
+
+
+def label_recurrence(label_sets: dict[str, list[list[str]]],
+                     minimum: int = 2) -> dict:
+    """How often a hallmark label recurs across runs (seeds or slides).
+
+    ``label_sets`` maps a run name to its per-program list of significant
+    hallmark names. A label recurs when it is significant in at least
+    *minimum* of the runs (on any program -- program order is not shared
+    across fits, only the label set is). Returns the per-label run counts,
+    the recurring labels, and the per-run label sets for the record.
+    """
+    per_run = {run: sorted({name for names in programs for name in names})
+               for run, programs in label_sets.items()}
+    counts: dict[str, int] = {}
+    for names in per_run.values():
+        for name in names:
+            counts[name] = counts.get(name, 0) + 1
+    return {"n_runs": len(per_run),
+            "minimum": minimum,
+            "label_sets": per_run,
+            "counts": dict(sorted(counts.items(), key=lambda kv: -kv[1])),
+            "recurring": sorted(n for n, c in counts.items() if c >= minimum)}
+
+
+def significant_labels(atlas: dict) -> list[list[str]]:
+    """Per-program significant hallmark names of a built atlas."""
+    return [[h["hallmark"] for h in p["hallmarks"] if h.get("significant")]
+            for p in atlas["programs"]]
+
+
+def landmark_distance_block(positions: np.ndarray, classes: dict):
+    """Log distance to the nearest constituent of each landmark class.
+
+    ``None`` when the slide has no landmark class with constituents. The
+    inventory is defined from annotated type names, so a cluster-labelled
+    slide ("Cluster 7") yields classes that are empty or absent; an empty
+    block is not an empty driver but an unaskable question, and feeding it
+    to DBSCAN/cKDTree is what made the atlas fail on graphclust slides.
+    Returns ``(block (N, n_classes), names)``.
+    """
+    from scipy.spatial import cKDTree
+
+    usable = {name: entry for name, entry in classes.items()
+              if len(entry["constituents"]) > 0}
+    if not usable:
+        return None
+    block = np.stack([
+        np.log1p(np.minimum(
+            cKDTree(positions[entry["constituents"]]).query(positions)[0],
+            500.0))
+        for entry in usable.values()], axis=1)
+    return block, list(usable)
 
 
 def context_drivers(u_k: np.ndarray, blocks: dict[str, np.ndarray],
@@ -193,8 +268,6 @@ def build_atlas(args: argparse.Namespace) -> dict:
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-
-    from scipy.spatial import cKDTree
 
     config, data, trainer, run_dir, b_matrix = load_run(
         args.dataset, args.run, args.device)
@@ -227,17 +300,19 @@ def build_atlas(args: argparse.Namespace) -> dict:
     from sklearn.decomposition import PCA
     phi_pcs = PCA(12, random_state=0).fit(
         data.phi[fit_rows]).transform(data.phi).astype(np.float64)
-    classes = landmark_inventory(data)
-    distances = np.stack([
-        np.log1p(np.minimum(
-            cKDTree(data.positions[entry["constituents"]]).query(
-                data.positions)[0], 500.0))
-        for entry in classes.values()], axis=1)
+    landmarks = landmark_distance_block(data.positions,
+                                        landmark_inventory(data))
     # type-partialled, like the target: a program's drivers are the cell's
     # context within its type, not its type identity via homophilous y
     everyone = np.ones(len(data.t), dtype=bool)
     blocks = {"composition_y": data.graph.y.astype(np.float64),
-              "phi_pcs": phi_pcs, "landmark_distances": distances}
+              "phi_pcs": phi_pcs}
+    if landmarks is None:
+        classes: list[str] = []
+        log.warning("no landmark class has constituents on this slide "
+                    "(cluster labels?) -- the landmark driver block is dropped")
+    else:
+        blocks["landmark_distances"], classes = landmarks
     blocks = {n: center_per_type(b, data.t, everyone) for n, b in blocks.items()}
 
     sample = np.flatnonzero(connected)
@@ -253,7 +328,8 @@ def build_atlas(args: argparse.Namespace) -> dict:
     atlas: dict = {"run": args.run, "d_w": d_w, "rank": r,
                    "rank_var_fraction": VAR_FRACTION,
                    "variance_fraction": info["variance_fraction"],
-                   "landmark_classes": list(classes),
+                   "landmark_classes": classes,
+                   "driver_blocks": list(blocks),
                    "kappa_survival": "see experiments/atlas_kappa_survival*.json "
                                      "(validate --sweep-tag; doc-08 section 6.5)",
                    "cross_seed": {}, "programs": []}
@@ -284,9 +360,8 @@ def build_atlas(args: argparse.Namespace) -> dict:
         entry["signature_low"] = [(str(gene_names[i]), float(loading[i]))
                                   for i in top[:3 * TOP_GENES]
                                   if loading[i] < 0][:TOP_GENES]
-        enrich_genes = [str(gene_names[i]) for i in top[:ENRICH_TOP]]
-        entry["hallmarks"] = hallmark_labels(enrich_genes, hallmarks,
-                                             int(expressed.sum()))
+        entry["hallmarks"] = hallmark_labels(programs[:, k], gene_names,
+                                             expressed, hallmarks)
         entry["drivers"] = context_drivers(u[:, k], blocks,
                                            latents["fold"], sample)
         per_type_var = {names[g]: float(u[data.t == g, k].var())
@@ -312,9 +387,8 @@ def build_atlas(args: argparse.Namespace) -> dict:
         axes[1].barh(range(len(genes)), [v for _, v in genes], height=0.7)
         axes[1].set_yticks(range(len(genes)),
                            [g for g, _ in genes], fontsize=6)
-        top_hm = entry["hallmarks"][0] if entry["hallmarks"] else None
-        label = top_hm["hallmark"] if top_hm and top_hm["significant"] \
-            else "(none significant)"
+        top_hm = next((h for h in entry["hallmarks"] if h["significant"]), None)
+        label = top_hm["hallmark"] if top_hm else "unlabelled (no set at q<=0.05)"
         axes[1].set_title(f"signature | hallmark: {label[:28]}", fontsize=8)
         marg = entry["drivers"]["marginal"]
         part = entry["drivers"]["partial"]
@@ -336,6 +410,26 @@ def build_atlas(args: argparse.Namespace) -> dict:
                  k, entry["variance_share"], entry["moran_I"], label,
                  entry["drivers"]["joint"])
 
+    # -- concordance (3 of the 3 reads; the third, kappa-survival, is
+    # sweep-internal and pointed at below). Labels are compared as sets:
+    # program order and gene panels need not agree, so the same function
+    # serves seeds (same slide) and slides (different panels).
+    label_sets = {args.run: significant_labels(atlas)}
+    for other in list(args.compare_runs) + list(args.compare_atlas):
+        path = (run_dir.parent / other / "atlas" / "atlas.json"
+                if other in args.compare_runs else Path(other))
+        if not path.exists():
+            log.warning("no atlas.json at %s -- skipped for label recurrence",
+                        path)
+            continue
+        other_atlas = json.loads(path.read_text())
+        label_sets[other_atlas.get("run", str(path))] = significant_labels(
+            other_atlas)
+    atlas["label_recurrence"] = label_recurrence(label_sets)
+    log.info("label recurrence over %d runs: %s",
+             atlas["label_recurrence"]["n_runs"],
+             atlas["label_recurrence"]["counts"])
+
     (out_dir / "atlas.json").write_text(json.dumps(atlas, indent=2,
                                                    default=float))
     log.info("wrote %s", out_dir / "atlas.json")
@@ -350,6 +444,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--compare-runs", nargs="*", default=[],
                         help="other runs of this dataset whose atlas exists; "
                              "cross-seed loading cosines and shift overlap")
+    parser.add_argument("--compare-atlas", nargs="*", default=[],
+                        help="paths to atlas.json files of OTHER slides; "
+                             "label recurrence only (gene panels differ)")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)

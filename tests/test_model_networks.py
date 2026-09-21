@@ -26,6 +26,28 @@ def test_attention_sums_to_one_per_destination():
         assert torch.allclose(sums, torch.ones(4), atol=1e-6)
 
 
+def test_attention_sink_makes_dose_count_and_keeps_isolated_zero():
+    """With the sink, n identical neighbours give a larger context than one
+    (saturating dose); without it the context is identical (softmax sees
+    fractions only). Empty destinations stay exactly zero in both modes."""
+    torch.manual_seed(0)
+    src_row, dst_row = torch.randn(1, 4), torch.randn(1, 4)
+    for sink, differs in ((False, False), (True, True)):
+        gat = GATv2(src_dim=4, dst_dim=4, out_dim=6, heads=2, sink=sink)
+        out = {}
+        for n in (1, 4):
+            src = src_row.repeat(n, 1)
+            e_src, e_dst = torch.arange(n), torch.zeros(n, dtype=torch.long)
+            ctx, alpha = gat(src, dst_row.repeat(2, 1), e_src, e_dst)
+            out[n] = ctx[0]
+            assert torch.all(ctx[1] == 0)              # no in-edges: exactly zero
+            mass = alpha.sum(dim=0)
+            assert torch.all(mass < 1) if sink else torch.allclose(mass, torch.ones(2), atol=1e-6)
+        assert torch.allclose(out[1], out[4], atol=1e-6) != differs
+        if sink:
+            assert out[4].norm() > out[1].norm()
+
+
 def test_destination_shapes_attention_but_never_the_value():
     """With one in-edge alpha is 1 regardless of the query, so the output is
     purely the projected source -- the property the mirror argument rests on."""
@@ -86,7 +108,8 @@ def test_forward_shapes_and_finiteness(tiny):
     model, tensors, batch = tiny
     out = model(**tensors, kappa=0.2)
     n_nodes, n_ctx, n_seeds = len(batch.nodes), batch.n_context, batch.n_seeds
-    assert out.z.shape == (n_nodes, 4)
+    assert n_nodes > n_ctx                     # the tile really has a ring 2
+    assert out.z.shape == (n_ctx, 4)           # type_only: ring 2 not encoded
     assert out.c.shape[0] == n_ctx
     assert out.w.shape == (n_ctx, 2)
     assert out.log_p.shape == (n_seeds, 30)
@@ -212,3 +235,33 @@ def test_leak_subtraction_trains_enc_z_through_pass_two_only(tiny):
     assert out.rho_bar.grad_fn is None
     assert all(p.grad is not None and torch.isfinite(p.grad).all()
                for p in model.enc_z.parameters())
+
+
+def test_ring_two_is_encoded_only_when_the_gat_reads_neighbour_z(tiny):
+    """Spec 4.5: ring 2 is a type/Phi lookup only.
+
+    Under the default ``type_only`` sources the GAT reads ``onehot(t_j)``
+    alone, ring-2 ``mu_z`` is never used, and the encoder is not run on those
+    rows at all -- so they are absent from the forward. Under ``type_z`` they
+    are sources for ring 1's context and must be present. The tile is
+    unchanged in both cases; only the encoded prefix differs.
+    """
+    model, tensors, batch = tiny
+    n_nodes, n_ctx = len(batch.nodes), batch.n_context
+    assert n_nodes > n_ctx
+
+    out = model(**tensors, kappa=0.2)
+    assert model.gat_sources == "type_only"
+    assert out.mu_z.shape[0] == out.logvar_z.shape[0] == out.z.shape[0] == n_ctx
+
+    with_z = DisCell(30, 3, 5, median_counts=100.0, d_z=4, d_w=2, hidden=16,
+                     gat_dim=6, gat_sources="type_z")
+    out_z = with_z(**tensors, kappa=0.2)
+    assert out_z.mu_z.shape[0] == n_nodes
+    # and those extra rows are genuinely read: perturbing a ring-2 cell's
+    # counts moves ring-1 contexts under type_z, and nothing under type_only.
+    poked = dict(tensors)
+    poked["x"] = tensors["x"].clone()
+    poked["x"][n_ctx:] += 50.0
+    assert not torch.allclose(with_z(**poked, kappa=0.2).c, out_z.c)
+    assert torch.allclose(model(**poked, kappa=0.2).c, out.c)

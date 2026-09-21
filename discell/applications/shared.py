@@ -60,8 +60,11 @@ def extract_nuclear_dapi(dataset: str) -> Path:
     store = tifffile.imread(dapi_path, aszarr=True)
     node = zarr.open(store, mode="r")
     if isinstance(node, zarr.Group):                 # resolution pyramid
-        node = node[sorted(node.array_keys())[0]]    # level 0 = full res
-    plane = np.asarray(node)
+        node = node["0"] if "0" in node else node[sorted(node.array_keys())[0]]
+    if node.ndim == 3:
+        plane = np.asarray(node[0])                  # channel 0 only (DAPI)
+    else:
+        plane = np.asarray(node)
     while plane.ndim > 2:
         plane = plane[0]
     height, width = plane.shape

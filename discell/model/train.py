@@ -84,6 +84,24 @@ class TrainConfig:
     alpha_z: float = 0.007
     alpha_w: float = 0.1
     alpha_a: float = 0.3
+    #: optional L2 on the w channel (2026-09-21 pre-registration): 0 = off =
+    #: every run before it. "w" = lambda_w * E||w||^2 per seed; "type_mean" =
+    #: lambda_w * sum_t (n_t/n)||mean_t m_psi||^2 (the V12 proposal).
+    lambda_w: float = 0.0
+    w_penalty: str = "none"
+    #: objective ablations (6b.5, 2026-09-21). All three defaults are the
+    #: pinned runs; each is a single term of the objective, nothing else.
+    #: (i)  second_kl=False       -- the z-KL weighted 1*alpha_z, not
+    #:      (1+omega)*alpha_z: the second bound's copy dropped (spec 6.2).
+    #: (ii) is not a flag: omega=0 already drops the intrinsic path (b), and
+    #:      the (1+omega) factor then reads 1 on its own.
+    #: (iii) class_mean_prior=True -- p(w|t) = N(mu_t, I) with mu_t a learned
+    #:      per-type vector in place of m_psi(c, t) (DisCoVR); q(w|.) unchanged.
+    #: (iv) adv_input="xhat"      -- the adversary heads read the decoded clean
+    #:      composition log rho_i = log_softmax(a(z) + Bw) instead of mu_z.
+    second_kl: bool = True
+    class_mean_prior: bool = False
+    adv_input: str = "mu_z"             # "mu_z" | "xhat"
     # optimisation
     epochs: int = 200
     tile_cells: int = 4096
@@ -102,7 +120,9 @@ class TrainConfig:
 
     def weights(self) -> Weights:
         return Weights(omega=self.omega, alpha_z=self.alpha_z,
-                       alpha_w=self.alpha_w, alpha_a=self.alpha_a)
+                       alpha_w=self.alpha_w, alpha_a=self.alpha_a,
+                       lambda_w=self.lambda_w, w_penalty=self.w_penalty,
+                       second_kl=self.second_kl)
 
     def name(self) -> str:
         return self.run_name or f"discell_k{self.kappa:g}_seed{self.seed}"
@@ -133,6 +153,7 @@ class Trainer:
             gat_sources=config.gat_sources,
             subtract_leak=config.subtract_leak,
             gat_sink=config.gat_sink,
+            class_mean_prior=config.class_mean_prior,
         ).to(self.device)
         self.covariances = None
         self.adversary = self.adversary_optimiser = None
@@ -146,7 +167,11 @@ class Trainer:
             if data.e_phi is None or data.phibar_t is None:
                 raise ValueError("invariance='adversary' needs e_phi/phibar_t "
                                  "on the ModelData (assemble builds them)")
-            self.adversary = Adversary(config.d_z, len(data.p_t),
+            # ablation (iv): the heads read the decoded composition rho_i
+            # (G columns) instead of mu_z (d_z columns).
+            adv_in = (config.d_z if config.adv_input == "mu_z"
+                      else data.x.shape[1])
+            self.adversary = Adversary(adv_in, len(data.p_t),
                                        data.e_phi.shape[1],
                                        hidden=config.adv_hidden).to(self.device)
             self.adversary_optimiser = torch.optim.Adam(
@@ -172,7 +197,12 @@ class Trainer:
         # Counts are small integers (max 856 on the deepest slide), so int16 is
         # exact and halves the resident footprint -- what lets a 1.16M-cell
         # slide fit a 24 GB card. _forward_kwargs casts a tile back to float32.
-        counts = self.data.x[b.nodes].toarray()
+        # Under type_only the encoder never touches ring 2 (spec 4.5), so its
+        # counts are not gathered to the device at all; type_z needs them as
+        # GAT sources.
+        n_resident = (len(b.nodes) if self.config.gat_sources == "type_z"
+                      else b.n_context)
+        counts = self.data.x[b.nodes[:n_resident]].toarray()
         assert counts.max() < 32768, "counts exceed int16; widen the resident dtype"
         dense = torch.tensor(counts.astype(np.int16), device=self.device)
         return dict(
@@ -220,7 +250,9 @@ class Trainer:
         weights = config.weights()
         extras: dict = {}
         if self.adversary is not None:
-            adv = adversary_terms(self.adversary, fwd.mu_z[:n], batch["t"][:n],
+            adv_feat = (fwd.mu_z[:n] if config.adv_input == "mu_z"
+                        else fwd.log_rho[:n])
+            adv = adversary_terms(self.adversary, adv_feat, batch["t"][:n],
                                   batch["y_seed"], batch["ephi_seed"],
                                   self.ybar_t, self.phibar_t)
             terms = discell_loss(fwd, kwargs["x"][:n], batch["t"][:n],
@@ -241,7 +273,7 @@ class Trainer:
         self.optimiser.step()
 
         if self.adversary is not None:
-            z_frozen = fwd.mu_z[:n].detach()
+            z_frozen = adv_feat.detach()
             for _ in range(config.adv_steps):
                 self.adversary_optimiser.zero_grad()
                 log_y, log_phi = self.adversary(z_frozen, batch["t"][:n])
@@ -253,13 +285,17 @@ class Trainer:
             extras["adv_head_loss"] = float(head_loss.detach())
         return terms, extras
 
-    def _decode_seeds(self, fwd, z_seeds: torch.Tensor, n: int) -> torch.Tensor:
-        """``log p`` of the seeds with *z_seeds* in place of their own z.
+    def _decode_seeds(self, fwd, z_seeds: torch.Tensor, n: int,
+                      w_seeds: torch.Tensor | None = None) -> torch.Tensor:
+        """``log p`` of the seeds with *z_seeds* (and optionally *w_seeds*) in
+        place of their own z (and w).
 
-        w, the foreign influx and kappa stay as the forward pass left them, so
-        at ``z_seeds = fwd.mu_z[:n]`` (sample=False) this is ``fwd.log_p``.
+        The foreign influx and kappa stay as the forward pass left them, so at
+        ``z_seeds = fwd.mu_z[:n]`` and ``w_seeds`` unset or ``fwd.mu_w[:n]``
+        (sample=False) this is ``fwd.log_p``.
         """
-        log_rho = self.model.log_rho(z_seeds, fwd.mu_w[:n])
+        log_rho = self.model.log_rho(
+            z_seeds, fwd.mu_w[:n] if w_seeds is None else w_seeds)
         return leakage_mix(log_rho.exp(), fwd.rho_bar, self.config.kappa)
 
     @torch.no_grad()
@@ -898,7 +934,9 @@ class Trainer:
             guarded = report["nmi"] >= config.nmi_guard * nmi_max
             if improved and guarded:
                 best = {"recon_val": report["recon_val"], "nmi": report["nmi"],
-                        "epoch": epoch}
+                        "epoch": epoch,
+                        "degeneracy": report["degeneracy"],
+                        "recon_gap": report["recon_gap"]}
                 stale = 0
                 covariance_state = None
                 if self.covariances is not None:
@@ -960,7 +998,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--embeddings", default=defaults.embeddings)
     parser.add_argument("--run-name", default=None)
     for field in ("kappa", "omega", "alpha_z", "alpha_w", "alpha_a", "lr",
-                  "weight_decay", "adv_lr", "val_fraction", "nmi_guard",
+                  "weight_decay", "lambda_w", "adv_lr", "val_fraction", "nmi_guard",
                   "cov_ema", "grad_clip"):
         parser.add_argument(f"--{field.replace('_', '-')}", type=float,
                             default=getattr(defaults, field))
@@ -971,6 +1009,18 @@ def build_parser() -> argparse.ArgumentParser:
                             default=getattr(defaults, field))
     parser.add_argument("--phi-pca", type=int, default=None)
     parser.add_argument("--label-key", default=None)
+    parser.add_argument("--w-penalty", default=defaults.w_penalty,
+                        choices=("none", "w", "type_mean"))
+    parser.add_argument("--no-second-kl", dest="second_kl", action="store_false",
+                        help="ablation (i): charge the z-KL once, not "
+                             "(1+omega)-fold (spec 6.2's named mistake)")
+    parser.add_argument("--class-mean-prior", action="store_true",
+                        help="ablation (iii): p(w|t) = N(mu_t, I), a learned "
+                             "per-type vector in place of m_psi(c, t)")
+    parser.add_argument("--adv-input", default=defaults.adv_input,
+                        choices=("mu_z", "xhat"),
+                        help="ablation (iv): adversary heads read the decoded "
+                             "composition rho_i instead of mu_z")
     parser.add_argument("--invariance", default=defaults.invariance,
                         choices=("closed_form", "adversary"))
     parser.add_argument("--gat-sources", default=defaults.gat_sources,

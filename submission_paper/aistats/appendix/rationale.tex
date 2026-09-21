@@ -15,9 +15,11 @@ Zeroing $\vz_i$ while keeping self-loops is not an alternative: the softmax stil
 \subsection{Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}
 \label{app:graph}
 
-A discretised contact indicator (touching, near, far) looks as if it dodges the collinearity objection of \cref{sec:inference}, but on this platform under nuclear-expansion segmentation whether two segmented polygons touch is largely a measurement of local density: dense regions touch, sparse regions do not. The indicator would smuggle density back in, in the confounded direction, and a tolerance parameter only moves the threshold. The measurements that establish this on our data are in \cref{app:contact}.
+A discretised contact indicator (touching, near, far) looks as if it dodges the collinearity objection of \cref{sec:inference}, but on this platform under nuclear-expansion segmentation whether two segmented polygons touch is largely a measurement of local density: dense regions touch, sparse regions do not. The indicator would smuggle density back in, in the confounded direction, and a tolerance parameter only moves the threshold.
 
 Delaunay adjacency resolves it: two cells are neighbours if and only if their Voronoi cells share a face, which is the correct notion of adjacency for a packing, built from centroids alone. The one parameter that returns is the pruning of long edges, and it is much less sensitive than choosing a neighbour count. The Voronoi face length is used in the kernel rather than shared segmented boundary because the Voronoi face is where the boundary between two cells effectively lies, its length is a contact-extent proxy defined whether or not the polygons touch, and it is independent of the expansion setting.
+
+One consequence of the softmax over a Delaunay neighbourhood should be stated: the aggregated context is a reweighted composition and is exactly invariant to the number of neighbours, so one neighbour of a given type gives the same context as several. On this tessellation the degree is nearly constant, so a fraction determines a count and the blindness costs nothing; an attention sink, a fixed null logit that restores a saturating dependence on the count, is implemented and left off for that reason, and would only become meaningful on a graph whose degree varies, where the invariance target would have to grow with it.
 
 The fallback is empirical. If $\mpsi$ predicts responses poorly, or held-out reconstruction is worse than a comparison run whose attention layer carries edge features (distance, face length), that is direct evidence that the continuous signal mattered. If it is added back, the correlation between $\att_{ij}$ and $\beta_{ij}$ must be monitored: a high correlation means the attention has rediscovered the leakage kernel and $\vw$ is becoming collinear with $\rhobar$. That risk is tolerable while $\kappa$ is fixed, since there is no free contamination parameter to feed, and intolerable once $\kappa$ is estimated. \pending{the edge-feature comparison run has not been performed}
 
@@ -30,7 +32,7 @@ The fallback is empirical. If $\mpsi$ predicts responses poorly, or held-out rec
 Cause & Check & Fix \\
 \midrule
 Posterior collapse & $\alphaw$ large relative to reconstruction & lower $\alphaw$; free bits \\
-Mirror & within-type $R^2$ of $\vz_i$ on $\vc_i$ vs.\ permuted control & type embedding as query \\
+Mirror & within-type $R^2$ of $\vz_i$ on $\vc_i$ vs.\ permuted control & type embedding as query; types only as sources \\
 Starved of ego evidence & does the response posterior receive $\vx_i$ directly? & add the direct path \\
 \bottomrule
 \end{tabular}
@@ -39,7 +41,7 @@ Starved of ego evidence & does the response posterior receive $\vx_i$ directly? 
 \subsection{Conditional Invariance and Label Granularity}
 \label{app:conditional}
 
-The marginal-invariance failure is documented by \citet{slavutsky2025} for the conditional subspace VAE \citep{klys2018}, whose invariance drives the agreement between the shared code and the nuisance variable to zero while collapsing its agreement with cell type \todo{quote the exact numbers from that comparison}. Coarse labels are preferable to fine ones for three reasons: fine labels leave $\vz$ with nothing to carry, they block more of the position$\to$fate$\to$expression path, and they destroy the overlap that any conditional comparison needs. The label-set control of \cref{app:graphclust} varies the granularity.
+The marginal-invariance failure is documented by \citet{slavutsky2025} for the conditional subspace VAE \citep{klys2018}, whose invariance drives the agreement between the shared code and the nuisance variable to zero while collapsing its agreement with cell type \todo{quote the exact numbers from that comparison}. Coarse labels are preferable to fine ones for three reasons: fine labels leave $\vz$ with nothing to carry, they block more of the position$\to$fate$\to$expression path, and they destroy the overlap that any conditional comparison needs.
 
 \subsection{The Leak Fraction: Grid Range and Upgrade Path}
 \label{app:kappa}

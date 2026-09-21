@@ -1,0 +1,57 @@
+unit,name,evidence
+0,Interstitial macrophages,CD163 F13A1 STAB1 MRC1 CSF1R CD14; refs Interstitial Mph / IM
+1,Adventitial fibroblasts,MFAP5 PI16 SFRP4 DPT PRRX1; HLCA 2nd Adventitial (best Peribronchial); CellRef SCMF
+2,Alveolar fibroblasts,WNT2 RSPO2 FABP7 TCF21 FGFR4; CellRef AF1; HLCA Pericytes (r .70 vs AF .66) contradicted by markers
+3.0,EC general capillary,"PECAM1 .60 CLDN5 .50 F8 FCGR2B JAM2; 90 % PDL042D (subcluster of stressed mixed cluster 3)"
+3.1,Alveolar fibroblasts,ASPN PDGFRA .54 ELN TGFBR3 (HSPA6 stress state)
+3.2,Inflammatory fibroblasts,CXCL13 PDGFRA .34 CCN1 BCL6 (HSPA6 stress state; 83 % PDL029A)
+3.3,EC activated,PECAM1 .72 SERPINE1 SELE ESM1 CSF3 CX3CL1 (HSPA6; 95 % PDL029A)
+4,Vascular smooth muscle,PLN KCNA5 CASQ2 RCAN2 MCAM NOTCH3; refs Smooth muscle / VSMC
+5,Alveolar macrophages,MARCO CCL18 MSR1 CD68 MRC1; refs Alveolar macrophages / AM
+6.0,T/NK cells,GZMB KLRB1 KLRK1 CD8A CD3E CD7 (cytotoxic)
+6.1,T/NK cells,CD2 CD3E CD5 CD4 CXCR3 CD40LG (CD4 T)
+6.2,T/NK cells,GZMB CD8A CD3E MYBL2 RRM2 (proliferating T)
+6.3,B cells,MS4A1 CR2 CD19 CD79A PAX5 BANK1
+6.4,T/NK cells,CD3E IFNG CTLA4 KLRB1 (HSPA6 stressed T; 88 % PDL029A)
+7,Alveolar fibroblasts,PHEX FGF7 ANGPT1 TCF21 NPNT; refs Alveolar fibroblasts / AF1
+8,Unassigned,median depth 27 transcripts; H19 IGF2 DLK1 with no lineage marker
+9,EC venous,PLVAP SELP SELE CCL14 PECAM1; CellRef SVEC; HLCA 2nd EC venous systemic
+10,Skeletal muscle,MYH2 MYH1 MYOT ACTN2 RYR1; absent from both references (nearest smooth muscle)
+11,Unassigned,median depth 33; SOX2-OT POTEI DUX4 spurious
+12,AT2,ABCA3 LAMP3 FASN EPCAM; refs AT2
+13,EC general capillary,FCGR2B ACE TMEM100 CA4 CDH5 PECAM1; refs EC general capillary / CAP1
+14,Neutrophils,CD177 DEFA1 MPO CSF3R FCGR3B; CellRef Neutrophil (r .72); HLCA core has none
+15,EC general capillary,ACE APLNR KIT CD34 HPGD; refs EC general capillary / CAP1
+16,EC general capillary,TMEM100 SLC6A4 EDN1 SOX17 PECAM1 .85; refs EC general capillary / CAP1; 84 % PDL032D
+17,Unassigned,median depth 20; HOXB7 ZNF683 no lineage marker
+18,Multiciliated,FOXJ1 TEKT1 DNAH5 DNAH11; refs Multiciliated / Ciliated
+19,Pericytes,PDGFRB NOTCH3 KCNK3 CSPG4 MCAM; refs Pericytes
+20,Alveolar fibroblasts,WNT2 ENPEP TCF21 NPNT INMT; refs Alveolar fibroblasts / AF1
+21,Inflammatory fibroblasts,CCL19 CXCL13 PDGFRA .66 IL6 HAS2 PDPN; refs Alveolar fibroblasts / SCMF
+22,EC activated,ESM1 CSF3 ANGPT2 CD274 IL6 SELE PECAM1 .82; refs EC arterial / CAP1; 83 % PDL026A
+23.0,EC general capillary,SLC6A4 HPGD .65 VIPR1 GATA2 PECAM1 .57 (subcluster of septal mixed cluster 23)
+23.1,Alveolar fibroblasts,TCF21 .29 FGFR4 PHEX VEGFD INMT
+23.2,Adventitial fibroblasts,GREM1 PRG4 DPT TNXB TCF21 .36; 88 % PDL061
+24,Alveolar fibroblasts,TCF21 .40 PDGFRA .22 with EGR/NR4A immediate-early state; 77 % PDL072
+25,Airway smooth muscle,LGR6 HPSE2 SYNPO2 KCNMA1 GREM2; CellRef ASMC; HLCA Myofibroblasts
+26,EC aerocyte capillary,APLN CA4 F2RL3 CLDN5 PECAM1 1.13; HLCA best EC general capillary but APLN/CA4 say aerocyte
+27.0,EC general capillary,PECAM1 1.26 CA4 ESM1 THBD ROBO4; 91 % PDL040A (subcluster of 27)
+27.1,Activated fibroblasts,PTX3 CCN4 TFPI2 THBS1 TNC PDGFRA .33; 83 % PDL040A
+27.2,Adventitial fibroblasts,MFAP5 PI16 DLK1 PTGIS PDGFRA .65
+28,Myofibroblasts,POSTN TNC ASPN ELN COMP LTBP2; refs Alveolar fibroblasts / SCMF (HLCA 2nd Myofibroblasts)
+29,AT1,AGER HOPX CLDN18 RTKN2 EMP2; refs AT1
+30,AT2,LAMP3 ABCA3 LRRK2 LPCAT1; refs AT2
+31,Schwann cells,MPZ SOX10 L1CAM NGFR; absent from both references (nearest fibroblasts)
+32,Lymphatic EC,PROX1 FLT4 RELN; refs Lymphatic EC / LEC
+33,Mast cells,KIT HDC MS4A2 CTSG CMA1; refs Mast cells
+34,Erythroid,HBG1 SLC4A1 GYPA SPTA1; absent from both references (nearest EC capillary)
+35,Plasma cells,MZB1 CD79A SLAMF7 TNFRSF17; refs Plasma cells
+36.0,Distal epithelium,PKHD1 FGFR2 IRX1 CDH16 HNF1B CFTR EPCAM .24 (ductal-like); 63 % PDL034D 32 % PDL085A
+36.1,Distal epithelium,FREM2 IRX1 SFRP5 AQP4 CFTR RTKN2 EPCAM .39; refs AT1/AT0 weakly (r .71); 98 % PDL034D
+37,Neuroendocrine,GRP ASCL1 CALCA SCG2; refs Neuroendocrine / PNEC
+38,Proliferating,MKI67 TOP2A FOXM1 BIRC5 (HOPX NPNT EPCAM: epithelial-dominant); refs AT2 proliferating
+39,Secretory,MUC5B FCGBP CCL28 NKX3-1; refs SMG serous / Serous
+40,Megakaryocytes,ITGA2B ITGB3 GP1BA MPL; absent from both references (nearest EC capillary)
+41,Chondrocytes,COL2A1 SOX9 COL11A1 CNMD; absent from both references (nearest fibroblasts)
+42,Goblet,MUC5AC ALOX15 MUC16 MUC4 with TP63 COL17A1 (mucous metaplasia); 99 % PDL055T; refs Deuterosomal
+43,Basal,TP63 FOXE1 COL17A1 GABRP; refs Suprabasal

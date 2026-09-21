@@ -8,6 +8,7 @@ The spec's J (section 5), per seed, averaged over the batch::
         - (1 + omega) * alpha_z * KL( q(z) || N(0, I) )
         -               alpha_w * KL( q(w) || N(m_psi(c, t), I) )
         -               alpha_a * Pen                                (optional)
+        -               lambda_w * W_pen                             (optional)
 
     loss = -J
 
@@ -41,6 +42,20 @@ class Weights:
     alpha_z: float = 1.0    # KL(q(z) || N(0,I)) -- applied (1+omega)-fold
     alpha_w: float = 1.0    # KL(q(w) || p(w|c,t))
     alpha_a: float = 0.0    # invariance penalty; 0 = off
+    #: optional L2 on the w channel (the translation-gauge penalty, 2026-09-21).
+    #: 0 = off = every pinned run. "w" penalises E||w||^2 per seed (the sampled
+    #: w, so the posterior variance is inside it); "type_mean" penalises the
+    #: cell-weighted per-type batch mean of the prior field, sum_t (n_t/n)
+    #: ||mean_{i in t} m_psi(c_i, t)||^2 -- which is E||m_psi||^2 minus its
+    #: within-type part, i.e. "w" with the context-varying channel exempted.
+    lambda_w: float = 0.0
+    w_penalty: str = "none"  # "none" | "w" | "type_mean"
+    #: objective ablation (i), 6b.5 2026-09-21. True = every pinned run: the
+    #: z-KL is charged ``(1 + omega)``-fold, because (a) and (b) are two bounds
+    #: on the same data and each carries its own ``-KL(q(z)||p(z))`` (spec 6.2).
+    #: False drops the second copy -- weight ``1 * alpha_z`` -- the natural
+    #: mistake the spec names, which costs the bound property.
+    second_kl: bool = True
 
 
 @dataclass
@@ -53,12 +68,13 @@ class Terms:
     kl_z: float
     kl_w: float
     penalty: float = 0.0
+    w_penalty: float = 0.0
     penalty_info: dict = field(default_factory=dict)
 
     def scalars(self) -> dict[str, float]:
         return {"loss": float(self.loss), "recon_a": self.recon_a,
                 "recon_b": self.recon_b, "kl_z": self.kl_z, "kl_w": self.kl_w,
-                "penalty": self.penalty}
+                "penalty": self.penalty, "w_penalty": self.w_penalty}
 
 
 def discell_loss(fwd: Forward, x: torch.Tensor, t: torch.Tensor,
@@ -82,9 +98,15 @@ def discell_loss(fwd: Forward, x: torch.Tensor, t: torch.Tensor,
     kl_w = gaussian_kl(fwd.mu_w[:n_seeds], fwd.logvar_w[:n_seeds],
                        fwd.prior_mean_w[:n_seeds], 0.0).mean()
 
+    kl_z_factor = (1.0 + w.omega) if w.second_kl else 1.0
     objective = (recon_a + w.omega * recon_b
-                 - (1.0 + w.omega) * w.alpha_z * kl_z
+                 - kl_z_factor * w.alpha_z * kl_z
                  - w.alpha_w * kl_w)
+
+    w_pen = torch.zeros((), device=x.device)
+    if w.lambda_w and w.w_penalty != "none":
+        w_pen = _w_penalty(fwd, t, n_seeds, w.w_penalty)
+        objective = objective - w.lambda_w * w_pen
 
     penalty, info = torch.zeros((), device=x.device), {}
     if w.alpha_a and covariances is not None:
@@ -96,7 +118,40 @@ def discell_loss(fwd: Forward, x: torch.Tensor, t: torch.Tensor,
     return Terms(loss=-objective,
                  recon_a=float(recon_a.detach()), recon_b=float(recon_b.detach()),
                  kl_z=float(kl_z.detach()), kl_w=float(kl_w.detach()),
-                 penalty=float(penalty.detach()), penalty_info=info)
+                 penalty=float(penalty.detach()),
+                 w_penalty=float(w_pen.detach()), penalty_info=info)
+
+
+def _w_penalty(fwd: Forward, t: torch.Tensor, n_seeds: int,
+               kind: str) -> torch.Tensor:
+    """The optional L2 on the w channel (spec 7.12's translation gauge).
+
+    ``"w"``: ``E_q ||w_i||^2`` on the sampled w, meaned over seeds. Given the
+    KL to ``N(m_psi, I)`` this is ``||m_psi||^2 + 2<m_psi, mu_w - m_psi> +
+    ||mu_w - m_psi||^2 + sum_k sigma_k^2`` -- only the first two terms are new,
+    and at the operating point (KL_w ~ 0.002/dim) it is ``||m_psi||^2 + d_w``
+    to within a fraction of a percent, so it is a penalty on the prior field.
+
+    ``"type_mean"``: the V12 proposal, ``sum_t (n_t/n) ||mean_{i in t} m_psi||^2``.
+    By the within/between decomposition this is ``E||m_psi||^2`` minus the
+    within-type variance of ``m_psi``, so it charges the per-type offset (the
+    unidentified translation gauge) and leaves the context-varying channel --
+    the one todo 2.3 measured as the only part of w that buys likelihood --
+    free of any pull toward zero.
+    """
+    if kind == "w":
+        return (fwd.w[:n_seeds] ** 2).sum(dim=-1).mean()
+    if kind != "type_mean":
+        raise ValueError(f"unknown w_penalty {kind!r}")
+    m = fwd.prior_mean_w[:n_seeds]
+    _, inverse = torch.unique(t[:n_seeds], return_inverse=True)
+    n_present = int(inverse.max()) + 1
+    counts = torch.zeros(n_present, device=m.device).index_add_(
+        0, inverse, torch.ones(n_seeds, device=m.device))
+    sums = torch.zeros(n_present, m.shape[1], device=m.device).index_add_(
+        0, inverse, m)
+    means = sums / counts[:, None]
+    return ((means ** 2).sum(dim=-1) * counts).sum() / n_seeds
 
 
 @dataclass

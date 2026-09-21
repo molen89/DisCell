@@ -3733,3 +3733,2192 @@ transport benefit in 3 seeds. The option earns a second look only paired
 with a graph whose degree varies (radius / contact) plus the degree head,
 and with `m_ψ` fed both the softmax composition and the sink mass.
 `spec_deviations.md` §4.1 row unchanged (option only).
+
+*Session note (2026-09-17).* The entries below were produced by delegated agents (Opus), each checked by an independent reviewer or refuter (Sonnet) before integration; the refuter's two count corrections on the leak-meter entry are applied. Five further packages (transport, atlas, x̃ gate, baselines, FF battery) were paused to save tokens; their partial edits are held as patches outside the tree.
+
+### FF slide, first fit: results (`reference_graphclust`, written up 2026-09-17)
+
+**Fit** (`data/datasets/xenium_prime_human_ovary_ff/runs/reference_graphclust/`,
+`logs/reference_graphclust.log`; trained 2026-09-15 08:37–11:40 from git
+`88b1c06+dirty`): 1,157,637 cells, 39 types (38 graphclust + Unassigned
+for 76 zero-count cells), voronoi graph 3,442,013 edges after the 40 µm
+prune (368 isolated, 606 single-neighbour); 512 tiles by bisection to
+≤ 4096 (~2,260 cells each), **435 train / 77 val** (~174k val cells);
+α_z 0.0007, α_w 0.1, α_a 0.3, κ 0.1, ω 1, `type_only`, adversary, seed 0,
+500 / patience 40, `egomask_ego_v1`. Φ *was* attached: the loader's
+`no image embeddings given` warning precedes `assemble`'s own load (the
+lung log carries the identical line) and the `cells lack an image
+embedding` warning never fired. Counts resident as int16 (the < 32768
+assert held); the predicted 18–20 GB footprint is **not logged —
+unverified**. Early stop at epoch **409, best 369**, 82 evaluations,
+**182.7 min**. Cycle instruments: 18 S + 34 G2M markers, split-half
+reliability **S 0.508 / G2M 0.696** (ovarian FFPE 0.217 / 0.524, lung
+0.213 / 0.279); phases G1 61.4 / S 22.7 / G2M 15.9 % (FFPE slides
+~48 / 32 / 20 — noisier scores call more cells cycling); cycling types by
+MKI67 fraction: Cluster-36 (2,073 cells), -34 (4,661), -21 (18,850), -4
+(70,602).
+
+**Pre-registered reads** (`metrics.json`; "best" = epoch-369 row of
+`history.jsonl`, "final" = epoch 409; comparison runs quoted from their
+`metrics.json` final blocks unless marked ⁺ = their best-epoch history row):
+
+| read (rule) | FF `reference_graphclust` | ovarian `ablation_gat_type_only_s1` / lung `reference_graphclust` | verdict |
+|---|---|---|---|
+| held-out recon (early-stop signal; per-count nats are **not comparable across slides**) | **−7.3138** best / −7.3144 final | −7.1924 / −7.2577 | — |
+| NMI, k-means-39(z) vs 39 classes (collapse = NMI ≪ 0.6 *with* KL_z → 0) | **0.595** at best (0.643 at epoch 4 → 0.58–0.60 from epoch 110; min 0.577) | 0.654 (18 classes) / 0.653 (33) | not collapsed: at the 0.6 line, and KL_z is the highest of any slide |
+| KL_z, TB `train/kl_z` ±2 epochs of best (training batches, sampled) | **24.5 nats/cell = 1.22/dim** (63.6 in epoch 0, 30.9 at epochs 5–9, 24.4 at 45–49, 27.0 last 5) | 10.3 (0.52/dim)⁺ / 16.7 (0.83/dim)⁺ | open, as α_z 10× smaller predicts; z is the opposite of collapsed |
+| probe ΔCE vs floor (baseline CE) | **0.0054** best / 0.0025 final; floor −0.0133; baseline 1.394 → excess 0.019 = 1.3 % of baseline | 0.0017 (floor −0.046; 2.29 → 2.1 %) / −0.010 (−0.021; 1.31 → 1.4 %) | at the lung level; passes |
+| mirror R² vs within-type permuted | **0.055 / 0.016** (3.3×) | 0.046 / 0.016 (2.9×) / 0.036 / 0.015 (2.4×) | ovarian level; passes |
+| cycle_z pooled / cycle_w / permuted / ℓ-baseline | **0.766 / 0.0027** best, 0.767 / 0.0027 final / −0.0004 / 0.0006; by cluster z 0.66 (-36), 0.73 (-34), 0.78 (-21), 0.77 (-4), w ≤ 0.016 | 0.499 / 0.008 / −0.001 / 0.001 ; lung 0.347 / −0.000 / — / 0.000 | z carries the cycle, w does not; passes |
+| 50-PC linear expression reference | **0.852** (0.83–0.86 per cluster) | 0.235 / 0.166 | z / reference = **0.90** vs 2.1 / 2.1 — see below |
+| KL_w per dim (opened = ≫ 0.002/dim sustained) | at best **sum 0.00016, max dim 0.00006**; final sum 0.00034 (dims 2–4 at 10⁻⁸–10⁻⁹); run median 0.0004/dim; single-evaluation spikes to 0.032/dim (epochs 19, 29, 69, 114, 124, 139, 144, 164–174, 189, 214, 224, 339, 374); 32 of 82 evaluations have one dim above 0.002 | 0.0047⁺ / 0.0020⁺ (sums) | pinned, ~30× harder than ovarian at the checkpoint; the spikes are the chase already registered (issues, 2026-09-14) |
+
+**Verdict: pass; the α_z bracket does not fire.** Neither trigger is
+met — z is open (KL_z 1.2/dim, cycle 0.77, NMI 0.595) and w is closed
+(KL_w ≤ 0.0001/dim at the checkpoint). The motivation's prediction that
+α_w at 140× 1/ℓ̄ pushes w further into the prior-pinned regime is what the
+numbers show: KL_w at best is 12–30× below the two FFPE slides. Nothing is
+tuned.
+
+**Why cycle_z is 0.77 here and what it does not mean.** The 50-PC linear
+reference is 0.852 on this slide against 0.235 (ovarian) and 0.166
+(lung). The Tirosh score is a function of log-normalised counts over 52
+marker genes; at 178–242 transcripts/cell those genes are mostly zeros,
+the score is noise-dominated (split-half G2M 0.28–0.52) and 50 PCs of the
+sparse matrix — dominated by type and depth — recover a quarter of its
+within-type variance, while the encoder (nonlinear, all 5,001 genes,
+trained on the likelihood) recovers half: the "2×". At 1,401
+transcripts/cell the score is reliable (0.51 / 0.70), the PC frame
+carries it linearly (0.85), and z — 20 dims that must also carry every
+other intrinsic axis at 1.2 nats/dim — retains 0.77, i.e. **0.90× the
+frame, uniformly across the four clusters** (0.66–0.78; the noisy
+per-type spread of issues M6 is absent). Four slides now: z/reference
+2.1 (ovarian, 178/cell), 2.1 (lung, 242), 0.96 (pdl018d, 279, curated
+35 classes), 0.90 (FF, 1,401). The ratio is a property of the target's
+reliability and the frame's strength, not of the model; the cross-slide
+claim is the absolute one — z far above the permuted control and the
+ℓ-baseline, w at zero — and M6's "z beats the 50-PC ridge ~2×" must carry
+the depth qualifier. The transfer read ("scores more reliable at 8×
+depth") holds for the *target*: the permuted control and ℓ-baseline sit
+at 0 within ±0.001 on every slide, so the 0.77 is not inflated by depth,
+it is measured against a better ruler.
+
+**Trajectory** (`history.jsonl`): recon −7.3567 (epoch 4) → −7.3308 (19)
+→ −7.3202 (59) → −7.3165 (104) → −7.3158 (199) → −7.3146 (299) → −7.3138
+(369) → −7.3144 (409): 0.043 gained in total, 0.0027 of it after epoch
+104 — a long, slow tail unlike the FFPE slides (best 59–64 of ~100).
+cycle_z 0.39 (4) → 0.71 (19) → 0.75–0.77 from epoch 24 on; cycle_w 0.045
+(4) → 0.007 (9) → 0.001–0.003; mirror 0.091 (4) → 0.05–0.06 from epoch
+14; probe 0.053 (4) → 0.024 (9) → 0.002 (19) → 0.004–0.015 thereafter
+(floor −0.013 throughout). **NMI drifts down** 0.643 (4) → 0.61–0.64
+(to 104) → 0.58–0.61 (after), min 0.577 at 374, while recon improves:
+the tension spec §7.10's joint criterion exists for, and **on this run it
+engaged** — the guard (0.9 × running-max 0.643 = 0.579) blocked the
+recon-improving evaluations at epochs 219 (−7.3150, NMI 0.579) and 234
+(−7.3144, 0.579); `best.pt` (369, NMI 0.595) is the best *guarded*
+checkpoint. Note the guard is anchored to the epoch-4 NMI, when z is
+closest to t. Reading of the NMI level itself: k-means-39 over a z that
+carries 1.2 nats/dim of within-type state, scored against 38 clusters
+that are expression-derived from the same counts at a finer granularity —
+z splitting on state rather than cluster, not collapse (collapse in M2 was
+NMI 0.21 with KL_z → 0).
+
+**Wall time is 69 % figures.** From the log's `[s]` stamps: a plain
+5-epoch interval (5 epochs + one evaluation) is 38 s from epoch 30 to
+275 (7.6 s/epoch; 56–59 s before epoch 25 and 40–55 s after 279 —
+contention with the other jobs on the box that day, unverified). The
+**16 figure events took 136 of the 183 min** (235–335 s each until epoch
+254, then 540–1,111 s), ~126 min net after subtracting the plain
+interval; training + evaluation alone was ~50 min. The motivation's
+"~1.5–2 h" was right for training; the 15 TensorBoard figures (+9 UMAP
+fits per event since 2026-09-14, per-type panels on up to 8k members ×
+8 types) scale with the slide. `--figures-every 100` (a multiple of
+`eval_every` 5, already a CLI knob) would make a 500-epoch FF fit
+≈ 1.2 h. No code change.
+
+**Caveats, stated.** Single seed (the seed envelope on FFPE was 0.06 in
+recon and 0.44–0.50 in cycle_z; nothing here bounds FF's). No battery
+yet: Moran / niche / landmarks / pseudotime / atlas / transport are all
+CPU-side reads of a model that has not been reloaded since training;
+the checkpoint does reload under the current tree (`TrainConfig(**config)`
+checked on CPU: `gat_sink`, `weight_decay` take their defaults). Recon
+is a within-slide signal only. The GPU footprint is unmeasured. The
+graphclust label set makes the invariance guarantee label-set-relative
+(the 2026-09-09 control's lesson) and leaves **§2 landmarks and the §5
+matrix unrunnable**: `landmark_inventory` matches type *names*
+("Endothelial", "Pericyte", "Smooth Muscle", "Tumor Cells"/"Malignant"),
+which `Cluster-N` cannot satisfy — the reason the lung and ovarian
+graphclust validations stopped at §§3–4 (`validation.json` keys: run,
+kappa, seed, morans, niche). Naming the clusters (the GSE315411
+pseudobulk path) would unlock them; separate decision.
+
+**Next (proposed, not run; timings scaled from the 407k logs:
+`validate_graphclust.log` morans+niche 2.4 min, full battery 9–22 min,
+report 23–33 s after load, transport 1–2 min, atlas 1 min; every reload
+builds the resident Trainer, so one battery process per card):**
+`report` (~0.25 h), `validate --analyses morans,niche --n-perms 1000`
+(~0.5 h; 39 types × up to 30k cells × 1000 perms), `atlas` (~0.15 h),
+`transport --niches 10` (~0.25 h) — ≈ 1.2 GPU-h sequentially on one
+card. Pass for the battery = lung's shape: Moran |I| w ≫ z, niche AUC
+w > z > ℓ > floor, cycle row z ≫ w. A seed pair (s1, s2 at 500 / 40 with
+`--figures-every 100`, ~1.3 h each) would bound the envelope but is
+outside this pre-registration and needs its own motivation entry.
+
+### Leak meter, slide-only per-cell kappa (motivation, 2026-09-17)
+
+**How.** Concept document 16 proposes estimating, from the slide alone and before DisCell runs, how much each cell receives from its neighbours, using the nuclear/extranuclear split already in `qc/nuclear_counts.npz`. A gene's own transcripts sit over the nucleus at retention `eta_g`; leaked transcripts land in the rim at one nuclear share `zeta` common to all genes. For genes only one type `t` makes, pooled over receivers of type `r`, `D_g = N_nuc_g - eta_g(t) X_tot_g = (zeta - eta_g(t)) x leaked`, with leaked modelled as `c_rt Phi_g`, `Phi_g` the face-weighted, 20 um-decayed density of type-`t` neighbours times `t`'s mean profile. Weighted least squares gives `c_rt` and `zeta` per pair; the off-diagonal table is factorised `a_r b_t`, which also predicts the same-type entries no gene can measure; per cell `kappa_i = a_r(i) sum_j f_ij exp(-d_ij/20) dens_j b_t(j) / l_i`. Genes and profiles are learned on half the spatial tiles, the table fitted on the other. Prototype in `discell/experiments/leak_meter.py`; ovarian slide with the 18 curated types and lineage-merged, then the two GSE315411 TMA sections as replication.
+
+**Evaluated by.** The document's pre-registered checks: (1) at least ~30 sender-specific genes per type; (2) the retention of those genes must differ from the fitted `zeta`, else `D_g` carries no signal; (3) `zeta` must be a share in [0, 1] and below the measured nuclear fractions (0.41-0.59 by type, devlog 2026-09-16), since leak is rim-heavy; (4) small `a_r b_t` misfit, else keep the full table; (5) no negative `c_rt`, which no leak model can produce; (6) a credible `kappa_i` envelope around the global kappa = 0.1, with a small tail above 0.9 since `m kappa_i` must be capped below 1. Two this project adds: (7) stability to the learn/fit tile split over five seeds; (8) replication of the tendencies across the two sections of one TMA. A planted unit test gates the estimator: a world where the assumptions hold must return the planted table, `zeta` and per-cell kappa, and a receiver expressing the sender's "specific" genes must push `c_rt` up -- the weak-sender caveat made testable.
+
+**What is wished for.** A fixed leak input, `p_i = (1 - m kappa_i) rho_i + m kappa_i rhobar_i`, turning the sweep axis into `m` and giving a per-cell envelope instead of a global one: spec 7.11's two-view identification at type-pooled level without restructuring the likelihood. A failed check is a finding and is recorded, not tuned away; if the checks fail we keep spec 4.7's swept global kappa and say why.
+
+### Leak meter: fails its own checks on three slides (results, 2026-09-17)
+
+Rejected. The estimator is coded correctly -- planted worlds recover the table to 5%, `zeta` to 0.02, per-cell kappa to RMSE < 0.02 with correlation > 0.99, and reproduce the predicted upward bias when the receiver expresses the sender's genes -- but on real slides the assumptions do not hold and every substantive check fails.
+
+**Specific genes (1).** Ovarian, 18 curated types: 0 of 17 senders reach 30 genes at 10x nuclear share against every other type; maximum 20 (T and NK Cells); 8 senders have none, including Tumor Cells, Tumor Associated Fibroblasts, Proliferative Tumor Cells, VEGFA+ Tumor Cells. The curated labels are lineage-nested -- five tumour subtypes, two fibroblast, two endothelial -- so "specific against all others" is empty by construction for the dominant compartment. Lineage merging to 9 groups gets 1 of 8 past 30 (Endothelium 37), but the merged Tumour class, the largest neighbour on this slide, still has zero specific genes and hence no `b_t`: the dominant leak source is unmeasurable. GSE315411, 35 curated classes: 0 of 34 senders reach 30 on either section (max 8 solo, 5 dual). Ratio 5x gives 2 of 8, ratio 3x gives 5 of 8, and the document warns that specificity against all other types is what made its simulation work.
+
+**Retention vs zeta (2, 3).** In 80-85% of pairs the specific genes' retention is not separable from the fitted `zeta` by 2 SE, so `D_g` is consistent with zero. Fitted `zeta` median 0.746 (IQR 0.454-0.896) at 18 types, 0.699 lineage-merged -- above the measured nuclear fractions of 0.41-0.59, the wrong side. About 11% of pairs put `zeta` outside [0, 1], with standard errors up to 8. Identification rests wholly on the spread of `eta_g` across a pair's specific genes; with 1-37 genes per pair that spread cannot separate the two regression columns.
+
+**The table (5).** Ovarian 18 types: 66 pairs, 12 positive beyond 2 SE, 20 negative, 77% with |c| < 2 SE. Lineage: 56 pairs, 14 positive, 15 negative, 68% within 2 SE. GSE solo 28 of 80 negative; dual 16 of 49.
+
+**Factorisation (4).** R2 = -4.12, relative RMS 2.26 at 18 types; R2 = -0.10, relative RMS 1.04 lineage-merged; -0.23 on the GSE solo section. `a_r b_t` explains less than the table's own mean, and the fallback of keeping the full table does not help because the table is noise.
+
+**Per-cell kappa (6).** At 18 types `kappa_i` median 2.32, IQR [0.40, 5.39], p95 21.2, 66% of connected cells above 0.9, pooled leaked-over-total 7.77 against the global 0.1: cells are claimed to receive several times their own content. Lineage merging gives median 0.129, IQR [0.068, 0.305], pooled 0.143 -- the right order, but see below. Four receiver tendencies are negative at 18 types (Unassigned -32.5) and one is 182 (VEGFA+ Tumor Cells).
+
+**Split stability (7).** Re-randomising only the learn half, seeds 0-4, lineage-merged ovarian: pooled kappa 0.143, 0.490, 0.092, 2.901, 0.060; median `kappa_i` 0.129, 0.422, 0.056, 0.076, 0.043. A 50x spread from a nuisance choice; the seed-0 value near 0.1 is a coincidence of the split, not a measurement.
+
+**Replication (8).** The two GSE315411 sections of one TMA, same core, same 35 classes: receiver tendencies over the 29 types both estimate correlate at Spearman -0.085 (Pearson -0.213). Alveolar macrophages -0.54 vs 130.6, B cells 1.64 vs -60.4, Multiciliated 0.63 vs 24.4. Pooled kappa -1.98 solo vs +4.00 dual -- opposite signs. Only two sender tendencies are estimable on both (Multiciliated 1.70 vs 1.95, Neutrophils 0.64 vs 0.049).
+
+**Two mis-specifications behind the failure, beyond gene scarcity.** Leaked copies come from the rim, so a sender's leaked profile should go as `(1-eta_g) rho_t(g)`, not `rho_t(g)`; the error lies along the same `eta` direction the fit uses. Fitting with the sender's extranuclear profile (ratio 3) gives R2 = 0.10 with 18 of 64 entries still negative -- right in principle, no rescue. And `eta_g(t)` is measured on type-`t` cells that themselves receive leak at share `zeta`, so it is biased toward `zeta`, shrinking `(zeta - eta_g)` and inflating `c_rt` more where density is higher. The density proxy `counts/area` compounds it: its numerator includes the counts that leaked in, so the regressor is contaminated by the response.
+
+**Tendencies vs nuclear fractions.** No relation: Spearman of receiver tendency against per-type nuclear fraction -0.05 (lineage) and -0.06 (18 types); sender tendency 0.32 and 0.40 over 5-6 estimable senders. The 2026-09-16 ordering (TAFs 0.415 lowest, stromal fibroblasts 0.592 highest) is not reproduced, and that was the one external anchor available.
+
+**Kept.** The module stays an instrument, not a model input: about 6 s per slide on CPU, the cheapest way to ask a slide whether a type-pooled leak table is measurable at all. Spec 4.7's swept global kappa and the kappa envelope of handover 4.2 stand unchanged. The honest upgrade path remains spec 7.11 at cell level, a multinomial over 2G bins with kappa latent, where the effective sample is 407k cells rather than the 1-37 genes a pooled pair supplies.
+
+### The two §7.10 degeneracy diagnostics — motivation and pre-registration (2026-09-17)
+
+*Written before anything was run.*
+
+**What is missing.** Spec §7.10 lists seven diagnostics; five are in the battery. Two never were: `I(z;t)/H(t), var(z|t)` and `Δ held-out recon, z vs one-hot t`, both labelled "degeneracy: is z just t?". Every claim the paper makes about `z` carrying within-type state currently rests on the NMI floor and the cycle read, neither of which answers the converse question — whether `z` is *nothing but* a re-encoding of the label it is handed. The large sweeps are about to start, so the diagnostics go in now, before the runs that will be read with them.
+
+**How (1) is measured.** On posterior means `mu_z` (never a sample — the §7.12/T8 convention), a multinomial logistic regression `mu_z -> t` is fitted on the cells of the *training* tiles and scored on the held-out tiles. `I = H(t) - CE_heldout`, where `H(t)` is the held-out cross-entropy of the training-set type frequencies (the intercept-only probe), so `mi_ratio = I/H(t)` is a held-out, probe-based **lower bound** on the normalised mutual information, in [0,1] up to estimation noise. Alongside it the within-type variance fraction `tr Cov(z|t) / tr Cov(z)` (population-weighted pooled within-type covariance over the total, law of total variance), reported overall and per dimension. Both use the `metrics.py` conventions: seeded rng, `MAX_EVAL_CELLS = 30_000` subsample per split.
+
+**Direction, stated plainly.** `within_var_fraction = 0` means `z` is a deterministic function of `t` — degenerate. `= 1` means the type means coincide, i.e. `z` is blind to type, which is the failure the NMI floor already guards. Neither end is the target. A *high* `mi_ratio` on its own is expected and is not evidence of degeneracy: the decoder is given no `t`, so `z` **must** carry type or reconstruction dies.
+
+**How (2) is measured, and the deviation.** The spec's literal reading — a decoder fed `onehot(t)` in place of `z` — needs a retrained model. The cheap post-hoc substitute: held-out per-count reconstruction of the fitted model, minus the same quantity when every cell's `z` is replaced by the mean of `mu_z` over the *training* cells of its type. `w`, the foreign influx `rho_bar`, the leak mixture and `kappa` are exactly as the forward pass left them; only `z` moves. Reported in nats per count. A third line, the held-out score of the empirical per-type count profile, gives the "type lookup and nothing else" reference. Registered as a spec deviation.
+
+**Pre-registered read.** Degenerate would be: `mi_ratio` near 1 **and** `within_var_fraction` near 0 **and** a recon gap near 0 — the three together, never one alone. Healthy would be a high `mi_ratio` with a clearly non-zero within-type share and a recon gap comfortably above zero. **What is wished for** is the healthy pattern on the pinned reference and agreement across the seed triple; a null (a flat gap) is a finding about the model, not a number to tune away, and would say that everything `z` does is carried by the label already.
+
+**Where it lands.** `Trainer.evaluate` so every future fit records both in `metrics.json` (best and final blocks) and `history.jsonl`, plus three TensorBoard scalars beside probe/mirror/cycle. A post-hoc CLI (`python -m discell.model.degeneracy`) reads existing runs from `best.pt`. To be read first on `ablation_gat_type_only_s1` (pinned), its two sibling seeds, and `reference_best` (type_z era).
+
+### §7.10 degeneracy diagnostics — results: z is not just t (2026-09-17)
+
+Both diagnostics built and read on the development slide. All four runs evaluated on CPU (GPUs reserved), ~1 min wall each on 407k cells, no subsampling of tiles needed. The post-hoc `recon_val` reproduces the stored `metrics.json` best value to four decimals for all four runs, which is the reload cross-check.
+
+| run | epoch | I/H(t) | probe acc | within-var frac | recon | type-mean z | **gap** | type profile |
+|---|---|---|---|---|---|---|---|---|
+| `ablation_gat_type_only` | 59 | 0.818 | 0.871 | 0.696 | −7.2527 | −7.3782 | **0.1255** | −7.3850 |
+| `ablation_gat_type_only_s1` (pinned) | 64 | 0.816 | 0.872 | 0.684 | −7.1924 | −7.3404 | **0.1480** | −7.3531 |
+| `ablation_gat_type_only_s2` | 59 | 0.799 | 0.855 | 0.675 | −7.2310 | −7.3780 | **0.1470** | −7.3887 |
+| `reference_best` (type_z era) | 59 | 0.814 | 0.869 | 0.695 | −7.2586 | −7.3765 | **0.1179** | −7.3850 |
+
+Recon columns are held-out nats per count; artefacts at `runs/<run>/degeneracy.json`.
+
+**The read.** The pre-registered degenerate pattern does not occur. `I/H(t) ≈ 0.80–0.82` is high, as expected — the decoder gets no `t`, so `z` has to carry identity — but the within-type variance fraction is `0.68–0.70`: only about 30% of `z`'s variance lies between type means, 70% is within-type state. And replacing each cell's `z` by its type's mean `z` costs 0.118–0.148 nats per count of held-out reconstruction, with `w`, `rho_bar` and `kappa` untouched. Per-cell `z` decodes information the label does not contain. The seed triple is tight on all three numbers (ratio spread 0.019, within-fraction spread 0.021, gap spread 0.022), so these are run-level properties, not seed noise. The type_z-era `reference_best` is indistinguishable from the type_only seeds, so the GAT-source change did not move degeneracy either way.
+
+**Per-dimension detail.** The within-type fraction runs from ~0.24–0.29 to ~0.96–0.98 across the 20 `z` dimensions in every run: a handful of dimensions are near-pure type axes and the rest are near-pure within-type state. The scalar `0.69` is a mixture of two populations, not a uniform property of the latent — worth remembering when it is quoted as a single number.
+
+**Unplanned finding, worth keeping.** The type-mean-z decode (−7.34 to −7.38) sits within 0.007–0.013 nats per count of a bare empirical per-type profile lookup (−7.35 to −7.39). Once `z` is type-averaged, `w` plus the leak mixture buy almost nothing over a lookup table on `t`. The entire per-cell reconstruction gain of this model flows through `z`. That is consistent with the known `alpha_w = 0.1` near-pinning of `w` (KL ≈ 0.002/dim) and gives it a reconstruction-side number for the first time.
+
+**Caveats on the numbers.** `I/H(t)` is a *linear*-probe lower bound; an MLP probe would raise it and the gap between the two is itself informative (the A2 lesson). `H(t)` is the held-out CE of training frequencies, not the true entropy. The val split follows `config.seed`, so the three seeds are scored on different held-out tiles — `h_t` differs slightly between them (2.258 / 2.265 / 2.353) and the ratios are not scored on a common set. The recon gap is a *substitution*, not a retrain: it answers "what does per-cell `z` add beyond type-level `z`, holding everything else fixed", which is weaker than the spec's one-hot-`t` decoder. The retrain is proposed as a GPU job.
+
+**Incidental.** `reference_best`'s post-hoc NMI came back 0.630 against the 0.658 stored in its `metrics.json`, while recon matched exactly. That points at evaluation-code drift since 8 September rather than a reload fault, but it was not chased down; logged as a watch item.
+
+### Sweep programme across four datasets (motivation and plan, 2026-09-17)
+
+**Motivation, written before anything runs.** Every ablation we have is on one slide. The claim we want to make is not "kappa does not matter" but "the reads are flat along kappa, d_w and alpha_w *where they are flat*, on four slides of three tissues and two preservation methods" — and a grid that disagrees across slides is the finding, not a failure. Two things were missing: a schedule with honest hours, and a tool that can run any of the three ablations on any dataset without hand-edited configs. Both are now in place; no fit has been launched.
+
+**The tool.** `discell/model/sweep.py` takes `--param {kappa,d_w,alpha_w}` with `--values`, and passes every per-dataset knob through (`--label-key`, `--alpha-z`, `--tile-cells`, `--variant`, `--epochs`, `--patience`). Idempotence is unchanged in meaning — a run with a `metrics.json` is finished and is skipped — but the check now happens *before* `assemble()`, so re-running a completed grid costs seconds instead of a graph build. Run names stay `<tag>_<abbrev><value>_s<seed>` with abbreviations `k`/`dw`/`aw`, so `--tag sweep3 --param kappa` reproduces `sweep3_k0.1_s0` exactly and `--tag '' --param d_w` reproduces the hand-launched `dw2_s0`; the report still lands in `experiments/kappa_sweep_sweep3.json`. The report's metrics table and both B-stability legs (across seeds within a value, along the value axis) now work for any param — along-axis pairs with mismatched B shapes are dropped in a d_w sweep rather than reported as a number that does not mean anything — and the §7.10 degeneracy pair and recon gap are read with `.get` from either `final` or the top level of `metrics.json`, yielding `null` on every run fitted so far.
+
+**The inventory.** kappa {0, 0.05, 0.1, 0.2, 0.3, 0.4} x 3 seeds, d_w {2, 3, 6, 8} x 3, alpha_w {0.03, 0.05, 0.07, 0.1, 0.2, 0.3} x 3 = 48 fits per dataset, 42 once the shared centre (kappa 0.1 = d_w 6 = alpha_w 0.1 = the operating point) is fitted once and reused in all three tables. The alpha_w values above 0.1 are kept deliberately: every measurement so far walks *down* from 0.1 and only ever sees the channel open; what over-tightening costs has never been measured under `type_only`.
+
+**What is reusable.** Ovarian only, and only because sweep3 and `dw{2,3,8}_s{0,1,2}` are already `type_only` at 200/20: kappa 18/18 on disk, d_w 12/12 (d_w = 6 is `sweep3_k0.1_s*`), alpha_w 3/18. The `alphaw_*` runs are **not** reusable — their `config.json` has no `gat_sources` key at all (type_z era, pre-2026-09-12) and they were fitted at 500/40, so they are a different architecture at a different budget. `cal2_aw_*` are closed-form-era 40-epoch calibration fits. 15 new ovarian fits; lung, FF and GSE have one reference fit each and nothing else, so 42 apiece. 141 fits in total.
+
+**Hours, from measured runs, not from guesses** (`metrics.json: minutes` / stop epoch): ovarian `sweep3_k0.1_s0` 6.3 min at ep. 79; GSE core `reference` 11.7 min at ep. 94 (7.5 s/epoch, tile 2048); lung `reference_graphclust` 71.9 min at ep. 99 (43 s/epoch, but that run shared the machine with the alpha_w study); FF `reference_graphclust` **182.7 min, early stop at epoch 409** (26.8 s/epoch). Planning figures per fit: ovarian 10 min, GSE 12, lung 25, FF 90 (at a 200-epoch cap). Legs: ovarian alpha_w 2.5 GPU-h, GSE 8.4, lung 17.5, FF 63 — **91.4 GPU-h, about 46 h of wall clock on 2 GPUs**, one fit per GPU. Order, cheapest and most informative first: ovarian alpha_w, then GSE core, then lung, then FF.
+
+**The FF wrinkle, stated rather than hidden.** FF is the only slide whose reference needed 409 epochs. At the sweep budget every FF fit would hit the 200 cap, so FF sweep numbers would be internally comparable but not comparable to FF's own reference; at FF's own 500/40 budget the leg costs 128 GPU-h instead of 63. Grids are not being shrunk for cost — the author has said compute is not a constraint — and memory does not force a window either: with int16 resident counts FF sits at 18–20 GB of a 24 GB card, so one FF fit per GPU and no `--max-cells` (a flag that does not exist).
+
+**GSE315411, decided by the author.** The sweeps run on the `pdl018d` core of the solo section (69k cells, curated 35 classes, alpha_z 0.0036, tile 2048); the two full slides are the held-out-section test via `crossslide`, an evaluation of a checkpoint rather than a fit, and are not swept.
+
+**Launcher pattern.** Detached (`setsid nohup … > log 2>&1 < /dev/null & disown`), `OMP_NUM_THREADS=8 NUMBA_NUM_THREADS=8`, `--figures-every 200` so the x18 figure panel runs at most once per fit, and the two GPUs given disjoint `--seeds` staggered by two minutes so the two `assemble()` passes do not peak together. Idempotence is per run name, so disjoint seed sets never collide. Measured reason for all of it: `dw8_s0` took 45 min for the same 59-epoch best that `sweep3_k0.1_s0` reached in 6.3 min, under contention.
+
+**Pre-registered pass/fail for the programme as a whole.** Pass = on each further slide the kappa envelope is flat on cycle_z, cycle_w, probe and mirror with likelihood falling monotonically past 0.1 (the ovarian §4.2 shape), d_w shows fill ≪ d_w with no gain above 6, and alpha_w shows the channel opening downward with the bulk of w staying context-dominated. Fail = any slide where a read moves along kappa outside its own seed envelope, or where d_w > 6 buys something, or where alpha_w's shape inverts. Either way the number goes in the table; nothing is tuned away, and the four-slide disagreement, if it comes, is the paper's limitation section.
+
+### Sweep programme: the tool is in, nothing is launched (results of the planning turn, 2026-09-17)
+
+Result half of the entry above, for the planning work itself — no fit ran, so these are tool and inventory facts, not science.
+
+**Verified.** `uv run pytest -q tests/test_model_sweep.py` → 8 passed in 0.76 s: the three default grids and the int cast for d_w; per-dataset knobs (`--variant pdl018d --alpha-z 0.0036 --tile-cells 2048 --label-key … --epochs --patience`) reaching `TrainConfig` with the swept knob overriding the fixed one; run names equal to what is on disk (`sweep3_k0.1_s0`, `sweep3_k0_s2`, `dw2_s1`, `aw0.05_s0`); the skip filter and `--force`; `metric_row` on a full metrics.json, on an old one (the pre-rename `cycle.ceiling` key, `mirror`/`degeneracy` absent → `None`), and with the degeneracy pair at the top level instead of under `final`; `b_stability` returning 1.0 for a column permutation of the same B, dropping a single-seed value from `across_seeds`, and dropping shape-mismatched pairs in a d_w sweep.
+
+**Smoke-tested against real artefacts.** `--param kappa --tag sweep3 --values 0.1 --seeds 0 --report-only` on the ovarian slide loaded `sweep3_k0.1_s0` and reproduced the handover's partial-isolation reading: `recon_lost0` −7.2594 vs `recon_lost1plus` −7.0421, `recon_degree_le2` −7.1315 — cells that lost edges to the prune still reconstruct better. `experiments/kappa_sweep_sweep3.json` was backed up before that call and restored after, and is back at its 18 runs.
+
+**Not verified.** No multi-run report on a full grid (that loads 18 models and was not worth the GPU time while the plan is unapproved); no fit at any budget; the lung and FF per-fit estimates are extrapolations from single reference runs, the lung one from a run that shared the machine, so both carry roughly a factor of two of uncertainty. The degeneracy keys are read from two plausible places because the agent adding them has not documented where they land; if they land under a third key the sweep report will show `null` and needs a one-line fix.
+
+**Scheduling dependency, flagged for the author.** If the programme launches before the §7.10 degeneracy metrics land in the per-run evaluation, all 141 runs will be written without them and will need a re-evaluation pass. Recommendation: land those metrics first.
+
+
+### Transcript-flux β and per-cell κ_i from extranuclear transcript geometry (motivation, 2026-09-17)
+
+**Why.** Today β_ij ∝ face_ij · exp(−d_ij/τ) tracks only centroid distance and
+Voronoi face length, and κ is one global number swept on a grid. The
+per-transcript nucleus flag (already the basis of `qc/nuclear_counts.npz`)
+says which of a cell's transcripts are extranuclear, and their coordinates say
+where they sit relative to the cell's own nucleus and to every neighbouring
+nucleus. The doc-16 leak meter, which pooled this information to a type-by-type
+table through sender-specific genes, failed its own checks (entry above); this
+design uses the geometry directly and needs neither labels nor specific genes.
+Agreed with the author 2026-09-17: build β first, derive κ_i from it, change
+nothing in the model until the checks pass.
+
+**How.** For each extranuclear transcript (q ≥ 20) assigned to cell i: distance
+to i's own nucleus, distance to the nearest other nucleus, and that neighbour's
+identity, restricted to i's pruned Voronoi neighbours. Per edge (i, j): the
+flux F_ij = weighted count of i's extranuclear transcripts in the wall band
+facing j, weighted by how much closer they lie to j's nucleus than to i's
+(exact weighting and band width are the prototype's parameters, reported, with
+a sensitivity check). β^T_ij = F_ij / Σ_j F_ij on connected cells; κ_i = Σ_j
+F_ij / ℓ_i, an upper bound. Face length and centroid distance become covariates
+that predict F_ij, not the kernel itself.
+
+**Evaluated by (pre-registered).** (1) Homotypic null: along walls to same-type
+neighbours deep inside homotypic regions the band should carry no *excess* —
+its gene content should match the cell's own profile; along heterotypic walls
+the banded transcripts should resemble the neighbour's type profile more than
+the cell's own (cosine to type means, per edge class). (2) Replication: κ_i by
+type and the β^T-vs-β_face relation must agree between the two GSE315411
+sections of one core (Spearman over shared types ≥ 0.7 is the bar). (3) β^T
+must correlate with, but not equal, the face-length β (edge-level Spearman
+reported; identity would mean geometry adds nothing). (4) The κ_i distribution
+must be a share: median well below 1, tail above 0.9 small, and its type
+ordering compared with the per-type nuclear fractions of 2026-09-16 (TAFs
+lowest) as the one external anchor. (5) Sensitivity to band width and weight
+form: conclusions must not flip across a small grid of both.
+
+**What is wished for.** A per-edge β and a per-cell κ_i measured from the slide
+that pass (1)–(5); then the model change is a vector κ_i with a cap and the m
+sweep {0, 0.5, 1, 1.5, 2}. A failed check is a finding: if the homotypic null
+fails or the two sections disagree, β_face and the global κ sweep stand and the
+reason is recorded here. CPU only; no fit is touched.
+
+### Transcript-flux β and per-cell κ_i: results (2026-09-17)
+
+*Delegated prototype (Opus), refuted (Sonnet), then extended with the power
+analysis the refuter demanded; numbers verified against the JSONs by the
+refuter.* Built and read on three slides, CPU only: 27 s to stream the ovarian
+slide's 147.7M transcripts, ~35 s per slide including the power analysis.
+Checks (2)–(5) pass. **Check (1) fails against the pre-registered bar — and the
+power analysis run afterwards shows the bar was mis-specified, not the
+estimator.**
+
+**Parameters, fixed before the runs.** Nucleus reference = the vertex mean of
+`nucleus_boundaries.parquet`. Admission = `overlaps_nucleus == 0`, `qv ≥ 20`,
+gene in panel, host has a nucleus. Signed offset `s = d_own − d_nearest other
+nucleus`, the nearest taken over the host's 40 µm-pruned Voronoi neighbours
+that also have a nucleus. Weights `hard = 1[s>0]`, `ramp = clip((s+b)/2b)`,
+`logistic = 1/(1+exp(−4s/b))`; primary b = 4 µm, ramp; the 3 × 3 grid
+b ∈ {2,4,8} accumulated in one stream pass. `ℓ_i` = the bundle's assigned
+total; τ = 20 µm for the face comparison. Gene content on 200k subsampled
+directed edges (of 2.31M ovarian, ~0.40M per GSE core) with ≥ 10 banded
+transcripts. No transcripts were subsampled. `hard` is band-invariant by
+construction, so three of the nine grid rows coincide.
+
+**Scale.** Ovarian 147.7M transcripts → 49.31M extranuclear q20 placed,
+400,534 connected cells, 2.31M directed slots, 401,400/407,120 with a nucleus.
+GSE `pdl018d` solo 237.5M → 12.40M placed, 68,601 of 69,422; dual 210.7M →
+11.45M, 69,919 of 70,757. Every raw file existed.
+
+**(1) Gene content — fails the bar; the bar was a 50 % bar.** Heterotypic
+edges carry content whose cosine excess (neighbour − own) is −0.036 ovarian,
+−0.056 GSE solo, −0.050 GSE dual, with the neighbour winning on 35 %, 27 %,
+27 % of edges (n ≈ 21–23k, median band 22–24 transcripts). Read literally,
+the band looks like the host: fail. **A power analysis on the same edges, with
+the same counts and the same pooled profiles, planting band content as
+`(1−p)ρ_host + p·ρ_neighbour`, says this reading was wrong.** The p = 0 world
+does not score zero — it scores −0.046 (ovarian), −0.072 (solo), −0.063
+(dual), because a cosine against L1-normalised pooled profiles is not centred.
+The pre-registered bar (excess > 0) is only crossed at **p = 0.513, 0.501,
+0.500**: it asked for a half-and-half band. Against the correct baseline the
+observed values sit **16.9 σ, 29.4 σ and 25.7 σ above p = 0** and imply an
+admixture of **p = 0.109 [0.092, 0.128]**, **0.112 [0.103, 0.122]** and
+**0.107 [0.096, 0.118]**. The second moment, `frac_neighbour_gt_own`, implies
+0.264 / 0.256 / 0.251 on the same edges — a factor 2.3 higher, so a single-p
+two-profile mixture does not fit both moments and the honest statement is a
+**bracket of 0.11–0.26**, not an interval. So: the check as written has no
+power at the 10–15 % the model posits and full power only near 50 %; rebuilt
+against its own null it separates 13 % from 0 at many sigma and points at an
+admixture close to the geometric κ_i. The pre-registered verdict stands as a
+fail; the inference the first draft drew from it — that the band is not
+foreign — is withdrawn.
+
+Two follow-ups, both recorded. The **within-cell control** (band vs the same
+cell's deep extranuclear transcripts, both scored against the neighbour) gives
+a difference-in-differences of −0.0089 [−0.0178, +0.0009] ovarian, −0.0042
+[−0.0086, +0.0003] solo, −0.0056 [−0.0105, −0.0005] dual over 1000 edge
+bootstraps: null on two slides, marginally negative on the third. **No power
+curve was built for this statistic**, so by the argument above its null is not
+yet interpretable and is not counted either way. The **circularity** the
+pooled profiles carry — they already contain leaked content — was estimated by
+deflating each type's profile by an assumed 13 % of its flux-weighted influx
+and re-scoring: the observed excess moves by −0.0023 / −0.0047 / −0.0042 and
+the planted p = 0.13 curve moves by almost exactly the same amount, so the
+identifying contrast shifts by under 0.01 in p. Real, small, common-mode, and
+conservative in direction.
+
+**(2) Replication — passes.** Per-type median κ_i over the 32 shared classes
+of the two sections of one core: **Spearman 0.843**, Pearson 0.873 (bar 0.7).
+Multiciliated 0.176/0.178, Secretory 0.183/0.187, Neuroendocrine 0.175/0.182,
+Pericytes and Neutrophils identical to four decimals; the only real
+disagreements are B cells (0.133/0.069) and alveolar macrophages
+(0.046/0.098). The β^T-vs-β_face relation replicates at 0.4945 vs 0.4952. The
+doc-16 leak meter scored −0.085 on this same pair.
+
+**(3) β^T vs β_face — passes.** Edge-level Spearman 0.485 ovarian (1.27M live
+slots), 0.494 / 0.495 on the GSE pair: correlated, not identical.
+
+**(4) κ_i is a share — passes; the external anchor agrees in sign.** Ovarian
+median 0.130, IQR [0.064, 0.198], p95 0.303, no cell above 0.9 (GSE solo:
+1.5e−5 of cells); GSE solo 0.126 [0.065, 0.196] p95 0.315; dual 0.127
+[0.067, 0.196] p95 0.316. Spearman of per-type median κ against the
+2026-09-16 pooled nuclear fractions is −0.465 (18 types), −0.269 (32), −0.493
+(33): lower nuclear fraction, higher κ, on all three slides. TAFs, lowest
+nuclear fraction 0.415, κ 0.146; stromal fibroblasts, highest 0.592, the
+**lowest** κ of the 18 at 0.039 — the anchor the leak meter could not reproduce.
+
+**(5) Sensitivity — passes.** Over the 3 × 3 grid ovarian median κ_i moves
+0.076 → 0.171 and pooled 0.165 → 0.204; `frac κ_i > 0.9` ≤ 2e−5 in every cell
+of the grid; Spearman(β^T, β_face) 0.374 → 0.536. The GSE pair tracks it and
+solo/dual agreement holds at every point. No conclusion flips — but the band
+sets the absolute level of κ_i to within a factor 2.3, so only the *ordering*
+is band-free.
+
+**What can be said about κ = 0.1, stated carefully.** κ_i is an **upper
+bound**: every transcript nearer a neighbour's nucleus than its own is counted,
+and nuclei are off-centre in elongated and nuclear-expansion-segmented cells,
+so a slide that leaked nothing would still return κ_i > 0. Its level depends
+on the band (median 0.076–0.171 across the grid). With those two caveats
+carried, three slides across two tissues and two preservation methods put the
+median at 0.126–0.130 and p95 at 0.30–0.32 with no tail at 1, and the
+independent gene-content estimate brackets the admixture at 0.11–0.26. That is
+**order-of-magnitude consistency** with spec 4.7's swept κ = 0.1 — enough to
+say the operating point is not off by a factor of five in either direction, not
+enough to call κ = 0.1 measured.
+
+**Read.** A label-free, model-free per-cell geometric statistic that replicates
+across sections, tracks the nuclear-fraction anchor, and is corroborated on gene
+content by an independent estimate of the same order. Still missing: a
+check-(1) design with power at 13 % by construction (type-specific genes,
+scored against the simulated p = 0 null), a control that separates influx from
+nucleus off-centring (shuffled nuclei / own polygon), and the per-edge
+agreement between geometric κ_i and content-implied p. Until those exist, κ_i
+stays an instrument: `equations.leakage_mix` keeps its scalar κ, `prepare`
+keeps β_face. Module `discell/experiments/transcript_flux.py` (`--power`),
+10 planted tests; artefacts `experiments/transcript_flux_{full,pdl018d}.json`
+on the three datasets.
+
+### Transcript-flux κ_i: the three decisive tests before adoption (motivation, 2026-09-17)
+
+**Why.** The prototype (entry above) passed replication, share and sensitivity
+and, once its gene-content check was scored against the correct null, implied
+an admixture of ≈ 0.11 on three slides. Three things still separate "geometric
+covariate" from "measured leak": the content check has power at 13 % only by
+post-hoc simulation; the level of κ_i is not separated from nucleus
+off-centring; and the two estimators have never been compared on the same
+edges. Todo items 5.4–5.7. No model change is made in this round.
+
+**How, evaluated by, pre-registered bars.**
+- **5.4 (W-tf1) content check with power by design.** Score the per-edge band
+  content on type-specific genes only (`leak_meter.specific_genes` at the 3×
+  ratio, plus the top-N per type by fold-change so every type has genes),
+  against the simulated `(1−p)ρ_host + p·ρ_nb` curve at the observed counts.
+  Bar: the zero-crossing of "neighbour > own" must fall at p ≤ 0.15 on each
+  slide; report the implied p with 2-SE and its agreement with the whole-panel
+  estimate (0.11 [0.09, 0.13]). Failure = the crossing stays above 0.3, in which
+  case the content statistic cannot be made decisive at these counts.
+- **5.5 (W-tf2) off-centring control.** Recompute the signed offset with (a)
+  nucleus positions shuffled among cells within 200 µm tiles (destroys the
+  transcript–nucleus association, keeps the density field) and (b) the cell's
+  own polygon centroid instead of its nucleus. Bar: the tile-shuffled κ_i gives
+  the level a leak-free geometry would produce; the corrected κ_i = observed −
+  shuffled must stay a share with median > 0 on all three slides and keep the
+  type ordering (Spearman with the uncorrected ordering ≥ 0.8). Failure =
+  corrected median ≤ 0.02, i.e. the level was geometry.
+- **5.6 (W-tf7) per-edge agreement.** On heterotypic edges with ≥ 30 banded
+  transcripts, the geometric flux share F_ij/ℓ_i against the content-implied
+  admixture p_ij (from 5.4's statistic, per edge, binned by flux decile to
+  average the multinomial noise). Bar: Spearman ≥ 0.5 across deciles on each
+  slide and a calibration slope in [0.5, 2]. Failure = no monotone relation.
+- **5.7 (W-tf9, W-tf8) moment fix and the DiD.** Host arm = the cell's
+  extranuclear profile; bar: the two moments' implied p agree within their
+  2-SE. DiD: build its power curve or drop the statistic; report which.
+
+**What is wished for.** All three bars met → the model change of todo 5.8 (a
+per-cell κ vector capped at 0.5, β^T and κ_i on the graph, `m` swept over
+{0, 0.5, 1, 1.5, 2}) is built and one ovarian fit at m = 1 is compared with the
+κ = 0.1 reference. Any failed bar is recorded and stops the adoption; the
+instrument stays. CPU only, ovarian first, then both GSE sections.
+
+### Transcript-flux κ_i: the three decisive tests — results (2026-09-17)
+
+*Delegated (Opus), CPU only, 27–100 s per slide; key numbers spot-checked
+against the artefacts. Written against the bars of the entry above; all three
+fail.* Module `discell/experiments/transcript_flux.py` (`--decisive`), 7 new
+planted tests (17 in the file, all passing); artefacts
+`experiments/transcript_flux_decisive_{full,pdl018d}.json` on the three slides.
+One streaming pass fills four distance references at once, so shuffled, polygon
+and observed κ_i are measured on exactly the same transcripts.
+
+**Parameters, fixed before the runs.** Primary band 4 µm, ramp.
+`leak_meter.specific_genes` at ratio 3 (floor 200 nuclear counts), topped up to
+N = 25 genes per type by nuclear-share fold change so no type is empty: 515 of
+5,001 genes (ovarian), 898 / 896 (GSE). Shuffle tile 200 µm. 5.6 edge floor 30
+banded transcripts. p grid {0, .02, .05, .10, .15, .20, .30, .50, 1}; DiD grid
+{0, .05, .13, .30}; seed 0. All directed slots of the GSE cores and 1.0M of the
+ovarian slide's 2.31M sampled for content.
+
+**5.4 — fails, and the bar is refuted as a criterion, provably.** Zero-crossing
+0.514 / 0.523 / 0.536 (bar ≤ 0.15). For a band drawn from `(1−p)ρ_host +
+p ρ_nb` and scored by `cos(v, ρ_nb) − cos(v, ρ_host)`, the p = 0.5 mixture is
+invariant under swapping the arms, which maps the excess to its own negative,
+so its mean is exactly zero at p = 0.5 for any gene subset. Specificity
+sharpens the curve; it cannot move the crossing (confirmed on planted worlds,
+full panel and 25-gene subset). What specificity bought: p = 0.13 separates
+from p = 0 at 9.1 / 13.0 / 10.0 σ on 1.7–2.9k edges (≈ 10× the information per
+edge), implied admixture 0.160 [0.133, 0.184] / 0.162 [0.143, 0.178] /
+0.101 [0.063, 0.126], consistent with the whole-panel 0.11 [0.09, 0.13]; the
+second moment still says 0.23–0.27.
+
+**5.5 — fails both bars; the polygon arm is the informative failure.** The
+pre-registered tile shuffle permutes nucleus positions among cells, which makes
+each cell's own nucleus a random point ~100 µm away: κ_shuffled 0.393 / 0.480 /
+0.478, corrected κ_i −0.240 / −0.330 / −0.328 (negative for 84–85 % of cells),
+ordering Spearman 0.32 / 0.40 / 0.15. That control is a destroy-everything
+null, not an off-centring null. The other arm settles it: replacing the nucleus
+by the cell's own polygon centroid moves κ_i only 0.1305 → 0.1173, 0.1263 →
+0.1068, 0.1274 → 0.1081 — the off-centring share is 0.006 / 0.011 / 0.011,
+ordering Spearman 0.70 / 0.76 / 0.80. A diagnostic beside the two arms,
+permuting the nucleus-minus-centroid offset inside the tile, reproduces the
+observed κ_i within 3 % (0.1267 / 0.1217 / 0.1223) at ordering Spearman
+0.98 / 0.95 / 0.98. **κ_i's level is insensitive to the transcript-to-own-
+nucleus relationship it is built from.**
+
+**5.6 — fails; the decisive one.** 37,094 / 17,857 / 16,436 heterotypic edges
+with ≥ 30 banded transcripts, ten flux-share deciles over a five-fold range.
+The banded count rises with the flux share (37 → 85 ovarian) and the cosine
+excess is count-dependent, so a single inversion curve manufactures a negative
+relation (Spearman −0.89 / −0.42 / −0.69); each decile therefore gets its own
+planted curve at its own counts (recorded as W-tf11). Count-matched:
+**Spearman −0.539 / +0.685 / +0.539, slope −0.263 / +0.228 / +0.293** (bars
+≥ 0.5 and [0.5, 2]); the Spearman sign is unstable across sample size
+(ovarian +0.442 at 200k edges). Every slope is 4–10× below the calibration
+band: a five-fold change in geometric flux share moves the content-implied p
+by at most 0.05. **The geometric flux share does not say which edge carries
+foreign content.** The same machinery recovers a planted per-edge admixture at
+Spearman ≥ 0.5 and slope in [0.5, 2], so this is the slide's answer.
+
+**5.7 — moments still disagree; the DiD has its power curve.** Host arm on
+the pooled extranuclear profile: excess-implied p 0.136 [0.130, 0.143] /
+0.102 [0.095, 0.109] / 0.087 [0.080, 0.094] vs fraction-implied 0.250 / 0.227 /
+0.216, no 2-SE overlap; ratio still ~1.8–2.5. The DiD power curve (band at p,
+core at 0) moves +0.0023 → +0.0085, +0.0107 → +0.0206, +0.0107 → +0.0179
+between p = 0 and 0.13, separating at 2.0 / 3.8 / 2.8 σ, so the statistic has
+power — but the observed DiD is −0.0108 [−0.0151, −0.0068], −0.0056 [−0.0089,
+−0.0027], −0.0058 [−0.0093, −0.0024]: significantly negative on all three and
+3–6 σ below the planted leak-free world. Wrong sign for influx; logged as an
+open anomaly (W-tf10), counted for neither side.
+
+**Read.** Three tests designed to separate "geometric covariate" from
+"measured leak"; none makes the separation and one argues against it. κ_i
+replicates across sections, tracks the nuclear-fraction anchor and sits at the
+right order of magnitude, but its level does not depend on the nucleus (5.5)
+and its per-edge value does not predict the content it stands for (5.6). The
+content estimator cannot carry a crossing bar (5.4, proved) and does not fit a
+single-p mixture on either host arm (5.7). **Todo 5.8 is not built.**
+`equations.leakage_mix` keeps its scalar κ; `prepare` keeps β_face; the swept
+global κ = 0.1 stands, now with an independent order-of-magnitude bracket
+(0.09–0.25) behind it. κ_i and β^T stay instruments and reporting statistics.
+What would reopen adoption is 5.6 alone: a per-edge relation with slope in
+[0.5, 2] on at least two slides, using a content statistic that is not an
+uncentred cosine — a per-edge multinomial mixture likelihood in p on the
+specific genes, host arm from the same cell — plus an explanation of W-tf10.
+
+### NMI drift check (todo 1.3, 2026-09-17): closed
+
+Reloading `ablation_gat_type_only_s1` twice through `discell.model.degeneracy`
+on CPU gives NMI 0.6538918662562847 both times, equal to the stored best value
+to full precision; recon likewise. The NMI path is deterministic on the same
+weights, so the 0.630-vs-0.658 mismatch on `reference_best` (trained 8 Sep) is a
+code change between 8 and 11 September, not metric noise. Since no pre-settle
+run will be quoted, nothing further is done; new fits are internally consistent.
+
+### What does w buy once z is type-averaged? (todo 2.3, motivation, 2026-09-17)
+
+**Why.** The degeneracy battery found that replacing each cell's z by its type
+mean lands within 0.007–0.013 nats/count of a bare per-type profile lookup:
+once z is type-averaged, w plus the leak mixture add almost nothing over
+knowing t. That is the first reconstruction-side number on the α_w = 0.1
+pinning and it decides how 2.2 (α_w = 0.05) should be read.
+
+**How.** Post-hoc, CPU, on runs already on disk: the type_only seed triple
+(α_w 0.1), the α_w study runs `alphaw_0.02/0.03/0.05/0.07` and `reference_best`
+(type_z era, same α_z, seed 0), and `dw2_s0`, `dw8_s0`. For each, held-out
+per-count recon under five decodes with ρ̄ and κ fixed: (a) full model; (b) z →
+type mean, w posterior; (c) z → type mean, w → m_ψ(c,t) (context field only);
+(d) z → type mean, w → m_ψ(c̄_t,t) (reference context: kills the context
+dependence, keeps the per-type gauge offset); (e) per-type count profile. Read
+the gaps (b)−(d) = what context-varying w buys, (d)−(e) = what the gauge offset
+plus decoder nonlinearity buys, (a)−(b) = what per-cell z buys. Also the same
+five with z kept and w → m_ψ(c̄_t,t), i.e. the context channel switched off with
+z intact — the number that says what the response channel is worth to the
+likelihood at each α_w.
+
+**Evaluated by.** Pre-registered read: if (b)−(d) grows monotonically as α_w
+falls (0.1 → 0.02) and is ≥ 0.01 nats/count at 0.05, the context channel
+carries likelihood that 0.1 suppresses and 2.2 is worth running; if it is flat
+near 0 at every α_w, w is a lookup-level covariate at every tested operating
+point and 2.2's acceptance should weigh the z side only. Type_z-era runs are
+compared only among themselves.
+
+**What is wished for.** A single table, α_w × decode, from which the α_w = 0.05
+question can be read before any new fit. Nothing is tuned; a null is recorded.
+
+### What does w buy once z is type-averaged? (todo 2.3, results, 2026-09-17)
+
+*Delegated (Opus), CPU only, ~1 min per run on 407k cells (60.4k held-out
+seeds).* Ten runs on disk, six decodes each, ρ̄ and κ held fixed from the
+forward pass, posterior means throughout; every decode goes through
+`Trainer._decode_seeds`, which gained an optional w argument (planted test: fed
+the cell's own μ_w it returns log_p to 1e-6). Artefact
+`experiments/w_contribution.json`. Cross-check: decodes (a) and (b) reproduce
+the §7.10 table to four decimals on the four shared runs.
+
+| run | α_w | (a) full | (b) type-mean z | (c) + m_ψ(c,t) | (d) + m_ψ(c̄_t,t) | (e) type profile | (f) own z, ref w |
+|---|---|---|---|---|---|---|---|
+| alphaw_0.02 (type_z) | 0.02 | −7.2518 | −7.3597 | −7.3650 | −7.3842 | −7.3850 | −7.2713 |
+| alphaw_0.03 (type_z) | 0.03 | −7.2510 | −7.3633 | −7.3669 | −7.3848 | −7.3850 | −7.2680 |
+| alphaw_0.05 (type_z) | 0.05 | −7.2534 | −7.3690 | −7.3706 | −7.3856 | −7.3850 | −7.2653 |
+| alphaw_0.07 (type_z) | 0.07 | −7.2586 | −7.3748 | −7.3752 | −7.3874 | −7.3850 | −7.2677 |
+| reference_best (type_z) | 0.10 | −7.2586 | −7.3765 | −7.3769 | −7.3887 | −7.3850 | −7.2673 |
+| type_only s0 | 0.10 | −7.2527 | −7.3782 | −7.3783 | −7.3869 | −7.3850 | −7.2585 |
+| type_only s1 | 0.10 | −7.1924 | −7.3404 | −7.3409 | −7.3499 | −7.3531 | −7.1995 |
+| type_only s2 | 0.10 | −7.2310 | −7.3780 | −7.3785 | −7.3877 | −7.3887 | −7.2377 |
+| dw2_s0 | 0.10 | −7.2564 | −7.3788 | −7.3792 | −7.3866 | −7.3850 | −7.2617 |
+| dw8_s0 | 0.10 | −7.2645 | −7.3745 | −7.3751 | −7.3858 | −7.3850 | −7.2719 |
+
+Gaps (b)−(d) context-varying w / (d)−(e) gauge + nonlinearity / (a)−(b)
+per-cell z / (a)−(f) context channel with z intact: 0.0244 / 0.0008 / 0.1080 /
+0.0195 (α_w 0.02); 0.0215 / 0.0002 / 0.1123 / 0.0170 (0.03); 0.0166 / −0.0006 /
+0.1156 / 0.0119 (0.05); 0.0126 / −0.0025 / 0.1162 / 0.0091 (0.07); 0.0122 /
+−0.0037 / 0.1179 / 0.0087 (reference_best); type_only triple (b)−(d) 0.0087 /
+0.0095 / 0.0097; dw2 0.0078, dw8 0.0113.
+
+**The pre-registered read fires on the first branch.** (b)−(d) grows strictly
+monotonically as α_w falls — 0.0122, 0.0126, 0.0166, 0.0215, 0.0244 over
+0.1 → 0.02 — and is 0.0166 at 0.05, above the 0.01 bar. The context channel
+carries held-out likelihood that α_w = 0.1 suppresses; 2.2 is worth running.
+The level stays modest: at 0.05 the context-varying part of w is worth
+0.017 nats/count against 0.116 for per-cell z; even at 0.02 it is a fifth of
+the z channel.
+
+**(d)−(e) is zero everywhere** (−0.0037 to +0.0032, no α_w trend): the
+per-type gauge offset, the decoder nonlinearity and the leak mixture together
+buy nothing measurable over an empirical per-type lookup. Everything w
+contributes above the lookup is the context-varying part.
+
+**(b)−(c) reads the pinning on the likelihood** for the first time: 0.0001–
+0.0006 at α_w = 0.1 (posterior w and prior field decode identically — the
+KL_w ≈ 0.002/dim result in nats per count), rising to 0.0053 at 0.02.
+
+**Total recon does not move; the split does.** (a) spans 0.008 across the five
+α_w values while its seed spread at fixed α_w is 0.06. As α_w falls, (a)−(b)
+shrinks 0.118 → 0.108 by about what (b)−(d) gains. α_w decides which channel
+carries the likelihood, not how much there is — so recon cannot adjudicate 2.2.
+
+**Caveats.** Era: at α_w = 0.1, type_z gives (b)−(d) 0.0122 against the
+type_only triple's 0.0087–0.0097 (offset 3× the seed spread of 0.0010), so the
+trend is read inside type_z only and 0.05 under type_only should be expected
+nearer 0.013–0.014. The four α_w runs are seed 0 only. Splits follow
+`config.seed`, so the type_only triple is scored on three held-out sets; the
+nine seed-0 runs share one. Budgets 500/40 except dw2/dw8 at 200/20, not
+binding (best epochs 59–64). c̄_t is the training mean of c per type, isolated
+flag included. Substitution, not retrain.
+
+**How 2.2 is read.** α_w = 0.05 under type_only, 3 seeds, is accepted or
+rejected on the w side — KL_w per dim off the floor, larger within-type-centred
+context dependence of w, a second context axis reproducing across seeds (cosine
+≥ 0.75, the 2026-09-14 pre-registration) — with the guards (mirror R², probe
+ΔCE at floor, NMI and cycle_z inside the seed envelope) as veto, and this table
+as the prior that the prize is ~0.013–0.014 nats/count, ~10 % of the z channel.
+If the guards move at 0.05, the trade is not worth it.
+
+### α_w = 0.05 under type_only, three seeds (todo 2.2, motivation, 2026-09-17)
+
+**Why.** 2.3 says the context channel doubles its held-out contribution
+between α_w 0.1 and 0.05 while total likelihood is unchanged, and the
+2026-09-14 rank analysis says a second context axis becomes seed-stable at
+0.05. Both were measured in the type_z era; the current architecture has never
+been fitted below 0.1. **How.** `alphaw0.05_type_only_s{0,1,2}`: defaults
+(type_only, κ 0.1, α_z 0.007, α_a 0.3, d_w 6), `--alpha-w 0.05`, 500 epochs /
+patience 40, `--figures-every 500`, detached, one process per GPU; then
+validate / atlas / report on each. **Evaluated by (pre-registered
+2026-09-14, restated).** Accept as the new operating point only if, over the
+three seeds: axis-2 share of cov(μ_w) ≥ 15 % with cross-seed axis-2 cosine
+≥ 0.75; KL_w per dim above the 0.1 floor; the within-type-centred context
+dependence of w larger than at 0.1; and the guards inside the type_only-triple
+envelope — cycle_z ≥ 0.44, recon within ±0.06, probe ΔCE at floor, mirror R²
+≤ 0.05, NMI ≥ 0.63; w-side battery rows (niche AUC, Moran) not below 0.1's.
+Any guard outside the envelope on ≥ 2 seeds = reject, α_w stays 0.1.
+**What is wished for.** A cleanly accepted 0.05 before the sweeps, or a clean
+rejection with the numbers; nothing in between is tuned.
+
+### Unattended queue for the 3–4 day window (motivation, 2026-09-17)
+
+**Why.** The author is away 3–4 days; compute is not a constraint; every fit
+is idempotent. Everything below is a sweep the programme already
+pre-registered (docs/sweep_programme.md §1, §5; docs/todo.md §0, §6) or a
+battery on a fit that exists. Nothing new is decided by the queue.
+
+**What runs** (`scripts/queue_2026-09-17.sh`, two lanes, one per GPU, strictly
+sequential per lane, resumable by relaunch; logs under `data/queue_logs/`):
+1. waits for the three `alphaw0.05_type_only` fits (todo 2.2), then their full
+   battery (validate incl. landmarks/matrix, atlas, transport, report) and the
+   FF `reference_graphclust` battery (§§3–4 only; cluster labels);
+2. degeneracy diagnostics on the 18 sweep3 κ runs (CPU, todo 1.2);
+3. sweeps under tag `sweep3`, α_w legs first so they are useful whichever way
+   2.2 goes, then κ, then d_w: ovarian α_w {0.02…0.3} (21 fits, 200/20);
+   GSE core all three grids (51 fits, 200/20, α_z 0.0036, tile 2048); lung all
+   three (51, 200/20, graphclust, α_z 0.004); FF all three (51, **500/40**,
+   graphclust, α_z 0.0007, figures every 500). Grids are self-contained (the
+   centre κ 0.1 / d_w 6 / α_w 0.1 is refitted under each param's run name; 6
+   duplicate fits per dataset, accepted for a clean table);
+4. one `--report-only` pass per (dataset, param) and the GSE cross-slide leg
+   (every swept core checkpoint evaluated on the dual section).
+
+Estimated 45 h (lane A) / 56 h (lane B) of wall clock. **Caveat, stated
+before launch:** the κ and d_w legs run at the α_w = 0.1 centre; if 2.2
+accepts 0.05, those two legs are rerun at the new centre and these serve as
+the 0.1 comparison. Pass/fail rules for every leg are the programme's §7.10
+battery reads and the pre-registered stability rule (sign and rank unchanged
+across the grid, seed envelope excludes zero); read on return, nothing tuned.
+
+### DNA-content cell-cycle label: analysis of the DAPI gating script (todo 3.5, 2026-09-17)
+
+*Delegated (Opus), CPU only; script `scripts/test_cell_cycle.py` not modified;
+artefacts `experiments/cell_cycle_dapi_analysis.{json,png}` on the ovarian
+slide; area slope and R² spot-checked.* Item 3.5 opened on the hypothesis that
+the 4N gate is contaminated by overlapping / stacked nuclei, correctable with
+the nucleus and cell polygons. **Measured: the hypothesis is false as stated,
+and the instrument fails for a deeper reason.**
+
+*Overlap does not exist in 2D.* Exact pairwise intersection over all 414,533
+nucleus rings: 741 nuclei (0.179 %) have any positive overlap, overlap area
+1.28e-6 of nuclear area; among the 512 that reach the gate, 4N rate 0.656 vs
+0.442 — a real enrichment on < 0.2 % of cells. A cell polygon contains part of
+a foreign nucleus for 2.53 % of cells at ~0 area share. Xenium's nucleus masks
+are a partition. The one material geometric effect is **multinucleate cells**:
+2.9 % of cells carry ≥ 2 nucleus polygons, 97 % of them land in the 4N gate,
+6.4 % of the 4N population. Axial stacking inside the ~5 µm section is
+invisible to 2D polygons by construction.
+
+*What integrated DAPI measures here is nuclear footprint area.* log dapi_sum on
+log nucleus area: slope 1.035, R² 0.734; dapi_mean vs area r = −0.078. On top:
+~12 % of every integral is un-subtracted background; median dapi_mean drifts
+2.65× across 500 µm tiles (per-tile 4N fraction 0.04–0.75); 4N fraction by
+segmentation route 0.860 boundary stain / 0.286 interior / 0.168 nucleus
+expansion; per-type median dapi_mean spans 2.7×. In a pixel crop dapi_mean
+rises with footprint, so section truncation dims and shrinks a nucleus
+together and the integral amplifies the artefact.
+
+*The gate.* Global 2-component GMM on the truncated integral: µ2N 6.7e5, µ4N
+1.9e6, ratio 2.86 (log-space refit 3.89 — no second mode; the fit splits a
+unimodal heavy-tailed body). The adaptive rule shrinks k to 0.34 and calls
+2N 44.3 % / S 18.8 % / 4N 35.0 %. Highest-4N types: fallopian-tube epithelium
+0.862 and ciliated epithelium 0.792, both MKI67 < 5 %. The G0/G1 area split is
+a type split (within 2N, cell area vs G2M score r = −0.035).
+
+*Prototyped corrections against the pre-registered bar (AUROC of the G2M score
+for 4N vs 2N ≥ 0.70 in the four tumour types; MKI67 ratio ≥ 2):* script as-is
+0.46/0.43/0.49/0.47 and 1.28/1.22/2.30/1.38; drop multinucleate ≈ unchanged;
+per-type GMM best overall (ratio median 2.28, proliferative tumour AUROC 0.574,
+MKI67 1.54); tile normalisation ≈ unchanged; area-regressed density best AUROC
+(0.621) but inverts MKI67 (0.82–0.92), i.e. measures brightness, not content.
+Median AUROC over 18 types 0.449–0.487 for every variant. Nothing clears the bar.
+
+**Verdict: no DNA-content label from this slide; the blocker is physics, not
+code** — through a single projected focus plane of a ~5 µm FFPE section the
+sectioned fraction of each nucleus is unobserved and varies by more than the
+twofold that is the whole 2N/4N signal. Third confirmation after A4 leg 1 and
+A4 v2. Recorded, not tuned. Fix list for the script (bimodality refusal gate
+via 1-vs-2 BIC, per-type × tile gating, exclusion of multinucleate / no-nucleus
+/ expansion-route cells, background + flat-field correction in
+`extract_nuclear_dapi`, within-type G0/G1 split, AUROC + MKI67 in place of
+κ/ARI, lazy channel read instead of a 16 GB materialisation) carried in the
+JSON. If an independent cycle target is still wanted, the FF slide (split-half
+0.508/0.696) is the only candidate worth the six validation gates.
+
+### DNA-content cell-cycle label on the fresh-frozen slide (motivation, 2026-09-17)
+
+**Why.** On ovarian FFPE the DAPI integral is nuclear area with a 2.65× tile
+drift and no second mode (entry above). The fresh-frozen slide differs in the
+ways that matter: 8× depth with reliable marker scores (split-half S 0.51 /
+G2M 0.70), larger cells (median area 88 vs 57 µm²), thicker high-quality
+transcript layer (6.3 vs 4.3 µm), 1.4–2.7× brighter channels. Whether its DAPI
+carries a 2N/4N signal is untested. `qc/nuclear_dapi.parquet` exists.
+
+**How, six gates in order, each stop-if-fails, all pre-registered.**
+1. Flat-field / tile correction of the nuclear DAPI mean (smooth per-tile
+   gain from the nuclear-pixel median); gate: tile-median dapi_mean spread
+   < 1.2× (ovarian 2.65×).
+2. Background per tile from a pixel crop; gate: background < 3 % of the mean
+   nuclear integral (ovarian 12 %).
+3. Exclusions: cells without a nucleus polygon, multinucleate cells
+   (nucleus_count ≠ 1), the nucleus-expansion segmentation route. Report
+   counts.
+4. Truncation: after steps 1–3, log dapi_sum on log nuclear area; gate: R² of
+   the residual DNA-content estimate on area < 0.1 (ovarian 0.73). If the
+   integral is still area, stop and say so; an explicit z-truncation model is
+   the only route past this and is not attempted here.
+5. Bimodality, per type on the log integral: 1-vs-2-component BIC margin and a
+   dip test; gate: 2 components win clearly AND the component ratio lands in
+   [1.8, 2.2] without tuning.
+6. The bar: AUROC of the G2M marker score for the 4N vs 2N gate ≥ 0.70 within
+   the top-4 MKI67 clusters, MKI67-positive ratio 4N/2N ≥ 2; correlation of the
+   DAPI state with total transcripts reported beside it (ovarian 0.5–0.7 = the
+   size confound; a cycle label should sit far below that).
+
+**What is wished for.** A label that passes all six on FF becomes the
+independent cycle target for the z-carries-cycle claim on that slide; any
+failed gate is the finding and the label is not shipped. CPU only; the script
+`scripts/test_cell_cycle.py` is not modified — a separate analysis module.
+
+### Is the "joint" DAPI × Scanpy cycle label defensible? Depth-matched check (2026-09-17)
+
+`docs/cell_cycle_comparison_report.md` recommends a joint consensus label
+(4N gate AND Scanpy G2M) on the strength of higher marker positivity in the
+joint class (MKI67 16.5 % vs 8.6 % in "2N but Scanpy G2M"). Checked on the
+ovarian slide, mononucleate cells, the script's own global adaptive gate
+reproduced (`scratchpad/cellcycle/obs_scored.parquet`): within Scanpy-G2M
+cells the raw MKI67-positive rate is 0.244 (4N) vs 0.086 (2N) — but the 4N
+gate is 49 % top-depth-decile cells and the 2N gate 7 %. **Within depth
+deciles the two rates are equal** (decile 5: 0.072 vs 0.082; decile 8: 0.218
+vs 0.195; decile 9: 0.353 vs 0.296); depth-matched MKI67 ratio 4N/2N = **1.13**.
+Among Scanpy-G1 cells ("mitotic dropout" class) the mean G2M score is
+identical for 4N and 2N in every decile (−0.017 to −0.023). Within the four
+largest types the depth-partialled correlation of the 4N gate with the G2M
+score is −0.014 to +0.093. The joint label's marker enrichment is the depth
+axis of the DAPI gate (dapi_sum ≈ area ≈ counts), not DNA content; the
+"leakage candidate" class (2N ∧ G2M) is small, shallow cells and the report's
+niche-border enrichment claim is unsupported (A4 v2's gene-split fingerprint
+found no transfer signature). Not adopted; the FF six-gate attempt (entry
+above) is the remaining route.
+
+### DNA-content cell-cycle label on the fresh-frozen slide (results, 2026-09-17)
+
+*Delegated (Opus), CPU only; new module `discell/experiments/dapi_cycle.py`,
+test `tests/test_experiments_dapi_cycle.py` (10 planted tests); artefacts
+`experiments/dapi_cycle.{json,png}` on both slides (same instrument rerun on
+ovarian for an exact comparison). The morphology image is read lazily in
+512 px windows. `diptest` 0.11.0 was added to the venv and is not yet in the
+dependency file.* The six pre-registered gates ran in order on
+`xenium_prime_human_ovary_ff`. **Every thresholded gate fails, the first at
+gate 1. No DNA-content label from the fresh-frozen slide.**
+
+| gate | threshold | FF | ovarian (same instrument) |
+|---|---|---|---|
+| 1 flat-field: residual tile-median spread (p95/p5) after a degree-2 gain | < 1.2× | **1.55×** (raw 1.86×, 796 tiles) | 1.66× (raw 1.92×) |
+| 2 background share of the nuclear integral | < 3 % | **5.0 %** (33.9–307 DN across tiles) | 3.0 % |
+| 3 exclusions (no nucleus / multinucleate / expansion route) | report | 46.6k / 79.4k / 29.0k; 90.6 % kept | 5.7k / 17.5k / 8.2k; 93.7 % |
+| 4 R² of the corrected integral on nuclear area | < 0.1 | **0.853**, slope 1.18 | 0.761, slope 1.09 |
+| 5 bimodality per type: BIC margin > 10 AND dip p < 0.05 AND ratio ∈ [1.8, 2.2] | majority | **0 / 38** (BIC alone 36/38; dip 0/38; ratio median 2.94) | 0 / 24 (ratio 3.35) |
+| 6 G2M AUROC 4N vs 2N in the top-4 MKI67 clusters / MKI67 ratio | ≥ 0.70 / ≥ 2 | **0.543** (0.50–0.64) / **1.59** | 0.547 / 1.55 |
+| size confound: Spearman(integral, total counts) / (4N state, counts) | far below 0.5–0.7 | 0.734 / 0.573 | 0.653 / — |
+
+**Reading.** The FF slide is better exactly where the motivation predicted —
+marker split-half S 0.520 / G2M 0.692 against ovarian 0.216 / 0.533 — and
+that makes the verdict stronger: measured against a more reliable G2M score
+the DNA gate still separates at 0.54, and the corrected integral tracks
+nuclear area harder than on FFPE (R² 0.85). The dip test does the job the
+ovarian entry asked for: BIC alone would have licensed a 2-component split in
+36 of 38 types that the dip says is one heavy-tailed body. Fourth confirmation
+after A4 leg 1, A4 v2 and the ovarian gating analysis; the pipeline fixes were
+all implemented and none moved the answer — the blocker is the projection
+through one focus plane, not the pipeline. **The independent DNA-content cycle
+target does not exist on either slide; the z-carries-cycle claim is argued on
+the marker scores, with their reliability stated per slide.** Todo 3.5 closed.
+Caveats: gate 6 scored on a 200k-cell subsample (smallest top-4 cluster 391
+cells); gate-2 background = 10th pixel percentile of 512 px crops at 120 tile
+centres, a different estimator from the ovarian entry's 12 %.
+
+### Unattended queue: outcome (read 2026-09-21)
+
+The queue of 2026-09-17 ran 24 h (16:01 on the 17th to 16:56 on the 18th),
+about half the estimate, and finished. Done: the α_w = 0.05 seed batteries;
+the FF reference battery (§§3–4 validate and report; **atlas failed** — the
+landmark inventory is empty on `Cluster-N` labels and DBSCAN is fed zero
+points, todo 1.8; **transport was killed, exit 137**, presumably OOM on the
+1.16M-cell slide — both logged in `data/queue_logs/`); the degeneracy
+diagnostics on the 18 sweep3 κ runs (todo 1.2 done); ovarian α_w (21 fits),
+lung κ / d_w / α_w (51), FF κ / d_w / α_w (51, 500/40) with aggregate reports.
+**Failed: every GSE core leg**, at the first fit, on an IndexError in the new
+`type_degeneracy` probe — a type present only in held-out rows (Plasma cells,
+n = 1 on the core) made `probe.classes_[argmax]` overflow. Fixed 2026-09-21
+(the argmax over the k-wide log-probability is already a type index;
+regression test added). The cross-slide leg therefore had nothing to evaluate.
+A second instrument defect found while reading: the sweep report's
+`cycle_r2_z` read `r2_mean_types`, the statistic issues M6 retired, so the
+aggregate JSONs show cycle_z ≈ 0 where the pooled read is 0.42–0.49; fixed to
+`r2_pooled` (mean-of-types kept as an extra column). Follow-up queue
+`scripts/queue_2026-09-21_gse.sh` launched detached: GSE legs, report
+regeneration on all datasets, GSE cross-slide.
+
+### α_w = 0.05 under type_only, three seeds (todo 2.2, results, 2026-09-21)
+
+`alphaw0.05_type_only_s{0,1,2}`, 500/40, full battery. Against the
+pre-registered bars (reference triple at 0.1 in brackets):
+
+| read | s0 | s1 | s2 | bar |
+|---|---|---|---|---|
+| recon | −7.2574 | −7.1810 | −7.2278 | within ±0.06 of (−7.2527 / −7.1924 / −7.2310) ✓ |
+| NMI | **0.627** | **0.611** | 0.664 | ≥ 0.63 — **fails on 2 of 3** (ref 0.667 / 0.654 / 0.666) |
+| cycle_z pooled | 0.460 | 0.496 | 0.438 | ≥ 0.44 — s2 marginally below (ref 0.440 / 0.499 / 0.465) |
+| cycle_w | 0.008 | 0.010 | 0.002 | ≈ 0 ✓ |
+| mirror R² | 0.039 | 0.040 | 0.042 | ≤ 0.05 ✓ (ref 0.044–0.046) |
+| probe ΔCE | −0.007 | −0.007 | −0.015 | at floor ✓ |
+| KL_w max/dim | 0.012 | 0.011 | 0.006 | above the 0.1 floor (0.001–0.009) ✓ |
+| cov(μ_w) effective rank / axis-2 share | 4 / 0.39 | 3 / 0.36 | 3 / 0.25 | share ≥ 15 % ✓ (at 0.1: 0.02–0.17) |
+| niche AUC w (z) | 0.815 (0.643) | 0.802 (0.639) | 0.781 (0.640) | not below 0.1's 0.768 (0.654) ✓ |
+| Moran mean |I| w (z) | 0.554 (0.090) | 0.660 (0.090) | 0.567 (0.073) | ref 0.628 (0.061): mixed |
+
+**Verdict: rejected per the pre-registered rule; α_w stays 0.1.** The
+w side does what 2.3 predicted — the response channel opens (KL_w up 5–10×,
+a robust second and third context axis, niche AUC of w up by 0.01–0.05) — but
+the guard the rule names as a veto moves: NMI drops 0.04 on two seeds
+(0.627, 0.611 against a 0.63 floor) and cycle_z slips below the bar on one.
+The cross-seed axis-2 cosine was not computed (the atlas stores no loadings);
+it is moot for the decision. Consistent with the type_z-era study: the
+context channel's gain is paid for on the z side. Recorded, not tuned; the
+ovarian α_w sweep below shows the same NMI slope over the whole grid.
+
+### Three-dataset sweeps, first read (2026-09-21; pooled cycle R², 3 seeds per value, 200/20 except FF at 500/40)
+
+Per-value means from `runs/sweep3_*/metrics.json` (the aggregate JSONs are
+being regenerated with the pooled key). Guards: probe ΔCE at floor and
+cycle_w ≤ 0.02 at every grid point on every slide; mirror R² 0.024–0.057
+everywhere; I(z;t)/H(t) 0.76–0.85, within-type variance fraction 0.59–0.72,
+type-mean-z recon gap 0.10–0.15 (ovarian, lung) and 0.035–0.059 (FF) — z is
+not degenerate at any point of any grid.
+
+**α_w** — *ovarian*: NMI rises monotonically with α_w, 0.604 (0.02) → 0.657
+(0.1) → 0.676 (0.3); cycle_z 0.42–0.49 flat within seed spread; KL_w max
+0.050 (0.02) → 0.007 (0.1) → 0.0002 (0.3); recon flat (−7.250 to −7.258).
+*Lung*: NMI flat 0.659–0.667; cycle_z 0.37–0.44, noisy, no trend; KL_w
+0.016 → 0.0001. *FF*: NMI 0.534 (0.02) → 0.607 (0.1) → 0.619 (0.2), the
+same slope as ovarian and steeper; cycle_z flat 0.765–0.779. Read: the
+NMI cost of a low α_w is real on the two ovarian slides and absent on lung;
+above 0.1 nothing improves except NMI by ~0.01–0.02 while the w channel
+closes entirely (KL_w → 0). The 0.1 operating point sits where the channel is
+just closed and NMI has plateaued; the α_w = 0.05 rejection above is one
+point on this curve.
+
+**κ** — *ovarian*: recon plateau to 0.1 then monotone fall to −7.285 at 0.4
+(sweep3 as before); NMI 0.64–0.67, cycle_z 0.42–0.46, mirror 0.050 → 0.037
+falling with κ, KL_w max falls 0.008 → 0.001. *Lung*: recon −7.254 (0) →
+−7.300 (0.4), the same shape with a larger fall; NMI flat 0.660–0.665;
+cycle_z 0.38–0.43 no trend; mirror 0.031 → 0.024; type-mean recon gap falls
+0.149 → 0.105 with κ (the leak channel absorbs part of what per-cell z
+carried). *FF*: recon −7.315 (0.05–0.1) → −7.326 (0.4); NMI 0.59 (0) → 0.61
+(≥ 0.05) flat after; cycle_z 0.77–0.78 then 0.749 at 0.4; recon gap 0.059 →
+0.035. The envelope shape replicates on three slides: likelihood plateau then
+decline past 0.1–0.2, disentanglement reads flat, mirror falling with κ.
+
+**d_w** (lung, FF; ovarian on disk from 2026-09-15) — every read flat within
+seed spread across {2, 3, 6, 8} on both slides (lung recon −7.256 to −7.260,
+cycle_z 0.38–0.42; FF recon −7.315 to −7.317, cycle_z 0.76–0.78); KL_w spikes
+at single points (lung d_w 3: 0.044) are the known checkpoint chase. d_w = 6
+stands on three slides.
+
+Not yet read: per-value B / shift-space stability and the per-type rows in
+the regenerated reports; GSE core (running); cross-slide.
+
+### Cycle target: continuous Scanpy scores, depth-neutral (todo 3.6, motivation, 2026-09-21)
+
+**Decision (author, 2026-09-21).** After the DAPI analyses (three entries
+above: overlap is not the mechanism, the integral is nuclear area, the FF
+slide fails all six gates, and the joint label's marker enrichment is a depth
+selection) the cycle target stays the Scanpy S / G2M marker score, used
+**continuously**, never as a hard phase call. Redone correlation maps on the
+scores (`figures/cell_cycle_score_correlation_per_celltype.{png,csv}`,
+`scripts/cell_cycle/generate_score_correlation_maps.py`): integrated DAPI
+correlates 0.3–0.7 with total counts in every type and 0.00–0.05 with
+MKI67 / TOP2A once depth is partialled; the G2M score correlates 0.2–0.5 with
+the same genes and is unchanged by partialling. The label-based map
+(`cell_cycle_correlation_map_per_celltype.png`) and the comparison report's
+joint-label recommendation are superseded.
+
+**Why the target still needs work.** The G2M score is mildly anti-correlated
+with total counts within type (−0.12 tumour, −0.28 smooth muscle, −0.36
+stromal fibroblasts, −0.30 endothelium): an artefact of `normalize_total` +
+`log1p` + `score_genes`' control-set draw, not biology. A depth-tilted target
+rewards a latent that carries depth. The split-half reliability of the scores
+is computed but not shown beside the R² it caps.
+
+**How.** In `discell/model/cell_cycle.py::score_cell_cycle`: score on
+library-normalised log counts against control genes matched on
+expression bin (the Tirosh/Seurat construction, with enough bins and controls
+that the control mean tracks depth the way the gene set does), or, if that is
+insufficient, regress log depth out of the score within type. Evaluated by:
+(1) within-type Spearman(score, log total counts) within ±0.05 on every type
+with ≥ 2,000 cells on ovarian and lung; (2) split-half reliability not worse
+than before (ovarian S 0.22 / G2M 0.52; FF 0.51 / 0.70); (3) the cycle read
+on the pinned reference `ablation_gat_type_only_s1` and the lung reference
+before/after: cycle_z, cycle_w, permuted floor, ℓ-baseline, linear reference
+— pre-registered expectation: cycle_z changes by less than the seed spread
+(±0.03), the ℓ-baseline moves toward 0 if it was not there, cycle_w stays at
+the floor. **What is wished for:** a target that cannot be predicted from
+depth, with its ceiling printed beside every number that uses it. A change
+that moves cycle_z by more than the spread is a finding about the old target,
+recorded, not tuned.
+
+### Cycle target: depth-neutral scoring (todo 3.6, results, 2026-09-21)
+
+*Delegated (Opus), CPU only; `discell/model/cell_cycle.py` (`depth_neutral`,
+`score_cell_cycle(..., depth_neutral_target=False)` — old scoring stays the
+default), new `discell/model/cycle_target.py` before/after CLI, 5 planted
+tests; artefacts `experiments/cycle_target_<run>.json` on ovarian and lung;
+headline numbers verified against the JSONs.* Against the three
+pre-registered criteria: **(1) passed, (2) failed, (3) failed with a clean
+attribution that rescues the expectation.**
+
+**Where the tilt comes from.** Not the target sum, not the bin count. `log1p`
+of library-normalised counts is concave, so the per-cell mean of any gene set
+moves with sampling variance, i.e. depth; the control-gene mean is *more*
+tilted than the marker mean (ovarian G2M 0.71 vs 0.43 within type), so the
+correction overshoots and the score comes out anti-correlated with depth. The
+matched-control construction cannot reach the ±0.05 bar (worst type
+0.47–0.69 over `n_bins × ctrl_size`; 1:1 rank-matched controls centre the
+median at 0 but leave 0.24–0.35). The pre-registered linear fallback is also
+insufficient (Pearson zeroed, Spearman up to 0.41; binned mean subtraction
+plateaus at 0.21–0.24) because at Xenium depth the score is a spike
+distribution — 59 % of lung Cluster-6 (median 23 counts) share one "no marker
+detected" value, itself a depth report. **What works:** a depth-conditional
+normal-score transform within type (strata of ~500 cells by log counts, normal
+score within stratum, ties broken at random under a fixed seed).
+
+**(1) Depth neutrality — passed.** Worst within-type |Spearman(score, log
+counts)|: ovarian 0.356 → 0.016 (G2M), 0.321 → 0.015 (S); lung 0.191 →
+0.011, 0.252 → 0.009. Zero violations on 16 ovarian and 28 lung types.
+
+**(2) Reliability not worse — failed, and that is the finding.** Split-half
+S / G2M: ovarian 0.217 / 0.524 → 0.082 / 0.160; lung 0.213 / 0.279 → 0.078 /
+0.111. Most of the old score's agreement with itself was depth: two marker
+half-lists agreed because both read library size. The remainder is the honest
+ceiling, and it is low.
+
+**(3) Cycle read before / after** (pooled R²; `rank_control` = the same
+transform with one depth stratum, isolating the transform from the depth
+conditioning):
+
+| read | ovarian `ablation_gat_type_only_s1` | lung `reference_graphclust` |
+|---|---|---|
+| cycle_z old / new / rank_control | 0.460 / **0.378** / 0.401 | 0.369 / **0.206** / 0.210 |
+| cycle_w | 0.008 / 0.007 | −0.001 / 0.003 |
+| permuted floor | −0.001 / −0.000 | −0.002 / −0.003 |
+| ℓ-baseline | 0.001 / −0.001 | 0.000 / −0.001 |
+| linear ref (50 PC) | 0.235 / 0.201 | 0.166 / 0.113 |
+
+cycle_z moves by more than ±0.03, a finding about the old target, recorded not
+tuned. The attribution: depth conditioning itself costs 0.022 (ovarian, inside
+the spread) and 0.003 (lung); the rest — 0.059 and 0.159 — is the rank
+transform plus tie-breaking, i.e. the discreteness of a marker score at
+50–300 transcripts per cell. cycle_w at the floor under both; the ℓ-baseline
+was already 0 on the four cycling types after per-type centring (the tilt
+lived in the shallow non-cycling types the read excludes). The z-over-linear
+ratio survives (1.96× → 1.88× ovarian, 2.22× → 1.82× lung).
+
+**Status — author's call pending.** Old target stays the default; the new one
+needs labels (pooled, it is worse than raw, 0.60) and one line in
+`prepare.py` to reach a fit. If adopted, every cycle_z falls ~0.08 (ovarian) to
+~0.16 (lung) with the ceiling printed beside it at 0.08–0.16; no guard or gate
+changes sign.
+
+**Decision (author, 2026-09-21).** The plain Scanpy score stays the target,
+stated as an imperfect reference and not a gold standard: the claim is the
+asymmetry (z predicts it, w does not) against the permuted floor, the depth
+baseline (already 0 on the cycling types) and the split-half reliability as
+ceiling. The depth-stratified rank target is kept as a robustness column, not
+a method change — a transformed target would look like a workaround for an
+issue the controls already show is absent. Kept from the exercise: the old
+reliability ceiling was inflated by depth (0.52 → ~0.16 for G2M on ovarian),
+to be quoted as a caveat beside every cycle R². Todo 3.6 closed.
+
+### Atlas rewrite (todo 1.5 + 1.4, motivation, 2026-09-21)
+
+**Why.** The w-programme atlas judges activity on the variance of varimax-
+rotated coordinates (issues V10: a rank-2 w rotated onto 6 axes yields six
+collinear coordinates that all pass), its stability metric reads the null
+columns (V11), it reads raw w with the per-type gauge offset in it (V12), it
+fails outright on cluster-labelled slides (the context-driver step feeds an
+empty landmark inventory to DBSCAN), and its report section does not say what
+a programme is. Every sweep run now on disk (ovarian, lung, FF, GSE core)
+would be misread by it. Decided with the author 2026-09-21: annotate
+programmes with pathways, never define pathways from programmes or test them
+on the data they were fitted to.
+
+**How.** (1) Activity by the effective rank r of cov(μ_w) on within-type
+gauge-centred w (components ≥ 1 % of variance), varimax within the r-dim
+subspace, each programme's variance share reported; (2) stability by shift-
+space overlap of μ_w·B across seeds plus per-axis cross-seed cosines, the
+matched-column correlation dropped; (3) all w reads gauge-centred per type
+at the reference context (1.4), also in the report's per-type section, the
+per-type ‖w‖ ranking withdrawn; (4) enrichment by a rank-based statistic on
+the full loading vector against the hallmark sets on the expressed-panel
+background, sets with < 5 panel genes untestable, BH per programme, label at
+q ≤ 0.05 as now; (5) context drivers skip the landmark block when the
+inventory is empty, so graphclust slides run; (6) three concordance reads:
+label recurrence across seeds (same hallmark label in ≥ 2 of 3 seeds),
+across slides, and κ-survival sweep-internal as already produced; (7) the
+report section rewritten How / Evaluated by / What is wished for.
+
+**Evaluated by.** Planted tests: rank-2 w in 6 dims → r = 2, two programmes;
+a planted per-type offset does not change activity or labels; planted
+sparse loadings recovered; a planted enriched set is labelled and a random
+one is not; an empty landmark inventory does not crash. On real runs: the
+pinned reference reads r = 2 with EMT recurring; the three seeds agree on
+the label set; lung and FF run to completion.
+
+**What is wished for.** Few, territorial, context-explained programmes
+whose labels replicate across seeds and slides; a programme without a
+replicating label is reported as unlabelled, not named.
+
+### GSE315411 core: the three grids and the held-out section (results, 2026-09-21)
+
+Follow-up queue `scripts/queue_2026-09-21_gse.sh`: 51 fits on the solo
+`pdl018d` core (200/20, α_z 0.0036, tile 2048), every checkpoint evaluated
+on the dual section (`runs/sweep3_*/crossslide/`), reports regenerated.
+Pooled cycle R², 3 seeds per value.
+
+**Same section.** α_w: recon flat −7.211 to −7.216; NMI 0.594 (0.02) → 0.618
+(0.1) → 0.630 (0.2), the ovarian slope again; cycle_z 0.49–0.51 flat, cycle_w
+≤ 0.016; KL_w max 0.017 → 0.0000 as α_w rises. κ: recon −7.210 (0) →
+−7.215 (0.1) → −7.256 (0.4), plateau then fall; NMI 0.60–0.62, cycle_z
+0.49–0.51, mirror 0.029 → 0.022, type-mean recon gap 0.162 → 0.109 with κ
+(the fourth slide on which the leak channel absorbs part of what per-cell z
+carried). d_w: everything flat across {2, 3, 6, 8}. Probe at floor and
+I(z;t)/H(t) 0.73–0.77 everywhere. **The envelope shape now replicates on four
+slides.**
+
+**Held-out section (train section 11, evaluate section 10, same 35-class
+vocabulary), the first genuinely out-of-sample read of the sweeps.** At every
+grid point of every grid: reconstruction over all 64 dual tiles is 0.015–0.017
+nats/count worse than the same-section best (a quarter of the ovarian seed
+envelope); NMI −0.02 to −0.03; **cycle_z on the held-out section 0.505–0.527,
+slightly above the same-section 0.49–0.51**, cycle_w ≤ 0.009; probe ΔCE at
+its floor (−0.005 vs −0.009); mirror 0.033–0.043; I(z;t)/H(t) 0.76–0.79;
+type-mean recon gap 0.108–0.157, falling with κ as on the training section.
+No grid point behaves differently on the held-out section than on its own:
+the section-to-section generalisation cost is a constant 0.015 nats/count
+and 0.02–0.03 NMI, independent of κ, d_w and α_w. This is the strongest
+stability statement the programme has: the disentanglement reads survive a
+change of section at every point of the three grids.
+
+### Atlas rewrite (todo 1.5 + 1.4, results, 2026-09-21)
+
+*Delegated (Opus), one GPU; `discell/model/atlas.py`, the §6 and per-type-‖w‖
+sections of `discell/model/report.py`, one empty-input guard in
+`validate.py::landmark_inventory`, 12 planted tests (full suite 210 passed);
+artefacts `runs/<run>/atlas/` on 8 runs over 3 slides; the pinned reference's
+report regenerated; ranks, shares and recurrence spot-checked.* All seven
+pre-registered points delivered; all planted and real-run checks pass.
+
+**Points 1–2** (effective rank; shift-space stability) stood from the earlier
+round and are now certified by plantings (rank-2 in 6 dims reads r = 2 where
+the old read said 6/6; a permuted, sign-flipped basis reads cosine 1.0, an
+orthogonal complement 0). **Point 3:** every read on gauge-centred w; the
+report's per-type ‖w‖ ranking is withdrawn in place with the V12 numbers and
+its offset-free replacement (within-type variance of a programme coordinate).
+Deviation: the gauge is the within-type mean of μ_w, not m_ψ at the mean
+context; any per-type constant is a valid gauge and no reported quantity
+depends on the choice. **Point 4:** the top-50 hypergeometric is replaced by a
+Mann–Whitney rank test on the full loading vector against the expressed-panel
+background, BH per programme, q ≤ 0.05, rank AUC beside q, sign-blind. **Point
+5:** the cluster-label crash had two sites (DBSCAN on an empty class inside
+`landmark_inventory`; `np.stack([])` in the atlas); both guarded, the landmark
+driver block dropped and recorded as a missing question. Lung and FF run.
+**Point 6:** label-set recurrence across seeds (`--compare-runs`) and across
+slides (`--compare-atlas`); κ-survival stays sweep-internal. **Point 7:** the
+section is rewritten How / Evaluated by / What is wished for; a non-recurring
+label ships as *unlabelled*.
+
+**Ovarian seed triple (α_w = 0.1).** r = 2 of 6 on all three seeds; spectra
+[0.95, 0.05], [0.62, 0.38], [0.94, 0.06]. Axis-1 cross-seed |cos| 0.93 / 0.93
+/ 0.98, axis-2 0.64 / 0.83 / 0.40; shift-space overlap 0.67–0.93. Labels
+recurring in ≥ 2 of 3: EMT and HYPOXIA (3/3), E2F_TARGETS and G2M_CHECKPOINT
+(2/3). Dominant programme = the macrophage/stromal axis (F13A1, MRC1, TNXB,
+KLF4) on every seed, Moran I 0.37–0.47, joint driver R² 0.92 with Φ the
+largest partial (0.25–0.31) and landmarks ≈ 0; second = the matrix axis
+(COMP, SFRP4, COL10A1, COL11A1), Moran 0.61–0.69. Pre-registration met. The
+second axis does not reach |cos| ≳ 0.8 — it is the programme carrying 5 % of
+w's variance on two seeds and 39 % on one — reported, not tuned.
+
+**Cluster-labelled slides.** Lung r = 1 (spectrum [0.999, 0.001]), Moran
+0.42, joint 0.87, EMT (q < 1e-4, AUC 0.68) on CCL19/ADAMDEC1/PLVAP/MMP9/CXCL9.
+FF r = 3 ([0.55, 0.27, 0.18]), labels EMT, MYC_TARGETS_V1, EMT/HYPOXIA; its
+second programme carries 27 % of w's variance but 71 % of the realised shift
+(the two shares are reported separately for this reason). **Cross-slide
+recurrence** (ovarian s1, lung, FF): EMT 3/3, HYPOXIA 2/3, KRAS_SIGNALING_UP
+2/3.
+
+**α_w = 0.05 triple — the cosines the 2.2 verdict lacked.** r = 4 / 3 / 3
+against 2 at 0.1, and the extra axes reproduce: a third programme with the
+same signature in all three fits (FOXL2, SFRP4, POSTN, GRIA2, WNT4, GREB1),
+Moran I 0.84–0.88 (the most territorial programme seen), most modulated in
+stromal fibroblasts and smooth muscle, Φ-driven (partial 0.50–0.57 vs
+composition 0.02–0.09), and **unlabelled** (no hallmark at q ≤ 0.05 on 2 of 3
+seeds). Axis-1 |cos| 0.88–0.97; the least stable pairing (0.29) is the matrix
+axis. Answers "do the extra axes reproduce" in the affirmative; does not
+reopen the α_w decision (its veto was NMI on the z side).
+
+**κ-survival** unchanged and sweep-internal (0.29–0.43, flat over κ); not
+regenerated under the new basis — it is now the one w-stability read not in
+shift space, and the weakest of the three concordance reads.
+
+### Three packages in parallel (motivation, 2026-09-21): transport clarity, x̃ decision, baseline survey
+
+**Transport (todo 2.5) — priority.** The author's framing: transport is the
+one experiment that exercises the whole system — z held fixed, the response
+channel through m_ψ and B, the leak channel through β and κ — where every
+other read isolates a subsystem; it must be right and clear. Current state:
+counterfactual = Δ̂program + Δ̂leak with z fixed; k-means-on-composition
+niches (K = 10) leave the supported tier near-empty (3/158 panels); the
+extrapolation tier reads R² 0.099, slope 0.92, beats-both 100/155 on the
+pinned reference; the model account minus the counterfactual is the
+selection share (≈ 0.05); the κ-sensitivity companion was run on the
+pre-correction object; the neighbour-dose experiment found Φ carries half or
+more of w's context dependence, so a composition counterfactual that carries
+each niche's real Φ mixes intervention with description; w reads must be
+gauge-centred (V12; transport works on differences and is unaffected, to be
+confirmed in code). **How:** (1) a plain-language statement of what is
+predicted, from what, evaluated how, and what a pass is; (2) κ-sensitivity
+rerun on the corrected counterfactual over the six sweep3 κ seeds; (3) a
+Φ-held-fixed row (Φ at the receiver type's mean in both niches) beside the
+composition-plus-real-Φ row; (4) annotation-defined niches (tumour rim /
+core / stroma from the kNN-smoothed tumour fraction) so the supported tier
+is populated; (5) per-panel calibration figures and a trust criterion per
+panel; (6) the three-seed and cross-slide reads (lung, FF, GSE core) so the
+whole-system claim carries envelopes. **Evaluated by:** on the pinned
+reference the counterfactual must still beat both single channels in a
+majority of panels with slope in [0.8, 1.2]; the Φ-fixed row states the
+interventionable share; the κ trajectory of program / leak / total on the
+corrected object is a κ-range, never a point; the supported tier under
+annotation niches has ≥ 20 panels. **Wished for:** one figure and one table a
+reader can follow without the code.
+
+**x̃ (todo 2.1).** Powered planted world (fix V9: within-type thresholds,
+excess FPR = victim − control, power gate raw AUROC ≥ 0.9 and raw excess ≥
+0.1) comparing raw counts, z-probe without x̃, z-probe with x̃, and
+leak-subtracted counts, three seeds; pass/fail per seed pre-registered in the
+package; verdict use / option-only / drop.
+
+**Baselines (todo 4.1).** Survey SIMVI, resolVI, MintFlow (+ scVIVA,
+NicheCompass): inputs, outputs, scale, install, which of our metrics apply on
+which dataset; comparison matrix; install plan; GPU-hour estimates; no
+installs, no runs.
+
+### Baselines survey (todo 4.1, findings, 2026-09-21)
+
+*Delegated (Opus), no GPU, no installs; five `uv pip install --dry-run`
+resolutions against the live env and web sources (URLs in the scratchpad
+notes `scratchpad/baselines/dryruns.txt`).*
+
+**Bracketing confirmed, and sharper than expected.** SIMVI (Dong & Kluger,
+Nat Commun 2025; `simvi` 0.1.2) = our split without a leak channel:
+intrinsic z + spatial-induced s, asymmetric regulariser, annotation-free, kNN
+k = 10; largest published dataset ≈ 33k cells. resolVI (Ergen et al., bioRxiv
+2025; inside scvi-tools) = our leak channel without a split: one latent, a
+true / diffusion / background mixture with **per-cell mixture proportions**;
+1.4M cells in < 6 h on a 3090. MintFlow (Lotfollahi lab, bioRxiv
+2025.06.24.661094; `mintflow` 0.3.0) sits between: three latents (intrinsic,
+incoming, outgoing), separate intrinsic and microenvironment-induced count
+vectors, in-silico microenvironment perturbation — a counterfactual analogue
+for the *program half* of our transport — but no contamination model and
+**labels required**; published on Xenium 5K up to 337k cells. scVIVA and
+NicheCompass are w-side-only (a niche-informed single latent; a niche
+descriptor). So the z/w asymmetry rows are scorable in full on SIMVI and
+MintFlow only, the contamination row on resolVI only, and no published method
+occupies both axes — which is the paper's claim.
+
+**Install.** `scvi-tools` 1.5.1 and `scviva-tools` 0.1.7 resolve into the
+existing env with zero downgrades → resolVI and scVIVA need only an optional
+extra. MintFlow would downgrade zarr 3.3 → 2.18 (breaks the tifffile image
+path), anndata and pandas → own venv, mandatory; needs a wandb offline
+decision. SIMVI pins `scvi-tools ≤ 0.16.2` (pytorch-lightning 1.5.8,
+flax/jax) → own venv on python 3.10 with a tutorial-reproduction gate before
+any DisCell slide. NicheCompass drags mlflow and a web stack → isolate.
+
+**Matrix (method × metric).** Held-out recon: partial everywhere (different
+likelihoods; needs one common unit or drops to an appendix row). Cycle
+asymmetry, niche/Moran per latent, pseudotime, invariance probe: full on
+SIMVI and MintFlow; one-sided on resolVI and scVIVA (a single latent — report
+descriptively, never as a loss); NicheCompass n/a on the z side. Transport
+analogue: MintFlow (program half only), SIMVI partial via per-gene spatial
+effects. Per-cell contamination vs the κ grid and the transcript-flux median
+0.13: **resolVI only**, as a distribution (it publishes no headline fraction).
+Scale: resolVI everywhere; SIMVI is 12–35× above its published maximum on the
+full slides — the GSE 69k core is its safe scale; MintFlow up to ovarian.
+
+**Fairness, pre-registered.** Same tile split and fold map; same labels per
+slide (table split by label-taking vs label-free); our pruned Delaunay graph,
+and both graphs where a method insists on its own; d_z 20 / d_w 6 matched;
+matched wall-clock; three seeds; every number through `validate.py` against
+floor / ℓ-baseline / linear reference; empty cells read "n/a by construction";
+baseline spatial latents gauge-centred (V12) and compared in shift space (V11).
+
+**Order and cost (extrapolated, ± factor 2).** resolVI first (~12 GPU-h: GSE
+core → ovarian → lung + FF) because it owns the row nothing else fills; SIMVI
+second (~10–18 GPU-h) behind the tutorial gate, core before full slides;
+MintFlow third (~20–26 GPU-h) for the counterfactual row; scVIVA and
+NicheCompass last (~7–9 GPU-h). Total ≈ 50–65 GPU-h; stages 1–2 (~25 GPU-h)
+deliver the bracketing claim.
+
+**Caveats.** `08-validation-analyses_1.md` has no §8 in this revision — the
+bracketing framing was reconstructed from the handover and the register. No
+runtime figure is published for four of the five methods. MintFlow's own
+baseline list (Supplementary Note 1) could not be retrieved. Dry-runs prove
+resolvability, not importability.
+
+### x̃ decision by powered planted world (todo 2.1, results, 2026-09-21)
+
+*Delegated (Opus), GPU 1; `discell/applications/xtilde_gate.py` (paused patch
+applied plus the ≥ 0.05 excess margin), the A4 planted leg retired into the
+gate, 22 tests; artefacts `data/experiments_synthetic/xtilde_gate.{json,png}`;
+six 400-epoch fits.*
+
+**The world is powered — V9's defect was the plant and the threshold, not z.**
+6,000 cells, 8 types, planted κ = 0.2; a programme taking a 25 % transcript
+share of 12 mid-expressed genes in 30 % of the cells of two cycling types,
+re-leaked through the true operator and resampled. Victims = non-cycling cells
+in the top exposure tier (329–461 per seed); controls = non-cycling cells with
+no planted neighbour. Thresholds within type at each type's control 0.7
+quantile; statistic = excess FPR (victim − control), paired 500-draw stratified
+bootstrap. Power gate (raw AUROC ≥ 0.9, raw excess ≥ 0.1) passes on all three
+seeds at the first plant: AUROC 0.9997–1.0000, raw excess 0.265 / 0.370 /
+0.379, control FPR 0.298–0.301 on every type (V9: 0.67, 0.11/0.00/0.02,
+0.02–0.45).
+
+**Four callers, three seeds (excess FPR; AUROC 0.999–1.000 throughout).** Raw
+0.265 / 0.370 / 0.379 → z-probe without x̃ **0.106 / 0.177 / 0.118** → z-probe
+with x̃ **0.088 / 0.140 / 0.024**; leak-subtracted counts with the model's ρ̄
+0.202 / 0.300 / 0.286, with the true ρ̄ 0.206 / 0.297 / 0.281. Pre-registered
+pass (excess lower by ≥ 0.05, paired CI > 0, AUROC within 0.02): z beats raw
+3/3; x̃-z beats raw 3/3; counts-correction beats raw 3/3; **x̃-z beats plain z
+1/3** (Δ +0.019 / +0.037 / +0.094; right sign every seed, two CIs cover 0).
+
+**The amortisation-gap hypothesis is refuted as stated.** The per-cell z
+carries only 31–48 % of raw's excess (mean 0.40, below the pre-registered 0.5
+line on every seed): the amortised posterior mean does not simply inherit
+what leaked into x_i; the penalty and the population-level z law remove most
+of it. **The counts-level route sits on its own ceiling**: the model's ρ̄ and
+the true ρ̄ give the same excess to three decimals, so subtracting a mean from
+a multinomial draw removes about a quarter of the excess and no more.
+
+**Verdict, as pre-registered: option-only.** x̃ helps in the built-for
+direction on every seed but clears the bar on one of three, and the benefit
+is the size of its known costs on the slide (NMI −0.017…−0.05, training
+cycle_z −0.03, Moran-w down in 2/3). `subtract_leak` stays default off,
+available for per-cell applications; spec-07 §7.13 stays parked. Agrees with
+the near-neutral slide result of 2026-09-14 in a world where the truth is
+known. **Caveat:** AUROC saturates at 1.0 on every arm, so the sensitivity half
+of the rule never bound, and the world has no genuinely-cycling victim — the
+doc-11 sensitivity-loss fail state is untestable by this design and remains
+the live risk for per-cell z claims (A1/A2/A5).
+
+### x̃ decisive follow-up: six seeds and an unsaturated plant (motivation, 2026-09-21)
+
+**Why.** The author's position, recorded: x̃ is a clean implementation and a
+loss on reconstruction is acceptable if the per-cell z becomes more likely to
+be correct; if it improves trust in z it should be the default, and the κ
+sweep is then rerun under it. The powered gate (entry above) left the
+direction consistent (3/3) but the size unproven (margin cleared 1/3) and
+tested specificity only (AUROC saturated at 1.0).
+
+**How.** The same gate (`xtilde_gate.py`), (a) at **six seeds** with the
+25 % plant, (b) at a **weaker plant** tuned so raw AUROC within the cycling
+types sits near 0.85–0.92 (share lowered until the power gate is just
+passed), six seeds, so the sensitivity half of the rule can bind; (c) a world
+with **genuinely cycling victims** — a fraction of the non-cycling types'
+cells given the plant without leaked neighbours — so the doc-11
+sensitivity-loss fail state (does the corrected caller still see a real
+cycling cell) is measurable as recall in those cells.
+
+**Evaluated by (pre-registered).** Default-on if, over the 12 seeds of (a)+(b):
+x̃-z lowers excess FPR vs plain z by ≥ 0.05 with the paired CI above zero on
+≥ 8 of 12 with no reversal; within-cycling AUROC within 0.02 of plain z on
+every seed; and in (c) recall on genuinely cycling victims within 0.03 of
+plain z. Otherwise option-only stands. If default-on: `TrainConfig.subtract_leak
+= True`, the register and spec §7.13 updated, and the κ sweep (6 × 3 seeds)
+rerun on ovarian first, then the other three slides, with the type_only
+α_w = 0.1 centre — the earlier sweeps become the x̃-off comparison.
+
+### Transport clarity (todo 2.5, results, 2026-09-21)
+
+*Delegated (Opus), one GPU; `discell/model/transport.py`, the §7 section of
+`report.py`, 7 planted tests (full suite 239 passed, 1 skipped); artefacts
+`runs/<run>/transport/` on 7 runs over 4 slides plus the six-point κ sweep
+(`experiments/transport_kappa_sensitivity_v2.json`); table and figure
+verified.* All six pre-registered How-steps delivered; all four bars met, one
+marginally.
+
+**What is predicted, plainly.** For one cell type and two neighbourhoods A
+and B: the per-gene log-rate shift a cell of that type undergoes going from A
+to B. Predicted from two channels added: the *program* channel (the context
+prior m_ψ at B's mean context minus at A's, through the loadings B) and the
+*leak* channel (κ times the difference in mean foreign influx; leakage comes
+from the new neighbours, κ never changes inside a prediction). Held fixed:
+the cell's intrinsic z. Evaluated on held-out tiles the model never saw,
+against the observed depth-normalised mean shift, both sides mean-centred,
+scored as R² against the zero-prediction null plus the calibration slope. The
+"model account" additionally lets the type's intrinsic mix differ between
+niches; its excess over the counterfactual is the *selection share*.
+
+**The bars.** (i) Counterfactual beats both single channels in a majority with
+slope in [0.8, 1.2] on the pinned reference: **100/155 (65 %), slope 0.92** —
+reproduces the record exactly after a substantial rewrite. (ii) Φ-fixed row
+states the interventionable share: **1.04** (per-panel median 0.99, IQR
+0.94–1.06; seed/slide envelope 0.86–1.13). (iii) κ trajectory as a range:
+leak 0.000 (κ = 0, sanity) → 0.084 (0.3), program 0.056 → 0.042, total
+peaking at 0.086 (κ = 0.2), slope falling 0.99 → 0.60 and leaving the band at
+κ ≥ 0.3 — **quotable range κ ∈ [0.05, 0.2]**. (iv) Supported tier ≥ 20 panels
+under annotation niches: **71** (73 / 75 on the other seeds).
+
+**Annotation niches.** Six ordered bands of the kNN-smoothed tumour fraction
+(deep stroma → core; cuts 0.1/0.3/0.5/0.7/0.9 fixed before any result). Being
+nested they share composition support, which k-means niches cannot;
+handover limitation 9 closes for annotated slides. Supported tier 71 panels,
+13 types, R² 0.068, slope 0.79 (0.88 / 0.88 on the other seeds — the one
+marginal miss, recorded), beats both 42/71; best panel Tumor Cells rim → core
+R² 0.322. On slides whose type names name no tumour the function raises and
+composition niches are used and named (lung, FF, GSE core).
+
+**The trust criterion — the main clarity gain.** Every panel now carries a
+noise ceiling: the Spearman–Brown split-half reliability of the observed
+shift, the largest R² any predictor could reach. Trusted = ceiling ≥ 0.5 on
+≥ 100 genes. On ovarian the mean ceiling is **0.123**: 141 of 155
+composition panels are essentially unmeasurable and the 0.099 headline is a
+mean over mostly noise. On the **14 trusted panels the counterfactual reads
+0.205 at slope 1.08, beating both channels in 13/14**, taking 34 % of what is
+reachable. The ceiling is identical at all six κ, as it must be. **The
+transport R² was never small because the model is weak; it was small because
+most panels contain almost nothing measurable.** Never quote 0.099 without
+0.205 beside it.
+
+**The Φ question, answered against expectation.** Freezing Φ at the receiver
+type's mean bites (the program channel moves by > 0.02 in 47/155 panels) yet
+leaves the total counterfactual unchanged on every slide. Neighbour-dose
+measured Φ's share of cell-to-cell variation within a type; transport asks
+about differences of niche means, and Φ's cell-to-cell part averages out
+inside a niche. The pre-registered worry that a composition counterfactual
+carrying real Φ mixes intervention with description comes back **negative**:
+the transported average effect is essentially interventionable. Shares > 1
+in some reads are inside the envelope and read as "≈ 1".
+
+**Envelopes and slides.** Ovarian triple 0.085 / 0.099 / 0.092, slope
+0.91–0.97, beats-both a majority in all three; selection share 0.029–0.047
+(about a third of an observed niche difference is which cells live there).
+Lung 158 panels, 0.082, slope 0.84, 92/158. **FF now runs** — the exit-137
+kill was the instrument holding per-cell rate matrices (23 GB on 1.16M
+cells); it now accumulates per-(niche, type) means in the forward pass, ~3
+min — and is the strongest read in the programme: **248 panels, R² 0.280,
+beats both 223/248 (90 %), 140 trusted panels at 0.391**, ceiling 0.51 (the
+deepest slide's observation is reliable); slope 1.25, just outside the band.
+GSE core: ceiling 0.049, zero trusted panels — does not reach the noise floor;
+its 0.062 is not a transport result.
+
+**Deliverables:** `runs/ablation_gat_type_only_s1/transport/
+transport_tumour-band_summary.png` (tier bars with the ceiling drawn, and the
+per-panel biology-vs-contamination map with both tiers marked — a defect
+fixed: the map used to show only extrapolation panels) and
+`transport/transport_table.md` (four tiers × five predictors with every bar
+underneath). Stale pre-correction `transport.json` files remain on unrelated
+runs (`gat_sink_*`, `xtilde_*`, `alphaw0.05_*`, `wd0`) and must not be
+compared to the new numbers.
+
+### x̃ decisive follow-up (results, 2026-09-21)
+
+*Delegated (Opus), GPU 1; `xtilde_gate.py` extended with a plant-share search,
+a recall read-out on genuinely planted cells and the 12-seed rule; 36 tests;
+artefacts `data/experiments_synthetic/xtilde_gate_{a,b,c}.{json,png}` and
+`xtilde_gate_followup.{json,png}`; 15 seeds × 2 fits; verdict JSON verified.*
+
+**Verdict: option-only, and now decisively.** Every clause of the
+pre-registered rule fails: margin 3 of 12 (needs 8), 3 reversals (needs 0),
+AUROC within 0.02 of plain z fails on 2 of 12, recall within 0.03 on 1 of 3.
+
+**(a) Six seeds, 25 % plant, gate 6/6.** The three-seed worlds reproduce
+exactly. Δ(z − x̃-z) +0.012 / +0.032 / +0.083 / **−0.028** / +0.093 / +0.060:
+"right sign every seed" does not survive three more seeds. Counts-level
+ceiling replicates 6/6 (model ρ̄ and true ρ̄ within 0.005).
+
+**(b) Weakened plant — and a coupling the pre-registration could not know.**
+Share search on seed 0 → 0.0562, raw AUROC 0.920, raw excess 0.094. Raw excess
+reaches 0.1 only at AUROC ≈ 0.93, so "AUROC 0.85–0.92 while the gate passes"
+is infeasible; the AUROC band was honoured and the arm run 6 % under the
+excess line (full gate 2/6 seeds). **x̃ is worse than plain z on 3 of 6 seeds
+with the CI above zero** (−0.050 / −0.081 / −0.057), and the z probe's own
+AUROC collapses to 0.61–0.92 against raw's 0.82–0.96 with excess often
+negative: z is blunting, not decontaminating. The saturated-plant benefit was
+an artefact of a plant too strong to lose anything to.
+
+**(c) Genuinely cycling victims — the doc-11 fail state fires.** 10 % of two
+non-cycling types planted at exposure 0. Recall Δ(x̃-z − z) +0.014 / −0.060 /
+**−0.221**; the counts-level arms keep raw's sensitivity (0.70–0.97). x̃ in the
+encoder costs up to 22 points of recall on real cycling cells.
+
+**Cost if flipped, restated (2026-09-14):** NMI −0.017 consistent, training
+cycle_z −0.028, Moran-w −0.061 (down 2/3), planted-gate NMI −0.03…−0.05 at
+κ = 0.2, plus a full κ-sweep rerun; benefit at the saturated plant mean
+−0.042 excess (3/6 on the margin), at the unsaturated plant **+0.023 against
+x̃**. The author's condition ("if it improves trust in z") is not met; in the
+one world where the truth is known and the caller is not saturated, x̃
+lowers trust in per-cell z. **`subtract_leak` stays default off; spec-07
+§7.13 stays parked; no κ-sweep rerun.**
+
+**Caveats.** (b)'s gate halves are not jointly satisfiable at any share (a
+pre-registration defect, not a run defect); (c) ran 3 seeds at the weakened
+share, not pre-registered; the share is a seed-0 calibration; GPU
+nondeterminism moves the z arms by ≤ 0.013, so (a)'s seed-3 reversal is ~2×
+noise while (b)'s are well above it. **Separately, and independently of x̃:
+the z probe itself loses 0.25–0.38 of raw's recall on genuinely planted
+cycling cells at an unsaturated plant.** That bears on every per-cell z
+claim (A1/A2/A5) and is the finding to carry forward from this exercise.
+
+### Transport at the distribution level: MMD read, pairwise and leave-one-niche-out (motivation, 2026-09-21)
+
+**Why.** The mean-shift read (entry "Transport clarity") scores the predicted
+per-gene difference of niche means. The author's question: transport is a
+population moved from one context to another, so compare the transported
+population with the population that was there, as distributions. Two
+versions, both requested: **pairwise** (A → B, as the mean read pairs
+niches) and **leave-one-niche-out** (every cell of type t *not* in A,
+transported into A, compared with A's cells — if z is intrinsic, cells from
+all contexts should land on A's population, and the pooled source gives more
+samples). Also two readability additions to the mean read: fraction of the
+noise ceiling as the headline beside raw R², and top-gene overlap (of the 50
+genes predicted to rise most, how many are in the observed top 50).
+
+**How.** For type t and target niche A: source cells S (niche B, or all
+niches ≠ A), each kept at its own μ_z, given A's context (m_ψ at A's mean
+context; Φ-fixed variant at the type mean) and A's leak source (κ · mean
+influx of A), decoded to the probability vector p̂. Target cells T = held-out
+cells of type t in A, represented by their raw normalised composition
+(counts / ℓ). Distance: MMD² with a Gaussian kernel on the square-root
+(Hellinger) map of the probability vectors, bandwidth = median pairwise
+distance in T; energy distance reported beside it. References, all on the
+same cells: **floor** = MMD² between two random halves of T (sampling noise);
+**untransported** = MMD² between S decoded at its *own* contexts and T (what
+transport must reduce); **type-mean** = MMD² between a single point (mean of
+T) replicated and T (a degenerate predictor that ignores within-type spread);
+**observed-source** = MMD² between S's raw compositions and T (the raw niche
+difference). Score per panel: **gap closed** = (untransported − transported) /
+(untransported − floor), clipped to [−1, 1]. Every model quantity from
+training tiles; S and T from held-out tiles; sizes matched by subsampling to
+min(|S|, |T|, 2,000). Panels: same type × niche pairs as the mean read (both
+niche sources: composition k-means and tumour bands where defined).
+
+**Evaluated by (pre-registered).** (1) Transported MMD² below untransported
+on a majority of panels with a paired bootstrap CI excluding 0; (2) gap
+closed reported with its distribution and its median; the pooled
+leave-one-out version should have a tighter CI than the pairwise one on the
+same target niche (that is what pooling buys) and a gap closed not below the
+pairwise median by more than 0.1 — if pooling *hurts*, z is not context-
+free in the way the pooled read assumes, and that is the finding; (3) the
+transported cloud should not collapse onto the type mean: transported MMD²
+to T must be below the type-mean predictor's on a majority of panels, else
+the read is just the mean shift again; (4) agreement with the mean read:
+Spearman across panels between gap closed and the mean read's counterfactual
+R² ≥ 0.5, so the two instruments describe the same panels as good. Run on
+the pinned ovarian reference, the two other seeds, and FF (the reliable
+slide). **What is wished for:** a distribution read a reader can follow
+without R², reported as "fraction of the niche gap closed", with the
+leave-one-out version as the intrinsic-z test.
+
+### Three packages (motivation, 2026-09-21, afternoon): handover refresh + text, ring-2 skip + κ-survival in shift space, article review
+
+**Documentation.** `docs/handover.md` is from 2026-09-14 and predates
+type_only being pinned, the atlas rewrite, transport clarity, the four-slide
+sweeps with the held-out section, the leak-measurement negatives, the cycle
+decision and the x̃ verdict. Rewrite it from the devlog and registers,
+keeping its structure (what / operating point / how to run / results by
+claim / retractions / limitations / verdict / open questions). Todo 3.3:
+the depth qualifier on "z beats the linear reference 2×" in handover and
+report text. Paper items A2–A7 of the revision list (model text only, no
+numbers).
+
+**Code.** Todo 1.6: under `type_only` the ring-2 encoder pass is unused —
+run `posterior_z` on seeds ∪ ring1 only, keep type_z behaviour, prove the
+loss and every diagnostic unchanged on a smoke fit, re-measure the halo
+overhead at 4,096-cell tiles. κ-survival (`validate --sweep-tag`): move from
+matched signature correlation to shift-space overlap + per-axis cosines,
+consistent with the atlas; regenerate on sweep3 ovarian. Evaluated by:
+identical metrics.json on a fixed-seed smoke fit before/after the skip; the
+κ-survival table reproduces the atlas' cross-seed numbers at κ = 0.1.
+
+**Articles.** Read the five baseline papers in `submission_paper/articles`
+(SIMVI, resolVI, MintFlow, DisCoVR, Celcome — the last new to the project)
+for experiment ideas applicable to DisCell and for how a comparison against
+each could be made fair, given that none occupies both of our axes.
+Deliverable: a ranked list of experiments (what, why, cost) and a comparison
+design per method, with the metric each paper would accept as its own.
+
+### Baseline articles reviewed (2026-09-21)
+
+*Delegated (Opus), report-only: no code, no GPU, no installs. Five PDFs in
+`submission_paper/articles/` read in full through `pdftotext -layout` with
+page markers (scratch notes `scratchpad/articles/*_pg.txt`), plus
+`discell-literature.bib`. Follows the survey entry "Baselines survey (todo
+4.1)"; that entry's bracketing claim is confirmed by the primary sources and
+sharpened in three places.*
+
+**The bracketing claim survives contact with the papers, and one of them
+supplies the argument for us.** Of the five, SIMVI and MintFlow occupy the
+intrinsic/spatial axis only, resolVI the contamination axis only, DisCoVR is
+the objective template with no spatial or contamination content at all, and
+**Celcomen is not on our axes** — it disentangles *gene–gene* interaction
+matrices (intra- vs inter-cellular) in an Ising-style energy model, not cell
+latents, and has no contamination model. Celcomen stays in related work and
+off the baseline list (see below). No published method occupies both axes.
+
+**The confound is stated by no one, and is operationalised as a virtue by
+MintFlow.** MintFlow's *only* real-data validation of its intrinsic /
+microenvironment split is that "signalling genes" (any gene in any
+ligand–receptor database) should receive a higher microenvironment-induced
+share of their read counts than other genes (p. 5, Methods p. 39). Signalling
+genes are, by construction, the genes expressed in the *neighbour*, so they
+are exactly the counts most likely to be misassigned by segmentation. Their
+validation criterion cannot distinguish a real microenvironment effect from
+transcript transfer, and their only word on segmentation is one sentence of
+limitation (p. 28). resolVI, which *does* model the transfer, never asks the
+converse question: it runs niche differential expression and differential
+colocalisation on corrected counts (liver cancer SPP1⁺ macrophages beside
+SPP1⁺ tumour, pp. 10–11; colitis Bmp gradient, p. 13) without testing whether
+the residual niche signal is leak, and in Methods (p. 21) disables the
+scib PCR metric "as we expect that a majority of the variation is due to wrong
+segmentation" — a strong, unverified claim in our favour. SIMVI names a
+*different* confound (intrinsic-looking spatial structure from cell-type
+colocalisation, p. 1; its positivity index, pp. 3, 5, 8) and says nothing
+about transcripts. Celcomen and DisCoVR say nothing. **This is the
+related-work paragraph: everyone in the split literature validates on the
+neighbour-resembling half of the transcriptome, and nobody sweeps.**
+
+**The one-figure head-to-head exists and is cheap.** MintFlow's per-cell
+microenvironment score (Σ_g x^mic / Σ_g x), resolVI's per-cell α₁+α₂ diffusion
++background proportion, and our κ are *the same number with three different
+names*: the fraction of a cell's counts not attributed to its own intrinsic
+programme. MintFlow calls it signalling, resolVI calls it artefact, we
+decline to call it either and sweep. Plotting the three on the same cells of
+the same slide, against the transcript-flux median 0.13, is the paper's
+central claim in one panel and needs only the two installs already scoped.
+
+**Scale and fairness, corrected from the survey.** SIMVI's published maximum
+is now pinned: MERFISH MTG 11,059 cells and STG 14,924 cells, Slide-seqV2,
+Slide-tags tonsil, and the CosMx melanoma cohort — all far below our slides;
+the GSE 69k core remains its safe scale and its k = 10 kNN graph is its own.
+Celcomen's Xenium analysis is a **500 × 500 µm crop** of one slide (Methods,
+p. 7), which is why it is not a scale-comparable baseline. resolVI's 1.4M
+cells in under six hours on a 3090 stands. MintFlow's benchmark ran at
+embedding size 10 because "some baselines … are not runnable" at its default
+100 (p. 39) — so a matched-capacity comparison is what its own authors did,
+and d_z = 20 / d_w = 6 against embedding 10 is defensible.
+
+**Two instrument gaps this review opens.** (i) resolVI's **double-positive
+metric** (mutually exclusive marker-gene pairs from a matched scRNA-seq
+reference, Poisson-mixture threshold, Methods p. 21) is the one external
+metric we can compute on our own slides with our own tile split *without
+installing anything* — it scores raw counts, our x̃ = x − κℓρ̄ and the κ grid
+on a criterion resolVI's own authors would accept, and it turns the parked
+x̃ question into an externally-judged one. (ii) SIMVI's **axis benchmark**
+(spatial effect must track the layered axis, not the orthogonal axis;
+Kendall's τ true-positive vs false-positive, p. 5) maps directly onto our
+tumour-band niches: w must track the band ordering and not the orthogonal
+in-plane coordinate. Both are new instruments, both are small.
+
+**Caveats.** All five read as text layers; figures were not inspected, so
+every number quoted from a figure panel (MintFlow Fig. 1g/1h effect sizes,
+SIMVI Fig. 2b/5d score bars, resolVI Fig. 2E/2F) is described, not
+transcribed. Supplementary Notes are not in the PDFs: SIMVI's identifiability
+proof (Note 1), its positivity formulation (Note 2) and parameter sweep (Note
+3), MintFlow's method comparison (Note 1), identifiability proof (Note 2),
+encoder/decoder architectures (Notes 3–4) and dataset descriptions (Note 6),
+and Celcomen's proofs were **not read** — MintFlow's Supplementary Note 1 was
+already recorded as unretrievable in the survey entry and remains so. No
+runtime figure is published for SIMVI, MintFlow or Celcomen. Nothing here was
+run; all cost figures are extrapolations carried over from the survey entry.
+
+### Handover refreshed, 3.3, paper A2–A7 (2026-09-21)
+
+*Delegated (Opus), documentation only.* `docs/handover.md` rewritten in place
+(state 2026-09-21), same nine-section structure, from the devlog since
+"Crystallisation" (2026-09-14) and the registers; every number with its
+artefact path, negatives as findings; retired in §5 with reasons: per-type
+‖w‖ ranking, "6 programmes", matched-column B stability, the pre-correction
+κ-sensitivity object, the 2026-09-14 α_w = 0.05 candidate. **Todo 3.3
+closed** (text only): the report's cycle section quotes the absolute read and
+states the z / linear-reference ratio as a target-reliability property with
+the depths (2.1 ovarian and lung FFPE, 0.96 GSE core, 0.90 FF). **Paper
+A2–A7 applied**, model description only: budget-and-seed-selection paragraph;
+the per-type translation gauge in the identifiability paragraph; type-level
+counterfactual marked as exercised; implementation rows for type_only
+sources (empirical case), the two budgets, seed selection, halo overhead
+without numbers, int16 counts, a "built but not default" row; the choices
+table split in two. Build clean, 19 pages, no undefined references. Sections
+B and C of the revision list remain pending.
+
+**Contradictions found by the rewrite, resolved here.** (1) The pinned
+reference's cycle_z appears as 0.499 (metrics.json final, training-time
+probe on the val split), 0.440 (doc-08 battery, block-CV subsample) and
+0.460 (the 2026-09-21 cycle-target CLI, which collects latents over the
+validation tiles with its own ridge) — three instruments on the same
+weights; the report and handover quote the first two with their instrument
+named, and the third is labelled as its own instrument in the cycle-target
+entry. (2) `spec_deviations.md` gives α_a = 0.03 (closed-form era) and 0.3
+(adversary) in one paragraph — both are correct for their invariance mode;
+the paragraph now says so. (3) Lung `reference_graphclust` cycle_z is 0.347
+in metrics.json and 0.369 in the cycle-target CLI — the same two-instrument
+difference as (1). (4) todo 2.3's status line quoted type_z-era numbers as
+current; corrected to name the era.
+
+### L2 on w so that B carries the programme (motivation, 2026-09-21)
+
+**Why (author).** The loadings B should be the informative object: a gene
+programme is a column of B, and w says how far a cell moved along it. With
+no penalty on w's magnitude the scale can sit in w (large w, small B) or in B
+(small w, large B) — spec §7.12 names this rescaling gauge as the reason
+σ_w is fixed, and issue V12 found a translation gauge on top of it (per-type
+offsets 4–10× the within-type spread; coupled Adam weight decay moved the
+offset *into* w, ‖B·mean_t w‖ 18–28 → 81–92). An L2 on the latent w itself,
+not on parameters, would push magnitude into B and could make B more
+interpretable and its columns more comparable across seeds.
+
+**Questions to settle before any fit.** (1) What does an L2 on w add that
+the KL(q(w)‖N(m_ψ, I)) does not — the KL already penalises w's *deviation*
+from the prior mean, so an L2 on w penalises the prior mean itself (m_ψ's
+output) as much as the deviation; is that the intended object, or should the
+penalty be on E_batch[m_ψ(c,t)] per type (the V12 proposal), or on the
+realised shift B·w in gene space? (2) Gauge: with σ_w fixed at 1 the rescaling
+gauge is already pinned by the prior; what an L2 on w changes is the
+*translation* gauge (where the per-type offset lands) — state which. (3) The
+model already reads programmes gauge-centred at read time; what would a
+training-time penalty change in the atlas' effective rank, shares, axis
+cosines and labels? (4) Interaction with α_w: an L2 on w is a second pull
+toward zero on top of a pull toward m_ψ; it could close the deviation
+channel further or shrink the prior field.
+
+**How.** Analysis first (the four questions, with the gauge algebra written
+out), then a small pre-registered test on the ovarian slide: three variants
+at one seed each, 200-epoch budget, `type_only` defaults — (a) L2 on the
+sampled w (weight λ_w on E‖w‖² per cell), (b) L2 on the per-type mean of
+m_ψ (the V12 penalty), (c) none (sweep3_k0.1_s0 as control) — at λ chosen so
+the penalty is ~10 % of KL_w at initialisation; then the seed triple for the
+variant that passes. **Evaluated by:** guards inside the seed envelope
+(recon ±0.06, NMI ≥ 0.63, cycle_z ≥ 0.44, probe at floor, mirror ≤ 0.05);
+‖mean_t w‖ per type falls toward the within-type spread (V12's numbers:
+offset 4–10× the spread → ≤ 2×); atlas effective rank and the two programme
+labels unchanged; **cross-seed axis-2 cosine improves** (0.40–0.83 at 0.1
+today) — that is the "B more informative" claim made measurable; transport
+counterfactual unmoved (it works on differences). **What is wished for:** a
+penalty that fixes the translation gauge at training time without touching
+the reads that already work; if the guards move or the axis cosines do not
+improve, read-time centring stays and the penalty is recorded as tried.
+
+### Ring-2 skip and κ-survival in shift space (2026-09-21)
+
+*Delegated (Opus), GPU 1; `networks.py` forward, `train.py` `_to_device`,
+`validate.py` companion; 55 tests across the five touched files pass, full
+suite exit 0.*
+
+**Ring-2 skip (todo 1.6, spec §4.5).** Under `type_only` the encoder runs on
+seeds ∪ ring1; ring 2 stays in the tile (ring 1's ρ_j needs it for ρ̄) but is
+a type/Φ lookup, as the spec says. `type_z` unchanged. Proof on the
+fixed-seed synthetic smoke fit: 56 losses agree to 1.2e-7 relative (one
+float32 ulp), every metrics.json number to ≤ 9.5e-7 absolute — float
+tolerance, not bitwise, because the encoder GEMM's batch dimension changes
+and re-blocks the matmul; the reparameterisation draw is still made at the
+node count so the RNG stream is untouched. Planted test: ring-2 rows absent
+under `type_only`, present under `type_z`; poking ring-2 counts moves ring-1
+contexts only under `type_z`. **Halo at 4,096-cell tiles on ovarian
+(`experiments/halo_overhead.json`): nodes encoded per step fall from +14.3 %
+of seeds to +6.7 %, resident counts −6.6 %, seconds per epoch unchanged
+within run-to-run noise** (whichever variant runs first is faster; the step
+is decoder- and influx-bound over seeds). The saving is nodes and memory.
+
+**κ-survival moved to shift space.** The producer of
+`atlas_kappa_survival*.json` was no longer in the repo (an ad-hoc script);
+it is now `validate --sweep-tag --analyses kappa_survival`, reusing the
+atlas' own basis, cross-seed, label and recurrence functions so the two
+cannot drift. Regenerated on sweep3 (18 runs). Against the pinned reference:
+axis-1 |cos| 0.96 at κ ≤ 0.2 falling to 0.92 at κ = 0.3–0.4, shift overlap
+0.90 → 0.85; sweep-internally 0.94–0.96 and 0.78–0.89, flat across the
+ladder. **Hallmark labels are the most κ-stable object: EMT, HYPOXIA and
+G2M_CHECKPOINT recur in all three seeds at every κ ≤ 0.3.** At κ = 0.1 the
+companion reproduces the atlas triple (axis-1 0.933 / 0.955, overlap
+0.80–0.95 vs the atlas' 0.93–0.98 and 0.67–0.93; sweep3 is a 200-epoch
+budget against the atlas' 500, which is where axis 2 diverges). The retired
+matched-signature numbers stay under `legacy` for one release; recomputed
+they do not reproduce the previously published 0.29–0.43 (now 0.32–0.71)
+and the old producer is gone — one more reason the metric is retired. The
+old internal file's numbers were overwritten before carry-forward logic
+existed and survive only in the 2026-09-21 devlog prose (recorded as the
+agent's fault).
+
+### Transport at the distribution level (results, 2026-09-21)
+
+*Delegated (Opus), one GPU; `discell/model/transport.py` (`--read
+distribution|both`), the §7 sub-block of `report.py`, 7 new planted tests
+(14 in the file); artefacts `runs/<run>/transport/transport[_tumour-band]_
+distribution.{json,png}` on the three ovarian seeds × two niche sources plus
+FF `reference_graphclust`. The mean read reproduces every pinned number
+exactly. Artefact and figure verified.*
+
+**The construction, and one addition.** Source cells keep their own μ_z,
+are given the target niche's mean context through the prior head and the
+target's mean influx as the leak source, and are decoded; the cloud is
+compared with the held-out cells living there as distributions (unbiased
+MMD², Gaussian kernel on the Hellinger map, bandwidth = median pairwise
+distance in the target; energy distance beside; floor / untransported /
+type-mean / observed-source references; sizes matched to min(|S|,|T|,2000);
+200-draw paired bootstrap). **As pre-registered the read is structurally
+blind, and the reason is depth**: it compares predicted *rates* with raw
+*multinomial* compositions, and the target's shot noise is ~500× the floor,
+a near-constant offset in every distance; gap closed collapses to ~0
+(median 0.004; an exactly correct prediction scores 0.11 in a planted
+world). A **count-matched** companion — counts drawn from each predicted
+rate at a depth drawn from the target — puts both sides on one geometry and
+is reported beside the pre-registered columns, never instead. Numbers below
+are count-matched unless said.
+
+**Bars, pinned reference (158 pairwise / 62 leave-one-out panels).** (1)
+transported below untransported **147/158**, CI excluding zero 116 — met
+(pre-registered geometry 96/158). (2) median gap closed **0.45** pairwise,
+**0.30** pooled; pooling gives the tighter CI in **107/158** at a cost of
+0.08 (tolerance 0.1) — met. (3) transported below the type-mean predictor
+**0/158** — **not met**. (4) Spearman with the mean read's counterfactual R²
+**0.57** — met (0.44 as pre-registered, the one marginal miss there).
+
+**Envelopes.** Pairwise median gap closed: ovarian 0.40 / 0.45 / 0.44
+(composition niches) and 0.38 / 0.59 / 0.38 (tumour bands); **FF 0.44 with
+264/264 panels improved and 250 CIs excluding zero** — the reliable slide is
+unanimous, as on the mean read. Leave-one-out 0.29–0.36 throughout.
+
+**Bar (3) fails, and that is the finding.** Count-matched, the type-mean
+predictor — one mean composition resampled at matched depths — closes
+0.90–1.00 of the gap on every leg. At Xenium depth the within-type-within-
+niche spread is essentially shot noise, so a population read cannot see
+per-cell structure: **the distribution check is the mean check in different
+clothes**, exactly what bar (3) was pre-registered to detect. Claim that the
+model moves a population's *location*, not that it reproduces its spread.
+
+**Pooling buys what it was meant to.** The leave-one-out CI is tighter in a
+majority on every leg (up to 185/264 on FF); the pooled gap closed is lower
+by 0.02–0.09, inside tolerance but consistently signed: **z is context-free
+enough that cells from every other niche land on the target nearly as well
+as cells from one neighbouring niche, with a small residual cost.** The
+"pooling hurts" fail state does not fire.
+
+**Readability additions to the mean read.** (i) Fraction of the noise
+ceiling is the headline with raw R² beside it: **0.34 on the trusted tier**
+(0.81 all-panel is a ratio of means over unmeasurable panels and is not a
+percentage of reachable signal), 0.51 tumour-band trusted, 0.55 FF.
+(ii) Top-50 predicted-up gene overlap with the observed top 50: **7.3 of 50**
+all-panel and **15.3 of 50** on the trusted tier against a chance level of
+0.7–0.8 (9× and 22× chance); FF 16.8 and **21.1 of 50**. Both ship with the
+chance level in every tier.
+
+**Caveats.** The count-matched companion is an addition to a fixed
+pre-registration (both variants ship; the pre-registered columns are the
+record). Bootstrap duplicates bias absolute CIs slightly upward; comparisons
+across panels are unaffected. The type-mean reference tests spread, not
+location. GSE core not run (below its noise floor on the mean read). A
+`numpy.multinomial` crash on pvals summing to 1 + 1 ulp was fixed mid-run.
+
+### L2 on w (results, 2026-09-21)
+
+*Delegated (Opus), one GPU; `elbo.py` (+`Weights.lambda_w` / `.w_penalty`),
+`train.py` (the two fields and CLI), 9 planted tests; runs `wpen_a_s{0,1,2}`,
+`wpen_b_s0`; artefacts `experiments/w_penalty{,_offsets,_shift}.json`.*
+
+**The analysis predicts the negative before the fits.** Given the KL to
+N(m_ψ, I), E‖w‖² = ‖m_ψ‖² + 2⟨m_ψ, μ_w − m_ψ⟩ + ‖μ_w − m_ψ‖² + Σσ²; the KL
+already charges the last two, so at KL_w ≈ 0.002/dim an L2 on the sampled w
+is an L2 on the prior field m_ψ plus a constant. The within/between split
+E‖m_ψ‖² = Σ_t (n_t/n)‖m̄_t‖² + E‖m_ψ − m̄_t‖² makes variant (b) equal to (a)
+with the context-varying channel exempted — the one channel 2.3 measured as
+buying likelihood — so (b) is the right object on the algebra. Gauge: σ_w = 1
+pins rescaling only through the deviation; at the pinned operating point the
+offset channel is scale-free as well as translation-free (sharper than V12:
+that is why a huge offset costs nothing). An L2 on B·w is gauge-invariant and
+only shrinks the programme. **The atlas cannot move**: every read is on
+Δ_i = B(w_i − w̄_t), exactly invariant to both gauges, so axis cosines are not
+a quantity a gauge penalty can improve. Fits run as pre-registered anyway.
+
+**Calibration.** λ·pen(init) = 0.10·α_w·KL_w(init) → λ_a 6.5e-4, λ_b
+6.6e-3. Hazard: 97 % of E‖w‖² at init is the posterior variance the KL pins;
+the rule is inert at init and ~27× the KL term at the measured end state.
+
+**(a) L2 on w passes every guard on three seeds and fixes the gauge.** recon
+−7.254 / −7.181 / −7.231, NMI 0.655–0.675, cycle_z 0.466 / 0.481 / 0.439,
+probe below floor, mirror 0.044–0.046. Offset ratio ‖mean_t w‖ / within-type
+spread median 2.40 → 1.72, ‖global mean w‖ 1.94 → 0.35, B's leading column
+2.85 → 4.37 — magnitude did move into B. Transport unmoved (0.078 → 0.084,
+slope 1.15, beats-both 101/155). Atlas: rank 2/2/3, dominant programme
+identical (F13A1, MRC1, PLTP, KLF4), labels EMT / HYPOXIA / G2M. **Axis-2
+cross-seed cosine did not improve**: 0.606 / 0.476 / 0.920 against the
+control triple's 0.694 and the record's 0.40–0.83; one axis-1 pairing fell to
+0.578. The realised within-type shift shrank 1.5× (6.17 → 4.21) — the
+predicted tax on the working channel.
+
+**(b) the per-type-mean penalty fails.** cycle_z 0.392, mirror 0.052, rank
+collapsed to 1 ([0.9996, 0.0004]), the dominant macrophage/stromal programme
+lost and replaced by a hypoxia/glycolysis axis, axis-1 vs the control triple
+0.63–0.67, transport program_only 0.046 → 0.013 with slope 1.69. Mechanism,
+from the gauge-invariant read: the realised within-type shift collapsed 6.17
+→ 0.92 while the offset shift fell 12.7 → 0.98. Pinning m̄_t at zero leaves
+the within-type scale unpinned and the optimiser took it; the excellent
+offset ratio 1.16 is two numbers near zero.
+
+**Verdict: drop as default; (a) recorded as an option (`--w-penalty w
+--lambda-w 6.5e-4`), (b) rejected, (c) not run.** The success criterion was
+a gauge-invariant quantity, so it could not fire; the fits add that the
+penalty's cost is real (1.5× and 6.7× shrinkage of the working channel).
+Read-time centring stays; V12's training-time clause is closed as not worth
+closing — nothing downstream reads the gauge. **Caveats:** single λ per
+variant (no ladder); (b) at one seed; (c) argued not measured; the record's
+"α_w = 0.1 triple" cosines (0.64 / 0.83 / 0.40) do not reproduce exactly from
+either `sweep3_k0.1_*` or `ablation_gat_type_only*` `programs.npy` (0.656 /
+0.772 / 0.525 on the latter) — which runs back that line should be pinned.
+
+### Baselines and article-derived experiments: three packages (motivation, 2026-09-21, evening)
+
+**Author's direction.** Focus on the baselines and the experiments the article
+review surfaced; install the baseline tools in `/home/rmolen/github/
+DisCell-baselines` where a separate environment is needed (resolVI:
+scvi-tools ≥ 1.3, pip; SIMVI: `pip install simvi`; MintFlow: `pip install
+mintflow` with extra dependencies).
+
+**Package 1 — analysis trio on existing runs (6b.1, 6b.3, 6b.4).**
+*6b.1, MintFlow's criterion on our channels.* For every panel gene, the share
+of its held-out expression shift attributed to (i) the response channel
+B·Δm_ψ, (ii) the leak channel κ·Δρ̄, (iii) both, on the transport panels;
+compare the distribution of shares for ligand–receptor genes (CellChatDB
+union used by doc-09) against all other genes, across κ ∈ sweep3 and on the
+pinned reference; composition-residualised per doc-09 §2. Pre-registered
+read: if the leak channel alone gives LR genes a higher microenvironment
+share than other genes (Mann–Whitney, effect size reported), MintFlow's
+real-data validation criterion is reproducible from misassignment alone; if
+only the response channel does, it is not. *6b.3, MIG / MIC.* y = niche
+label (K = 10 composition; six tumour bands), I(y;z), I(y;w), I(w;z|y) by
+kNN (Kraskov) and MINE on held-out tiles, within-type permutation floor; MIG
+= (I(y;w) − I(y;z))/H(y), MIC = I(y;w)/(I(y;w)+I(y;z)); on the ovarian seed
+triple, lung, FF. Expectation: MIC near 1, MIG well above the floor; the
+z-niche † cell gets I(y;z) with its floor. *6b.4, SIMVI's axis test.*
+Per-gene Kendall τ of the w-predicted shift (and of raw held-out shift, z-
+probe shift, ℓ-baseline) against the ordered tumour-band index (true axis)
+and against the orthogonal in-plane coordinate within the same cells (false
+axis); true-positive and false-positive gene counts at |τ| thresholds as
+SIMVI reports them. Expectation: w tracks the band ordering far above the
+false axis; a symmetric result would say the niche reads are colocalisation.
+
+**Package 2 — objective ablations (6b.5).** Four arms, ovarian, 3 seeds at
+the sweep budget, type_only defaults: (i) drop the second KL copy
+((1+ω) → 1); (ii) drop the intrinsic path (ω = 0); (iii) class-mean prior
+m_ψ := mean_t μ_z-derived per-type constant in place of m_ψ(c,t) (DisCoVR's
+prior); (iv) adversary on the reconstruction x̂ instead of μ_z. Read: the
+full quadrant and guards vs the sweep3 κ = 0.1 triple. Expectation from spec
+§6.2–6.3: (i) and (ii) cost z (cycle_z, NMI) — the terms are load-bearing;
+(iii) closes the context channel (w rows fall); (iv) is DisCoVR's variance
+reduction and may be neutral. Any arm that matches or beats the reference on
+every read is a finding about the objective.
+
+**Package 3 — baseline installs and smoke tests (4.2 stage 0).** resolVI via
+scvi-tools as an optional extra of the project env (dry-run showed zero
+downgrades); SIMVI in its own venv (its pin on old scvi-tools; python 3.10)
+under `DisCell-baselines/simvi`; MintFlow in its own venv under
+`DisCell-baselines/mintflow` (zarr < 3 conflicts with our image path).
+Each: install, import, run the smallest tutorial to completion, then a
+5,000-cell smoke fit on the GSE core exported as AnnData with our tile
+split and our pruned graph attached; record versions, wall time, and what
+the method emits (latents, corrected counts, per-cell mixture weights).
+No full baseline fits yet — the fairness protocol (survey entry) governs
+those and they are launched detached after the smoke tests pass.
+
+### External criteria on our runs: MintFlow's signalling-gene share, MIG/MIC, SIMVI's axis test (results, 2026-09-21)
+
+*Delegated (Opus), GPU 0; new module `discell/experiments/external_criteria.py`
+(three subcommands, no model file touched), 22 planted tests; 13 runs;
+artefacts `experiments/external_{signalling_share,mi_quadrant,axis_test}_
+<run>.{json,png}`; headline effects and MIC values verified against the JSONs.*
+
+**6b.1 — MintFlow's own validation criterion is reproducible from
+misassignment alone; the strongest related-work result the programme has.**
+Per panel gene the held-out log-rate shift is split (all sides centred) into
+response |B·Δm_ψ|, leak |κ·Δρ̄| and remainder; shares summed over 158 ovarian
+transport panels; the CellChatDB ligand ∪ receptor union (861 in-panel genes)
+compared with the rest by Mann–Whitney with a rank-biserial effect. **The
+leak channel separates LR genes from the rest at effect +0.23 to +0.27
+(p ≤ 5e-26) at every κ from 0.05 to 0.4; the response channel manages +0.008
+to +0.057 and is not significant at κ ≥ 0.2.** The leak effect is flat in κ
+while the leak's mean share triples (0.040 → 0.203); the response effect
+decays monotonically as κ rises (0.049 → 0.008) — the contamination channel
+takes the LR signal off the biology channel. κ = 0 is exactly zero by
+construction. FF reproduces it on 264 panels (leak +0.134, p = 3e-8;
+response ns). Abundance-matched non-LR controls leave the leak effect at
++0.24. Everyone in the split literature validates on the neighbour-resembling
+half of the transcriptome; this measures what that costs.
+
+**6b.3 — MIG holds, raw MIC fails, and the floor explains both.** Ross-kNN
+and MINE agree on all eight run × niche-source cells (ovarian seed triple ×
+{K = 10 composition, six tumour bands}, lung, FF). Raw MIC is **0.44–0.60**,
+never near 1; on FF raw MIG is negative (−0.10). But z's excess over the
+within-type permutation floor is **+0.07 to +0.13 nats against w's +0.38 to
++0.51**: 86–89 % of I(y;z) is what any type-informative latent gets for
+free because niches differ in composition. Floor-corrected, **MIG +0.13 to
++0.23 and MIC 0.79–0.87** (0.86–0.87 on the ordered bands) on every seed and
+slide. I(w;z|y) 0.16–0.37 (kNN) / 0.10–0.29 (MINE). **The flagged z-niche †
+cell is answered: it is type identity, not niche.** MIC without its floor is
+uninterpretable on spatial niche labels and must never be quoted alone — a
+correction to the metric as published, offered with the fix.
+
+**6b.4 — SIMVI's axis test comes back asymmetric on all three seeds.** True
+axis = six ordered tumour bands; false axis = the in-plane coordinate least
+correlated with band index (y on ovarian), cut into six equal-count bins
+within type on the same cells. w-predicted mean |τ| **0.918 / 0.847 / 0.933**
+on the true axis vs **0.516 / 0.585 / 0.600** on the false; at |τ| ≥ 0.9 the
+true/false panel counts are 8616/128, 10748/1532, 10069/736 (67× / 7.0× /
+13.7×). w beats every reference row on the true axis (raw 0.46–0.47, z
+0.62–0.70, ℓ 0.49–0.55). "Your niche reads are type colocalisation through
+contiguity" is answered no. Caveat: the false axis is not an independence
+null — every row scores 0.34–0.60 on it because slide geometry is
+autocorrelated; the claim is the relative one SIMVI itself makes.
+
+**Caveats.** 6b.1's share is of the *magnitude of a shift*, not of counts as
+MintFlow computes it; only the LR-vs-other contrast is claimed. Doc-09's
+exposure residualisation has no direct analogue within a single-type panel;
+the composition control is an abundance-matched non-LR set (deviation
+recorded; matched and unmatched agree to ±0.02). The unexplained share is
+0.68–0.84 (consistent with the transport noise ceiling), so both shares are
+small and only their contrast is read. 6b.3 capped at 20,000 held-out cells,
+10 permutations; MINE small and a second opinion. 6b.4 pools 4–6 types per
+run; seed s1 admits 6 and has the weakest ratio. One bug fixed mid-run:
+sklearn's radius query rejects per-point radii on its fast path; both MI
+estimators now use cKDTree (the 6b.1 and 6b.4 runs do not use that path).
+Not done: 6b.1 on tumour-band niches; 6b.3 on FF bands (undefined).
+
+### DAPI vs Scanpy on the fresh-frozen slide (2026-09-21)
+
+*Delegated (Opus), CPU only; `scripts/cell_cycle/generate_score_correlation_
+maps.py` run as-is on FF (→ `figures/cell_cycle_score_correlation_per_
+celltype.{png,csv}` on FF), `dapi_cycle.bimodality` imported; scratch under
+`scratchpad/cellcycle_ff/`; 250k-cell subsample per slide where the counts
+matrix was needed; medians spot-checked.* The question: does 8× depth rescue
+the marker score, and how does DAPI compare where it does?
+
+**Scanpy: rescued by counts, not by chemistry.** Split-half reliability by
+depth decile is one curve across both slides — FF G2M 0.13 (162 counts) →
+0.89 (4,001); ovarian 0.02 (18) → 0.75 (760). At a matched 150–300 counts FF
+is the *worse* slide (G2M 0.14 vs 0.45; S 0.10 vs 0.20), plausibly because
+such cells are FF's bottom 9 % and ovarian's median. FF's pooled 0.69 vs
+0.53 is composition: 91 % of FF cells exceed 300 counts against 34 % of
+ovarian. External validity rises only slightly (depth-partialled G2M ~ MKI67
++0.17 → +0.24, ~ TOP2A +0.24 → +0.27; both are list members, so part of it is
+self-correlation). **Reliability is to be quoted per depth stratum from
+here on, not per slide**, and no wording should credit the fresh-frozen
+chemistry.
+
+**DAPI: the gate-level verdict stands; a per-cell signal exists and is too
+small.** Depth-partialled DAPI ~ MKI67 / TOP2A on FF: median +0.028 /
++0.003, IQR inside ±0.04 — the ovarian 0.00–0.05 band, unmoved; raw DAPI ~
+total counts is *worse* on FF (0.63 vs 0.48). Bimodality of the log integral
+within type: 0/36 FF, 0/15 ovarian; BIC alone would split 35/36, the dip
+refuses 35/36 (the one dip-positive cluster is 3.6 % MKI67+ with ratio 3.6 —
+neither cycling nor 2N/4N); all four high-MKI67 FF clusters dip p ≥ 0.986.
+MKI67+ Q4/Q1 across DAPI quartiles at fixed type and depth 1.03–1.63
+(median 1.26) — the raw 2.1 was depth, the joint-label collapse again.
+
+**New, and why this entry exists.** Within type *and* depth decile,
+ρ(DAPI, G2M score) on FF is +0.21 median against ovarian's −0.03, and in the
+two small high-MKI67 clusters it survives partialling depth *and* nuclear
+area: Cluster-34 decile 8 ρ **+0.48** (DAPI density alone +0.45, area alone
++0.33), Cluster-36 decile 6 +0.40; G2M AUROC for DAPI-Q4 vs Q1 **0.86–0.89**
+there — above the ≥ 0.70 bar the gate-level read missed at 0.54. It rises
+monotonically with depth in all four FF clusters and shows the same rising
+shape on ovarian's proliferative tumour (0.11 → 0.26, AUROC 0.45 → 0.65)
+capped by that slide's depth; ≈ 0 in non-cycling types. **Reading: a faint
+DNA-content signal is real and was hidden by the yardstick — below ~2,000
+counts the G2M score is too noisy to detect it.** Unusable as a label:
+confined to ~6.5k cells (0.5 % of the slide), invisible below median depth,
+no MKI67 enrichment, no second mode to cut. Wording changes from "no signal"
+to "a signal roughly an order of magnitude below the twofold a 2N/4N gate
+needs, on top of the projection problem". Todo 3.5 stays closed.
+
+**Caveats.** 250k-cell subsamples (pooled reliabilities reproduce the record
+to ±0.02); the matched-depth band is matched on depth not cell quality; §4
+on the raw integral, complementing gate 5; the two signal-carrying clusters
+are 2,043 and 4,496 cells (~200–450 per decile, ρ SE ±0.08, 40 strata
+untested for multiplicity); FF cluster identities are numbers, not names.
+
+### Baseline tools installed (4.2 stage 0, 2026-09-21)
+
+*Delegated (Opus), GPU 0 for smoke fits only; `discell/experiments/
+export_for_baselines.py` (new), `pyproject.toml` optional extra `baselines`,
+`/home/rmolen/github/DisCell-baselines/{resolvi,simvi,mintflow}` each with a
+README and a smoke script; full suite 303 passed, 1 skipped. No full fits.*
+
+**All three install and run; the survey's install plan holds.** resolVI via
+scvi-tools 1.5.1 as the `baselines` extra of the project env, zero downgrades
+by lock diff (21 additions; torch 2.13, zarr 3.3, anndata 0.13 untouched).
+SIMVI in its own python 3.10 venv: `pip install simvi` resolves but does not
+import (its scvi-tools ≤ 0.16.2 pin paired with a 2026 anndata), so the
+2022 stack is pinned by hand (scvi-tools 0.16.1, anndata 0.8, lightning
+1.5.10; torch 2.1.2+cu121 works on the 4090). MintFlow in its own python
+3.11 venv (mintflow 0.3.0, torch 2.6.0+cu124, zarr 2.18) with two traps:
+`mintflow[all]` upgrades torch and breaks the pyg wheels; `xarray_schema`
+needs setuptools < 81. **wandb: off** (`flag_enable_wandb='False'` plus
+`WANDB_MODE=offline`); nothing about the slides leaves the machine.
+
+**Export.** `export_for_baselines.py` writes an .h5ad from `prepare.assemble`
+so split and graph equal a DisCell fit: counts, spatial coords, the label that
+becomes t, tile id and train/val flag, log depth, degree, a slice id, and the
+pruned Delaunay as `obsp['discell_connectivities']` (symmetric binary) and
+`obsp['discell_beta']` (directed weights). GSE core: 69,422 × 5,001, 35
+types, 203,857 edges, 27 + 5 tiles; plus a contiguous 5,000-cell disc.
+anndata 0.13's string index is unreadable by SIMVI's anndata 0.8 →
+`read_h5ad_legacy.py` reads at h5py level.
+
+**Smoke fits, 5,000-cell window.** resolVI 5 epochs in 4.4 s: one latent
+(·, 10), corrected counts, per-cell mixture **0.831 true / 0.181 diffusion /
+0.001 background** — a first contamination read of ≈ 0.18 against the
+transcript-flux 0.13 and the κ grid (5 epochs; not quotable). SIMVI 5 epochs
+in 3.0 s: intrinsic (·, 20) and interaction (·, 6) at matched d_z / d_w; no
+corrected counts, no contamination. MintFlow 271 s per epoch (~60× resolVI;
+consistent with 20–26 GPU-h): Z / S_in / S_out at width 100, Xint / Xmic
+count matrices. **Graphs:** SIMVI takes our edge list directly (tested both
+ways, same cost); resolVI insists on its own k = 10 spatial kNN (ours would
+need `obsm['index_neighbor']` written by hand — not done); MintFlow insists
+on a squidpy graph with no external hook — "both graphs" is a real row for
+those two. Upstream defects recorded, not patched: SIMVI's full-batch GPU
+path raises (use minibatches); MintFlow mutates its config dict in place.
+
+**Caveats.** The published tutorial datasets were not run (resolVI's figshare
+file returns HTTP 202 empty; SIMVI's notebook not fetched) — the full API path
+was exercised on our window, so the tutorial gate is met in substance not
+letter. MintFlow's microenvironment score is NaN on cells with < 5 counts;
+filter before quoting. The loader's "serving zeros of width 384" line is the
+bundle opening without Φ before `assemble` loads it (the FF entry recorded
+the same trap); the GSE fits carry no "cells lack an image embedding"
+warning, so they used Φ — checked 2026-09-21.
+
+### Transport at the distribution level, second round: model-vs-model distance and matched twins (motivation, 2026-09-21)
+
+**Why.** The first distribution read (6a.1) scored transported cells against
+the target niche's *raw* counts. The author's objection: that comparison
+includes the model's reconstruction error, which is the same for every
+predictor and has nothing to do with transport. The read also could not
+separate a transport that moves cells correctly from one that only moves the
+mean, because at Xenium depth the type-mean predictor closed 0.9–1.0 of the
+gap. Two additions, both pre-registered here before running.
+
+**Read A — model-vs-model MMD.** Same panels (type × source niche → target
+niche, pairwise and leave-one-niche-out), same Hellinger-map Gaussian-kernel
+MMD², but the target cloud is now the target cells' *own decoded probability
+vectors* (z and w from their posterior means, their own context and leak),
+not their normalised counts. Both sides are then smooth model outputs; shot
+noise disappears from both, so no count-matched companion is needed.
+References unchanged: floor (two halves of the decoded target), untransported
+(source cells decoded in their own niche), type-mean (decoded target mean
+replicated), observed source. Headline is gap closed. What is wished for:
+gap closed higher than the count-level read, and — the real question — the
+type-mean predictor no longer at 1.0, because model-side spread is not shot
+noise. If type-mean still closes ≈1.0 the within-niche spread of decoded
+cells is itself tiny and the "spread" limit is in the model, not the data.
+
+**Read B — matched twins.** For each target cell, its nearest source-niche
+cell in z (Euclidean on μ_z, same type), transported into the target niche
+and compared *cell to cell* with the target cell's own decoded vector
+(Hellinger distance). Three references per panel: the untransported twin
+(niche difference before correction), a *random* same-type source cell
+transported (does matching on z matter at all), and the floor of two decoded
+target cells that are z-nearest neighbours of each other within the target
+niche. Report: median per-cell distance for each, and gap closed
+(untransported − transported)/(untransported − floor); and the twin margin
+(random − matched)/random. What is wished for: transported twin closer than
+untransported (transport works per cell) *and* matched closer than random
+(z carries per-cell information across niches). Failure of the second clause
+while the first passes means the population read was all there ever was.
+
+**HVG companion.** Both reads also on the top-1000 highly variable genes
+(Scanpy `seurat` flavour on the training cells, renormalised on the subset),
+because low-count genes only add noise to a 5k-gene Hellinger map. Reported
+beside, never instead.
+
+**Where.** Pinned reference `xenium_prime_ovarian_cancer_ffpe/runs/ablation_gat_type_only_s1`
+(both niche sources) and the fresh-frozen `xenium_prime_human_ovary_ff/runs/reference_graphclust`.
+Agent implements in `discell/model/transport.py`, reports in the run's
+`transport/` folder and report section; no docs edited by the agent.
+
+### Objective ablations, DisCoVR-style (6b.5, results, 2026-09-21)
+
+*Delegated (Opus), one GPU; `elbo.py` (+`Weights.second_kl`), `train.py` (three optional `TrainConfig` fields and their CLI), `networks.py` (+`ClassMeanPrior`), one line of `validate.py`'s `load_run`, 11 planted tests in `tests/test_model_ablations.py`; runs `abl_{no_second_kl,no_path_b,class_mean_prior,adv_on_xhat}_s{0,1,2}`; artefact `experiments/objective_ablations.json`. Control `sweep3_k0.1_s{0,1,2}` at the same budget, whose transport read was run on s1/s2 to match.*
+
+**Arm (i) is an identity, and that is the first finding.** At ω = 1, charging the z-KL once instead of `(1+ω)`-fold is *exactly* `α_z → α_z/2` — bit-for-bit, now a test. So the arm cannot speak to §6.2's argument, which is about the bound property, and what it measures is the α_z ladder. On that ladder the halved point is better on this slide: cycle_z 0.53/0.54/0.53 against the control triple's 0.41/0.47/0.47, recon −7.226/−7.156/−7.195 against −7.259, probe below its floor, transport unmoved. **The `(1+ω)` factor is defended by the derivation and by nothing in the read-outs; α_z = 0.007 is not the best point for z's continuous content.** No ovarian α_z ladder exists to place it — pre-registered as the follow-up.
+
+**Arm (ii): path (b) is load-bearing, and the matched comparison is the one that shows it.** ω = 0 also sets the `(1+ω)` factor to 1, so (ii) is (i) with the intrinsic path removed and nothing else — and cycle_z falls 0.53 → 0.41/0.43/0.37, recon by 0.04 nats, with no seed overlap. Against the control alone the drop is mild (0.37–0.43 vs 0.41–0.47), because the control's second KL copy pushes the other way; reading (ii) against the control only would have understated the term. NMI, mirror, probe and transport are untouched: **(b) buys z's within-type continuous content specifically, exactly the pressure §6.3 says nothing else supplies.**
+
+**Arm (iii): the DisCoVR prior closes the context channel and w goes feral.** `p(w|t) = N(μ_t, I)` with a learned per-type vector, posterior untouched. Transport counterfactual R² 0.078/0.100/0.097 → 0.052/0.059/0.051, slope 1.90/2.35/1.97, and **beats-both 94/105/98 → 0/0/0 out of 155**: the response channel no longer predicts a held-out shift better than either single-channel baseline, on any panel, on any seed. The mechanism is visible in the guards: with no context in the prior, w is a free per-cell latent and takes what z should hold — cycle_w 0.003/0.006/0.008 → **0.104/0.147/0.124**, NMI 0.64–0.66 → 0.60–0.62, KL_w up ~5×. The atlas fragments to rank 6 on all three seeds (variance fraction .35/.32/.15/.11/.05/.02 against the control's .998/.002), the dominant programme becomes proliferation (CENPA, TOP2A, CEP55, AURKB, BUB1) in place of the macrophage/stromal one (F13A1, MRC1, KLF4, TNXB), and cross-seed axis cosines fall to 0.26–0.69 with shift overlap 0.39–0.62. **`m_ψ(c, t)` is what makes w a response and not a second identity latent.**
+
+**Arm (iv): the adversary on x̂ is not neutral — it defeats itself.** Heads on `log ρ = log_softmax(a(z)+Bw)` instead of μ_z: probe Δce **0.195/0.142/0.189** against a control of 0.013/−0.021/0.027 and a floor of −0.05, mirror R² 0.047–0.050 → **0.100/0.095/0.101**. Both invariance guards fail together, and the reason is structural: with ρ as the head input the encoder can satisfy the penalty by moving the decoder, so niche information stays in μ_z. w collapses onto its prior (KL_w ~ 0), the atlas is rank 1 with an unrecognisable programme and cross-seed cosines of 0.08–0.32, and transport falls to 0.060–0.071 with slope 1.6–2.3. The higher cycle_z (0.48–0.51) is the same effect read positively: z keeps what the penalty was meant to remove. **DisCoVR's variance-reduction argument does not transfer to a penalty whose target is the encoder's own latent.**
+
+**Verdict: the objective survives. No arm matches or beats the reference on every read; three of four are decisively worse on the read they were built to stress.** Recorded as options, all default-off: `--no-second-kl` (documented as `α_z/2`), `--class-mean-prior`, `--adv-input xhat`. **Caveats:** one slide, one budget, one seed triple; arm (i) is confounded with α_z and the ladder that would deconfound it was not run; (ii) at ω = 0 only, no ω ladder; (iii)'s μ_t is learned rather than accumulated as DisCoVR's `E[z|y=k]` is, so it is the prior's *form* that is tested, not its estimator; (iv) keeps α_a = 0.3, calibrated for a μ_z head, and a head on ρ may want a different one. Atlas rank in the control triple is itself 1/2/3, so rank is a coarse read except where it moves to 6.
+
+**Follow-up opened by arm (i): an α_z ladder.** {α_z/4, α_z/2, α_z, 2α_z} × 3 seeds on the ovarian core at 200/20, full battery. If α_z/2 holds its cycle_z gain with probe and mirror inside the envelope, the per-slide α_z rule (1/mean-count) gets a factor. Runs after the per-dataset `best` fits below.
+
+### One `best` run per dataset (2026-09-21)
+
+**Why.** The κ / d_w / α_w grids have now been read on four slides and land
+on the same operating point everywhere: κ 0.1, d_w 6, α_w 0.1, α_a 0.3,
+type-only attention sources, 500 epochs / patience 40, α_z = 1/mean-count
+per slide. Every experiment from here on should be read on one named run per
+dataset, so nobody has to remember that the ovarian pin is an "ablation" and
+the FF pin is a "graphclust" reference. `runs/best` is that name.
+
+| dataset | `runs/best` | how |
+|---|---|---|
+| ovarian FFPE | → `ablation_gat_type_only_s1` | symlink; seed 1 is the run every 2026-09 read (transport, atlas, x̃, cycle, external criteria) was made on, so it stays the one |
+| ovary FF | → `reference_graphclust` | symlink; already at the operating point (type_only, 500/40, seed 0) |
+| GSE315411 solo core | → `reference` | symlink; already at the operating point; `crossslide/` holds the held-out dual section |
+| lung FFPE | new fit `best` | the old `reference_graphclust` predates type-only sources; refit seed 0 at the operating point, then validate / atlas / transport (both reads) / report |
+
+Queue `scripts/queue_2026-09-21_best.sh` (GPU 1, detached, idempotent, logs
+under `scripts/logs/best_2026-09-21/`). Ovarian seeds 0 and 2 of the same
+configuration remain the envelope triple. **Open question carried from 6b.5:**
+arm (i) showed α_z/2 raises cycle_z by ~0.08 on ovarian with guards intact;
+if the α_z ladder confirms it, `best` is re-pinned on all four slides.
+
+### Transport at the distribution level, second round (results, 2026-09-21)
+
+*Delegated (Opus). `transport.py` (+`scores_model`, `twin_scores`, `hvg_mask`, `--read twins`, `--hvg N`), `report.py` (Read A / Read B blocks), 4 new tests (18 transport tests pass). Runs: ovarian `best` (kmeans and tumour-band niches), FF `best` (kmeans only; tumour bands need a tumour annotation the FF slide lacks). Count-level numbers regenerated bit-identical in every summary.*
+
+**Read A, model-vs-model.** Median gap closed rises from 0.45 / 0.59 / 0.44 (count-matched; ovarian kmeans / ovarian band / FF) to **0.82 / 0.87 / 0.76** pairwise and 0.81 / 0.83 / 0.73 leave-one-out; improved and CI≠0 on every panel. **The type-mean predictor collapses**: −0.24 / −0.42 / −0.08 pairwise and ≈ −1 leave-one-out, beaten by the transported cloud on 158/158, 79/79, 260/264 panels. HVG-1000 companion moves gap closed by +0.02 and lifts type-mean towards 0; misses only in the two smallest FF HVG panels (n 110–144).
+
+**Read B, matched twins.** Matched transported twin closer than a random same-type source cell in **501/501 panels** (median margin 0.48–0.61), closer than its untransported self in every panel, and at the floor (median 0.08–0.12 vs floor 0.08–0.11). Twin panels with gap ≤ 0 (12–22 per tier) are all degenerate denominators: the within-target z-NN distance exceeds the niche difference for that type, so there is nothing to remove; transported still beats both references there.
+
+**Caveat that limits what these two reads say (main session's reading of the agent's deviation 1).** The target cells were decoded at the *niche-group mean* context and leak, the same `w_of[(niche, type)]` used for the transported source cells, not at their own posterior w. Both sides therefore share w exactly and differ only through z. Read A then measures whether the source type's z-cloud, decoded at the target's group w, matches the target's z-cloud decoded at the same w: a niche-invariance-of-z read plus the direction of the group-level w shift, not a test against what the target cells actually are. The type-mean collapse says the decoded within-niche spread from z is real, which is true and useful, but it was partly guaranteed by the construction. Read B's second clause (matched ≫ random) likewise follows from decoding being continuous in z once w is shared; its first clause (transported twin beats untransported twin) is the informative one and holds everywhere. **Fix, pre-registered here:** rerun both reads with the target side decoded at each target cell's own posterior μ_w and its own real context, so the target carries measured response, and report beside. If gap closed and twin margin survive, the reads stand; if they fall to the count-level numbers, the "spread" limit is shot noise after all and the model-side version was circular.
+
+Paths: `runs/best/transport/transport{,_tumour-band}_{distribution,twins}.{json,png}` on both datasets; report sections "Read A — model-vs-model MMD", "Read B — matched twins".

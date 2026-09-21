@@ -7,8 +7,9 @@ the gene-split fingerprint -- contamination transfers transcripts, homophily
 transfers state; disjoint halves A/B of the cycle set give
 delta = corr(own_A, nbr_A) - corr(own_A, nbr_B): ~0 under homophily, > 0
 under leakage, and one-hop only (ring-1 vs ring-2). DAPI kept group-level.
-Primary adjudicator: the planted world (cycle-like program + leak on the
-gate scaffold; phase-label recovery z vs raw).
+Primary adjudicator: the planted world, which since 2026-09-21 is the x~
+gate (`discell.applications.xtilde_gate`) -- powered plant, within-type
+thresholds, excess FPR victim - control (issues V9).
 """
 from __future__ import annotations
 
@@ -130,41 +131,27 @@ def stratified_gap(call, exposure, t_members):
 
 
 def planted_world(seed=0, device="cuda", epochs=400):
-    """Cycle-like program + leak on the gate scaffold; recovery z vs raw."""
-    from sklearn.metrics import roc_auc_score
-    from discell.applications.planted import fit_synthetic
-    from discell.model.synthetic import simulate
-    rng = np.random.default_rng(seed)
-    sim = simulate(n_cells=6000, n_types=8, kappa=0.2, seed=seed)
-    cycling_types = [0, 1]
-    in_cycling = np.isin(sim.t, cycling_types)
-    planted = in_cycling & (rng.random(len(sim.t)) < 0.3)
-    genes = rng.choice(sim.x.shape[1], 12, replace=False)
-    log_rho = np.log(sim.rho_true.clip(min=1e-12))
-    log_rho[np.ix_(planted, genes)] += 1.0
-    rho = np.exp(log_rho - log_rho.max(axis=1, keepdims=True))
-    rho /= rho.sum(axis=1, keepdims=True)
-    rho_bar = sim.graph.in_edges @ rho
-    p = (1 - sim.kappa) * rho + sim.kappa * rho_bar
-    p /= p.sum(axis=1, keepdims=True).clip(min=1e-12)
-    sim.x = np.stack([rng.multinomial(int(sim.totals[i]), p[i]) for i in range(len(sim.t))]).astype(np.float32)
-    sim.rho_true, sim.p_true = rho, p
-    fit = fit_synthetic(sim, epochs=epochs, device=device, seed=seed)
-    totals = sim.x.sum(axis=1)
-    xn = np.log1p(sim.x / np.clip(totals, 1, None)[:, None] * np.median(totals))
-    raw = xn[:, genes].mean(axis=1)
-    train = fit["fold"] != 0
-    project = probe_axes(fit["z"], sim.t, np.stack([raw, raw], axis=1), cycling_types, train)
-    zscore = project(fit["z"])
-    exposure = np.asarray(sim.graph.in_edges @ planted.astype(float)).ravel()
-    victims = ~in_cycling & (exposure > np.percentile(exposure[~in_cycling], 75))
-    out = {"n_planted": int(planted.sum()), "n_victims": int(victims.sum())}
-    for name, score in (("raw", raw), ("z", zscore)):
-        thr = np.percentile(score[in_cycling], 70)      # planted rate = 30%
-        out[name] = {"auroc_cycling": float(roc_auc_score(planted[in_cycling], score[in_cycling])),
-                     "victim_fpr": float((score[victims] > thr).mean()),
-                     "control_fpr": float((score[~in_cycling & ~victims] > thr).mean())}
-    out["pass"] = bool(out["z"]["victim_fpr"] < out["raw"]["victim_fpr"] and out["z"]["auroc_cycling"] >= out["raw"]["auroc_cycling"] - 0.02)
+    """The planted adjudicator, delegated to the x~ gate (issues V9).
+
+    The leg that used to live here thresholded globally inside the cycling
+    types and planted a +1.0 log-fold, which was both inconsistent with the
+    real-data leg's within-type rate-matching and under-powered (raw AUROC
+    0.67, control FPR 0.02-0.45 by seed). It is replaced wholesale by
+    :func:`discell.applications.xtilde_gate.run_seed`: within-type
+    thresholds, excess FPR = victim - control, a model-free power gate, and
+    the four callers (raw / z / z-with-x~ / leak-subtracted counts).
+    """
+    from discell.applications.xtilde_gate import run_seed
+
+    out = run_seed(seed, device=device, epochs=epochs)
+    arms = out.get("arms", {})
+    out["pass"] = bool(out["power"]["passed"]
+                       and out.get("tests", {}).get("z_raw_below_raw", {}).get("passed", False))
+    if arms:
+        # the two names the A4 report and figure read
+        out["raw"], out["z"] = arms["raw"], arms["z_raw"]
+        for arm in (out["raw"], out["z"]):
+            arm.setdefault("excess", float("nan"))
     return out
 
 
@@ -259,8 +246,9 @@ def a4(args) -> dict:
         verdict.append("raw calls do not track exposure beyond the shuffle band: leak-induced cycle false-positives are rare at kappa=0.1 on this slide (pre-registered honest outcome)")
     d = out["dapi"]
     verdict.append("DAPI (group level, weak proxy): both-positive median %.2f (KS %.2f), raw-only %.2f (KS %.2f), neither 0 by construction" % (d["both"]["median"], d["both"]["ks_vs_neither"], d["raw_only"]["median"], d["raw_only"]["ks_vs_neither"]))
-    verdict.append("planted world (primary adjudicator): %d/3 seeds pass; victim FPR raw %.2f vs z %.2f, AUROC raw %.2f vs z %.2f (seed means)" % (
-        sum(p["pass"] for p in out["planted"]), *[float(np.mean([p[k][m] for p in out["planted"]])) for k, m in (("raw", "victim_fpr"), ("z", "victim_fpr"), ("raw", "auroc_cycling"), ("z", "auroc_cycling"))]))
+    verdict.append("planted world (primary adjudicator, x~ gate): %d/3 powered, %d/3 seeds pass; excess FPR raw %.2f vs z %.2f, AUROC raw %.2f vs z %.2f (seed means)" % (
+        sum(p["power"]["passed"] for p in out["planted"]), sum(p["pass"] for p in out["planted"]),
+        *[float(np.mean([p[k][m] for p in out["planted"]])) for k, m in (("raw", "excess"), ("z", "excess"), ("raw", "auroc_cycling"), ("z", "auroc_cycling"))]))
     out["verdict"] = verdict
     out_dir = run_dir / "applications"
     out_dir.mkdir(exist_ok=True)
@@ -298,12 +286,12 @@ def a4_figure(out, dapi_vals, path):
     ax.set_xticks(range(1, len(keys) + 1)); ax.set_xticklabels(["%s\nn=%d" % (k, out["dapi"][k]["n"]) for k in keys], fontsize=8)
     ax.set_title("nuclear DAPI, standardised within type\n(S/G2M expected high; raw-only ~ neither if contamination)", fontsize=9)
     ax = axes[3]
-    for j, (k, m, lab) in enumerate((("raw", "victim_fpr", "victim FPR raw"), ("z", "victim_fpr", "victim FPR z"), ("raw", "auroc_cycling", "AUROC raw"), ("z", "auroc_cycling", "AUROC z"))):
+    for j, (k, m, lab) in enumerate((("raw", "excess", "excess FPR raw"), ("z", "excess", "excess FPR z"), ("raw", "auroc_cycling", "AUROC raw"), ("z", "auroc_cycling", "AUROC z"))):
         v = [p[k][m] for p in out["planted"]]
         ax.bar(j, np.mean(v), color="tab:red" if k == "raw" else "tab:blue", alpha=0.8)
         ax.scatter([j] * len(v), v, color="k", s=10, zorder=3)
     ax.set_xticks(range(4)); ax.set_xticklabels(["victim FPR\nraw", "victim FPR\nz", "AUROC\nraw", "AUROC\nz"], fontsize=8)
-    ax.set_title("planted world (3 seeds): victim FPR lower + AUROC kept = pass\n%d/3 pass" % sum(p["pass"] for p in out["planted"]), fontsize=9)
+    ax.set_title("planted world (3 seeds): excess FPR lower by >= 0.05 + AUROC kept = pass\n%d/3 pass" % sum(p["pass"] for p in out["planted"]), fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=130)
     plt.close(fig)

@@ -282,9 +282,11 @@ def type_degeneracy(z: np.ndarray, t: np.ndarray, train: np.ndarray,
     mutual information; ``mi_ratio = mi / h_t`` is in [0, 1] up to estimation
     noise. ``within_var_fraction = tr Cov(z|t) / tr Cov(z)`` (population-
     weighted pooled within-type covariance over the total, law of total
-    variance) on every cell passed in. Directions: within fraction 0 = z is a
-    function of t (degenerate); 1 = the type means coincide (z blind to type,
-    the failure NMI guards). A high ratio alone is expected -- the decoder
+    variance) on every cell passed in -- deliberately not capped at
+    ``MAX_EVAL_CELLS`` like the probe above it, since it is an exact O(n)
+    variance pass with no fit, cheap even at 407k cells. Directions: within
+    fraction 0 = z is a function of t (degenerate); 1 = the type means
+    coincide (z blind to type, the failure NMI guards). A high ratio alone is expected -- the decoder
     has no t, so z must carry it; degenerate = ratio near 1 AND within
     fraction near 0 (and a null type-mean reconstruction gap).
     """
@@ -305,8 +307,10 @@ def type_degeneracy(z: np.ndarray, t: np.ndarray, train: np.ndarray,
     ce = float(-log_prob[np.arange(len(rows_test)), t[rows_test]].mean())
     freq = (np.bincount(t[rows_train], minlength=k) / len(rows_train)).clip(1e-12)
     h_t = float(-np.log(freq)[t[rows_test]].mean())
-    accuracy = float((probe.classes_[log_prob.argmax(axis=1)]
-                      == t[rows_test]).mean())
+    # log_prob is k-wide (absent classes at log 1e-12), so its argmax is
+    # already a type index -- never index probe.classes_ with it (a type
+    # absent from the training rows made that overflow, GSE core 2026-09-17)
+    accuracy = float((log_prob.argmax(axis=1) == t[rows_test]).mean())
 
     total = z.var(axis=0)
     within = np.zeros(z.shape[1])

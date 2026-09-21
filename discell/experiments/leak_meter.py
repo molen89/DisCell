@@ -338,12 +338,18 @@ def merge_types(type_index: np.ndarray, type_names: np.ndarray,
 
 
 def _full_cell_ids(h5ad_path) -> np.ndarray:
-    """obs_names of a bundle without opening it: the qc matrix is full-slide."""
+    """obs_names of a bundle without opening it: the qc matrix is full-slide.
+
+    anndata writes the index either as a plain string dataset or, here, as a
+    ``nullable-string-array`` group (``values`` + ``mask``); both are read.
+    """
     import h5py
 
     with h5py.File(h5ad_path, "r") as f:
-        key = f["obs"].attrs["_index"]
-        return f["obs"][key][:].astype(str)
+        node = f["obs"][f["obs"].attrs["_index"]]
+        if isinstance(node, h5py.Group):
+            node = node["values"] if "values" in node else node["categories"]
+        return node[:].astype(str)
 
 
 def load_slide(dataset: str, variant: str, label_key: str | None,
@@ -527,7 +533,6 @@ def run(args: argparse.Namespace) -> dict:
     res = measure(slide, seed=args.seed, ratio=args.ratio, min_counts=args.min_counts,
                   tau_um=args.tau_um, tile_cells=args.tile_cells,
                   sender_profile=args.sender_profile)
-    from discell.data.loader import CellGraphDataset  # noqa: F401  (gene names via the bundle)
     import anndata as ad
 
     var = ad.read_h5ad(paths.dataset(args.dataset).bundle_dir / f"{args.variant}.h5ad",

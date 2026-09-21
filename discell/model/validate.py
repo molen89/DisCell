@@ -66,6 +66,7 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
     payload["config"].setdefault("gat_sources", "type_z")
     payload["config"].setdefault("subtract_leak", False)
     payload["config"].setdefault("gat_sink", False)
+    payload["config"].setdefault("class_mean_prior", False)
     config = TrainConfig(**payload["config"])
     data = assemble(dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
@@ -79,7 +80,8 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
                     gat_dim=config.gat_dim, heads=config.heads,
                     gat_sources=config.gat_sources,
                     subtract_leak=config.subtract_leak,
-                    gat_sink=config.gat_sink).to(device)
+                    gat_sink=config.gat_sink,
+                    class_mean_prior=config.class_mean_prior).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()
@@ -415,6 +417,12 @@ def landmark_inventory(data: ModelData, eps_um: float = 40.0,
             candidates.append((f"{name} (compact)",
                                np.flatnonzero(data.t == g), [g], 500))
     for class_name, members, types, size_cap in candidates:
+        if len(members) == 0:
+            # no cell of this class on this slide -- e.g. a cluster-labelled
+            # slide, where no type name matches "Endothelial"/"Smooth Muscle".
+            # DBSCAN rejects an empty array, so the class is dropped here.
+            log.info("landmark class dropped (no member cells): %s", class_name)
+            continue
         constituents, instance_of = _dbscan_instances(
             data.positions, members, eps_um, min_samples, size_cap)
         if constituents is None or instance_of.max() + 1 < 5:
@@ -865,6 +873,155 @@ def run_analyses(args: argparse.Namespace, run: str) -> dict:
     return results
 
 
+def _program_loadings(args, run: str, shared: dict):
+    """One run's effect-scale program loadings, cached as the atlas caches them.
+
+    Reuses ``runs/<run>/atlas/programs.npy`` when the atlas has already been
+    built for that run, so a companion pass over a sweep costs one GPU sweep
+    per *new* run. *shared* carries the slide-level pieces (gene names, the
+    expressed mask, the hallmark sets) filled in on the first load.
+    """
+    from discell.model.atlas import centred_program_basis, read_hallmarks
+
+    run_dir = paths.dataset(args.dataset).root / "runs" / run
+    if not (run_dir / "best.pt").exists():
+        return None
+    config, data, trainer, _, b_matrix = load_run(args.dataset, run,
+                                                  args.device)
+    if "expressed" not in shared:
+        shared["gene_names"] = np.asarray([str(g) for g in data.gene_names])
+        shared["expressed"] = (
+            np.asarray((data.x > 0).mean(axis=0)).ravel() >= 0.01)
+        shared["hallmarks"] = read_hallmarks(
+            set(shared["gene_names"][shared["expressed"]]))
+    cache = run_dir / "atlas" / "programs.npy"
+    if cache.exists() and not args.force:
+        loadings = np.load(cache)
+        info = {"rank": int(loadings.shape[1])}
+    else:
+        latents = collect_latents(trainer, data)
+        _, loadings, info = centred_program_basis(
+            latents["mu_w"], data.t, b_matrix, shared["expressed"])
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        np.save(cache, loadings.astype(np.float32))
+    return {"run": run, "kappa": config.kappa, "seed": config.seed,
+            "loadings": loadings, "b_matrix": b_matrix,
+            "rank": int(info["rank"])}
+
+
+def _survival_row(entry: dict, reference: dict, expressed: np.ndarray) -> dict:
+    """Shift-space overlap, per-axis cosines and the retired metric for one run."""
+    from discell.model.atlas import cross_seed
+    from discell.model.sweep import matched_correlation
+
+    row = cross_seed(entry["loadings"][expressed],
+                     reference["loadings"][expressed])
+    row["rank"] = entry["rank"]
+    row["reference_rank"] = reference["rank"]
+    row["legacy_signature_correlation"] = matched_correlation(
+        reference["b_matrix"], entry["b_matrix"])
+    return row
+
+
+def kappa_survival(args) -> dict:
+    """Programme survival across kappa, read in shift space.
+
+    The retired read (issues V11) was the matched-column correlation of B:
+    B's columns are identified only up to an invertible mix of w, so matching
+    them reads the null directions of a rank-deficient w as instability. The
+    atlas rewrite replaced it with the objects that are invariant -- the
+    effective-rank programs of within-type-centred w, compared by **shift-
+    space overlap** (how much of one run's realised-shift variance lies in the
+    other's program span), **per-axis |cos|** at the effective rank, and
+    **hallmark-label recurrence** (program order is not shared across fits;
+    the label set is). All three come from ``model.atlas`` unchanged, so the
+    companion and the atlas cannot drift apart.
+
+    Two references, as before: the pinned long-budget atlas run
+    (``--survival-reference``), which confounds kappa with the budget/optimum
+    gap, and the sweep-internal ``<tag>_k0.1_s<first seed>``, which does not.
+    The old numbers stay under ``"legacy"`` for one release.
+    """
+    from discell.model.atlas import hallmark_labels, label_recurrence
+    from discell.model.sweep import run_name
+
+    shared: dict = {}
+    entries: dict[str, dict] = {}
+    wanted = [run_name(kappa, seed, args.sweep_tag)
+              for seed in args.seeds for kappa in args.kappas]
+    internal_ref = run_name(0.1, args.seeds[0], args.sweep_tag)
+    for run in [args.survival_reference, internal_ref, *wanted]:
+        if run in entries:
+            continue
+        entry = _program_loadings(args, run, shared)
+        if entry is None:
+            log.warning("missing %s -- skipped", run)
+            continue
+        entries[run] = entry
+        log.info("%s: rank %d", run, entry["rank"])
+
+    expressed = shared["expressed"]
+    labels = {run: [[h["hallmark"] for h in
+                     hallmark_labels(e["loadings"][:, k], shared["gene_names"],
+                                     expressed, shared["hallmarks"])
+                     if h.get("significant")]
+                    for k in range(e["loadings"].shape[1])]
+              for run, e in entries.items()}
+
+    out_dir = paths.dataset(args.dataset).root / "experiments"
+    written = {}
+    for suffix, ref in (("", args.survival_reference),
+                        ("_internal", internal_ref)):
+        if ref not in entries:
+            log.warning("reference %s is missing -- %s not written", ref,
+                        suffix or "external")
+            continue
+        runs = [r for r in wanted if r in entries]
+        rows = {r: _survival_row(entries[r], entries[ref], expressed)
+                for r in runs}
+        by_kappa: dict = {}
+        for r in runs:
+            by_kappa.setdefault(f"{entries[r]['kappa']:g}", []).append(r)
+        by_seed: dict = {}
+        for r in runs:
+            by_seed.setdefault(str(entries[r]["seed"]), []).append(r)
+        payload = {
+            "reference": ref,
+            "metric": "shift-space overlap + per-axis |cos| at the effective "
+                      "rank (atlas.cross_seed) + hallmark-label recurrence",
+            "rank": {r: entries[r]["rank"] for r in runs},
+            "survival": rows,
+            "label_recurrence": {
+                "across_seeds_at_kappa": {
+                    k: label_recurrence({r: labels[r] for r in rs})
+                    for k, rs in by_kappa.items()},
+                "along_kappa_within_seed": {
+                    s: label_recurrence({r: labels[r] for r in rs})
+                    for s, rs in by_seed.items()},
+            },
+            "legacy": {
+                "note": "retired 2026-09-21 (issues V11): matched-column |corr|"
+                        " of B, kept for one release",
+                "signature_correlation": {
+                    r: rows[r]["legacy_signature_correlation"] for r in runs},
+            },
+        }
+        path = out_dir / f"atlas_kappa_survival{suffix}.json"
+        if path.exists():
+            # never lose a published number to a rerun: whatever the file
+            # said before is carried forward once, verbatim
+            stale = json.loads(path.read_text())
+            previous = (stale.get("legacy", {}).get("previous_published")
+                        or stale.get("signature_correlation")
+                        or stale.get("legacy", {}).get("signature_correlation"))
+            if previous:
+                payload["legacy"]["previous_published"] = previous
+        path.write_text(json.dumps(payload, indent=2, default=float))
+        log.info("wrote %s", path)
+        written[suffix or "external"] = payload
+    return written
+
+
 def sweep_companion(args: argparse.Namespace) -> None:
     """The per-kappa line plot: run the cheap analyses over a sweep tag."""
     import matplotlib
@@ -872,6 +1029,13 @@ def sweep_companion(args: argparse.Namespace) -> None:
     import matplotlib.pyplot as plt
 
     from discell.model.sweep import run_name
+
+    analyses = set(args.analyses.split(","))
+    if "kappa_survival" in analyses:
+        kappa_survival(args)
+        analyses.discard("kappa_survival")
+    if not analyses:
+        return
 
     rows = []
     for seed in args.seeds:
@@ -947,7 +1111,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--kappas", type=float, nargs="*",
                         default=[0.0, 0.05, 0.1, 0.2, 0.3, 0.4])
     parser.add_argument("--seeds", type=int, nargs="*", default=[0, 1, 2])
-    parser.add_argument("--analyses", default="morans,niche,landmarks,matrix")
+    parser.add_argument("--analyses",
+                        default="morans,niche,landmarks,matrix,kappa_survival",
+                        help="comma-separated; kappa_survival is sweep-only")
+    parser.add_argument("--survival-reference",
+                        default="ablation_gat_type_only_s1",
+                        help="external reference run for kappa-survival")
     parser.add_argument("--max-cells", type=int, default=MAX_CELLS_PER_TYPE)
     parser.add_argument("--n-perms", type=int, default=1000)
     parser.add_argument("--headline-k-only", action="store_true",
