@@ -36,12 +36,18 @@ def plant_programme(sim, planted: np.ndarray, genes: np.ndarray,
 
 
 def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
-                  seed: int = 0, subtract_leak: bool = False) -> dict:
+                  seed: int = 0, subtract_leak: bool = False,
+                  d_z: int = 8, kappa: float | None = None) -> dict:
     """Returns {"z", "w", "b_matrix", "fold", "rho_bar"} for *sim* (all cells).
 
     ``rho_bar`` is the model's own foreign influx per cell (posterior means,
     the pass-1 encoding), the quantity the counts-level correction
     ``x~ = x - kappa l rho_bar`` needs.
+
+    ``kappa`` overrides the kappa the *model* is told (the world keeps
+    ``sim.kappa``), which is what the 6b.8 mismatch axis varies; ``d_z``
+    sizes the model's intrinsic latent. Both default to the pinned values,
+    so every earlier caller is bit-identical.
     """
     import torch
 
@@ -53,7 +59,8 @@ def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
     torch.manual_seed(seed)
     device = device if torch.cuda.is_available() else "cpu"
     genes, k = sim.x.shape[1], sim.n_types
-    d_z, d_w = 8, 2
+    d_w = 2
+    kappa = float(sim.kappa if kappa is None else kappa)
     model = DisCell(genes, k, sim.phi.shape[1],
                     median_counts=float(np.median(sim.totals)),
                     d_z=d_z, d_w=d_w, hidden=128, gat_dim=16,
@@ -86,7 +93,7 @@ def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
     for _ in range(epochs):
         for j in rng.permutation(len(batches)):
             nodes, tensors = batches[j]
-            fwd = model(**tensors, kappa=sim.kappa)
+            fwd = model(**tensors, kappa=kappa)
             n = tensors["n_seeds"]
             seeds_t = torch.tensor(nodes[:n], device=device)
             terms = discell_loss(
@@ -106,7 +113,7 @@ def fit_synthetic(sim, epochs: int = 400, device: str = "cuda",
     fold = np.zeros(n_cells, dtype=np.int64)
     with torch.no_grad():
         for j, (nodes, tensors) in enumerate(batches):
-            fwd = model(**tensors, kappa=sim.kappa, sample=False)
+            fwd = model(**tensors, kappa=kappa, sample=False)
             s = tensors["n_seeds"]
             z_hat[nodes[:s]] = fwd.mu_z[:s].cpu().numpy()
             w_hat[nodes[:s]] = fwd.mu_w[:s].cpu().numpy()

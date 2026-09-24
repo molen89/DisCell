@@ -1,0 +1,132 @@
+[
+ {
+  "section": "Ovarian cancer (FFPE)",
+  "cells": 407120,
+  "seg": {
+   "Segmented by interior stain (18S)": 0.694,
+   "Segmented by boundary stain (ATP1A1+CD45+E-Cadherin)": 0.2857,
+   "Segmented by nucleus expansion of 5.0\u00b5m": 0.0202
+  },
+  "touch_frac": 0.03479001628605368,
+  "gap_median_um": 0.5214979310733127,
+  "zero_contact_edges": 0.4659727856581415,
+  "zero_face_edges": 0.0,
+  "rho_contact_gap": -0.8725134803136342,
+  "noleak_contact": 0.09764881677707454,
+  "noleak_face": 0.0,
+  "noleak_contact_sparse": 0.3362488180467378,
+  "noleak_contact_dense": 0.005665300776870491,
+  "noleak_face_sparse": 0.0,
+  "noleak_face_dense": 0.0,
+  "rho_share_gap_contact": -0.8180633995461891,
+  "rho_share_gap_face": -0.4806372154648913,
+  "density_q20_q80": [
+   6.0,
+   15.0
+  ]
+ },
+ {
+  "section": "Lung cancer (FFPE)",
+  "cells": 278324,
+  "seg": {
+   "Segmented by interior stain (18S)": 0.8199,
+   "Segmented by boundary stain (ATP1A1+CD45+E-Cadherin)": 0.1577,
+   "Segmented by nucleus expansion of 5.0\u00b5m": 0.0224
+  },
+  "touch_frac": 0.027265413078729938,
+  "gap_median_um": 2.011218536111637,
+  "zero_contact_edges": 0.5723470025731018,
+  "zero_face_edges": 0.0,
+  "rho_contact_gap": -0.864852545613637,
+  "noleak_contact": 0.11065276029491099,
+  "noleak_face": 0.0,
+  "noleak_contact_sparse": 0.2743126452723093,
+  "noleak_contact_dense": 0.007277807560472408,
+  "noleak_face_sparse": 0.0,
+  "noleak_face_dense": 0.0,
+  "rho_share_gap_contact": -0.8433878348416055,
+  "rho_share_gap_face": -0.5541811174542354,
+  "density_q20_q80": [
+   5.0,
+   14.0
+  ]
+ },
+ {
+  "section": "Ovary (fresh frozen)",
+  "cells": 1157637,
+  "seg": {
+   "Segmented by interior stain (18S)": 0.6951,
+   "Segmented by boundary stain (ATP1A1+CD45+E-Cadherin)": 0.2799,
+   "Segmented by nucleus expansion of 5.0\u00b5m": 0.025
+  },
+  "touch_frac": 0.06709997899484982,
+  "gap_median_um": 0.15190466427001198,
+  "zero_contact_edges": 0.3812835686558999,
+  "zero_face_edges": 0.0,
+  "rho_contact_gap": -0.8500058126041805,
+  "noleak_contact": 0.032081564441802206,
+  "noleak_face": 0.0,
+  "noleak_contact_sparse": 0.10646823301113963,
+  "noleak_contact_dense": 0.0008024095102639966,
+  "noleak_face_sparse": 0.0,
+  "noleak_face_dense": 0.0,
+  "rho_share_gap_contact": -0.8012715909491688,
+  "rho_share_gap_face": -0.5156656931295135,
+  "density_q20_q80": [
+   7.0,
+   12.0
+  ]
+ },
+ {
+  "section": "Lung TMA, section 1",
+  "cells": 1100349,
+  "seg": {
+   "Segmented by interior stain (18S)": 0.8673,
+   "Segmented by boundary stain (ATP1A1+CD45+E-Cadherin)": 0.1224,
+   "Segmented by nucleus expansion of 5.0\u00b5m": 0.0103
+  },
+  "touch_frac": 0.022345880278864496,
+  "gap_median_um": 0.640000000000191,
+  "zero_contact_edges": 0.46968408700667186,
+  "zero_face_edges": 0.0,
+  "rho_contact_gap": -0.8751658849793509,
+  "noleak_contact": 0.06301336956056885,
+  "noleak_face": 0.0,
+  "noleak_contact_sparse": 0.24816385996486268,
+  "noleak_contact_dense": 0.0012577968379073351,
+  "noleak_face_sparse": 0.0,
+  "noleak_face_dense": 0.0,
+  "rho_share_gap_contact": -0.8397678276119469,
+  "rho_share_gap_face": -0.5361042454196919,
+  "density_q20_q80": [
+   8.0,
+   18.0
+  ]
+ },
+ {
+  "section": "Lung TMA, section 2",
+  "cells": 1115054,
+  "seg": {
+   "Segmented by interior stain (18S)": 0.8689,
+   "Segmented by boundary stain (ATP1A1+CD45+E-Cadherin)": 0.1194,
+   "Segmented by nucleus expansion of 5.0\u00b5m": 0.0117
+  },
+  "touch_frac": 0.0224155663792394,
+  "gap_median_um": 0.6228361452758223,
+  "zero_contact_edges": 0.46605349124418904,
+  "zero_face_edges": 0.0,
+  "rho_contact_gap": -0.8751196856793303,
+  "noleak_contact": 0.06164017576583235,
+  "noleak_face": 0.0,
+  "noleak_contact_sparse": 0.2464162263272677,
+  "noleak_contact_dense": 0.0013822990996376135,
+  "noleak_face_sparse": 0.0,
+  "noleak_face_dense": 0.0,
+  "rho_share_gap_contact": -0.8388433038949145,
+  "rho_share_gap_face": -0.5340758536050614,
+  "density_q20_q80": [
+   8.0,
+   18.0
+  ]
+ }
+]

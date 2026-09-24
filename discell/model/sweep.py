@@ -34,6 +34,7 @@ from typing import Sequence
 import numpy as np
 
 from discell import paths
+from discell.model.degeneracy import W_GUARD_NICHES, w_channel_guard
 from discell.model.prepare import assemble
 from discell.model.train import TrainConfig, Trainer
 
@@ -41,10 +42,14 @@ log = logging.getLogger("discell.model.sweep")
 
 #: swept knob -> (run-name abbreviation, value type). The kappa abbreviation
 #: is "k" so that sweep3's run names keep working unchanged.
-PARAMS = {"kappa": ("k", float), "d_w": ("dw", int), "alpha_w": ("aw", float)}
+PARAMS = {"kappa": ("k", float), "d_w": ("dw", int), "alpha_w": ("aw", float),
+          "alpha_z": ("az", float)}
 DEFAULT_VALUES = {"kappa": (0.0, 0.05, 0.1, 0.2, 0.3, 0.4),
                   "d_w": (2, 3, 6, 8),
-                  "alpha_w": (0.03, 0.05, 0.07, 0.1, 0.2, 0.3)}
+                  "alpha_w": (0.03, 0.05, 0.07, 0.1, 0.2, 0.3),
+                  # the alpha_z ladder is per-dataset (multiples of
+                  # 1/mean-count), so --values is required in practice
+                  "alpha_z": (0.00175, 0.0035, 0.007, 0.014)}
 DEFAULT_SEEDS = (0, 1, 2)
 
 
@@ -211,6 +216,7 @@ def report(args: argparse.Namespace) -> dict:
     import torch
 
     from discell.model.networks import DisCell
+    from discell.model.validate import niche_labels
 
     ds = paths.dataset(args.dataset)
     data = assemble(args.dataset, args.variant, args.embeddings,
@@ -241,6 +247,11 @@ def report(args: argparse.Namespace) -> dict:
     # -- per-cell effects: |w| per type, and recon stratified by QC --------
     per_type_w: dict = {}
     strata: dict = {}
+    # the dead-context-channel guard (2026-09-23): one entry per run, and the
+    # same two numbers merged into that run's row of the table
+    w_guard: dict = {}
+    niche_cache: dict = {}
+    row_by_key = {(r["value"], r["seed"]): r for r in rows}
     device = "cuda" if torch.cuda.is_available() else "cpu"
     lost = data.graph.pruned_per_cell
     for (value, seed), entry in loaded.items():
@@ -264,6 +275,21 @@ def report(args: argparse.Namespace) -> dict:
                            for b in trainer.val_batches])
 
         key = run_name(value, seed, "", args.param)
+        if seed not in niche_cache:
+            niche_cache[seed] = niche_labels(data, W_GUARD_NICHES, seed)
+        guard = w_channel_guard(sweep_out["mu_w"], niche_cache[seed][val_rows],
+                                data.t[val_rows], seed=seed)
+        w_guard[key] = guard
+        row_by_key[(value, seed)].update(
+            w_niche_mi=guard["w_niche_mi"],
+            w_niche_mi_floor=guard["w_niche_mi_floor"],
+            w_niche_mi_excess=guard["w_niche_mi_excess"],
+            w_var_fraction_across_cells=guard["w_var_fraction_across_cells"],
+            failed_fit=guard["flag"])
+        if guard["flag"]:
+            log.warning("%s: %s (I(niche;w) %.4f, floor %.4f)", key,
+                        guard["flag"], guard["w_niche_mi"],
+                        guard["w_niche_mi_floor"])
         w_norm = np.linalg.norm(sweep_out["mu_w"], axis=1)
         per_type_w[key] = {
             str(data.type_names[g]): float(w_norm[data.t[val_rows] == g].mean())
@@ -282,6 +308,7 @@ def report(args: argparse.Namespace) -> dict:
 
     summary = {"runs": rows, "B_stability": stability,
                "per_type_w_norm": per_type_w, "recon_strata": strata,
+               "w_channel_guard": w_guard,
                "config": {"param": args.param, "values": list(args.values),
                           "seeds": list(args.seeds), "dataset": args.dataset,
                           "variant": args.variant, "label_key": args.label_key,

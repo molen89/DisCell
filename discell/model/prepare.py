@@ -275,6 +275,12 @@ class ModelData:
     def n_cells(self) -> int:
         return self.graph.n_cells
 
+    @property
+    def n_comp(self) -> int:
+        """Width of v_block's composition block (y minus one column, K-1);
+        the image PCs follow it."""
+        return self.graph.y.shape[1] - 1
+
 
 def assemble(dataset, variant: str, embeddings: str,
              tile_cells: int = 4096, val_fraction: float = 0.15,

@@ -1,0 +1,20 @@
+
+\begin{table}[t]
+\centering
+\caption{Segmented-polygon contact as a leakage kernel, against the Voronoi-face kernel $\beta$, on every section and on the model's edge set (Delaunay adjacency pruned at $40\um$). Both kernels use the same distance decay $\exp(-d_{ij}/\tau)$ and the same row normalisation. The contact kernel weights an edge by the length of membrane along which the two segmented polygons run within $1\um$ of each other; $\beta$ weights it by the Voronoi face. \emph{Touching}: adjacent pairs whose polygons share boundary. \emph{No-leak cells}: connected cells whose kernel row is all zero, so that they receive no leakage at any $\kappa$; \emph{sparse} and \emph{dense} are the lowest and highest fifth of cells by the number of centroids within $20\um$. $\rho$: Spearman correlation, over edges, between a neighbour's share of the row and the gap between the two polygons. The Voronoi kernel has no zero-weight edges and no no-leak cells on any section. Its dependence on the gap is that of the distance decay alone (shares from the decay alone: $\rho$ between $-0.49$ and $-0.62$).}
+\label{tab:contact}
+\small
+\begin{tabular}{@{}lrrrrrrrrrr@{}}
+\toprule
+& \multicolumn{3}{c}{Segmented by (\%)} & & & \multicolumn{3}{c}{No-leak cells, contact (\%)} & \multicolumn{2}{c}{$\rho$(share, gap)} \\
+\cmidrule(lr){2-4}\cmidrule(lr){7-9}\cmidrule(l){10-11}
+Section & interior & boundary & nucleus & Touching (\%) & Zero-contact edges (\%) & all & sparse & dense & contact & $\beta$ \\
+\midrule
+Ovarian cancer (FFPE) & 69 & 29 & 2.0 & 3.5 & 47 & 9.8 & 33.6 & 0.6 & $-0.82$ & $-0.48$ \\
+Lung cancer (FFPE) & 82 & 16 & 2.2 & 2.7 & 57 & 11.1 & 27.4 & 0.7 & $-0.84$ & $-0.55$ \\
+Ovary (fresh frozen) & 70 & 28 & 2.5 & 6.7 & 38 & 3.2 & 10.6 & 0.1 & $-0.80$ & $-0.52$ \\
+Lung TMA, section A & 87 & 12 & 1.0 & 2.2 & 47 & 6.3 & 24.8 & 0.1 & $-0.84$ & $-0.54$ \\
+Lung TMA, section B & 87 & 12 & 1.2 & 2.2 & 47 & 6.2 & 24.6 & 0.1 & $-0.84$ & $-0.53$ \\
+\bottomrule
+\end{tabular}
+\end{table}

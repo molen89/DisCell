@@ -73,6 +73,9 @@ TRUST_GENES = 100        #: ... and scored on at least this many genes
 TOP_GENES = 50            #: size of the predicted-up / observed-up gene lists
 TUMOUR_BANDS = (0.1, 0.3, 0.5, 0.7, 0.9)  #: cuts on the smoothed tumour field
 EPS = 1e-8
+#: the model-vs-model read's variants: group-mean-w target, own-posterior-w
+#: target ("_own", the honest target of devlog 2026-09-21), each also on HVGs
+MODEL_SUFFIXES = ("", "_hvg", "_own", "_own_hvg")
 
 
 def collect_channels(trainer, group: np.ndarray, n_groups: int,
@@ -92,11 +95,20 @@ def collect_channels(trainer, group: np.ndarray, n_groups: int,
     neighbour composition (and t) only. Only the prior mean is collected
     then: rho and rho_bar are the real neighbours' and come from the
     plain pass.
+
+    Under a non-global leak form (review R12, ``DisCell.kappa_mode``) the
+    plain pass also collects ``kappa``, the group mean of the coefficient
+    each cell was decoded with -- ``(n_groups, 1)`` for "depth", ``(n_groups,
+    G)`` for "gene" -- which :func:`group_kappa` hands to the mixtures.
+    Under "global" nothing is added and every output is as before.
     """
     import torch
 
     keys = ("prior_w", "c") if phi_by_type is not None else (
         "prior_w", "c", "rho", "rho_bar")
+    if (phi_by_type is None
+            and getattr(trainer.model, "kappa_mode", "global") != "global"):
+        keys = keys + ("kappa",)
     acc: dict = {}
     counts = None
     with torch.no_grad():
@@ -118,6 +130,8 @@ def collect_channels(trainer, group: np.ndarray, n_groups: int,
                       "c": fwd.c[:n][take],
                       "rho": fwd.log_rho[:n].exp()[take],
                       "rho_bar": fwd.rho_bar[take]}
+            if "kappa" in keys:
+                values["kappa"] = fwd.kappa_eff[take]
             if counts is None:
                 counts = torch.zeros(n_groups, dtype=torch.float64,
                                      device=device)
@@ -135,6 +149,31 @@ def collect_channels(trainer, group: np.ndarray, n_groups: int,
     out = {k: (v / denom).cpu().numpy() for k, v in acc.items()}
     out["n"] = counts.cpu().numpy()
     return out
+
+
+def group_kappa(channels: dict, gid: int, kappa: float):
+    """The leak coefficient of one group, for the group-level mixtures.
+
+    *kappa* itself -- the same float, so every formula taking it is the
+    pinned one bit for bit -- unless the channels carry a ``kappa`` block
+    (a non-global leak form, review R12): then the group mean of kappa_i (a
+    float, "depth") or of kappa_g (a ``(G,)`` vector, "gene").
+    """
+    if "kappa" not in channels:
+        return kappa
+    k = channels["kappa"][gid]
+    return float(k[0]) if k.shape[-1] == 1 else k
+
+
+def _stack_kappa(values: list):
+    """One kappa per row, for rows drawn from several groups: the shared
+    value itself when every row has the same one (always under the global
+    form), else ``(n, 1)`` or ``(n, G)``."""
+    first = values[0]
+    if all(np.array_equal(v, first) for v in values):
+        return first
+    return np.stack([np.atleast_1d(np.asarray(v, dtype=np.float64))
+                     for v in values])
 
 
 def score_shift(prediction: np.ndarray, observed: np.ndarray) -> dict:
@@ -484,10 +523,15 @@ def transport_check(args: argparse.Namespace) -> dict:
             program = b_matrix @ (mpsi_b - mpsi_a)
             program_phi_fixed = b_matrix @ (prior_w_phi_fixed[gid_b]
                                             - prior_w_phi_fixed[gid_a])
-            full = (np.log((1 - kappa) * rho_b + kappa * bar_b + EPS)
-                    - np.log((1 - kappa) * rho_a + kappa * bar_a + EPS))
-            leak_only = (np.log((1 - kappa) * rho_a + kappa * bar_b + EPS)
-                         - np.log((1 - kappa) * rho_a + kappa * bar_a + EPS))
+            # each side leaks at its own group's coefficient; the
+            # counterfactual's influx is B's donors', so it leaks at B's
+            # (review R12 forms; the global form is kappa on both sides)
+            k_a = group_kappa(channels, gid_a, kappa)
+            k_b = group_kappa(channels, gid_b, kappa)
+            full = (np.log((1 - k_b) * rho_b + k_b * bar_b + EPS)
+                    - np.log((1 - k_a) * rho_a + k_a * bar_a + EPS))
+            leak_only = (np.log((1 - k_b) * rho_a + k_b * bar_b + EPS)
+                         - np.log((1 - k_a) * rho_a + k_a * bar_a + EPS))
 
             # observed shift on HELD-OUT tiles, depth-normalised
             obs_a = np.asarray(x_rate[members["A"][1]].mean(axis=0)).ravel()
@@ -880,12 +924,16 @@ def _decode_cells(trainer, mu_z: np.ndarray, w: np.ndarray,
     w through B, the intrinsic programme through a(z), the leak mixed in
     probability space at the model's own kappa -- with the context and the
     influx substituted rather than read off the cell's real neighbours.
+    *kappa* is that float, or (review R12 leak forms) an array from
+    :func:`group_kappa` / :func:`_stack_kappa`: ``(G,)`` shared by every row,
+    ``(n, 1)`` or ``(n, G)`` one per row.
     """
     import torch
 
     from discell.model.equations import leakage_mix
 
     device = next(trainer.model.parameters()).device
+    per_row = np.ndim(kappa) == 2
     out = []
     with torch.no_grad():
         for start in range(0, len(mu_z), chunk):
@@ -896,7 +944,12 @@ def _decode_cells(trainer, mu_z: np.ndarray, w: np.ndarray,
             bar = torch.as_tensor(np.asarray(rho_bar)[sl], dtype=torch.float32,
                                   device=device)
             rho = trainer.model.log_rho(z, ww).exp()
-            out.append(leakage_mix(rho, bar, kappa).exp().cpu().numpy())
+            k = kappa
+            if np.ndim(kappa):
+                k = torch.as_tensor(np.asarray(kappa)[sl] if per_row
+                                    else np.asarray(kappa),
+                                    dtype=torch.float32, device=device)
+            out.append(leakage_mix(rho, bar, k).exp().cpu().numpy())
     return np.vstack(out)
 
 
@@ -914,6 +967,113 @@ def _niche_w(trainer, c_mean: np.ndarray, type_index: int,
                             device=device)
         return trainer.model.prior_w(
             torch.cat([c, onehot], dim=-1)).cpu().numpy()[0]
+
+
+def collect_own_p(trainer, wanted: np.ndarray, n_cells: int) -> np.ndarray:
+    """``p`` as the model actually decodes *wanted* cells: their own posterior
+    mean z and w, their own context c and their own foreign influx.
+
+    This is ``Forward.log_p`` under ``sample=False`` -- the same decode path
+    ``_decode_cells`` walks, with nothing substituted -- gathered for a
+    chosen subset of cells only. The subset matters: the per-cell rate
+    matrix is ``n_cells x n_genes`` float32 (23 GB on the FF slide), while
+    the target cells actually scored in a run of panels are a small
+    fraction of that.
+
+    Returns ``(len(wanted), G)`` in the order of *wanted*.
+    """
+    import torch
+
+    wanted = np.asarray(wanted)
+    pos = np.full(n_cells, -1, dtype=np.int64)
+    pos[wanted] = np.arange(len(wanted))
+    out = None
+    with torch.no_grad():
+        for batch in trainer.train_batches + trainer.val_batches:
+            n = batch["n_seeds"]
+            nodes = np.asarray(batch["nodes"])[:n]
+            where = pos[nodes]
+            take = np.flatnonzero(where >= 0)
+            if not len(take):
+                continue
+            fwd = trainer.model(**trainer._forward_kwargs(batch),
+                                kappa=trainer.config.kappa, sample=False)
+            p = fwd.log_p[:n].exp()[torch.as_tensor(
+                take, device=fwd.log_p.device)].float().cpu().numpy()
+            if out is None:
+                out = np.zeros((len(wanted), p.shape[1]), dtype=np.float32)
+            out[where[take]] = p
+    if out is None:
+        raise RuntimeError("no batch carried any of the wanted cells")
+    return out
+
+
+def own_target_pass(trainer, deferred: list[dict], w_of: dict,
+                    mu_z: np.ndarray, mu_w: np.ndarray, x_rate,
+                    n_cells: int, seed: int, device: str,
+                    n_boot: int, on_hvg, twins: bool) -> None:
+    """Reads A and B again with an **honest target** (todo 8.3, devlog 6a.6).
+
+    The first round decoded the target cells at the same niche-group mean w
+    the transported source cells were given, so both sides shared w exactly
+    and differed only through z. Here every target cell is decoded at its
+    OWN posterior mu_w with its own context and its own foreign influx --
+    what the model says that cell actually is -- while the source side is
+    unchanged (transported = source cell at the target group's w and influx,
+    untransported = at its own group's). The results are written into each
+    panel under ``scores_model_own`` / ``twins_own`` (plus ``_hvg``), beside
+    the group-target keys, which stay bit-identical: this pass draws from
+    its own generators and runs after every other score.
+    """
+    wanted = np.unique(np.concatenate([d["tgt"] for d in deferred]))
+    log.info("own-target read: decoding %d unique target cells", len(wanted))
+    own_p = collect_own_p(trainer, wanted, n_cells)
+    pos = np.full(n_cells, -1, dtype=np.int64)
+    pos[wanted] = np.arange(len(wanted))
+    seed3 = seed + 101
+    for d in deferred:
+        rows, own, tgt, target = d["rows"], d["own"], d["tgt"], d["target"]
+        entry = d["entry"]
+        if entry is None:
+            continue
+        g = target[1]
+        w_a, bar_a, k_a = w_of[target]
+        p_trans = _decode_cells(trainer, mu_z[rows],
+                                np.tile(w_a, (len(rows), 1)),
+                                np.tile(bar_a, (len(rows), 1)), k_a)
+        p_unt = _decode_cells(
+            trainer, mu_z[rows],
+            np.stack([w_of[(int(k), g)][0] for k in own]),
+            np.stack([w_of[(int(k), g)][1] for k in own]),
+            _stack_kappa([w_of[(int(k), g)][2] for k in own]))
+        p_tgt_own = own_p[pos[tgt]].astype(np.float64)
+        p_source_obs = np.asarray(x_rate[rows].todense())
+        entry["scores_model_own"] = distribution_scores(
+            p_trans, p_unt, p_tgt_own, p_source_obs,
+            np.random.default_rng(seed3), device=device, n_boot=n_boot)
+        if on_hvg is not None:
+            entry["scores_model_own_hvg"] = distribution_scores(
+                on_hvg(p_trans), on_hvg(p_unt), on_hvg(p_tgt_own),
+                on_hvg(p_source_obs), np.random.default_rng(seed3 + 1),
+                device=device, n_boot=n_boot)
+        if twins:
+            entry["twins_own"] = twin_scores(
+                p_trans, p_unt, p_tgt_own, mu_z[rows], mu_z[tgt],
+                np.random.default_rng(seed3 + 2), n_boot=n_boot)
+            if on_hvg is not None:
+                entry["twins_own_hvg"] = twin_scores(
+                    on_hvg(p_trans), on_hvg(p_unt), on_hvg(p_tgt_own),
+                    mu_z[rows], mu_z[tgt],
+                    np.random.default_rng(seed3 + 2), n_boot=n_boot)
+        log.info("    own-target %s ->%d: gap closed %.2f (type-mean %.2f)%s",
+                 entry.get("type", "?")[:18], target[0],
+                 entry["scores_model_own"].get("gap_closed", float("nan")),
+                 entry["scores_model_own"].get("gap_closed_type_mean",
+                                               float("nan")),
+                 ("" if "twins_own" not in entry else
+                  " | twins gap %.2f margin %.2f" % (
+                      entry["twins_own"].get("gap_closed", float("nan")),
+                      entry["twins_own"].get("twin_margin", float("nan")))))
 
 
 def distribution_check(args: argparse.Namespace,
@@ -935,6 +1095,7 @@ def distribution_check(args: argparse.Namespace,
     mu_z = latents["mu_z"]
     connected = data.graph.degrees > 0
     source_kind = getattr(args, "niche_source", "kmeans")
+    target_side = getattr(args, "target_side", "both")
     labels = (tumour_band_labels(data) if source_kind == "tumour-band"
               else niche_labels(data, args.niches, config.seed))
     rng = np.random.default_rng(config.seed)
@@ -973,12 +1134,19 @@ def distribution_check(args: argparse.Namespace,
                 train_rows[(k, g)] = tr
                 test_rows[(k, g)] = te
 
-    # the niche context/leak each group supplies, once
+    # the niche context/leak each group supplies, once (and the kappa its
+    # cells leak at: the float kappa under the global form)
     w_of: dict = {}
     for (k, g) in train_rows:
         gid = k * n_types + g
         w_of[(k, g)] = (_niche_w(trainer, channels["c"][gid], g, n_types),
-                        channels["rho_bar"][gid])
+                        channels["rho_bar"][gid],
+                        group_kappa(channels, gid, kappa))
+
+    # the honest-target read (6a.6) runs after every panel has been scored,
+    # so that it adds no draw to the rng stream the existing keys were
+    # produced with; each panel records the rows it actually used
+    deferred: list[dict] = []
 
     def score_panel(src_rows: np.ndarray, src_niche: np.ndarray,
                     target: tuple[int, int]) -> dict:
@@ -987,13 +1155,14 @@ def distribution_check(args: argparse.Namespace,
         keep = rng.permutation(len(src_rows))[:SIZE_CAP]
         rows, own = src_rows[keep], src_niche[keep]
         g = target[1]
-        w_a, bar_a = w_of[target]
+        w_a, bar_a, k_a = w_of[target]
         w_to = np.tile(w_a, (len(rows), 1))
         bar_to = np.tile(bar_a, (len(rows), 1))
         w_own = np.stack([w_of[(int(k), g)][0] for k in own])
         bar_own = np.stack([w_of[(int(k), g)][1] for k in own])
-        p_trans = _decode_cells(trainer, mu_z[rows], w_to, bar_to, kappa)
-        p_unt = _decode_cells(trainer, mu_z[rows], w_own, bar_own, kappa)
+        k_own = _stack_kappa([w_of[(int(k), g)][2] for k in own])
+        p_trans = _decode_cells(trainer, mu_z[rows], w_to, bar_to, k_a)
+        p_unt = _decode_cells(trainer, mu_z[rows], w_own, bar_own, k_own)
         tgt = test_rows[target]
         tgt = tgt[rng.permutation(len(tgt))[:SIZE_CAP]]
         p_target = np.asarray(x_rate[tgt].todense())
@@ -1013,7 +1182,7 @@ def distribution_check(args: argparse.Namespace,
         seed2 = config.seed + 1
         p_tgt_model = _decode_cells(
             trainer, mu_z[tgt], np.tile(w_a, (len(tgt), 1)),
-            np.tile(bar_a, (len(tgt), 1)), kappa)
+            np.tile(bar_a, (len(tgt), 1)), k_a)
         out["scores_model"] = distribution_scores(
             p_trans, p_unt, p_tgt_model, p_source_obs,
             np.random.default_rng(seed2), device=device, n_boot=args.boot)
@@ -1031,6 +1200,8 @@ def distribution_check(args: argparse.Namespace,
                     on_hvg(p_trans), on_hvg(p_unt), on_hvg(p_tgt_model),
                     mu_z[rows], mu_z[tgt],
                     np.random.default_rng(seed2 + 2), n_boot=args.boot)
+        deferred.append({"entry": None, "rows": rows, "own": own,
+                         "tgt": tgt, "target": target})
         return out
 
     results: dict = {"run": args.run, "kappa": kappa,
@@ -1046,10 +1217,11 @@ def distribution_check(args: argparse.Namespace,
             panel = score_panel(src, np.full(len(src), niche_a),
                                 (niche_b, g))
             scores, matched = panel["scores"], panel["scores_count_matched"]
-            results["pairwise"].append(
-                {"pair": [int(niche_a), int(niche_b)], "type": names[g],
-                 "target": int(niche_b), "n_source": int(len(src)),
-                 "n_target": int(len(test_rows[(niche_b, g)])), **panel})
+            entry = {"pair": [int(niche_a), int(niche_b)], "type": names[g],
+                     "target": int(niche_b), "n_source": int(len(src)),
+                     "n_target": int(len(test_rows[(niche_b, g)])), **panel}
+            results["pairwise"].append(entry)
+            deferred[-1]["entry"] = entry
             log.info("distribution pairwise %s %d->%d: gap closed %.2f "
                      "(count-matched %.2f; mmd2 %.4g vs %.4g, floor %.4g)",
                      names[g][:18], niche_a, niche_b,
@@ -1077,14 +1249,21 @@ def distribution_check(args: argparse.Namespace,
                               for k in others])
         panel = score_panel(src, own, (niche_a, g))
         scores, matched = panel["scores"], panel["scores_count_matched"]
-        results["leave_one_out"].append(
-            {"target": int(niche_a), "type": names[g],
-             "n_source": int(len(src)), "n_source_niches": len(others),
-             "n_target": int(len(test_rows[(niche_a, g)])), **panel})
+        entry = {"target": int(niche_a), "type": names[g],
+                 "n_source": int(len(src)), "n_source_niches": len(others),
+                 "n_target": int(len(test_rows[(niche_a, g)])), **panel}
+        results["leave_one_out"].append(entry)
+        deferred[-1]["entry"] = entry
         log.info("distribution leave-one-out %s ->%d: gap closed %.2f "
                  "(count-matched %.2f; %d source niches)", names[g][:18],
                  niche_a, scores.get("gap_closed", float("nan")),
                  matched.get("gap_closed", float("nan")), len(others))
+
+    if target_side == "both" and deferred:
+        own_target_pass(trainer, deferred, w_of, mu_z, latents["mu_w"],
+                        x_rate, data.graph.n_cells, config.seed,
+                        device, args.boot, on_hvg if hvg is not None else None,
+                        twins)
 
     results["summary"] = {
         "pairwise": distribution_summary(results["pairwise"]),
@@ -1094,7 +1273,7 @@ def distribution_check(args: argparse.Namespace,
                                          "scores_count_matched"),
         "leave_one_out": distribution_summary(results["leave_one_out"],
                                               "scores_count_matched")}
-    for suffix in ("", "_hvg"):
+    for suffix in MODEL_SUFFIXES:
         key = f"scores_model{suffix}"
         summary = {"pairwise": distribution_summary(results["pairwise"], key),
                    "leave_one_out": distribution_summary(
@@ -1135,7 +1314,7 @@ def distribution_check(args: argparse.Namespace,
 
     results["pooling"] = pooling("scores")
     results["pooling_count_matched"] = pooling("scores_count_matched")
-    for suffix in ("", "_hvg"):
+    for suffix in MODEL_SUFFIXES:
         if f"summary_model{suffix}" in results:
             results[f"pooling_model{suffix}"] = pooling(
                 f"scores_model{suffix}")
@@ -1165,7 +1344,7 @@ def distribution_check(args: argparse.Namespace,
     results["agreement_with_mean_read"] = agreement("scores")
     results["agreement_with_mean_read_count_matched"] = agreement(
         "scores_count_matched")
-    for suffix in ("", "_hvg"):
+    for suffix in MODEL_SUFFIXES:
         if f"summary_model{suffix}" in results:
             results[f"agreement_with_mean_read_model{suffix}"] = agreement(
                 f"scores_model{suffix}")
@@ -1185,11 +1364,14 @@ def distribution_check(args: argparse.Namespace,
         twin_res["summary"] = {
             "pairwise": twin_summary(twin_res["pairwise"]),
             "leave_one_out": twin_summary(twin_res["leave_one_out"])}
-        if hvg is not None:
-            twin_res["summary_hvg"] = {
-                "pairwise": twin_summary(twin_res["pairwise"], "twins_hvg"),
-                "leave_one_out": twin_summary(twin_res["leave_one_out"],
-                                              "twins_hvg")}
+        for suffix in ("_hvg", "_own", "_own_hvg"):
+            key = f"twins{suffix}"
+            summary = {"pairwise": twin_summary(twin_res["pairwise"], key),
+                       "leave_one_out": twin_summary(
+                           twin_res["leave_one_out"], key)}
+            if summary["pairwise"].get("n_panels") or \
+                    summary["leave_one_out"].get("n_panels"):
+                twin_res[f"summary{suffix}"] = summary
         twin_figure(twin_res, out_dir / f"{stem}_twins.png")
         (out_dir / f"{stem}_twins.json").write_text(
             json.dumps(twin_res, indent=2, default=float))
@@ -1540,6 +1722,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                              "level MMD read (which always also produces "
                              "the model-vs-model variant), the matched-twin "
                              "per-cell read, or both")
+    parser.add_argument("--target-side", default="both",
+                        choices=("group", "both"),
+                        help="group: the target cloud is decoded at the "
+                             "niche-group mean w (the original reads A/B); "
+                             "both: also decode every target cell at its OWN "
+                             "posterior mu_w and real context/leak and report "
+                             "the *_own keys beside (default)")
     parser.add_argument("--hvg", type=int, default=0,
                         help="also run the new reads on this many Scanpy "
                              "seurat HVGs (0 disables)")

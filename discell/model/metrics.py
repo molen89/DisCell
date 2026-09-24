@@ -121,6 +121,219 @@ def probe_delta_ce(z: np.ndarray, t: np.ndarray, v: np.ndarray,
             "baseline_ce": baseline}
 
 
+# -- the probe per block (review R20 + R22, devlog 2026-09-24 15:00) ---------
+
+#: a block passes when |gain - floor mean| <= this many floor sd
+PROBE_BAND_SD = 2.0
+#: keeps the log ratio finite; negligible against any graded column's MSE
+_MSE_EPS = 1e-12
+#: a column whose held-out variance is at most this is constant on the
+#: held-out cells (a type that is no held-out cell's neighbour): it has
+#: nothing to grade, and its gain would be a ratio of rounding errors
+#: (-0.3 nats on two such columns of the GSE dual section)
+_CONSTANT_VAR = 1e-12
+
+
+def _permute_within_type(z: np.ndarray, t: np.ndarray, rng) -> np.ndarray:
+    out = z.copy()
+    for k in np.unique(t):
+        rows = np.flatnonzero(t == k)
+        out[rows] = z[rows[rng.permutation(len(rows))]]
+    return out
+
+
+def _ridge_fit_predict(train_design: np.ndarray, train_target: np.ndarray,
+                       test_design: np.ndarray) -> np.ndarray:
+    """The ridge of :func:`probe_delta_ce` (intercept, penalty 1e-3)."""
+    d = np.hstack([train_design, np.ones((len(train_design), 1))])
+    gram = d.T @ d + 1e-3 * np.eye(d.shape[1])
+    coef = np.linalg.solve(gram, d.T @ train_target)
+    return np.hstack([test_design, np.ones((len(test_design), 1))]) @ coef
+
+
+def _probe_columns(z, t, v, vbar_t, train, test, seed, n_perm, fit_predict):
+    """Held-out MSE per column of v: type-mean baseline, probe on (z, t), and
+    the probe on *n_perm* within-type permutations of z.
+
+    The random draws come in :func:`probe_delta_ce`'s order (first
+    permutation, training subsample, test subsample), then the remaining
+    permutations, so permutation 0 and the split are the legacy probe's.
+    """
+    rng = np.random.default_rng(seed)
+    permuted = [_permute_within_type(z, t, rng)]
+    train_rows = _subsample_rows(np.flatnonzero(train), rng)
+    test_rows = _subsample_rows(np.flatnonzero(test), rng)
+    permuted += [_permute_within_type(z, t, rng) for _ in range(n_perm - 1)]
+    onehot = np.eye(int(t.max()) + 1, dtype=np.float64)
+    v_test = v[test_rows]
+
+    def fit(latent: np.ndarray) -> tuple[np.ndarray, float]:
+        design = lambda rows: np.hstack([latent[rows], onehot[t[rows]]])
+        sq = (v_test - fit_predict(design(train_rows), v[train_rows],
+                                   design(test_rows))) ** 2
+        return sq.mean(axis=0).astype(np.float64), float(sq.mean())
+
+    base = (v_test - vbar_t[t[test_rows]]) ** 2
+    probe, probe_pooled = fit(z)
+    floors = [fit(p) for p in permuted]
+    return {"graded": v_test.astype(np.float64).var(axis=0) > _CONSTANT_VAR,
+            "baseline": base.mean(axis=0).astype(np.float64),
+            "baseline_ce": float(base.mean()),
+            "probe": probe, "probe_pooled": probe_pooled,
+            "floor": [f[0] for f in floors],
+            "floor_pooled": [f[1] for f in floors],
+            "n_train": int(len(train_rows)), "n_test": int(len(test_rows))}
+
+
+def _block(base: np.ndarray, probe: np.ndarray, floors: list,
+           cols: np.ndarray) -> dict:
+    """Mean per-column gain of one block against its permutation floor."""
+    def gain(mse: np.ndarray) -> np.ndarray:
+        return 0.5 * np.log((base[cols] + _MSE_EPS) / (mse[cols] + _MSE_EPS))
+
+    per_col = gain(probe)
+    draws = [float(gain(f).mean()) for f in floors]
+    mean, sd = float(np.mean(draws)), float(np.std(draws, ddof=1))
+    excess = float(per_col.mean()) - mean
+    return {"gain": float(per_col.mean()), "floor_mean": mean, "floor_sd": sd,
+            "excess": excess,
+            "excess_in_sd": excess / sd if sd > 0 else float("inf"),
+            "pass": bool(abs(excess) <= PROBE_BAND_SD * sd),
+            "n_cols": int(len(cols)), "gain_per_col": per_col.tolist(),
+            "floor_draws": draws}
+
+
+def _blocks(cols: dict, n_comp: int, n_perm: int, seed: int, family: str,
+            legacy_scale: np.ndarray | None = None) -> dict:
+    """Assemble the per-block record from :func:`_probe_columns` output.
+
+    *legacy_scale* (per-column variances) converts standardised MSEs back to
+    the original units for the pooled legacy dCE.
+    """
+    n_cols = len(cols["baseline"])
+    out = {"family": family, "n_comp": int(n_comp), "n_img": n_cols - n_comp,
+           "n_perm": int(n_perm), "seed": int(seed),
+           "n_train": cols["n_train"], "n_test": cols["n_test"]}
+    for name, sel in (("comp", np.arange(n_comp)),
+                      ("img", np.arange(n_comp, n_cols)),
+                      ("pooled", np.arange(n_cols))):
+        graded = sel[cols["graded"][sel]]
+        out[name] = _block(cols["baseline"], cols["probe"], cols["floor"],
+                           graded)
+        out[name]["constant_cols"] = sel[~cols["graded"][sel]].tolist()
+    if legacy_scale is None:
+        base, probe, floor = (cols["baseline_ce"], cols["probe_pooled"],
+                              cols["floor_pooled"][0])
+    else:
+        unscale = lambda mse: float(np.mean(mse * legacy_scale))
+        base, probe, floor = (unscale(cols["baseline"]), unscale(cols["probe"]),
+                              unscale(cols["floor"][0]))
+    out["legacy"] = {"delta_ce": base - probe, "noise_floor": base - floor,
+                     "baseline_ce": base}
+    return out
+
+
+def _check_blocks(v: np.ndarray, n_comp: int, n_perm: int) -> None:
+    if not 0 < n_comp < v.shape[1]:
+        raise ValueError(f"n_comp={n_comp} must split v's {v.shape[1]} columns")
+    if n_perm < 2:
+        raise ValueError("a floor sd needs n_perm >= 2")
+
+
+def probe_gain_per_block(z: np.ndarray, t: np.ndarray, v: np.ndarray,
+                         vbar_t: np.ndarray, train: np.ndarray,
+                         test: np.ndarray, n_comp: int, seed: int = 0,
+                         n_perm: int = 5) -> dict:
+    """The ridge probe of :func:`probe_delta_ce`, graded per column and block.
+
+    Per column k of v, ``gain_k = 1/2 log(MSE_k(type mean) / MSE_k(probe))``
+    on held-out cells -- the Gaussian cross-entropy gain with fitted
+    variances, so a column's scale cancels. The composition block is the
+    first *n_comp* columns (K-1: y minus one column), the image block the
+    rest (PCs of Phi). Each block reports its mean gain, the mean and sample
+    sd of the same over *n_perm* within-type permutations of z (the floor),
+    ``excess`` = gain - floor mean, and ``pass`` = |excess| <= 2 floor sd.
+    Columns constant on the held-out cells are left out of the block means
+    (listed in ``constant_cols``). ``pooled`` is the same over all columns;
+    ``legacy`` is
+    :func:`probe_delta_ce` itself (pooled squared error), reproduced exactly.
+    """
+    _check_blocks(v, n_comp, n_perm)
+    cols = _probe_columns(z, t, v, vbar_t, train, test, seed, n_perm,
+                          _ridge_fit_predict)
+    return _blocks(cols, n_comp, n_perm, seed, "ridge")
+
+
+def _standardise(values: np.ndarray, rows: np.ndarray):
+    """Column mean and sd over *rows*; a constant column keeps sd 1."""
+    mean = values[rows].mean(axis=0)
+    sd = values[rows].std(axis=0)
+    return mean, np.where(sd > 0, sd, 1.0)
+
+
+def probe_gain_per_block_mlp(z: np.ndarray, t: np.ndarray, v: np.ndarray,
+                             vbar_t: np.ndarray, train: np.ndarray,
+                             test: np.ndarray, n_comp: int, seed: int = 0,
+                             n_perm: int = 5) -> dict:
+    """:func:`probe_gain_per_block` with the calibration MLP as the grader.
+
+    Same split, subsample, seed and permutations as the ridge; the network is
+    :func:`discell.model.calibrate.mlp_fit_predict` (64->64, 300 Adam steps),
+    fitted with the same torch seed for the probe and every floor draw.
+    Three changes from the calibration probe, so that neither a column's
+    scale, a latent's scale, nor the other block can decide a block's grade:
+
+    * z's and v's columns are standardised by their training-cell mean and
+      sd before the fit (a pooled squared-error loss would otherwise spend
+      the network on the image PCs -- the R20 defect again);
+    * one network **per block**: with shared hidden layers, fitting
+      composition signal moved the image outputs off their floor (planted
+      composition-only z: image excess -2.2 floor sd), and the floor, which
+      permutes z whole, cannot reproduce that.
+
+    Gains are ratios, so standardising leaves them unchanged; the legacy
+    dCE is reported in v's original units.
+    """
+    from discell.model.calibrate import mlp_fit_predict
+
+    _check_blocks(v, n_comp, n_perm)
+    train_rows = np.flatnonzero(train)
+    z_mean, z_sd = _standardise(np.asarray(z, dtype=np.float64), train_rows)
+    v_mean, v_sd = _standardise(np.asarray(v, dtype=np.float64), train_rows)
+    z_std = (z - z_mean) / z_sd
+    v_std = (v - v_mean) / v_sd
+    vbar_std = (vbar_t - v_mean) / v_sd
+
+    def fit(d_train, v_train, d_test):
+        design = np.vstack([d_train, d_test])
+        rows = np.arange(len(d_train))
+        test_rows = np.arange(len(d_train), len(design))
+        return np.hstack([mlp_fit_predict(design, v_train[:, block], rows,
+                                          test_rows, seed)
+                          for block in (slice(0, n_comp),
+                                        slice(n_comp, None))])
+
+    cols = _probe_columns(z_std, t, v_std, vbar_std, train, test, seed,
+                          n_perm, fit)
+    return _blocks(cols, n_comp, n_perm, seed, "mlp", legacy_scale=v_sd ** 2)
+
+
+def probe_blocks(z: np.ndarray, t: np.ndarray, v: np.ndarray,
+                 vbar_t: np.ndarray, train: np.ndarray, test: np.ndarray,
+                 n_comp: int, seed: int = 0, n_perm: int = 5) -> dict:
+    """Both graders per block, and the pre-registered invariance guard:
+    ``invariance_pass`` iff the composition and the image block pass for
+    both the ridge and the MLP."""
+    out = {family: fn(z, t, v, vbar_t, train, test, n_comp, seed=seed,
+                      n_perm=n_perm)
+           for family, fn in (("ridge", probe_gain_per_block),
+                              ("mlp", probe_gain_per_block_mlp))}
+    out["pass"] = {f"{family}_{block}": out[family][block]["pass"]
+                   for family in ("ridge", "mlp") for block in ("comp", "img")}
+    out["invariance_pass"] = bool(all(out["pass"].values()))
+    return out
+
+
 def w_mirror_delta_r2(mu_w: np.ndarray, neighbour_z: np.ndarray,
                       y: np.ndarray, t: np.ndarray, train: np.ndarray,
                       test: np.ndarray, seed: int = 0) -> dict:

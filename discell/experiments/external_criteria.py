@@ -59,7 +59,7 @@ import numpy as np
 
 from discell import paths
 from discell.model.transport import (EPS, MIN_CELLS, MIN_RATE, TUMOUR_BANDS,
-                                     collect_channels, pick_pairs,
+                                     collect_channels, group_kappa, pick_pairs,
                                      tumour_band_labels)
 from discell.model.validate import collect_latents, load_run, niche_labels
 
@@ -245,8 +245,12 @@ def signalling_share(args: argparse.Namespace) -> dict:
             rho_b, bar_b = channels["rho"][gid_b], channels["rho_bar"][gid_b]
             response = b_matrix @ (channels["prior_w"][gid_b]
                                    - channels["prior_w"][gid_a])
-            leak = (np.log((1 - kappa) * rho_a + kappa * bar_b + EPS)
-                    - np.log((1 - kappa) * rho_a + kappa * bar_a + EPS))
+            # each group's own leak coefficient (review R12 forms; kappa
+            # itself under the global form), B's for B's influx
+            k_a = group_kappa(channels, gid_a, kappa)
+            k_b = group_kappa(channels, gid_b, kappa)
+            leak = (np.log((1 - k_b) * rho_a + k_b * bar_b + EPS)
+                    - np.log((1 - k_a) * rho_a + k_a * bar_a + EPS))
             obs_a = np.asarray(x_rate[rows["A"]].mean(axis=0)).ravel()
             obs_b = np.asarray(x_rate[rows["B"]].mean(axis=0)).ravel()
             keep = np.flatnonzero((obs_a > MIN_RATE) & (obs_b > MIN_RATE))

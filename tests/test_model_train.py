@@ -13,8 +13,7 @@ from discell.model.synthetic import simulate
 from discell.model.train import TrainConfig, Trainer
 
 
-@pytest.fixture(scope="module")
-def small_fit(tmp_path_factory, monkeypatch_session=None):
+def _small_data() -> ModelData:
     sim = simulate(n_cells=1500, n_types=4, kappa=0.1, seed=0)
     k = sim.n_types
     t = sim.t.astype(np.int64)
@@ -30,6 +29,12 @@ def small_fit(tmp_path_factory, monkeypatch_session=None):
         v_block=v, vbar_t=vbar,
         train_tiles=tiles[:-1], val_tiles=tiles[-1:],
     )
+    return data
+
+
+@pytest.fixture(scope="module")
+def small_fit(tmp_path_factory, monkeypatch_session=None):
+    data = _small_data()
     config = TrainConfig(
         dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8, epochs=4, eval_every=2, figures_every=4,
         patience=100, device="cpu", alpha_z=0.007, alpha_w=0.1, alpha_a=0.3,
@@ -180,3 +185,102 @@ def test_w_contribution_decodes_are_ordered_and_planted(small_fit):
     assert np.isfinite(recon["type_profile"])
     assert abs(out["gaps"]["b_minus_d"]
                - (recon["typemean_z"] - recon["typemean_z_ref_w"])) < 1e-12
+
+
+# -- the dead-context-channel detector (2026-09-23, FF best_s2) -------------
+
+def _history(kl_sums, d_w=6, eval_every=5):
+    """A planted ``history.jsonl``: one record per evaluation epoch, each with
+    *kl_sum* spread evenly over *d_w* dimensions."""
+    return [{"epoch": eval_every * (i + 1) - 1,
+             "kl_w_per_dim": [s / d_w] * d_w}
+            for i, s in enumerate(kl_sums)]
+
+
+def test_dead_w_channel_fires_on_a_planted_zero_kl_history():
+    from discell.model.train import dead_w_channel
+
+    assert dead_w_channel(_history([0.0] * 20)) is True
+    # FF best_s2: exactly 0.0 on every dimension from epoch 4 to the end
+    assert dead_w_channel(_history([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])) is True
+
+
+def test_dead_w_channel_is_quiet_on_a_live_history():
+    from discell.model.train import dead_w_channel
+
+    # the healthy band at the opening evaluations: summed KL_w 3e-4 .. 8e-3
+    assert dead_w_channel(_history([3e-4, 1e-3, 5e-3, 8e-3])) is False
+    assert dead_w_channel(_history([])) is False
+    # a channel that opens after the detector's window is not the failure:
+    # only the opening epochs are checked
+    assert dead_w_channel(_history([0.0] * 20)[4:]) is False
+
+
+def test_kl_w_is_dead_uses_the_sum_not_the_per_dimension_value():
+    from discell.model.train import kl_w_is_dead
+
+    # six dimensions each below the threshold, but alive in sum
+    assert kl_w_is_dead([4e-6] * 6, epoch=4) is False
+    assert kl_w_is_dead([1e-7] * 6, epoch=4) is True
+
+
+def test_metrics_json_carries_the_dead_w_flag(small_fit):
+    trainer, summary = small_fit
+    assert summary["dead_w_channel"] is False      # the synthetic fit is alive
+    written = json.loads((trainer.run_dir / "metrics.json").read_text())
+    assert written["dead_w_channel"] is False
+
+
+def test_closing_evaluation_scores_the_accepted_checkpoint(tmp_path, monkeypatch):
+    """Review R26: after early stopping, ``final`` must describe ``best.pt``.
+
+    The first evaluation is made to win by fiat, so training runs on past the
+    accepted checkpoint before patience stops it. The model left in memory must
+    then be the accepted one, and the closing metrics must be its metrics.
+    """
+    import torch
+
+    from discell import paths
+
+    data = _small_data()
+    config = TrainConfig(
+        dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8,
+        epochs=8, eval_every=1, figures_every=1000, patience=2, device="cpu",
+        alpha_z=0.007, alpha_w=0.1, alpha_a=0.3, v_pcs=4, invariance="closed_form",
+    )
+    monkeypatch.setattr(paths, "dataset", lambda _: type("D", (), {"root": tmp_path})())
+    trainer = Trainer(config, data)
+    real_evaluate = trainer.evaluate
+    calls = []
+
+    def rigged_evaluate():
+        report = real_evaluate()
+        calls.append(report)
+        if len(calls) == 1:
+            report["recon_val"] += 1e6          # the first evaluation is the best
+        return report
+
+    trainer.evaluate = rigged_evaluate
+    summary = trainer.fit()
+
+    assert summary["best"]["epoch"] == 0
+    assert summary["last_epoch"] > summary["best"]["epoch"]   # trained on past it
+    assert summary["final_epoch"] == summary["best"]["epoch"]
+
+    saved = torch.load(trainer.run_dir / "best.pt", map_location="cpu",
+                       weights_only=False)["model"]
+    for name, value in trainer.model.state_dict().items():
+        assert torch.equal(value.cpu(), saved[name]), name
+
+    history = {row["epoch"]: row for row in (
+        json.loads(line) for line in
+        (trainer.run_dir / "history.jsonl").read_text().splitlines())}
+    accepted, final = history[0], summary["final"]
+    assert final["nmi"] == pytest.approx(accepted["nmi"])
+    assert final["mirror"]["r2"] == pytest.approx(accepted["mirror"]["r2"])
+    assert final["probe"]["delta_ce"] == pytest.approx(accepted["probe"]["delta_ce"])
+    assert final["kl_w_per_dim"] == pytest.approx(accepted["kl_w_per_dim"])
+
+    stored = json.loads((trainer.run_dir / "metrics.json").read_text())
+    assert stored["final_epoch"] == stored["best"]["epoch"]
+    assert stored["last_epoch"] == summary["last_epoch"]

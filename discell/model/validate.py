@@ -52,8 +52,14 @@ COLLAPSED_VAR_FRACTION = 1e-3
 
 # -- shared infrastructure --------------------------------------------------
 
-def load_run(dataset: str, run: str, device: str = "cuda"):
-    """Rebuild (config, data, trainer-with-best-weights) for a finished run."""
+def load_run(dataset: str, run: str, device: str = "cuda",
+             data: ModelData | None = None):
+    """Rebuild (config, data, trainer-with-best-weights) for a finished run.
+
+    *data*: an already assembled ``ModelData`` for this run's configuration
+    (a caller grading several runs that share one assembly); the caller
+    vouches that it matches.
+    """
     import torch
 
     from discell.model.networks import DisCell
@@ -67,11 +73,14 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
     payload["config"].setdefault("subtract_leak", False)
     payload["config"].setdefault("gat_sink", False)
     payload["config"].setdefault("class_mean_prior", False)
+    payload["config"].setdefault("query", "type")
+    payload["config"].setdefault("prior_type_free", False)
     config = TrainConfig(**payload["config"])
-    data = assemble(dataset, config.variant, config.embeddings,
-                    tile_cells=config.tile_cells, phi_pca=config.phi_pca,
-                    v_pcs=config.v_pcs, val_fraction=config.val_fraction,
-                    seed=config.seed, label_key=config.label_key)
+    if data is None:
+        data = assemble(dataset, config.variant, config.embeddings,
+                        tile_cells=config.tile_cells, phi_pca=config.phi_pca,
+                        v_pcs=config.v_pcs, val_fraction=config.val_fraction,
+                        seed=config.seed, label_key=config.label_key)
     device = device if torch.cuda.is_available() else "cpu"
     model = DisCell(n_genes=data.x.shape[1], n_types=len(data.p_t),
                     phi_dim=data.phi.shape[1],
@@ -81,12 +90,38 @@ def load_run(dataset: str, run: str, device: str = "cuda"):
                     gat_sources=config.gat_sources,
                     subtract_leak=config.subtract_leak,
                     gat_sink=config.gat_sink,
-                    class_mean_prior=config.class_mean_prior).to(device)
+                    class_mean_prior=config.class_mean_prior,
+                    query=config.query,
+                    prior_type_free=config.prior_type_free,
+                    # the gene form's s_g scale is a buffer in the checkpoint
+                    kappa_mode=config.kappa_mode).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()
     b_matrix = payload["model"]["B.weight"].numpy()
     return config, data, trainer, run_dir, b_matrix
+
+
+def probe_blocks_for_run(data: ModelData, mu_z: np.ndarray, seed: int,
+                         n_perm: int = 5) -> dict:
+    """The per-block invariance probe (R20 + R22) of a run on *data*'s tiles.
+
+    *mu_z* is node-ordered (:func:`collect_latents`). The probe's inputs are
+    put in ``Trainer.evaluate``'s order -- training-tile seeds, then
+    validation-tile seeds (a batch's seeds are its tile, in order); the
+    training tiles fit, the validation tiles (held out) grade -- so the
+    ``legacy`` block is the in-trainer probe dCE of these same weights.
+    """
+    from discell.model import metrics as M
+
+    rows = np.concatenate(data.train_tiles + data.val_tiles)
+    n_train = sum(len(tile) for tile in data.train_tiles)
+    train = np.arange(len(rows)) < n_train
+    record = M.probe_blocks(mu_z[rows], data.t[rows], data.v_block[rows],
+                            data.vbar_t, train, ~train, n_comp=data.n_comp,
+                            seed=seed, n_perm=n_perm)
+    record.update(n_cells=int(len(rows)), n_heldout=int((~train).sum()))
+    return record
 
 
 def collect_latents(trainer: Trainer, data: ModelData) -> dict:
@@ -837,6 +872,13 @@ def run_analyses(args: argparse.Namespace, run: str) -> dict:
         results = json.loads((out_dir / "validation.json").read_text())
     results.update({"run": run, "kappa": config.kappa, "seed": config.seed})
 
+    if "probe" in wanted:
+        record = probe_blocks_for_run(data, latents["mu_z"], config.seed)
+        record.update(run=run, dataset=args.dataset, checkpoint="best.pt")
+        (out_dir / "probe_blocks.json").write_text(
+            json.dumps(record, indent=2, default=float))
+        log.info("probe blocks: invariance_pass %s (%s)",
+                 record["invariance_pass"], record["pass"])
     if "morans" in wanted or "matrix" in wanted:
         results["morans"] = analysis_morans(data, latents, args.n_perms,
                                             config.seed)
@@ -1113,7 +1155,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--seeds", type=int, nargs="*", default=[0, 1, 2])
     parser.add_argument("--analyses",
                         default="morans,niche,landmarks,matrix,kappa_survival",
-                        help="comma-separated; kappa_survival is sweep-only")
+                        help="comma-separated; kappa_survival is sweep-only; "
+                             "probe (per-block invariance probe, R20/R22) "
+                             "writes validation/probe_blocks.json")
     parser.add_argument("--survival-reference",
                         default="ablation_gat_type_only_s1",
                         help="external reference run for kappa-survival")

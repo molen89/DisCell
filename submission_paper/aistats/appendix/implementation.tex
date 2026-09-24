@@ -36,7 +36,7 @@ Prior scale $\sigma_w$ & & $1$ (fixed) \\
 \midrule
 Leak fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; the operating point is a grid point chosen on the primary section \\
 $\omega$ & & $1$ \\
-$\alphaz$ & & $\approx 1/\lbar$, the bound-equivalent value (\cref{sec:objective}), set per section from its mean total count \\
+$\alphaz$ & & $\tfrac12/\lbar$, half the bound-equivalent value (\cref{sec:objective}), set per section from its mean total count \\
 $\alphaw$ & & calibrated \\
 $\alphaa$ (adversary) & & calibrated; the number of head updates per model update and the head learning rate are set so that the independent probe, not the heads' own loss, certifies head strength \\
 $\alphaa$ (closed form) & & calibrated by the same probe protocol \\
@@ -44,7 +44,7 @@ Moving-average rate, shrinkage & & $0.05$, $0.05$; support floor $10\times$ join
 \midrule
 Tiles & & recursive median split into rectangles of $\leq 4{,}096$ cells; $15\%$ of tiles held out \\
 Optimiser & & Adam \citep{kingma2015adam}, learning rate $10^{-3}$, cosine annealing \citep{loshchilov2017} over the epoch budget, gradient-norm clip $10$ \\
-Evaluation & & every $5$ epochs on posterior means; checkpoint accepted if held-out reconstruction improves and $\vz$--type agreement $\geq 0.9\times$ its running maximum; patience in epochs set with the budget \\
+Evaluation & & every $5$ epochs on posterior means; checkpoint accepted if held-out reconstruction improves and $\vz$--type agreement $\geq 0.9\times$ its running maximum; patience in epochs set with the budget; $\alphaw$ ramped linearly from $0$ over the first $30$ epochs, during which no checkpoint is accepted and patience does not count \\
 Hardware & & one consumer GPU \\
 \bottomrule
 \end{tabular}

@@ -1,10 +1,25 @@
 \begin{thebibliography}{}
 
+\bibitem[Akbarnejad et~al., 2025]{akbarnejad2025mintflow}
+Akbarnejad, A., Steele, L., Jafree, D.~J., Birk, S., Sallese, M.~R., et~al.
+  (2025).
+\newblock Mapping and reprogramming human tissue microenvironments with
+  {MintFlow}.
+\newblock {\em bioRxiv}.
+
 \bibitem[Bengio et~al., 2013]{bengio2013}
 Bengio, Y., L{\'e}onard, N., and Courville, A. (2013).
 \newblock Estimating or propagating gradients through stochastic neurons for
   conditional computation.
 \newblock {\em arXiv preprint arXiv:1308.3432}.
+
+\bibitem[Bilous et~al., 2026]{bilous2026split}
+Bilous, M., Buszta, D., Bac, J., Kang, S., Dong, Y., Tissot, S., Andre, S.,
+  Alexandre~Gaveta, M., Voize, C., Peters, S., Homicsko, K., and Gottardo, R.
+  (2026).
+\newblock Resolving sensitivity, specificity and signal contamination in
+  {Xenium} spatial transcriptomics.
+\newblock {\em Nature Methods}, 23:1152--1162.
 
 \bibitem[Birk et~al., 2025]{birk2025nichecompass}
 Birk, S., Lotfollahi, M., et~al. (2025).
@@ -59,6 +74,17 @@ Ganin, Y., Ustinova, E., Ajakan, H., Germain, P., Larochelle, H., Laviolette,
 \newblock Domain-adversarial training of neural networks.
 \newblock {\em Journal of Machine Learning Research}, 17(59):1--35.
 
+\bibitem[Hardt et~al., 2016]{hardt2016}
+Hardt, M., Price, E., and Srebro, N. (2016).
+\newblock Equality of opportunity in supervised learning.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~29.
+
+\bibitem[Hern{\'a}n et~al., 2004]{hernan2004}
+Hern{\'a}n, M.~A., Hern{\'a}ndez-D{\'i}az, S., and Robins, J.~M. (2004).
+\newblock A structural approach to selection bias.
+\newblock {\em Epidemiology}, 15(5):615--625.
+
 \bibitem[Janesick et~al., 2023]{janesick2023}
 Janesick, A., Shelansky, R., Gottscho, A.~D., Wagner, F., Williams, S.~R.,
   Rouault, M., Beliakoff, G., Morrison, C.~A., Oliveira, M.~F., Sicherman,
@@ -103,6 +129,12 @@ Ledoit, O. and Wolf, M. (2004).
   matrices.
 \newblock {\em Journal of Multivariate Analysis}, 88(2):365--411.
 
+\bibitem[Li et~al., 2018]{li2018ciddg}
+Li, Y., Tian, X., Gong, M., Liu, Y., Liu, T., Zhang, K., and Tao, D. (2018).
+\newblock Deep domain generalization via conditional invariant adversarial
+  networks.
+\newblock In {\em European Conference on Computer Vision}, pages 624--639.
+
 \bibitem[Locatello et~al., 2019]{locatello2019}
 Locatello, F., Bauer, S., Lucic, M., R{\"a}tsch, G., Gelly, S., Sch{\"o}lkopf,
   B., and Bachem, O. (2019).
@@ -120,10 +152,35 @@ Louizos, C., Swersky, K., Li, Y., Welling, M., and Zemel, R. (2016).
 \newblock The variational fair autoencoder.
 \newblock In {\em International Conference on Learning Representations}.
 
+\bibitem[Madras et~al., 2018]{madras2018}
+Madras, D., Creager, E., Pitassi, T., and Zemel, R. (2018).
+\newblock Learning adversarially fair and transferable representations.
+\newblock In {\em International Conference on Machine Learning}, pages
+  3384--3393.
+
 \bibitem[Manski, 2003]{manski2003}
 Manski, C.~F. (2003).
 \newblock {\em Partial Identification of Probability Distributions}.
 \newblock Springer.
+
+\bibitem[Megas et~al., 2026]{megas2026celcomen}
+Megas, S., Chen, D.~G., Polanski, K., Asadollahzadeh, H., Eliasof, M.,
+  Sch{\"o}nlieb, C.-B., and Teichmann, S.~A. (2026).
+\newblock Celcomen: spatial causal disentanglement for single-cell and tissue
+  perturbation modeling.
+\newblock {\em Nature Communications}, 17:4126.
+
+\bibitem[Mitchel et~al., 2026]{mitchel2026celladmix}
+Mitchel, J., Gao, T., Petukhov, V., Cole, E., and Kharchenko, P.~V. (2026).
+\newblock Impact and correction of segmentation errors in spatial
+  transcriptomics.
+\newblock {\em Nature Genetics}, 58:434--444.
+
+\bibitem[Pogodin et~al., 2023]{pogodin2023circe}
+Pogodin, R., Deka, N., Li, Y., Sutherland, D.~J., Veitch, V., and Gretton, A.
+  (2023).
+\newblock Efficient conditionally invariant representation learning.
+\newblock In {\em International Conference on Learning Representations}.
 
 \bibitem[Rezende et~al., 2014]{rezende2014}
 Rezende, D.~J., Mohamed, S., and Wierstra, D. (2014).
@@ -174,5 +231,17 @@ Xie, Q., Dai, Z., Du, Y., Hovy, E., and Neubig, G. (2017).
 \newblock Controllable invariance through adversarial feature learning.
 \newblock In {\em Advances in Neural Information Processing Systems},
   volume~30.
+
+\bibitem[Zhang et~al., 2018]{zhang2018mitigating}
+Zhang, B.~H., Lemoine, B., and Mitchell, M. (2018).
+\newblock Mitigating unwanted biases with adversarial learning.
+\newblock In {\em Proceedings of the 2018 AAAI/ACM Conference on AI, Ethics,
+  and Society}, pages 335--340.
+
+\bibitem[Zhao and Gordon, 2019]{zhao2019inherent}
+Zhao, H. and Gordon, G.~J. (2019).
+\newblock Inherent tradeoffs in learning fair representations.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~32.
 
 \end{thebibliography}

@@ -4,7 +4,7 @@
 \subsection{The Reconstruction Bound}
 \label{app:bound}
 
-Fix a cell $i$ and hold $\vc_i$ and $\rhobar_i$ constant, as \cref{sec:batching} does. Then
+Fix a cell $i$ and hold $\vc_i$ and $\rhobar_i$ constant, as \cref{sec:batching} does; every probability in this appendix is conditional on $\rhobar_i$, which we suppress from the notation. Then
 \begin{align}
   \log p(\vx_i \mid \vc_i, t_i)
   &= \log \iint p(\vx_i \mid \vz, \vw)\, p(\vw \mid \vc_i, t_i)\, p(\vz)\, d\vz\, d\vw \\
@@ -18,18 +18,24 @@ where \cref{eq:jensen} is Jensen's inequality under the variational family $q(\v
 \end{equation}
 and evaluating it at the single reparameterised draw of $\vz$ used for the reconstruction term is an unbiased one-sample estimate of $\E_{q(\vz)}[\KL(\cdot)]$.
 
+Summed over cells, with each neighbour's $\vz_j, \vw_j$ drawn from its own posterior as in \cref{sec:batching}, $\sum_i L_i$ is a one-sample estimate of the evidence lower bound of the coupled model, $\log p(\{\vx_i\} \mid \{\vc_i, t_i\})$, under the fully factorised family $\prod_i q(\vz_i)\, q(\vw_i \mid \vz_i)$. The per-cell bounds are not independent terms, since $\rhobar_i$ is a function of the neighbours' latents. The stop-gradient removes the terms $i \ne j$ from the gradient with respect to $q_j$, so training ascends a partial gradient of this bound: a fixed-point iteration in which each step treats the current $\rhobar$ as data.
+
 \subsection{The Intrinsic Path and the Factor \texorpdfstring{$(1+\omega)$}{(1+omega)}}
 \label{app:pathb}
 
-A second bound on the same data holds for the model in which $\vw$ is not inferred. Setting $q(\vw) := p(\vw \mid \vc_i, t_i)$ zeroes the $\vw$-divergence and leaves
+A second bound on the same evidence holds by restricting the variational family to $q(\vw) := p(\vw \mid \vc_i, t_i)$, which zeroes the $\vw$-divergence and leaves
 \begin{equation}
   \log p(\vx_i \mid \vc_i, t_i) \geq \E_{q(\vz)}\E_{p(\vw \mid \vc_i, t_i)}\big[\log p(\vx_i \mid \vz, \vw)\big] - \KL\big(q(\vz)\,\|\,p(\vz)\big) =: L_i^{z}.
 \end{equation}
 Call the bound of \cref{app:bound} $L_i$. Each carries its own $-\KL(q(\vz_i)\|p(\vz_i))$, so $L_i + \omega L_i^{z}$ contains $-(1+\omega)\KL(q(\vz_i)\|p(\vz_i))$. Omitting the second copy breaks the correspondence with $L_i + \omega L_i^{z}$ even at $\omega = 1$.
 
-The construction mirrors the two-bound objective of \citet{slavutsky2025}, where the sum of the shared-only and joint bounds corresponds to minimising $\KL(q(\vz) \,\|\, p(\vz \mid \vx)) + \KL(q(\vz)q(\vw) \,\|\, p(\vz,\vw \mid \vx, u))$ with $u$ their condition label, a sum of two non-negative divergences. It is coherent as an M-estimation target, but it is not the evidence lower bound of a single model, so $q$ is not the posterior of anything, which is one of the reasons uncertainty is reported from the leakage sweep rather than from $q$.
+The construction mirrors the two-bound objective of \citet{slavutsky2025}, where the sum of the shared-only and joint bounds corresponds to minimising $\KL(q(\vz) \,\|\, p(\vz \mid \vx)) + \KL(q(\vz)q(\vw) \,\|\, p(\vz,\vw \mid \vx, u))$ with $u$ their condition label, a sum of two non-negative divergences. Here, unlike in \citet{slavutsky2025}, whose shared-only term decodes from $\vz$ alone and so bounds a different model, both terms bound the same evidence,
+\begin{equation*}
+  L_i + \omega L_i^{z} \le (1+\omega)\log p(\vx_i \mid \vc_i, t_i),
+\end{equation*}
+with gap $\KL\big(q(\vz)q(\vw \mid \vz)\,\|\,p(\vz,\vw \mid \vx_i,\vc_i,t_i)\big) + \omega\,\KL\big(q(\vz)p(\vw \mid \vc_i,t_i)\,\|\,p(\vz,\vw \mid \vx_i,\vc_i,t_i)\big)$. One $q(\vz)$ serves two variational families, so its optimum is a compromise and not the best approximation of the posterior under either, which is one of the reasons uncertainty is reported from the leakage sweep rather than from $q$. The invariance term sits outside the bound for a separate reason (\cref{app:posterior-reg}).
 
-Why the intrinsic path is load-bearing: in \citet{slavutsky2025} a structured prior couples the two codes through the condition and thereby rewards the shared code for carrying signal \todo{state the exact form of that prior}. Our prior on $\vw$ never references $\vz$, and the prior on $\vz$ is a standard normal, so nothing else in the objective rewards $\vz$ for being informative. The intrinsic path supplies that pressure directly, since under it $\vz$ must explain the cell given only the expected response. It runs through the same leakage mixture as the first term, so it never asserts $\kappa = 0$ and contradicts it.
+Why the intrinsic path is load-bearing: in \citet{slavutsky2025} the shared code is kept informative by a reconstruction from $\vz$ alone and by a prior on $\vw$ centred on the class-wise means of $\vz$. Our intrinsic path is the analogue of the first. We have no analogue of the second: our prior on $\vw$ never references $\vz$, and the prior on $\vz$ is a standard normal, so nothing else in the objective rewards $\vz$ for being informative. The intrinsic path supplies that pressure directly, since under it $\vz$ must explain the cell given only the expected response. It runs through the same leakage mixture as the first term, so it never asserts $\kappa = 0$ and contradicts it.
 
 \subsection{The Invariance Term as Posterior Regularisation}
 \label{app:posterior-reg}

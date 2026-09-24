@@ -65,6 +65,14 @@ def build(data, dataset: str, variant: str, label_key: str | None = None):
         "y_um": data.positions[:, 1].astype(np.float32),
     }, index=pd.Index([f"cell_{i}" for i in range(n)], name="cell"))
 
+    # the cycle target the DisCell battery reads, carried along so a baseline
+    # environment can see it without rescoring (the battery itself rescores
+    # from ``assemble``; these columns are for inspection and for tools that
+    # want a continuous covariate)
+    if data.cycle is not None:
+        obs["s_score"] = np.asarray(data.cycle["s_score"], dtype=np.float32)
+        obs["g2m_score"] = np.asarray(data.cycle["g2m_score"], dtype=np.float32)
+
     counts = sp.csr_matrix(data.x)
     adata = ad.AnnData(X=counts, obs=obs)
     adata.var_names = pd.Index(np.asarray(data.gene_names).astype(str))
@@ -82,6 +90,8 @@ def build(data, dataset: str, variant: str, label_key: str | None = None):
         "n_val_tiles": len(data.val_tiles),
         "type_names": np.asarray(data.type_names).astype(str),
         "median_counts": data.median_counts,
+        "cycling_types": np.asarray(
+            (data.cycle or {}).get("cycling_types", []), dtype=np.int64),
     }
     return adata
 

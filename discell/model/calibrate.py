@@ -43,14 +43,33 @@ log = logging.getLogger("discell.model.calibrate")
 DEFAULT_ALPHA_GRID = (0.0, 0.01, 0.02, 0.05, 0.1)
 
 
-def mlp_probe_delta_ce(z: np.ndarray, t: np.ndarray, v: np.ndarray,
-                       vbar_t: np.ndarray, train: np.ndarray,
-                       test: np.ndarray, seed: int = 0) -> float:
-    """The ridge probe's nonlinear cross-check: a small MLP, same dCE."""
+def mlp_fit_predict(design: np.ndarray, target: np.ndarray, rows: np.ndarray,
+                    test_rows: np.ndarray, seed: int = 0) -> np.ndarray:
+    """The calibration MLP (64->64 ReLU, 300 Adam steps of 2048 rows at lr
+    1e-3, squared error) fitted on *rows*; its predictions on *test_rows*."""
     import torch
     import torch.nn as nn
 
     torch.manual_seed(seed)
+    design = np.asarray(design, dtype=np.float32)
+    net = nn.Sequential(nn.Linear(design.shape[1], 64), nn.ReLU(),
+                        nn.Linear(64, 64), nn.ReLU(),
+                        nn.Linear(64, target.shape[1]))
+    optimiser = torch.optim.Adam(net.parameters(), lr=1e-3)
+    d_train = torch.tensor(design[rows])
+    v_train = torch.tensor(target[rows], dtype=torch.float32)
+    for _ in range(300):
+        pick = torch.randint(0, len(rows), (2048,))
+        loss = ((net(d_train[pick]) - v_train[pick]) ** 2).mean()
+        optimiser.zero_grad(); loss.backward(); optimiser.step()
+    with torch.no_grad():
+        return net(torch.tensor(design[test_rows])).numpy()
+
+
+def mlp_probe_delta_ce(z: np.ndarray, t: np.ndarray, v: np.ndarray,
+                       vbar_t: np.ndarray, train: np.ndarray,
+                       test: np.ndarray, seed: int = 0) -> float:
+    """The ridge probe's nonlinear cross-check: a small MLP, same dCE."""
     rng = np.random.default_rng(seed)
     rows = np.flatnonzero(train)
     rows = rows if len(rows) <= 30_000 else np.sort(rng.choice(rows, 30_000, False))
@@ -58,18 +77,7 @@ def mlp_probe_delta_ce(z: np.ndarray, t: np.ndarray, v: np.ndarray,
 
     onehot = np.eye(int(t.max()) + 1, dtype=np.float32)[t]
     design = np.hstack([z, onehot]).astype(np.float32)
-    net = nn.Sequential(nn.Linear(design.shape[1], 64), nn.ReLU(),
-                        nn.Linear(64, 64), nn.ReLU(),
-                        nn.Linear(64, v.shape[1]))
-    optimiser = torch.optim.Adam(net.parameters(), lr=1e-3)
-    d_train = torch.tensor(design[rows])
-    v_train = torch.tensor(v[rows], dtype=torch.float32)
-    for _ in range(300):
-        pick = torch.randint(0, len(rows), (2048,))
-        loss = ((net(d_train[pick]) - v_train[pick]) ** 2).mean()
-        optimiser.zero_grad(); loss.backward(); optimiser.step()
-    with torch.no_grad():
-        predicted = net(torch.tensor(design[test_rows])).numpy()
+    predicted = mlp_fit_predict(design, v, rows, test_rows, seed)
     baseline = float(((v[test_rows] - vbar_t[t[test_rows]]) ** 2).mean())
     return baseline - float(((v[test_rows] - predicted) ** 2).mean())
 

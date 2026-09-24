@@ -40,12 +40,18 @@ def gaussian_kl(mu_q: torch.Tensor, logvar_q: torch.Tensor,
     The spec's form: ``sum_k [ log(s/sigma) + (sigma^2 + (mu-m)^2)/(2 s^2) - 1/2 ]``.
     Defaults give the standard-normal prior used for ``z``.
     """
+    return gaussian_kl_per_dim(mu_q, logvar_q, mu_p, logvar_p).sum(dim=-1)
+
+
+def gaussian_kl_per_dim(mu_q: torch.Tensor, logvar_q: torch.Tensor,
+                        mu_p: torch.Tensor | float = 0.0,
+                        logvar_p: torch.Tensor | float = 0.0) -> torch.Tensor:
+    """The same KL, left per dimension -- what free bits needs to clamp."""
     mu_p = torch.as_tensor(mu_p, dtype=mu_q.dtype, device=mu_q.device)
     logvar_p = torch.as_tensor(logvar_p, dtype=mu_q.dtype, device=mu_q.device)
-    per_dim = 0.5 * (logvar_p - logvar_q
-                     + (logvar_q.exp() + (mu_q - mu_p) ** 2) / logvar_p.exp()
-                     - 1.0)
-    return per_dim.sum(dim=-1)
+    return 0.5 * (logvar_p - logvar_q
+                  + (logvar_q.exp() + (mu_q - mu_p) ** 2) / logvar_p.exp()
+                  - 1.0)
 
 
 def foreign_influx(rho_src: torch.Tensor, edge_src: torch.Tensor,
@@ -64,7 +70,7 @@ def foreign_influx(rho_src: torch.Tensor, edge_src: torch.Tensor,
 
 
 def leakage_mix(rho: torch.Tensor, rho_bar: torch.Tensor,
-                kappa: float) -> torch.Tensor:
+                kappa: float | torch.Tensor) -> torch.Tensor:
     """``log p_i`` for ``p_i = (1-kappa) rho_i + kappa rho_bar_i``.
 
     Mixed in probability space -- the mixture of two simplex points is on the
@@ -77,7 +83,17 @@ def leakage_mix(rho: torch.Tensor, rho_bar: torch.Tensor,
     mixture degenerates to ``rho`` -- effectively ``kappa_i = 0``, the honest
     model for a cell with no neighbours. Connected rows already sum to one, so
     for them it is a no-op.
+
+    *kappa* may also be a tensor that broadcasts against *rho* -- ``(n, 1)``
+    per cell or ``(G,)`` / ``(n, G)`` per gene (review R12's leak forms,
+    ``DisCell.leak_kappa``, whose clamps keep it in [0, 1)). A per-gene kappa
+    makes connected rows sum to ``1 - sum_g kappa_g (rho_g - rho_bar_g)``,
+    so there the renormalisation is part of the model, not a no-op.
     """
+    if isinstance(kappa, torch.Tensor):
+        mix = (1.0 - kappa) * rho + kappa * rho_bar
+        mix = mix / mix.sum(dim=-1, keepdim=True).clamp(min=EPS)
+        return mix.clamp(min=EPS).log()
     if not 0.0 <= kappa < 1.0:
         raise ValueError(f"kappa must be in [0, 1), got {kappa}")
     mix = (1.0 - kappa) * rho + kappa * rho_bar

@@ -802,13 +802,125 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-did-edges", type=int, default=60_000)
     parser.add_argument("--max-transcripts", type=int, default=None,
                         help="debug: stop after roughly this many rows")
+    parser.add_argument("--gene-share", action="store_true",
+                        help="review R12: write the per-gene extranuclear "
+                             "share s_g as experiments/"
+                             "gene_extranuclear_share.{npy,json} instead")
     return parser
+
+
+def run_gene_share(args: argparse.Namespace) -> dict:
+    """Per-gene extranuclear transcript share ``s_g`` (review R12, Test 2).
+
+    One pass over ``transcripts.parquet`` with the admission rule of
+    :func:`stream_slide`: q >= ``MIN_QV``, assigned to a bundle cell that has
+    a nucleus polygon, gene on the panel. Nuclear transcripts are counted
+    too, which the flux stream drops, so ``s_g = E_g / (E_g + N_g)`` with
+    ``E`` the extranuclear (``overlaps_nucleus == 0``) and ``N`` the nuclear
+    counts. Written aligned to the bundle's ``var_names`` as
+    ``gene_extranuclear_share.npy`` (NaN where a gene has no admitted
+    transcript), with a JSON sidecar carrying the gene order, the counts and
+    a cross-check against ``qc/nuclear_counts.npz`` + the bundle counts.
+    """
+    from pathlib import Path
+
+    import anndata as ad
+    import pandas as pd
+    import pyarrow.parquet as pq
+
+    ds = paths.dataset(args.dataset)
+    adata = ad.read_h5ad(ds.bundle(args.variant), backed="r")
+    xenium_dir = Path(str(adata.uns["xenium_dir"]))
+    cell_ids = adata.obs_names.to_numpy().astype(str)
+    gene_names = np.asarray(adata.var_names).astype(str)
+    has_nuc = np.isfinite(nucleus_centroids(xenium_dir, cell_ids)[:, 0])
+    cell_index = pd.Series(np.arange(len(cell_ids)), index=pd.Index(cell_ids))
+    gene_index = pd.Series(np.arange(len(gene_names)), index=pd.Index(gene_names))
+    extra = np.zeros(len(gene_names))
+    nuclear = np.zeros(len(gene_names))
+    n_read = 0
+    started = time.time()
+    parquet = pq.ParquetFile(xenium_dir / "transcripts.parquet")
+    for batch in parquet.iter_batches(
+            columns=["cell_id", "feature_name", "overlaps_nucleus", "qv"],
+            batch_size=4_000_000):
+        chunk = batch.to_pandas()
+        n_read += len(chunk)
+        chunk = chunk[chunk["qv"] >= MIN_QV]
+        rows = cell_index.reindex(chunk["cell_id"].astype(str)).to_numpy()
+        genes = gene_index.reindex(chunk["feature_name"].astype(str)).to_numpy()
+        ok = np.isfinite(rows) & np.isfinite(genes)
+        ok[ok] = has_nuc[rows[ok].astype(np.int64)]
+        genes = genes[ok].astype(np.int64)
+        inside = chunk["overlaps_nucleus"].to_numpy()[ok] == 1
+        extra += np.bincount(genes[~inside], minlength=len(gene_names))
+        nuclear += np.bincount(genes[inside], minlength=len(gene_names))
+        if args.max_transcripts is not None and n_read >= args.max_transcripts:
+            log.warning("stopping early at %d rows", n_read)
+            break
+    total = extra + nuclear
+    with np.errstate(invalid="ignore", divide="ignore"):
+        share = np.where(total > 0, extra / total, np.nan)
+    log.info("gene share: %d rows read, %.0f admitted, %.0f s; s_g median "
+             "%.3f, range %.3f-%.3f", n_read, total.sum(),
+             time.time() - started, np.nanmedian(share), np.nanmin(share),
+             np.nanmax(share))
+
+    # cross-check: the same share from the stored nuclear counts against the
+    # bundle's counts, over the same nucleus-bearing cells
+    check = None
+    nuc_path = ds.root / "qc" / "nuclear_counts.npz"
+    if nuc_path.exists():
+        from scipy.stats import spearmanr
+
+        keep = np.flatnonzero(has_nuc)
+        counts = sp.csr_matrix(adata.X[:])
+        bundle_total = np.asarray(counts[keep].sum(axis=0)).ravel()
+        stored_nuc = np.asarray(sp.load_npz(nuc_path).tocsr()[keep]
+                                .sum(axis=0)).ravel()
+        with np.errstate(invalid="ignore", divide="ignore"):
+            alt = np.where(bundle_total > 0, 1 - stored_nuc / bundle_total, np.nan)
+        both = np.isfinite(share) & np.isfinite(alt)
+        check = {"route": "1 - nuclear_counts.npz / bundle X, same cells",
+                 "spearman": float(spearmanr(share[both], alt[both]).statistic),
+                 "max_abs_diff": float(np.abs(share[both] - alt[both]).max()),
+                 "median_abs_diff": float(np.median(np.abs(share[both] - alt[both]))),
+                 "admitted_over_bundle_total": float(total.sum() / bundle_total.sum())}
+        log.info("cross-check vs nuclear_counts.npz: %s", check)
+
+    out_dir = ds.root / "experiments"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    np.save(out_dir / "gene_extranuclear_share.npy", share)
+    sidecar = {
+        "what": "per-gene extranuclear transcript share s_g = E_g / (E_g + N_g)",
+        "review": "R12 Test 2, gene-tilted leak arm (devlog 2026-09-24)",
+        "dataset": args.dataset, "variant": args.variant,
+        "admission": {"min_qv": MIN_QV, "cell": "bundle cell with a nucleus "
+                      "polygon", "gene": "bundle var_names",
+                      "extranuclear": "overlaps_nucleus == 0"},
+        "rows_read": int(n_read), "admitted": int(total.sum()),
+        "n_cells_with_nucleus": int(has_nuc.sum()),
+        "n_genes": int(len(gene_names)),
+        "n_genes_without_transcripts": int((total == 0).sum()),
+        "share_quantiles": _quantiles(share),
+        "share_mean": float(np.nanmean(share)),
+        "cross_check": check,
+        "gene_names": gene_names.tolist(),
+        "extranuclear_counts": extra.astype(np.int64).tolist(),
+        "nuclear_counts": nuclear.astype(np.int64).tolist(),
+    }
+    (out_dir / "gene_extranuclear_share.json").write_text(json.dumps(sidecar))
+    log.info("wrote %s", out_dir / "gene_extranuclear_share.npy")
+    return sidecar
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
     args = build_parser().parse_args(argv)
+    if args.gene_share:
+        run_gene_share(args)
+        return 0
     (run_decisive if args.decisive else run)(args)
     return 0
 

@@ -1,0 +1,308 @@
+[
+ {
+  "agentId": "a2889cb748cdb5ba4",
+  "label": "refute:math:sections/method.tex:225, 228",
+  "kind": "refute",
+  "lens": "math",
+  "finding": {
+   "location": "sections/method.tex:225, 228",
+   "quote": "Every readout of interest, the loadings $\\vB$, the per-type magnitude of the response",
+   "category": "consistency",
+   "severity": "minor",
+   "issue": "Line 225 says that ||w_i||, and any ranking of types by it, 'is a statement about the gauge'. Line 228 then lists 'the per-type magnitude of the response' as a swept readout, and calls 'a decline in ||w|| along the grid' mechanical, which is again gauge-dependent. Line 225 also calls the within-type spread of w and the realised prior-mean shift B[m_psi(c_i,t_i) - m_psi(\\bar c_t, t_i)] 'equivalent'. They are different quantities: the first includes posterior residuals, the second is prior-only. And \\bar c_t is never defined.",
+   "why": "The sweep is the paper's deliverable, and it currently lists a readout that the identifiability paragraph has just declared meaningless.",
+   "proposed_change": "In line 228, replace 'the per-type magnitude of the response' with 'the per-type within-type spread of the response (gauge-free, \\cref{sec:sweep})'. Replace 'a decline in \\|\\vw\\| along the grid is mechanical' with 'a decline in the within-type spread of \\vw along the grid is mechanical'. In line 225, replace 'or equivalently the realised shift' with 'or the realised prior shift', and define $\\bar\\vc_t$, for example as 'the context of the average cell of type $t$, $\\bar\\vc_t = \\vc(t, \\ybar(t), \\bar{\\vPhi}_t)$', using notation that does not collide with the existing \\Phibar(t).",
+   "evidence": "[TEXT] method.tex:225, 228.",
+   "relates_to": "revision_2026-09-17 A4/B4"
+  }
+ },
+ {
+  "agentId": "abb71256435b7339a",
+  "label": "refute:code:sections/method.tex:219 (v)",
+  "kind": "refute",
+  "lens": "code",
+  "finding": {
+   "location": "sections/method.tex:219 (v)",
+   "quote": "the gap in held-out reconstruction between $\\vz$ and a one-hot type code",
+   "category": "code-mismatch",
+   "severity": "minor",
+   "issue": "No one-hot type code is decoded; the decoder cannot take one. The implemented check replaces each held-out cell's mu_z with the mean mu_z of its type over the training cells and decodes it together with the cell's own posterior-mean w, its foreign influx and kappa. A separate reference line is the empirical per-type profile. 'The ratio I(z;t)/H(t)' is likewise not the mutual information but a held-out lower bound from a logistic-regression probe.",
+   "why": "The description of the degeneracy check changes what its result means (type-mean z with the cell's own w, versus a pure type lookup).",
+   "proposed_change": "'(v) Two degeneracy checks in the opposite direction ...: a held-out probe lower bound on $\\I(\\vz;t)/H(t)$ together with the within-type variance of $\\vmu_z$, and the loss in held-out reconstruction when each cell's $\\vmu_z$ is replaced by its type's mean, with its response and foreign influx unchanged \\pending{...}.'",
+   "evidence": "[CODE] discell/model/train.py:394-396 (z_bar = type means of training mu_z; passed to _sweep), :339-350 (_decode_seeds: own mu_w, fwd.rho_bar, kappa), :445-450 (recon gap and type-profile reference); discell/model/metrics.py:274-323 (mi = h_t - held-out logistic CE).",
+   "relates_to": ""
+  }
+ },
+ {
+  "agentId": "a14edc82b84dd77cb",
+  "label": "refute:code:appendix/derivations.tex:7; sections/method.tex:125",
+  "kind": "refute",
+  "lens": "code",
+  "finding": {
+   "location": "appendix/derivations.tex:7; sections/method.tex:125",
+   "quote": "Fix a cell $i$ and hold $\\vc_i$ and $\\rhobar_i$ constant, as \\cref{sec:batching} does.",
+   "category": "code-mismatch",
+   "severity": "nit",
+   "issue": "sec:batching freezes rho_bar_i (and the neighbours' z_j and w_j behind it) under a stop-gradient. c_i is not frozen: it is a deterministic function of data, but the attention layer and the type query that produce it are trained through the prior mean and q(w). The bound is valid for fixed parameters, but 'as sec:batching does' suggests c_i also sits under a stop-gradient.",
+   "why": "It is a small misdescription of what the gradient reaches. A reader checking the code would find c_i trained end-to-end.",
+   "proposed_change": "derivations.tex:7: 'Fix a cell $i$, hold $\\rhobar_i$ constant as \\cref{sec:batching} does, and note that $\\vc_i$ is a deterministic function of data for fixed parameters.' method.tex:125: 'With $\\rhobar_i$ held constant (\\cref{sec:batching}) and $\\vc_i$ a deterministic function of the data, ...'.",
+   "evidence": "[CODE] discell/model/networks.py:331-338 (c from self.context with trainable gat/embed_t feeds prior_w and enc_w without detach), :345-346 (only log_rho.detach() enters foreign_influx).",
+   "relates_to": ""
+  }
+ },
+ {
+  "agentId": "ad2ce446a0a7f48d8",
+  "label": "refute:soundness:sections/introduction.tex:4 (also abstract.tex:1, introduction.tex:8)",
+  "kind": "refute",
+  "lens": "soundness",
+  "finding": {
+   "location": "sections/introduction.tex:4 (also abstract.tex:1, introduction.tex:8)",
+   "quote": "the programmes it has switched on or off because of who its neighbours are",
+   "category": "overclaim",
+   "severity": "major",
+   "issue": "The second component is defined causally ('because of', 'response'). But w also absorbs, by the paper's own design, intrinsic variation that is spatially organised within a type (method.tex:169: 'pushed into w, tumour subclones being the sharp case'), and cells that select or migrate into niches produce the same association. The sweep separates association from leakage only. A 2026-09-23 paperlog entry already removed the causal reading from the method ('Causal reading belongs in discussion only'), but the abstract and intro still carry it.",
+   "why": "The core premise is that there are three components. A reviewer will point out that the model cannot separate the second from spatially organised intrinsic variation or from selection. The paper concedes this in \u00a72.5 but not where the claim is made.",
+   "proposed_change": "introduction.tex:4: \"Second, its \\emph{response} to the local microenvironment: the programmes it has switched on or off because of who its neighbours are ...\" -> \"Second, variation that goes with its local microenvironment, including the programmes it has switched on or off in response to its neighbours ...\" Abstract: \"a latent response $\\vw$ to a deterministic description of its microenvironment\" -> \"a latent $\\vw$ for the expression predicted by a deterministic description of its microenvironment\". Add to method.tex:228 (or the intro's sweep sentence): \"The sweep separates spatial association from leakage. It does not separate a response from intrinsic variation that is spatially organised within a type, which conditional invariance assigns to $\\vw$, nor from cells selecting their niche. A surviving effect is an association that leakage cannot explain.\"",
+   "evidence": "[TEXT] method.tex:169 ('intrinsic variation that is spatially organised within a type is pushed into w'); method.tex:30 (already reworded). [TEXT] revision_2026-09-17.md, final bullets (2026-09-23 note: causal claim not supported).",
+   "relates_to": "paperlog/revision 2026-09-23 note on method \u00a7latents"
+  }
+ },
+ {
+  "agentId": "aa3b861c4361ba47c",
+  "label": "refute:soundness:sections/method.tex:214 (opening)",
+  "kind": "refute",
+  "lens": "soundness",
+  "finding": {
+   "location": "sections/method.tex:214 (opening)",
+   "quote": "A model that explains everything with leakage reconstructs held-out cells well",
+   "category": "clarity",
+   "severity": "nit",
+   "issue": "With kappa fixed at most 0.4, the model cannot route 'everything' to leakage. This motivation belongs to a design where kappa was learned. The failure mode the guard actually targets is stated later in the same paragraph: invariance emptying z while reconstruction stays good.",
+   "why": "A reviewer will note that the motivating failure cannot occur under the stated model.",
+   "proposed_change": "Replace the sentence with \"A model whose invariance machinery has emptied $\\vz$ of type structure can still reconstruct held-out cells well through the response and the leakage mixture, so held-out reconstruction alone is not a valid stopping criterion.\"",
+   "evidence": "[TEXT] method.tex:57-58 (kappa fixed), :214.",
+   "relates_to": ""
+  }
+ },
+ {
+  "agentId": "a1d35d6a15e79f7d4",
+  "label": "refute:positioning:sections/method.tex:191",
+  "kind": "refute",
+  "lens": "positioning",
+  "finding": {
+   "location": "sections/method.tex:191",
+   "quote": "while an independent probe still finds the leak",
+   "category": "clarity",
+   "severity": "nit",
+   "issue": "'Leak' and 'leakage' mean two different things in the paper: transcript misassignment (\u03ba, \u03b2, 'leakage sweep') and residual niche information in z. To ML readers, 'leakage' also means train/test information leakage, which the paper discusses too (held-out tiles in training rings). The ST literature calls the technical effect misassignment, spillover, admixture or contamination.",
+   "why": "The invariance section and the leakage model are exactly the two mechanisms the paper says must not be merged, and the shared word blurs them.",
+   "proposed_change": "Keep 'leakage' for transcripts only, with one defining clause in intro:4: \"(\\emph{leakage}; also called spillover or misassignment)\". In the invariance section, write 'residual dependence' instead: method.tex:191 'an independent probe still finds residual dependence'.",
+   "evidence": "[TEXT] method.tex:191; method.tex:209 (transductive held-out caveat). [DATA] mitchel2026celladmix title uses 'segmentation errors'; bilous2026split uses 'spillover' (citation_audit A10).",
+   "relates_to": ""
+  }
+ },
+ {
+  "agentId": "ad19ba612fa4f3104",
+  "label": "refute:clarity:sections/method.tex (whole section; sizes: \u00a72.1 628 words, \u00a72.2 1135, \u00a72.3 1439, \u00a72.4 678, \u00a72.5 1270, \u00a72.6 560, \u00a72.7 628, \u00a72.8 910)",
+  "kind": "refute",
+  "lens": "clarity",
+  "finding": {
+   "location": "sections/method.tex (whole section; sizes: \u00a72.1 628 words, \u00a72.2 1135, \u00a72.3 1439, \u00a72.4 678, \u00a72.5 1270, \u00a72.6 560, \u00a72.7 628, \u00a72.8 910)",
+   "quote": "",
+   "category": "length",
+   "severity": "major",
+   "issue": "The method alone runs from the bottom of page 2 to the top of page 11 of the current PDF, about 17 two-column columns (~7,300 words). The experiments section, a conclusion and at least one figure still have to fit in the 8-page main text. That leaves the method roughly 3.5 pages (~3,300 words), so it needs to shrink by about 55%. Trimming sentences will not get there; whole paragraphs have to move to the appendix. Most of the excess is 'why not X' justification and estimation or implementation detail, not the model.",
+   "why": "No amount of polish elsewhere rescues a submission that is ~3 pages over before results exist. Doing the cut later, under deadline pressure, also risks cutting the load-bearing sentences instead of the defensive ones.",
+   "proposed_change": "Target per subsection (words): 2.1 ~300, 2.2 ~550, 2.3 ~450, 2.4 ~350, 2.5 ~550, 2.6 ~200, 2.7 ~300, 2.8 ~550. Concrete moves, each keeping a one-sentence reason and an appendix pointer in the main text:\n(1) l4 roadmap \u2192 one sentence (see the roadmap finding).\n(2) l14 face-length rationale \u2192 app:graph; keep 'For each edge we record the centroid distance d_ij and the length f_ij of the shared Voronoi face (clipped to 30 \u00b5m discs), a contact-extent proxy defined whether or not segmented polygons touch (App. B.2).'\n(3) l17: keep the definitions of y and \u03a6; move the three lookup tables to \u00a72.5 where they are used; move the d_\u03a6 'open implementation choice' sentence to tab:deviations.\n(4) l39\u201346: replace eq:renorm and its paragraph with a per-cell leak fraction (see the isolated-cells finding).\n(5) l52 'What the decomposition means' \u2192 merge into the opening of \u00a72.5 (it restates eq:invariance-target).\n(6) l55 'Why a multinomial' \u2192 keep the first two sentences and move the rest to a new App. A subsection.\n(7) l58 'Why \u03ba is fixed' \u2192 merge into the sweep subsection (see the sweep-placement finding).\n(8) l61 \u2192 keep sentences 1\u20133; the 'what z carries' list and the 'Two remarks' go to app:conditional or are already in \u00a72.7.\n(9) l92: keep the first four sentences; drop the ablation history (already in tab:deviations2).\n(10) l94 no-per-edge-geometry \u2192 app:graph; keep 'Per-edge distances and contact extents are withheld from c_i so that attention cannot rediscover the leakage kernel \u03b2 and make w collinear with \u03c1\u0304 (App. B.2).'\n(11) l112: the abduction/counterfactual sentences \u2192 conclusion (future work) or app:variances.\n(12) l117 \u2192 'Both posteriors have learned diagonal variances; the prior scale is fixed at \u03c3_w = 1, because a learned constant would be a gauge freedom with B and a learned conditional one can inflate away the divergence (App. B.6).'\n(13) Delete l119\u2013120 'Decoder' (it repeats eq:gen-rho and l61).\n(14) l159 \u2192 about four sentences (see the scaling findings).\n(15) \u00a72.5: the l180 estimation details (EMA, support floor, shrinkage, straight-through, correlation form, jitter) \u2192 appendix under todo 8.11(b).\n(16) \u00a72.6: follow todo \u00a77 for 'Two hops'; move l206 'tempting shortcut' to the appendix.\n(17) \u00a72.7: the l217 budget paragraph \u2192 appendix (training protocol), keeping one sentence in the main text; the l219 diagnostics \u2192 an appendix table, naming them in one main-text sentence.\n(18) \u00a72.8: split and trim (see the identifiability findings); move l231 'What w is not' to the related-work paragraph.",
+   "evidence": "[TEXT] main.pdf: '2 THE DISCELL MODEL' heading on p.2, '2.8 What Is Identified' on p.10, References start p.11 col 2 (pdftotext -layout). [TEXT] word counts from wc/awk over sections/method.tex. [TEXT] questions_and_issues.md:107-109 (item 29: the internal reviewer's target was ~4 pages).",
+   "relates_to": "questions_and_issues #29; todo \u00a77 (Two hops); todo 8.11(b)"
+  }
+ },
+ {
+  "agentId": "a19ddfc0cc6e5cdbe",
+  "label": "refute:clarity:sections/checklist.tex:9,14-16,21",
+  "kind": "refute",
+  "lens": "clarity",
+  "finding": {
+   "location": "sections/checklist.tex:9,14-16,21",
+   "quote": "Complete proofs of all theoretical results. [Yes]",
+   "category": "consistency",
+   "severity": "minor",
+   "issue": "Several checklist answers do not match the built text. 2(a)\u2013(c) say [Yes] to assumptions and complete proofs, but no theoretical result is formally stated, and the one derivation labelled as an argument (app:amplification) calls itself 'a first-order heuristic, not a theorem'. 3(b), 'all training details \u2026 how they were chosen', says [Yes], but \u03b1_w and \u03b1_a are listed as 'calibrated' with neither value nor procedure in the build (the calibration appendix is commented out). 1(b), complexity, is answered [Yes] and rests on the 'Two hops' arithmetic, which todo \u00a77 proposes moving to the appendix. It stays valid only if that arithmetic survives the move.",
+   "why": "Checklist answers are read against the paper, and a [Yes] contradicted by the text costs credibility.",
+   "proposed_change": "Change 2(a)\u2013(c) to \\todo{} until Proposition 1 (previous finding) and its proof exist, then [Yes]. Set 3(b) to \\todo{} until the calibrated values and the calibration appendix return; add \\pending{} markers at the 'calibrated' rows of tab:architecture. When 'Two hops' moves, keep the O(NGh)/O(|E|G) sentence in the appendix it moves to.",
+   "evidence": "[TEXT] checklist.tex:9,14-16,21; derivations.tex:47 ('a first-order heuristic, not a theorem'); implementation.tex:40-42 ('calibrated'); main.tex (calibration appendix commented out).",
+   "relates_to": "citation_audit A4 (checklist 4(a)); todo \u00a77"
+  }
+ },
+ {
+  "agentId": "a967715470743388b",
+  "label": "refute:clarity:sections/method.tex:225",
+  "kind": "refute",
+  "lens": "clarity",
+  "finding": {
+   "location": "sections/method.tex:225",
+   "quote": "Four statements can be made.",
+   "category": "clarity",
+   "severity": "minor",
+   "issue": "A single 466-word paragraph announces 'four statements' but never numbers them. They are: \u03ba not identified; rotation plus per-column softmax constants; the per-type translation; and the z/w allocation. The gauge consequences and the iVAE/Locatello positioning are interleaved with them. The model's symmetries are its only formal content, yet they are asserted in prose, with no proposition or proof. Meanwhile the checklist answers [Yes] to 'complete proofs of all theoretical results'. (The macros already define 'proposition' and 'remark' environments, and neither is used.)",
+   "why": "ML reviewers look for crisp formal statements. A proposition with an appendix proof is shorter, easier to cite in the rebuttal, and makes checklist item 2 true.",
+   "proposed_change": "Replace the paragraph with: 'Proposition 1 (Symmetries). Fix \u03ba. The likelihood and both divergences are unchanged under (a) w \u21a6 Qw, B \u21a6 BQ^\u22a4, m_\u03c8 \u21a6 Qm_\u03c8 for orthogonal Q; (b) B_{:k} \u21a6 B_{:k} + c_k 1 and a(z) \u21a6 a(z) + c(z)1; (c) w \u21a6 w + \u03bc_t, m_\u03c8(\u00b7,t) \u21a6 m_\u03c8(\u00b7,t) + \u03bc_t, a(z) \u21a6 a(z) \u2212 B\u03bc_t, whenever t is a function of z. Proof: App. A.x.' Follow it with three short sentences: \u03ba is not identified and is swept; readouts are therefore within-type, centred and rotation-invariant; the z/w allocation rests on the invariance constraint and the intrinsic path, with no iVAE-type guarantee (Khemakhem; Locatello).",
+   "evidence": "[TEXT] method.tex:225; macros.tex:72-73 (\\newtheorem{proposition}, {remark} defined, unused); checklist.tex:14-16.",
+   "relates_to": "the gauge-exactness finding; checklist finding"
+  }
+ },
+ {
+  "agentId": "a176717d36fd75c35",
+  "label": "fixcheck:clarity:sections/method.tex:63-96 (\u00a72.3 'Inference Networks', paragraphs 'The context descriptor', 'Isolated cells', 'Decoder', and tab:learned)",
+  "kind": "fixcheck",
+  "lens": "clarity",
+  "finding": {
+   "location": "sections/method.tex:63-96 (\u00a72.3 'Inference Networks', paragraphs 'The context descriptor', 'Isolated cells', 'Decoder', and tab:learned)",
+   "quote": "\\subsection{Inference Networks}",
+   "category": "structure",
+   "severity": "major",
+   "issue": "The context descriptor c_i is defined inside 'Inference Networks', along with the 'Decoder' paragraph and the learned/fixed table. c_i is not part of inference. It is the conditioning variable of the generative prior p(w | c, t) (eq:gen-w), its graph-attention parameters are generative parameters, and the bound is on log p(x | c, t). The generative model in \u00a72.2 uses c_i with only a forward pointer ('defined in \u00a72.3'). So a reader meets the model's central object (the context) inside the variational-family section.",
+   "why": "ML reviewers check the generative/inference boundary first, because it decides what the bound is a bound on. Blurring it invites questions of the form 'is the GAT part of q?' and weakens the posterior-regularisation argument, which depends on the constraint acting on q only.",
+   "proposed_change": "Move 'The context descriptor c_i' (eqs context-src, context-gat, context), the one-sentence 'Isolated cells' and the three-sentence version of 'The query is the type' into \u00a72.2, directly after eq:gen-x, under the heading 'The context.' Delete the 'Decoder' paragraph (l119\u2013120). Keep \u00a72.3 for q(z), q(w) and the direct-path argument only. Move tab:learned to the appendix once the model figure exists (see the figure finding), or keep it in \u00a72.2.",
+   "evidence": "[TEXT] method.tex:30 ('c_i (defined in \\cref{sec:inference})'), method.tex:33 (prior conditioned on c_i), method.tex:83-96, method.tex:125 ('evidence lower bound on log p(x_i | c_i, t_i)'), method.tex:119-120.",
+   "relates_to": ""
+  }
+ },
+ {
+  "agentId": "ac4d8b72e5f77f9e6",
+  "label": "refute:consistency:sections/introduction.tex:10; appendix/rationale.tex:35",
+  "kind": "refute",
+  "lens": "consistency",
+  "finding": {
+   "location": "sections/introduction.tex:10; appendix/rationale.tex:35",
+   "quote": "and reads only the neighbours' types, closing a channel through which attention would otherwise reconstruct the cell from its most similar neighbours",
+   "category": "consistency",
+   "severity": "minor",
+   "issue": "The intro credits the type-only *sources* with closing the mirror channel, and the \"Three routes\" table lists \"types only as sources\" as a mirror fix (rationale.tex:35). But \u00a72.3 and app:mirror say the selection channel is closed by the type *query*, and implementation.tex:93 says the source restriction was adopted on an ablation, adding that \"the mechanism originally proposed for it \u2026 was tested with two purpose-built detectors and not confirmed; the sources are types because the ablation is better\".",
+   "why": "The intro states as settled a mechanism that the appendix reports as tested and unconfirmed. A reviewer who reads both will doubt the other design justifications.",
+   "proposed_change": "intro.tex:10: \"The context encoder queries the neighbourhood with the cell's type rather than with z_i, closing a selection channel through which attention could reconstruct the cell from its most similar neighbours and make the prior on w ego-informed; it reads only the neighbours' types, a choice made on an ablation rather than on a demonstrated mechanism.\" rationale.tex:35 Fix column: \"type embedding as query\".",
+   "evidence": "[TEXT] method.tex:92 \"Querying with the type closes the selection channel \u2026 removing them improved \u2026\"; implementation.tex:93 \"not confirmed\"; rationale.tex:9.",
+   "relates_to": "revision_2026-09-17 A1 (caution on justification)"
+  }
+ },
+ {
+  "agentId": "a44526fb14d893f88",
+  "label": "refute:consistency:appendix/derivations.tex:30; sections/method.tex:134; appendix/derivations.tex:24",
+  "kind": "refute",
+  "lens": "consistency",
+  "finding": {
+   "location": "appendix/derivations.tex:30; sections/method.tex:134; appendix/derivations.tex:24",
+   "quote": "It is not the evidence lower bound of a single model, so $q$ is not the posterior of anything",
+   "category": "math",
+   "severity": "major",
+   "issue": "The appendix derives both L_i (l.9\u201312) and L_i^z (l.26) as lower bounds on the *same* log p(x_i | c_i, t_i). So L_i + \u03c9L_i^z \u2264 (1+\u03c9) log p(x_i | c_i, t_i), a scaled bound on the evidence of one model. L^z is not a bound for \"the model in which w is not inferred\" (l.24 and method.tex:134). It is the same model with a restricted variational family, q(w) := p(w | c,t). What is true: q(z) is shared by two variational families, so its maximiser is a compromise and is not the best approximation to p(z|x) in either family. This differs from DisCoVR, where the shared-only bound belongs to a different model.",
+   "why": "The \"q is not a posterior, so uncertainty comes from the sweep\" argument rests on this sentence. An ML reviewer can check in two lines that the sentence contradicts the derivation directly above it.",
+   "proposed_change": "derivations.tex:30, replace the first two sentences with: \"Both bounds are on the same evidence, so L_i + \u03c9L_i^z \u2264 (1+\u03c9) log p(x_i | c_i, t_i). Unlike in \\citet{slavutsky2025}, whose two bounds belong to different models, ours belong to two variational families of one model, q(z)q(w|z) and q(z)p(w|c,t), which share q(z). The shared factor is fitted to a compromise and is not the best approximation to p(z|x) within either family, which is one of the reasons uncertainty is reported from the leakage sweep rather than from q.\" In method.tex:134 and derivations.tex:24, replace \"for the model in which w is not inferred\" with \"by restricting the variational family to q(w_i) := p(w_i | c_i, t_i)\".",
+   "evidence": "[TEXT] derivations.tex:9 \"log p(x_i | c_i,t_i) = \u2026 \u2265 \u2026\"; derivations.tex:26 \"log p(x_i | c_i, t_i) \u2265 \u2026 =: L_i^z\"; derivations.tex:30 \"It is not the evidence lower bound of a single model\"; method.tex:159 \"q is not the posterior of any single model even at the bound-equivalent weights\" (can stay after the fix).",
+   "relates_to": "paperlog 2026-09-23 (app:pathb edit)"
+  }
+ },
+ {
+  "agentId": "a988b9abc72e9cf26",
+  "label": "refute:consistency:sections/method.tex:217",
+  "kind": "refute",
+  "lens": "consistency",
+  "finding": {
+   "location": "sections/method.tex:217",
+   "quote": "Selection is on the full diagnostic battery below, taken jointly --- held-out reconstruction, the $\\vz$--type agreement, the invariance probe, the mirror check, and the external-target readouts",
+   "category": "consistency",
+   "severity": "minor",
+   "issue": "The list does not match \"the battery below\". It adds held-out reconstruction and \"external-target readouts\", which are never defined in the built text, and omits diagnostics (ii) KL_w per dimension and (v) the degeneracy checks. No rule says how \"jointly\" combines the criteria. Selecting the reference seed partly on external-target readouts that are later reported biases those readouts upward for the selected seed.",
+   "why": "An underspecified, outcome-aware seed selection step is exactly what a reviewer flags as a forking path.",
+   "proposed_change": "State a rule, e.g. \"a seed is eligible if it passes (i)\u2013(v); among eligible seeds the one with the best held-out reconstruction is the reference\", and add \"readouts used in selection are reported only as seed envelopes, never from the selected seed alone\". Define external-target readouts when the evaluation returns, or drop them from the rule.",
+   "evidence": "[TEXT] method.tex:217 vs method.tex:219 (five diagnostics); implementation.tex:95 \"one selected on the full diagnostic battery\".",
+   "relates_to": "revision_2026-09-17 A3"
+  }
+ },
+ {
+  "agentId": "a5b84c5ff60e2bb41",
+  "label": "refute:consistency:sections/method.tex:204",
+  "kind": "refute",
+  "lens": "consistency",
+  "finding": {
+   "location": "sections/method.tex:204",
+   "quote": "a first-order feedback argument bounds the amplification through the coupling by $1/(1-\\kappa)$",
+   "category": "soundness",
+   "severity": "minor",
+   "issue": "The main text presents as a bound what the appendix labels \"a first-order heuristic, not a theorem\", with an open \\todo. Also, a gain of at most 1/(1\u2212\u03ba) (\u22641.67 on the grid) describes mild, convergent feedback. It argues that the open path is benign, so it does not support the \"degeneracy\" rationale of the same paragraph (\u03c1_j absorbing i's residual), which is an identification argument, not an amplification one.",
+   "why": "The cited argument points against the conclusion it is cited for. Once A1 removes the resolVI anchor, nothing else supports it.",
+   "proposed_change": "Drop the clause, or write: \"A first-order heuristic (app:amplification) suggests the feedback itself stays bounded; the reason for the stop-gradient is the degeneracy, not divergence.\"",
+   "evidence": "[TEXT] method.tex:204; derivations.tex:44-47.",
+   "relates_to": "A1; questions_and_issues 16"
+  }
+ },
+ {
+  "agentId": "a2abe8d6a88e7e7f2",
+  "label": "refute:consistency:sections/method.tex:46; sections/method.tex:96; sections/method.tex:225",
+  "kind": "refute",
+  "lens": "consistency",
+  "finding": {
+   "location": "sections/method.tex:46; sections/method.tex:96; sections/method.tex:225",
+   "quote": "so that an isolated cell degenerates to $\\vp_i = \\vrho_i$, i.e.\\ $\\kappa_i = 0$",
+   "category": "notation",
+   "severity": "nit",
+   "issue": "Terminology collisions. (a) \"\u03ba_i\" introduces a per-cell leak fraction right before l.49 insists that \u03ba is \"section-wide, not per cell\". (b) \"clean\" means leak-free in \u03c1_i (the clean composition, l.39), but at l.225 a \"'clean' per-cell profile\" means context-neutral. (c) l.191 calls soft memberships \"discrete memberships\". (d) The abstract says the deliverable is \"which spatial effects survive the grid\"; intro:8 says \"the range across the grid is the deliverable\".",
+   "why": "The paper's key terms each carry two meanings.",
+   "proposed_change": "(a) \"\u2026 i.e. the cell is modelled without leakage\"; (b) l.225: \"a context-neutral per-cell profile\"; (c) \"cluster memberships and continuous components respectively\"; (d) choose one: \"the deliverable is the trajectory of each effect over the grid, and which effects survive it\".",
+   "evidence": "[TEXT] lines cited.",
+   "relates_to": ""
+  }
+ },
+ {
+  "agentId": "afcf8a97ad4e55316",
+  "label": "refute:consistency:sections/method.tex:209; appendix/implementation.tex:96",
+  "kind": "refute",
+  "lens": "consistency",
+  "finding": {
+   "location": "sections/method.tex:209; appendix/implementation.tex:96",
+   "quote": "for which only the type and the image embedding are looked up, since the attention sources are types",
+   "category": "consistency",
+   "severity": "nit",
+   "issue": "Nothing consumes a ring-two cell's image embedding. c_j for ring one needs \u03a6_j (ring one's own) plus the *types* of j's neighbours. Ring-two contexts are never formed, because attention destinations are restricted to seeds and ring one.",
+   "why": "This is a minor contradiction inside the batching description.",
+   "proposed_change": "\"\u2026 ring two, for which only the type is looked up, since the attention sources are types\" (and the same in impl:96).",
+   "evidence": "[TEXT] method.tex:86-88, 209.",
+   "relates_to": "todo \u00a77 (Two hops paragraph)"
+  }
+ },
+ {
+  "agentId": "a7e416e3543ce4148",
+  "label": "refute:domain:sections/method.tex:55",
+  "kind": "refute",
+  "lens": "domain",
+  "finding": {
+   "location": "sections/method.tex:55",
+   "quote": "At the depth of in situ data, tens to a few hundred counts over thousands of genes, gene-wise overdispersion cannot be estimated in any case",
+   "category": "domain",
+   "severity": "minor",
+   "issue": "(i) The depth claim is wrong for two of the four datasets: mean counts are 140 (GSE core), 262 (ovarian), 441 (lung) and 1,663 (ovary FF). (ii) \"Cannot be estimated\" is too strong. A per-gene dispersion is a population parameter estimated across 10^5\u201310^6 cells, and scVI does so routinely at comparable per-gene sparsity. The defensible point is that dispersion is confounded with a flexible latent and would break the exact mixture. (iii) The text makes the Dirichlet-multinomial conditional on overdispersion \"at higher depth\". The FF section is at higher depth, so that check is now owed.",
+   "why": "The audit (A5) used this very sentence as the correct depth statement, but it is also off. Single-cell reviewers will challenge \"cannot be estimated\".",
+   "proposed_change": "\"At the depth of these data, from about a hundred to a few thousand counts per cell over thousands of panel genes, per-gene dispersions are estimable across cells but are confounded with a flexible latent, and a low-dimensional amortised $\\vz$ absorbs much of what a dispersion parameter captures in coarser models. Should posterior predictive checks show overdispersion, as is most likely on the deepest section, the appropriate extension\u2026\" Leave the check itself for the evaluation.",
+   "evidence": "[DATA] mean counts per cell: GSE core 140, ovarian 262, lung 441, ovary FF 1,663 (task facts; ovarian re-checked: mean 261.6, median 178 in full.h5ad). [MEM] scVI gene-wise NB dispersion.",
+   "relates_to": "A5"
+  }
+ },
+ {
+  "agentId": "a9ba71724a992d787",
+  "label": "refute:critic:sections/method.tex:142 (intrinsic path) and :228 (sweep)",
+  "kind": "refute",
+  "lens": "critic",
+  "finding": {
+   "location": "sections/method.tex:142 (intrinsic path) and :228 (sweep)",
+   "quote": "under it $\\vz$ must explain the cell given only the \\emph{expected} response",
+   "category": "soundness",
+   "severity": "minor",
+   "issue": "This holds only at kappa = 0. The intrinsic path decodes cell i with a prior draw w-breve_i, but mixes in the same rhobar_i as the first term. That rhobar_i is built from the neighbours' posterior (realised) responses w_j. The paper itself says (:206) that neighbours share niches, so w_j \u2248 w_i. So for kappa > 0, a fraction kappa of the realised local response reaches L_i^z through the leakage term. The tie-breaker towards z therefore weakens as kappa grows, and the z/w allocation it enforces changes along the grid for a reason other than leakage.",
+   "why": "The sweep reads z- and w-side readouts as functions of kappa and attributes their movement to leakage. Some of that movement is a kappa-dependent change in the allocation mechanism itself. Reviewers checking why readouts move 'mechanically' (:228) will find this second mechanism unstated.",
+   "proposed_change": "At :142, qualify the sentence: 'given only the expected response of the cell itself; the foreign influx still carries the neighbours' realised responses, so the pressure on z weakens as \u03ba grows.' At :228, add it to the readouts expected to move with \u03ba by construction.",
+   "evidence": "[CODE] discell/model/networks.py:377-381: w_breve = prior draw; log_p_breve = leakage_mix(exp(log_rho_breve), rho_bar, kappa), with rho_bar the same detached influx from posterior draws (:345). [TEXT] method.tex:206: 'Neighbours share niches, so w_j \u2248 w_i'.",
+   "relates_to": "54, 10, 65"
+  }
+ }
+]

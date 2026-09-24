@@ -1,0 +1,27 @@
+{
+ "xenium_prime_ovarian_cancer_ffpe": {
+  "beta": -0.4796224271082801,
+  "face_only": -0.39101287310953553,
+  "decay_only": -0.48602205044479496
+ },
+ "xenium_prime_human_lung_cancer_ffpe": {
+  "beta": -0.5556399709409553,
+  "face_only": -0.4284686782022579,
+  "decay_only": -0.6165478600763259
+ },
+ "xenium_prime_human_ovary_ff": {
+  "beta": -0.5150248149004069,
+  "face_only": -0.4469304845031133,
+  "decay_only": -0.5045578576985373
+ },
+ "gse315411_pdltma06_11_prime_solo": {
+  "beta": -0.5373680700728349,
+  "face_only": -0.44582116723849446,
+  "decay_only": -0.5580448086555329
+ },
+ "gse315411_pdltma06_10_prime_dual": {
+  "beta": -0.5357829133116312,
+  "face_only": -0.4452054664346385,
+  "decay_only": -0.5561102674875843
+ }
+}

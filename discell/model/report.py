@@ -307,11 +307,65 @@ def build(args: argparse.Namespace) -> Path:
 
     text = render(args.run, run_meta, config, metrics, history, images,
                   pseudo, names, groups)
-    text += (atlas_section(run_dir) + transport_section(run_dir)
+    text += (degeneracy_section(run_dir) + atlas_section(run_dir)
+             + transport_section(run_dir)
              + lr_map_section(run_dir) + a4_section(run_dir))
     (out_dir / "report.md").write_text(text)
     log.info("wrote %s", out_dir / "report.md")
     return out_dir
+
+
+def degeneracy_section(run_dir: Path) -> str:
+    """The spec-7.10 degeneracy reads plus the w-channel guard, from
+    ``degeneracy.json``, when ``discell.model.degeneracy`` has been run."""
+    path = run_dir / "degeneracy.json"
+    if not path.exists():
+        return ""
+    block = json.loads(path.read_text())
+    d, g = block["degeneracy"], block["recon_gap"]
+    w = block.get("w_channel")
+    text = f"""
+
+## Degeneracy (spec 7.10) and the context channel
+
+**How**: two questions, one per channel, both on held-out cells from the
+best checkpoint (`degeneracy.json`, epoch {block['epoch']}).
+
+*Is z just t?* A held-out logistic probe gives I(μ_z; t)/H(t) =
+**{d['mi_ratio']:.3f}**, and the within-type share of z's variance is
+**{d['within_var_fraction']:.3f}**. A high ratio alone is expected — the
+decoder has no t, so z must carry it; degenerate means the ratio near 1
+**and** the within fraction near 0 **and** a null type-mean reconstruction
+gap. That gap is **{g['gap']:.4f}** nats per count
+({g['recon']:.4f} with each cell's own z against {g['recon_typemean_z']:.4f}
+with its type's mean z; the type-profile lookup reads
+{g['recon_type_profile']:.4f}).
+"""
+    if not w:
+        return text
+    verdict = (f"**{w['flag']}**" if w["flag"] else
+               "the channel is alive: the excess clears the floor")
+    text += f"""
+*Is w just a per-type constant?* The mirror question, and the one the rest
+of the battery does not see — a run whose prior network m_ψ(c, t) ignores c
+has w constant within each type and reads healthy on reconstruction, NMI,
+the probe and the cycle (FF `best_s2`, 2026-09-23). Two reads on
+{w['n_cells']:,} held-out cells over {w['n_niches']} k-means composition
+niches:
+
+| read | value | reference |
+|---|---|---|
+| I(niche; μ_w), kNN (nats) | **{w['w_niche_mi']:.4f}** | within-type permutation floor {w['w_niche_mi_floor']:.4f} ± {w['w_niche_mi_floor_sd']:.4f} |
+| excess over the floor | **{w['w_niche_mi_excess']:+.4f}** | > 0 required |
+| across-cell variance fraction of w | **{w['w_var_fraction_across_cells']:.4f}** | 0 = w is the per-type gauge offset and nothing else |
+
+The floor is the MI a latent gets from cell **type** alone (niches differ in
+composition, so a type-informative latent is niche-informative for free);
+only the excess is context. The variance read is tr Cov(w|t) / tr Cov(w) —
+the per-type offset μ_t is not identified (issues V12), so the between-type
+part of w's variance is gauge, not response. Verdict: {verdict}.
+"""
+    return text
 
 
 def atlas_section(run_dir: Path) -> str:
@@ -700,14 +754,15 @@ def transport_second_round_block(run_dir: Path) -> str:
     if not dist_path.exists():
         return ""
     res = json.loads(dist_path.read_text())
-    cols = [(label, res.get(block, {}).get(tier, {}))
-            for label, block, tier in (
-                ("pairwise, all genes", "summary_model", "pairwise"),
-                ("leave-one-out, all genes", "summary_model",
-                 "leave_one_out"),
-                ("pairwise, HVG 1000", "summary_model_hvg", "pairwise"),
-                ("leave-one-out, HVG 1000", "summary_model_hvg",
-                 "leave_one_out"))]
+    cols = [(f"{tier_label}, {gene_label}{side_label}",
+             res.get(f"summary_model{suffix}", {}).get(tier, {}))
+            for suffix, side_label, gene_label in (
+                ("", " *(group w)*", "all genes"),
+                ("_own", " *(own w)*", "all genes"),
+                ("_hvg", " *(group w)*", "HVG 1000"),
+                ("_own_hvg", " *(own w)*", "HVG 1000"))
+            for tier, tier_label in (("pairwise", "pairwise"),
+                                     ("leave_one_out", "leave-one-out"))]
     cols = [c for c in cols if c[1].get("n_panels")]
     if not cols:
         return ""
@@ -739,13 +794,15 @@ def transport_second_round_block(run_dir: Path) -> str:
     twin_table = ""
     if twin_path.exists():
         tw = json.loads(twin_path.read_text())
-        tcols = [(label, tw.get(block, {}).get(tier, {}))
-                 for label, block, tier in (
-                     ("pairwise, all genes", "summary", "pairwise"),
-                     ("leave-one-out, all genes", "summary", "leave_one_out"),
-                     ("pairwise, HVG 1000", "summary_hvg", "pairwise"),
-                     ("leave-one-out, HVG 1000", "summary_hvg",
-                      "leave_one_out"))]
+        tcols = [(f"{tier_label}, {gene_label}{side_label}",
+                  tw.get(f"summary{suffix}", {}).get(tier, {}))
+                 for suffix, side_label, gene_label in (
+                     ("", " *(group w)*", "all genes"),
+                     ("_own", " *(own w)*", "all genes"),
+                     ("_hvg", " *(group w)*", "HVG 1000"),
+                     ("_own_hvg", " *(own w)*", "HVG 1000"))
+                 for tier, tier_label in (("pairwise", "pairwise"),
+                                          ("leave_one_out", "leave-one-out"))]
         tcols = [c for c in tcols if c[1].get("n_panels")]
         if tcols:
             h = "| | " + " | ".join(c[0] for c in tcols) + " |\n"
@@ -789,8 +846,9 @@ source niche(s)) is transported into the target niche and compared *cell to
 cell* with the target cell's own decoded vector, by Hellinger distance.
 References per cell: the same twin **untransported**, a **random** same-type
 source cell transported (does matching on z buy anything), and the **floor**,
-the target cell's z-nearest other target cell, both decoded in the target
-niche. Gap closed = (untransported − transported)/(untransported − floor);
+the target cell's z-nearest other target cell. The *(group w)* and *(own w)*
+columns differ exactly as in Read A: what the target cell is compared with
+is its group-mean-w decode or its own-posterior decode. Gap closed = (untransported − transported)/(untransported − floor);
 twin margin = (random − transported)/random. CIs are paired bootstraps over
 cells.
 
@@ -804,8 +862,14 @@ cells.
 #### Read A — model-vs-model MMD
 
 Same panels and the same Hellinger-map MMD², but the target cloud is now the
-target cells' **own decoded probability vectors** (their posterior-mean z and
-w, their own context and leak) instead of their raw counts. Both sides are
+target cells' **own decoded probability vectors** instead of their raw counts.
+Two target sides are reported. *group w*: the target cells are decoded at the
+same niche-group mean w and influx the transported source cells are given, so
+both clouds share w exactly and the read is a niche-invariance-of-z read.
+*own w*: every target cell is decoded at its **own posterior μ_w**, its own
+context and its own foreign influx — what the model says that cell actually
+is — which is the honest target (devlog 2026-09-21, todo 8.3). The source
+side is identical in both. Both sides are
 then smooth model outputs, so reconstruction error and shot noise leave the
 comparison and no count-matched companion is needed; the floor is two halves
 of the decoded target and the type-mean predictor is the decoded target's

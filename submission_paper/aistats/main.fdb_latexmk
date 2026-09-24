@@ -1,12 +1,12 @@
 # Fdb version 3
-["bibtex main"] 1789980924 "main.aux" "main.bbl" "main" 1789980925
+["bibtex main"] 1790248662 "main.aux" "main.bbl" "main" 1790248662
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/apalike.bst" 1292289607 24635 604dafcc79f521a11ea73e506e1fbd98 ""
-  "main.aux" 1789980925 19224 c9f43a1214f7dd11ce3f6ec1a353bece "pdflatex"
-  "references.bib" 1788931511 15252 229e3ec10d0cc37d371e65641a5ae9ee ""
+  "main.aux" 1790248662 22975 e8c137d5aa5155f65b1a0315f48ce222 "pdflatex"
+  "references.bib" 1790236679 19032 37e2ac7a5eb682a80fc7bfb3162b8375 ""
   (generated)
   "main.bbl"
   "main.blg"
-["pdflatex"] 1789980924 "main.tex" "main.pdf" "main" 1789980925
+["pdflatex"] 1790248662 "main.tex" "main.pdf" "main" 1790248662
   "/etc/texmf/web2c/texmf.cnf" 1774002377 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmbsy5.tfm" 1246382020 1120 1e8878807317373affa7f7bba4cf2f6a ""
@@ -147,20 +147,20 @@
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1774003866 4379155 98693266ff65f58d9f98aff394de12d2 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1774003889 2799686 5f71a369ac1ea65c33ab8bb2c62a39d5 ""
   "aistats2026.sty" 1788859260 18252 6210dbdb835ef46fc140db24f3fea0f5 ""
-  "appendix/derivations.tex" 1788931891 6381 07523565603ec8cbaf6b81bdc1095d99 ""
-  "appendix/implementation.tex" 1789980916 10957 91f4f9f6caf04e369b568b003b909625 ""
-  "appendix/rationale.tex" 1789980887 7550 47d98f495fe2477fc48a87972316560f ""
+  "appendix/derivations.tex" 1790248661 7711 5d14d735d9f47e55b8157010e2a8c59b ""
+  "appendix/implementation.tex" 1790237290 11092 34bd3489ff0791665e1c8cb1ee37a12c ""
+  "appendix/rationale.tex" 1790243630 12412 97da6db3858917969052f05360b882bf ""
   "fancyhdr.sty" 1788859260 20521 e5d13d98d57bd53d4fed3aa61bd29c86 ""
   "macros.tex" 1788931511 2520 0e62c5a9d88d0f2585a17dcf0f987a22 ""
-  "main.aux" 1789980925 19224 c9f43a1214f7dd11ce3f6ec1a353bece "pdflatex"
-  "main.bbl" 1789980924 7450 c738309ad2652e73b8e5b0792f9a6819 "bibtex main"
-  "main.out" 1789980925 6045 f0ab5ff8b43302067a76f1be053efc21 "pdflatex"
+  "main.aux" 1790248662 22975 e8c137d5aa5155f65b1a0315f48ce222 "pdflatex"
+  "main.bbl" 1790248662 10430 321980176eaaaf5c9fdf6c793f1717d6 "bibtex main"
+  "main.out" 1790248662 6045 f0ab5ff8b43302067a76f1be053efc21 "pdflatex"
   "main.tex" 1789630490 1932 0dcbf3a9995b3c6d186c2c403be26cb6 ""
-  "sections/abstract.tex" 1789630490 1236 2b903e072ded5dd56e387185e5309427 ""
+  "sections/abstract.tex" 1790233715 1280 cf87d59d02753fd7ccb4a98086814401 ""
   "sections/checklist.tex" 1788931891 2716 943cc2e9bfc82ccda38fcab4321ff923 ""
   "sections/conclusion.tex" 1788871997 598 6cf0a51b96a763bd83af97e80127bc16 ""
-  "sections/introduction.tex" 1789649821 7204 dcadc23fdb1bcc76b544dd3bae0125fb ""
-  "sections/method.tex" 1789980850 49300 cbbe08fab9fe3324554f39802af0b21c ""
+  "sections/introduction.tex" 1790240634 8959 a2f837330a4467185603bbb256b36bc8 ""
+  "sections/method.tex" 1790248661 55685 d9dce8880417242fd47022b74774e393 ""
   (generated)
   "main.aux"
   "main.log"

@@ -37,10 +37,34 @@ from discell import paths
 from discell.model import metrics as M
 from discell.model.elbo import Weights, adversary_terms, discell_loss
 from discell.model.equations import TypeCovariances, leakage_mix
-from discell.model.networks import DisCell
+from discell.model.networks import (KAPPA_MODES, DisCell, kappa_ratio_stats,
+                                    read_density_areas, read_gene_share)
 from discell.model.prepare import ModelData, assemble, tile_batch
 
 log = logging.getLogger("discell.model.train")
+
+#: dead-context-channel detector (2026-09-23, FF best_s2). When the prior
+#: network m_psi(c, t) ignores c, q(w|.) sits exactly on it and every
+#: per-dimension KL_w reads 0.0000 from the first evaluation onward: the run
+#: is a type-conditioned intrinsic autoencoder with a leak term, and every
+#: other read (recon, NMI, probe, cycle) looks healthy. Healthy fits carry a
+#: summed KL_w of 3e-4 to 8e-3 at the first evaluations, so the threshold sits
+#: two orders below the smallest live value. Checked only over the opening
+#: epochs: a channel that is going to open has opened by then.
+DEAD_W_KL_SUM = 1e-5
+DEAD_W_MAX_EPOCH = 20
+
+
+def kl_w_is_dead(kl_w_per_dim, epoch: int) -> bool:
+    """True when *epoch* is an opening epoch whose summed KL_w is ~0."""
+    return (epoch < DEAD_W_MAX_EPOCH
+            and float(np.sum(kl_w_per_dim)) < DEAD_W_KL_SUM)
+
+
+def dead_w_channel(history: Sequence[dict]) -> bool:
+    """The detector over a whole ``history.jsonl`` (one record per evaluation)."""
+    return any(kl_w_is_dead(record["kl_w_per_dim"], int(record["epoch"]))
+               for record in history if record.get("kl_w_per_dim") is not None)
 
 
 @dataclass(frozen=True)
@@ -102,6 +126,44 @@ class TrainConfig:
     second_kl: bool = True
     class_mean_prior: bool = False
     adv_input: str = "mu_z"             # "mu_z" | "xhat"
+    #: the two context-collapse remedies (2026-09-23 pre-registration). Both
+    #: default off = every run before them, and then the objective is the
+    #: pinned one bit for bit.
+    #: warm-up: alpha_w_eff(epoch) = alpha_w * min(1, epoch / N), the KL_w term
+    #: only, so the converged objective is unchanged. 0 = no warm-up.
+    w_warmup_epochs: int = 0
+    #: warm-up on BOTH KL terms (8.9b pre-registration, 2026-09-24): alpha_z
+    #: and alpha_w each scaled by min(1, epoch / N) -- alpha_z on both copies
+    #: of the z-divergence, the (1 + omega) factor unchanged. Adversary, recon
+    #: and every other term untouched. Mutually exclusive with
+    #: w_warmup_epochs. 0 = off.
+    kl_warmup_epochs: int = 0
+    #: free bits: per-dimension KL_w charged as max(KL_k - lambda, 0). 0 = off.
+    w_free_bits: float = 0.0
+    #: the three query/prior ablations (2026-09-23 pre-registration). Both
+    #: defaults are the pinned architecture, bit for bit.
+    #: query: what the GAT is queried with -- "type" = embed(t_i) (pinned),
+    #: "type_free" = one learned vector shared by all cells, "image" = a
+    #: linear map of the ego-masked Phi_i. Arms (i) and (ii).
+    query: str = "type"
+    #: arm (iii): m_psi reads c only, t dropped from the prior; q(w|.) unchanged.
+    prior_type_free: bool = False
+    #: review R12 Test 2 (2026-09-24): the form of the leak coefficient,
+    #: networks.KAPPA_MODES. "global" = one kappa = every run before it, bit for
+    #: bit; "depth" = kappa_i = kappa * clip(sum_j beta_ij l_j / l_i, 0, 0.5 /
+    #: kappa); "gene" = kappa_g = min(kappa * s_g / mean(s_g), 0.9) with s_g
+    #: read from kappa_gene_source -- None resolves to the dataset's
+    #: experiments/gene_extranuclear_share.npy, and the resolved path is what
+    #: config.json records; "density" = "depth" on l/A, A the cell area
+    #: (networks.density_areas; the run dir's kappa_density.json records how).
+    kappa_mode: str = "global"
+    kappa_gene_source: str | None = None
+    #: the depth/density normaliser (amendments 1-2, 2026-09-24): the m with
+    #: mean(kappa * clip(r_i / m, 0, 0.5 / kappa)) = kappa over the connected
+    #: training cells, so the post-clip mean kappa_i is kappa. None = solved
+    #: once at Trainer setup and recorded here (config.json) and in the run
+    #: dir's kappa_<mode>.json.
+    kappa_ratio_mean: float | None = None
     # optimisation
     epochs: int = 200
     tile_cells: int = 4096
@@ -118,11 +180,48 @@ class TrainConfig:
     seed: int = 0
     device: str = "cuda"
 
-    def weights(self) -> Weights:
-        return Weights(omega=self.omega, alpha_z=self.alpha_z,
-                       alpha_w=self.alpha_w, alpha_a=self.alpha_a,
+    def __post_init__(self) -> None:
+        if self.w_warmup_epochs > 0 and self.kl_warmup_epochs > 0:
+            raise ValueError(
+                "--w-warmup-epochs and --kl-warmup-epochs are mutually "
+                f"exclusive (got {self.w_warmup_epochs} and "
+                f"{self.kl_warmup_epochs})")
+        if self.kappa_mode not in KAPPA_MODES:
+            raise ValueError(f"kappa_mode must be one of {KAPPA_MODES}, "
+                             f"got {self.kappa_mode!r}")
+        if self.kappa_mode == "gene" and self.kappa_gene_source is None:
+            object.__setattr__(self, "kappa_gene_source", str(
+                paths.dataset(self.dataset).root / "experiments"
+                / "gene_extranuclear_share.npy"))
+
+    @property
+    def warmup_epochs(self) -> int:
+        """Length of the warm-up era, whichever flag set it; 0 = none."""
+        return max(self.w_warmup_epochs, self.kl_warmup_epochs)
+
+    def alpha_z_at(self, epoch: int) -> float:
+        """The warmed-up alpha_z at *epoch*; the constant alpha_z unless
+        kl_warmup_epochs is on (the w-only warm-up never touches it)."""
+        if self.kl_warmup_epochs <= 0:
+            return self.alpha_z
+        return self.alpha_z * min(1.0, epoch / self.kl_warmup_epochs)
+
+    def alpha_w_at(self, epoch: int) -> float:
+        """The warmed-up alpha_w at *epoch* (either warm-up flag); the
+        constant alpha_w when both are off."""
+        if self.warmup_epochs <= 0:
+            return self.alpha_w
+        return self.alpha_w * min(1.0, epoch / self.warmup_epochs)
+
+    def weights(self, epoch: int | None = None) -> Weights:
+        return Weights(omega=self.omega,
+                       alpha_z=(self.alpha_z if epoch is None
+                                else self.alpha_z_at(epoch)),
+                       alpha_w=(self.alpha_w if epoch is None
+                                else self.alpha_w_at(epoch)),
+                       alpha_a=self.alpha_a,
                        lambda_w=self.lambda_w, w_penalty=self.w_penalty,
-                       second_kl=self.second_kl)
+                       second_kl=self.second_kl, w_free_bits=self.w_free_bits)
 
     def name(self) -> str:
         return self.run_name or f"discell_k{self.kappa:g}_seed{self.seed}"
@@ -141,9 +240,29 @@ class Trainer:
         # figures draw their own subsamples: a logging knob must never move
         # the training-shuffle stream
         self.figure_rng = np.random.default_rng([config.seed, 3])
+        #: the epoch currently being stepped -- read by the KL warm-ups
+        self.epoch = 0
         if config.figures_every % config.eval_every:
             raise ValueError("figures_every must be a multiple of eval_every, "
                              f"got {config.figures_every} / {config.eval_every}")
+
+        # review R12 depth/density forms: the cell areas (density) and the
+        # amendment's normaliser mean_train(r), once, over the connected
+        # training cells; a config that already carries it keeps its value
+        self.cell_area = self.density_report = self.kappa_ratio_report = None
+        if config.kappa_mode == "density":
+            self.cell_area, self.density_report = read_density_areas(
+                config.dataset, config.variant, data.t, len(data.p_t),
+                data.type_names)
+        if config.kappa_mode in ("depth", "density"):
+            self.kappa_ratio_report = kappa_ratio_stats(
+                data.graph.in_edges, data.totals,
+                np.concatenate(data.train_tiles), config.kappa, self.cell_area)
+            if config.kappa_ratio_mean is None:
+                config = dataclasses.replace(
+                    config, kappa_ratio_mean=self.kappa_ratio_report[
+                        "normaliser"])
+                self.config = config
 
         self.model = DisCell(
             n_genes=data.x.shape[1], n_types=len(data.p_t),
@@ -154,6 +273,13 @@ class Trainer:
             subtract_leak=config.subtract_leak,
             gat_sink=config.gat_sink,
             class_mean_prior=config.class_mean_prior,
+            query=config.query,
+            prior_type_free=config.prior_type_free,
+            kappa_mode=config.kappa_mode,
+            kappa_gene_share=(read_gene_share(config.kappa_gene_source,
+                                              data.gene_names)
+                              if config.kappa_mode == "gene" else None),
+            kappa_ratio_mean=config.kappa_ratio_mean,
         ).to(self.device)
         self.covariances = None
         self.adversary = self.adversary_optimiser = None
@@ -190,6 +316,11 @@ class Trainer:
         run_root = paths.dataset(config.dataset).root / "runs"
         self.run_dir = run_root / config.name()
         self.run_dir.mkdir(parents=True, exist_ok=True)
+        if self.kappa_ratio_report is not None:
+            (self.run_dir / f"kappa_{config.kappa_mode}.json").write_text(
+                json.dumps({"ratio_mean_used": config.kappa_ratio_mean,
+                            "ratio": self.kappa_ratio_report,
+                            "area": self.density_report}, indent=1))
 
     def _to_device(self, tile: np.ndarray) -> dict:
         """One tile's tensors, resident on the device for the whole fit."""
@@ -205,7 +336,7 @@ class Trainer:
         counts = self.data.x[b.nodes[:n_resident]].toarray()
         assert counts.max() < 32768, "counts exceed int16; widen the resident dtype"
         dense = torch.tensor(counts.astype(np.int16), device=self.device)
-        return dict(
+        batch = dict(
             nodes=b.nodes,
             x=dense,
             t=torch.tensor(self.data.t[b.nodes], device=self.device),
@@ -226,6 +357,10 @@ class Trainer:
                 self.data.e_phi[b.nodes[:b.n_seeds]], device=self.device),
             n_seeds=b.n_seeds, n_context=b.n_context,
         )
+        if self.cell_area is not None:
+            batch["area"] = torch.tensor(self.cell_area[b.nodes[:n_resident]],
+                                         dtype=torch.float32, device=self.device)
+        return batch
 
     @staticmethod
     def _forward_kwargs(batch: dict) -> dict:
@@ -233,6 +368,8 @@ class Trainer:
                 "leak_src", "leak_dst", "leak_beta", "n_seeds", "n_context")
         out = {k: batch[k] for k in keep}
         out["x"] = batch["x"].float()          # resident int16 -> float32 per tile
+        if "area" in batch:                    # the R12 density form only
+            out["area"] = batch["area"]
         return out
 
     # -- steps -------------------------------------------------------------
@@ -247,7 +384,7 @@ class Trainer:
         kwargs = self._forward_kwargs(batch)
         fwd = self.model(**kwargs, kappa=config.kappa)
         n = batch["n_seeds"]
-        weights = config.weights()
+        weights = config.weights(self.epoch)
         extras: dict = {}
         if self.adversary is not None:
             adv_feat = (fwd.mu_z[:n] if config.adv_input == "mu_z"
@@ -296,7 +433,7 @@ class Trainer:
         """
         log_rho = self.model.log_rho(
             z_seeds, fwd.mu_w[:n] if w_seeds is None else w_seeds)
-        return leakage_mix(log_rho.exp(), fwd.rho_bar, self.config.kappa)
+        return leakage_mix(log_rho.exp(), fwd.rho_bar, fwd.kappa_eff)
 
     @torch.no_grad()
     def _sweep(self, batches: list[dict], want_log_p: bool = False,
@@ -866,8 +1003,12 @@ class Trainer:
         history_path.unlink(missing_ok=True)
         best = {"recon_val": -np.inf, "nmi": 0.0, "epoch": -1}
         nmi_max, stale, step = 0.0, 0, 0
+        dead_w = False
+        last_epoch = -1
         started = time.time()
         for epoch in range(config.epochs):
+            self.epoch = epoch
+            last_epoch = epoch
             for index in self.rng.permutation(len(self.train_batches)):
                 terms, extras = self._step(self.train_batches[index])
                 if step % 20 == 0:
@@ -885,7 +1026,16 @@ class Trainer:
             if (epoch + 1) % config.eval_every:
                 continue
             report = self.evaluate()
-            nmi_max = max(nmi_max, report["nmi"])
+            # During the alpha_w warm-up the objective is NOT the pinned one
+            # (2026-09-23): the KL_w term is scaled down, so those epochs are
+            # optimising a different loss. They must not supply the checkpoint,
+            # must not start the patience counter, and must not set the NMI
+            # guard's reference -- otherwise `best` comes from an era whose
+            # objective the run does not end on. No warm-up = no change. The
+            # same gate holds for the warm-up on both KL terms (8.9b).
+            warming = epoch < config.warmup_epochs
+            if not warming:
+                nmi_max = max(nmi_max, report["nmi"])
             writer.add_scalar("val/recon", report["recon_val"], step)
             writer.add_scalar("val/nmi", report["nmi"], step)
             writer.add_scalar("val/mirror_r2", report["mirror"]["r2"], step)
@@ -917,9 +1067,17 @@ class Trainer:
                             value, step)
             for k, value in enumerate(report["kl_w_per_dim"]):
                 writer.add_scalar(f"val/kl_w_dim{k}", value, step)
+            if kl_w_is_dead(report["kl_w_per_dim"], epoch):
+                dead_w = True
+                log.warning("dead context channel: KL_w ≈ 0 at epoch %d "
+                            "(sum KL_w = %.3g over %d dims)", epoch,
+                            float(np.sum(report["kl_w_per_dim"])),
+                            len(report["kl_w_per_dim"]))
             with history_path.open("a") as sink:
                 sink.write(json.dumps(
                     {"epoch": epoch, "step": step,
+                     "alpha_z_eff": config.alpha_z_at(epoch),
+                     "alpha_w_eff": config.alpha_w_at(epoch),
                      **{k: v for k, v in report.items() if k != "collected"}},
                     default=float) + "\n")
             log.info("epoch %d  recon %.4f  nmi %.3f  mirror %.3f  dCE %.4f  [%.0fs]",
@@ -930,6 +1088,11 @@ class Trainer:
             if (epoch + 1) % config.figures_every == 0:
                 self.figures(writer, report["collected"], step)
 
+            if warming:
+                log.info("epoch %d inside the KL warm-up (%d epochs): "
+                         "not eligible for best, patience not started",
+                         epoch, config.warmup_epochs)
+                continue
             improved = report["recon_val"] > best["recon_val"]
             guarded = report["nmi"] >= config.nmi_guard * nmi_max
             if improved and guarded:
@@ -953,9 +1116,28 @@ class Trainer:
                     log.info("early stop at epoch %d (best %d)", epoch, best["epoch"])
                     break
 
+        # `final` must describe the checkpoint that ships, not the model
+        # `patience` epochs past it (review R26, 2026-09-24): until then the
+        # closing evaluation scored the in-memory weights, so every read of
+        # metrics.json["final"] described a model nobody uses. Restoring into
+        # self.model also puts callers that keep using this trainer after fit()
+        # (calibrate._short_fit) on the accepted weights.
+        if best["epoch"] >= 0:
+            payload = torch.load(self.run_dir / "best.pt", map_location=self.device,
+                                 weights_only=False)
+            self.model.load_state_dict(payload["model"])
+            if self.covariances is not None and payload["covariances"] is not None:
+                for name, value in payload["covariances"].items():
+                    setattr(self.covariances, name,
+                            value.to(self.covariances.mean.device))
         final = self.evaluate()
         final.pop("collected")
         summary = {"best": best, "final": final,
+                   # which epoch `final` describes; absent from runs made before
+                   # the R26 fix, whose `final` is the last trained epoch
+                   "final_epoch": best["epoch"] if best["epoch"] >= 0 else last_epoch,
+                   "last_epoch": last_epoch,
+                   "dead_w_channel": dead_w,
                    "minutes": (time.time() - started) / 60}
         (self.run_dir / "metrics.json").write_text(
             json.dumps(summary, indent=2, default=str))
@@ -998,13 +1180,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--embeddings", default=defaults.embeddings)
     parser.add_argument("--run-name", default=None)
     for field in ("kappa", "omega", "alpha_z", "alpha_w", "alpha_a", "lr",
-                  "weight_decay", "lambda_w", "adv_lr", "val_fraction", "nmi_guard",
-                  "cov_ema", "grad_clip"):
+                  "weight_decay", "lambda_w", "w_free_bits", "adv_lr",
+                  "val_fraction", "nmi_guard", "cov_ema", "grad_clip"):
         parser.add_argument(f"--{field.replace('_', '-')}", type=float,
                             default=getattr(defaults, field))
     for field in ("d_z", "d_w", "hidden", "gat_dim", "heads", "adv_steps",
                   "adv_hidden", "v_pcs", "epochs", "tile_cells", "patience",
-                  "eval_every", "figures_every", "panel_types", "seed"):
+                  "eval_every", "figures_every", "panel_types", "seed",
+                  "w_warmup_epochs", "kl_warmup_epochs"):
         parser.add_argument(f"--{field.replace('_', '-')}", type=int,
                             default=getattr(defaults, field))
     parser.add_argument("--phi-pca", type=int, default=None)
@@ -1017,6 +1200,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--class-mean-prior", action="store_true",
                         help="ablation (iii): p(w|t) = N(mu_t, I), a learned "
                              "per-type vector in place of m_psi(c, t)")
+    parser.add_argument("--query", default=defaults.query,
+                        choices=("type", "type_free", "image"),
+                        help="arms (i)/(ii): the GAT query -- embed(t_i), one "
+                             "shared learned vector, or a linear map of Phi_i")
+    parser.add_argument("--prior-type-free", action="store_true",
+                        help="arm (iii): m_psi(c) only, t dropped from the "
+                             "prior; the posterior q(w|.) is unchanged")
     parser.add_argument("--adv-input", default=defaults.adv_input,
                         choices=("mu_z", "xhat"),
                         help="ablation (iv): adversary heads read the decoded "
@@ -1027,6 +1217,15 @@ def build_parser() -> argparse.ArgumentParser:
                         choices=("type_z", "type_only"))
     parser.add_argument("--subtract-leak", action="store_true",
                         help="spec 7.13: encoders read x - kappa*l*rho_bar")
+    parser.add_argument("--kappa-mode", default=defaults.kappa_mode,
+                        choices=KAPPA_MODES,
+                        help="review R12: the leak coefficient's form -- one "
+                             "kappa (global), per cell from donor/receiver "
+                             "depth (depth), per gene from the extranuclear "
+                             "share s_g (gene)")
+    parser.add_argument("--kappa-gene-source", default=None,
+                        help="s_g file for --kappa-mode gene (default: the "
+                             "dataset's experiments/gene_extranuclear_share.npy)")
     parser.add_argument("--gat-sink", action="store_true",
                         help="attention sink: c grows with neighbour count "
                              "(saturating dose) instead of seeing fractions only")

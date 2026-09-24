@@ -1,5 +1,7 @@
 # Everything that needs a reference
 
+> **2026-09-23:** for the built manuscript this file is superseded by [`citation_audit.md`](citation_audit.md) — a per-citation read-and-verify checklist, with several statuses below corrected there (e.g. `ergen2025` authors, `kronos2025` title). Kept for the history of what was planned.
+
 Status: `have` = entry in references.bib; `CHECK` = entry exists but details unverified;
 `need` = no entry yet; `[NEEDS A SOURCE]` = a claim in the text carries the visible marker.
 

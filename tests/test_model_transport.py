@@ -17,6 +17,7 @@ from discell.model.networks import DisCell
 from discell.model.prepare import build_graph, tile_batch
 from discell.model.train import Trainer
 from discell.model.transport import (TUMOUR_BANDS, collect_channels,
+                                     collect_own_p,
                                      distribution_scores,
                                      distribution_summary, noise_ceiling,
                                      pick_pairs, score_shift, tier_summary,
@@ -480,3 +481,47 @@ def test_twin_summary_and_hvg_restriction():
     q = restrict_renormalise(p, np.array([True, True, False]))
     assert np.allclose(q.sum(axis=1), 1.0)
     assert np.allclose(q[0], [1 / 3, 2 / 3])
+
+
+def test_collect_own_p_returns_the_cells_own_decode_in_the_wanted_order():
+    """The honest target of read 6a.6: ``p`` for chosen cells at their OWN
+    posterior w, context and influx -- i.e. exactly ``Forward.log_p`` under
+    ``sample=False``, gathered for a subset and in that subset's order."""
+    torch.manual_seed(0)
+    genes, phi_dim = 25, 4
+    graph, batch, t = _two_seed_tile(2, 5)
+    model = DisCell(genes, 2, phi_dim, median_counts=50.0, d_z=3, d_w=2,
+                    hidden=16, gat_dim=6, heads=2)
+    rng = np.random.default_rng(1)
+    tile = dict(
+        nodes=batch.nodes,
+        x=torch.tensor(rng.poisson(2.0, (len(batch.nodes), genes)),
+                       dtype=torch.int16),
+        t=torch.tensor(t[batch.nodes]),
+        phi=torch.randn(len(batch.nodes), phi_dim),
+        isolated=torch.tensor(graph.isolated[batch.nodes]),
+        gat_src=torch.tensor(batch.gat_src), gat_dst=torch.tensor(batch.gat_dst),
+        leak_src=torch.tensor(batch.leak_src), leak_dst=torch.tensor(batch.leak_dst),
+        leak_beta=torch.tensor(batch.leak_beta, dtype=torch.float32),
+        n_seeds=batch.n_seeds, n_context=batch.n_context)
+    trainer = SimpleNamespace(model=model.eval(),
+                              config=SimpleNamespace(kappa=0.1),
+                              train_batches=[tile], val_batches=[],
+                              _forward_kwargs=Trainer._forward_kwargs)
+    with torch.no_grad():
+        by_hand = model(**Trainer._forward_kwargs(tile), kappa=0.1,
+                        sample=False).log_p.exp().numpy()
+
+    both = collect_own_p(trainer, np.array([0, 1]), graph.n_cells)
+    assert both.shape == (2, genes)
+    assert np.allclose(both, by_hand[:2], atol=1e-6)
+    # rows follow *wanted*, not the cell index, and a subset is honoured
+    assert np.allclose(collect_own_p(trainer, np.array([1, 0]),
+                                     graph.n_cells), by_hand[[1, 0]],
+                       atol=1e-6)
+    assert np.allclose(collect_own_p(trainer, np.array([1]), graph.n_cells)[0],
+                       by_hand[1], atol=1e-6)
+    # it is a probability vector, and it is NOT the group-mean-w decode that
+    # the first round used (the two seeds see different neighbourhoods)
+    assert np.allclose(both.sum(axis=1), 1.0, atol=1e-5)
+    assert not np.allclose(both[0], both[1], atol=1e-6)

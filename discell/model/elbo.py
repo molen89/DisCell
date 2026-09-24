@@ -30,7 +30,8 @@ from dataclasses import dataclass, field
 
 import torch
 
-from discell.model.equations import TypeCovariances, gaussian_kl, multinomial_loglik
+from discell.model.equations import (TypeCovariances, gaussian_kl,
+                                     gaussian_kl_per_dim, multinomial_loglik)
 from discell.model.networks import Adversary, Forward, soft_cross_entropy
 
 
@@ -56,6 +57,13 @@ class Weights:
     #: False drops the second copy -- weight ``1 * alpha_z`` -- the natural
     #: mistake the spec names, which costs the bound property.
     second_kl: bool = True
+    #: free bits on the context channel (2026-09-23 pre-registration): the
+    #: per-dimension KL_w is charged only above ``w_free_bits`` nats,
+    #: ``sum_k max(KL_k - lambda, 0)``, with ``KL_k`` the tile mean of
+    #: dimension k -- the same per-dimension quantity the dead-channel guard
+    #: reads. 0 = off = every run before it, and then the term is the plain
+    #: summed KL bit for bit.
+    w_free_bits: float = 0.0
 
 
 @dataclass
@@ -67,6 +75,8 @@ class Terms:
     recon_b: float
     kl_z: float
     kl_w: float
+    #: the KL_w actually charged: equal to ``kl_w`` unless free bits are on
+    kl_w_charged: float = 0.0
     penalty: float = 0.0
     w_penalty: float = 0.0
     penalty_info: dict = field(default_factory=dict)
@@ -74,6 +84,7 @@ class Terms:
     def scalars(self) -> dict[str, float]:
         return {"loss": float(self.loss), "recon_a": self.recon_a,
                 "recon_b": self.recon_b, "kl_z": self.kl_z, "kl_w": self.kl_w,
+                "kl_w_charged": self.kl_w_charged,
                 "penalty": self.penalty, "w_penalty": self.w_penalty}
 
 
@@ -97,11 +108,17 @@ def discell_loss(fwd: Forward, x: torch.Tensor, t: torch.Tensor,
     # non-identifiable against a rescaling of B (spec 7.12).
     kl_w = gaussian_kl(fwd.mu_w[:n_seeds], fwd.logvar_w[:n_seeds],
                        fwd.prior_mean_w[:n_seeds], 0.0).mean()
+    kl_w_charged = kl_w
+    if w.w_free_bits:
+        per_dim = gaussian_kl_per_dim(fwd.mu_w[:n_seeds],
+                                      fwd.logvar_w[:n_seeds],
+                                      fwd.prior_mean_w[:n_seeds], 0.0).mean(0)
+        kl_w_charged = (per_dim - w.w_free_bits).clamp(min=0.0).sum()
 
     kl_z_factor = (1.0 + w.omega) if w.second_kl else 1.0
     objective = (recon_a + w.omega * recon_b
                  - kl_z_factor * w.alpha_z * kl_z
-                 - w.alpha_w * kl_w)
+                 - w.alpha_w * kl_w_charged)
 
     w_pen = torch.zeros((), device=x.device)
     if w.lambda_w and w.w_penalty != "none":
@@ -118,6 +135,7 @@ def discell_loss(fwd: Forward, x: torch.Tensor, t: torch.Tensor,
     return Terms(loss=-objective,
                  recon_a=float(recon_a.detach()), recon_b=float(recon_b.detach()),
                  kl_z=float(kl_z.detach()), kl_w=float(kl_w.detach()),
+                 kl_w_charged=float(kl_w_charged.detach()),
                  penalty=float(penalty.detach()),
                  w_penalty=float(w_pen.detach()), penalty_info=info)
 
