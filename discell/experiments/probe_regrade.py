@@ -42,6 +42,14 @@ record graded before its reference exists has ``invariance_pass`` None;
 
     python -m discell.experiments.probe_regrade --dataset D --reverdict
 
+``--references R1 R2`` grades against other uncontrolled fits (e.g. the
+lineage-label ``uncontrolledL_s*``; ``--reference-200 none`` then drops the
+200/20 column, which belongs to the old labels), and ``--baseline-tag T``
+keeps baseline records under ``experiments/probe_regrade<T>/`` so a relabelled
+grade does not overwrite the old one. ``--reverdict`` with ``--runs`` patterns
+re-verdicts only those runs' records (and the baselines only with
+``--baselines``).
+
 A DisCell run's node-ordered mu_z is cached beside its record
 (``probe_latents[_<D>].npz``), so a re-grade (``--force``, another
 ``--n-perm``) skips the model. A record that exists is skipped without
@@ -57,6 +65,7 @@ import logging
 import os
 import re
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -78,6 +87,18 @@ REFERENCE_200 = "uncontrolled_s0"
 RESOLVI = "resolVI"
 
 
+@dataclass(frozen=True)
+class References:
+    """What a verdict is graded against, and where baseline records live."""
+
+    runs: tuple = REFERENCE_RUNS
+    run_200: str | None = REFERENCE_200
+    baseline_dir: str = "probe_regrade"
+
+
+DEFAULT_REFS = References()
+
+
 def slug(method: str) -> str:
     return re.sub(r"[^A-Za-z0-9=.+-]+", "_", method).strip("_")
 
@@ -95,20 +116,22 @@ def record_path(dataset: str, run: str, config_from: str | None) -> Path:
             / f"probe_blocks_{dataset}.json")
 
 
-def baseline_path(dataset: str, method: str) -> Path:
-    return (paths.dataset(dataset).root / "experiments" / "probe_regrade"
+def baseline_path(dataset: str, method: str,
+                  refs: References = DEFAULT_REFS) -> Path:
+    return (paths.dataset(dataset).root / "experiments" / refs.baseline_dir
             / f"{slug(method)}.json")
 
 
-def references(dataset: str, config_from: str | None) -> tuple:
+def references(dataset: str, config_from: str | None,
+               refs: References = DEFAULT_REFS) -> tuple:
     """([500/40 uncontrolled records], resolVI, 200/20 uncontrolled) for
     *dataset*'s section; missing ones are left out / None."""
     load = lambda p: json.loads(p.read_text()) if p.exists() else None
-    refs = [load(record_path(dataset, run, config_from))
-            for run in REFERENCE_RUNS]
-    return ([r for r in refs if r is not None],
-            load(baseline_path(dataset, RESOLVI)),
-            load(record_path(dataset, REFERENCE_200, config_from)))
+    found = [load(record_path(dataset, run, config_from)) for run in refs.runs]
+    return ([r for r in found if r is not None],
+            load(baseline_path(dataset, RESOLVI, refs)),
+            load(record_path(dataset, refs.run_200, config_from))
+            if refs.run_200 else None)
 
 
 def write_atomic(path: Path, text: str) -> None:
@@ -204,7 +227,8 @@ def legacy_reference(dataset: str, run: str, config_from: str | None) -> dict:
 
 
 def grade_discell(dataset: str, runs: list[str], config_from: str | None,
-                  n_perm: int, force: bool, device: str) -> int:
+                  n_perm: int, force: bool, device: str,
+                  refs: References = DEFAULT_REFS) -> int:
     """Grade each run; one that fails is logged and the rest go on. Returns
     the number of failures."""
     source = config_from or dataset
@@ -225,7 +249,7 @@ def grade_discell(dataset: str, runs: list[str], config_from: str | None,
             continue
         try:
             grade_one(dataset, run, config_from, assemblies, n_perm, device,
-                      out)
+                      out, refs)
         except Exception:
             log.exception("%s/%s: FAILED", dataset, run)
             failed.append(run)
@@ -235,7 +259,8 @@ def grade_discell(dataset: str, runs: list[str], config_from: str | None,
 
 
 def grade_one(dataset: str, run: str, config_from: str | None, assemblies,
-              n_perm: int, device: str, out: Path) -> None:
+              n_perm: int, device: str, out: Path,
+              refs: References = DEFAULT_REFS) -> None:
     from discell.model.validate import probe_blocks_for_run
 
     source = config_from or dataset
@@ -262,11 +287,11 @@ def grade_one(dataset: str, run: str, config_from: str | None, assemblies,
                   legacy_in_trainer=legacy_reference(dataset, run,
                                                      config_from),
                   minutes=(time.time() - started) / 60)
-    refs, resolvi, ref_200 = references(dataset, config_from)
-    if run in REFERENCE_RUNS:            # a reference counts itself in
-        refs = [r for r in refs if r.get("run") != run] + [record]
-    M.probe_verdict(record, refs, resolvi,
-                    record if run == REFERENCE_200 else ref_200)
+    found, resolvi, ref_200 = references(dataset, config_from, refs)
+    if run in refs.runs:                 # a reference counts itself in
+        found = [r for r in found if r.get("run") != run] + [record]
+    M.probe_verdict(record, found, resolvi,
+                    record if run == refs.run_200 else ref_200)
     write_atomic(out, json.dumps(record, indent=1, default=float))
     log.info("%s/%s: invariance_pass %s %s (%.1f min) -> %s", dataset,
              run, record["invariance_pass"], summary(record),
@@ -275,10 +300,10 @@ def grade_one(dataset: str, run: str, config_from: str | None, assemblies,
 
 def grade_baseline(dataset: str, run: str, config_from: str | None,
                    latents: str, method: str, n_perm: int,
-                   force: bool) -> None:
+                   force: bool, refs: References = DEFAULT_REFS) -> None:
     from discell.experiments.baseline_battery import load_latents
 
-    out = baseline_path(dataset, method)
+    out = baseline_path(dataset, method, refs)
     if out.exists() and not force:
         log.info("%s '%s': exists -- skipped", dataset, method)
         return
@@ -308,35 +333,41 @@ def grade_baseline(dataset: str, run: str, config_from: str | None,
                   legacy_in_trainer={"source": "baseline_battery.json",
                                      **stored} if stored else {},
                   minutes=(time.time() - started) / 60)
-    refs, resolvi, ref_200 = references(dataset, config_from)
-    M.probe_verdict(record, refs, record if method == RESOLVI else resolvi,
+    found, resolvi, ref_200 = references(dataset, config_from, refs)
+    M.probe_verdict(record, found, record if method == RESOLVI else resolvi,
                     ref_200)
     write_atomic(out, json.dumps(record, indent=1, default=str))
     log.info("%s '%s': invariance_pass %s %s -> %s", dataset, method,
              record["invariance_pass"], summary(record), out)
 
 
-def reverdict(dataset: str, config_from: str | None) -> None:
+def reverdict(dataset: str, config_from: str | None,
+              refs: References = DEFAULT_REFS,
+              patterns: list[str] | None = None,
+              baselines: bool = True) -> None:
     """Re-apply the guard to every record of *dataset*'s section: the DisCell
     runs (own section, or ``--config-from``'s runs on this one) and the
-    baselines. Probe numbers are untouched."""
-    refs, resolvi, ref_200 = references(dataset, config_from)
+    baselines. With *patterns*, only the runs matching one of them, and the
+    baselines only if *baselines*. Probe numbers are untouched."""
+    found, resolvi, ref_200 = references(dataset, config_from, refs)
     runs_dir = paths.dataset(config_from or dataset).root / "runs"
     records = [record_path(dataset, p.name, config_from)
                for p in sorted(runs_dir.iterdir())
-               if p.is_dir() and not p.is_symlink()]
-    root = paths.dataset(dataset).root / "experiments" / "probe_regrade"
+               if p.is_dir() and not p.is_symlink()
+               and (not patterns
+                    or any(fnmatch.fnmatch(p.name, pat) for pat in patterns))]
+    root = paths.dataset(dataset).root / "experiments" / refs.baseline_dir
     records = [p for p in records if p.exists()] + (
-        sorted(root.glob("*.json")) if root.exists() else [])
+        sorted(root.glob("*.json")) if root.exists() and baselines else [])
     for path in records:
         record = json.loads(path.read_text())
         is_resolvi = record.get("run") is None and record["method"] == RESOLVI
-        M.probe_verdict(record, refs, record if is_resolvi else resolvi,
+        M.probe_verdict(record, found, record if is_resolvi else resolvi,
                         ref_200)
         write_atomic(path, json.dumps(record, indent=1, default=str))
     log.info("%s: re-verdicted %d records (500/40 uncontrolled references: "
              "%s; 200/20 %s; resolVI %s)", dataset, len(records),
-             ", ".join(r["run"] for r in refs) or "MISSING",
+             ", ".join(r["run"] for r in found) or "MISSING",
              "present" if ref_200 else "missing",
              "present" if resolvi else "missing")
 
@@ -372,7 +403,8 @@ def _legacy_check(record: dict) -> str:
     return f"{diff:+.1e}" + ("" if ref.get("at_best", True) else " (ref not at best)")
 
 
-def render(dataset: str, group: str, records: list[dict]) -> str:
+def render(dataset: str, group: str, records: list[dict],
+           refs: References = DEFAULT_REFS) -> str:
     head = (["method / run", "held out"]
             + [f"{f} {b}" for f, b in BLOCKS]
             + ["invariance_pass (≤ 25 % of uncontrolled)",
@@ -393,9 +425,10 @@ def render(dataset: str, group: str, records: list[dict]) -> str:
              "gain − floor (nats per column), (the within-type variance "
              "fraction it implies, exp(2·excess) − 1) · the excess as a "
              "fraction of the uncontrolled fits' (α_a = 0 at the final "
-             "500/40 budget, `uncontrolled500_s*`, seed mean, same section; "
-             "`u`; in brackets against the earlier 200/20 `uncontrolled_s0`, "
-             "`u200`, for the record) · as a fraction of resolVI's on the "
+             f"500/40 budget, {', '.join(f'`{r}`' for r in refs.runs)}, seed "
+             "mean, same section; `u`; in brackets against the earlier 200/20 "
+             f"`{refs.run_200}`, `u200`, for the record) · as a fraction of "
+             "resolVI's on the "
              "same slide (`r`) · pass iff ≤ 0.25 u. `invariance_pass` = "
              "all four blocks pass (devlog \"Per-block probe, first read "
              "(8.16 interim)\"; `--` = no uncontrolled reference yet). The "
@@ -426,7 +459,7 @@ def render(dataset: str, group: str, records: list[dict]) -> str:
 
 
 def collect(dataset: str, patterns: list[str], config_from: str | None,
-            baselines: bool) -> list[dict]:
+            baselines: bool, refs: References = DEFAULT_REFS) -> list[dict]:
     source = config_from or dataset
     runs_dir = paths.dataset(source).root / "runs"
     names: dict = {}       # run directory -> the symlinked name, if any
@@ -446,21 +479,22 @@ def collect(dataset: str, patterns: list[str], config_from: str | None,
                 record["method"] += f" (= {names[name]})"
             records.append(record)
     if baselines:
-        root = paths.dataset(dataset).root / "experiments" / "probe_regrade"
+        root = paths.dataset(dataset).root / "experiments" / refs.baseline_dir
         for path in sorted(root.glob("*.json")) if root.exists() else []:
             records.append(json.loads(path.read_text()))
     return records
 
 
 def table(dataset: str, group: str, patterns: list[str],
-          config_from: str | None, baselines: bool) -> None:
-    records = collect(dataset, patterns, config_from, baselines)
+          config_from: str | None, baselines: bool,
+          refs: References = DEFAULT_REFS) -> None:
+    records = collect(dataset, patterns, config_from, baselines, refs)
     if not records:
         log.warning("%s: nothing graded for group %s", dataset, group)
         return
     root = paths.dataset(dataset).root / "experiments"
     write_atomic(root / f"probe_regrade_{group}.md",
-                 render(dataset, group, records))
+                 render(dataset, group, records, refs))
     write_atomic(root / f"probe_regrade_{group}.json", json.dumps(
         {r["method"]: {"invariance_pass": r["invariance_pass"],
                        "pass": r["pass"],
@@ -501,28 +535,43 @@ def main(argv=None) -> int:
     p.add_argument("--baselines", action="store_true",
                    help="--table: add the graded baselines")
     p.add_argument("--reverdict", action="store_true",
-                   help="re-apply the guard to every record of the section")
+                   help="re-apply the guard to every record of the section "
+                        "(with --runs: those runs only, baselines only with "
+                        "--baselines)")
+    p.add_argument("--references", nargs="+", default=list(REFERENCE_RUNS),
+                   metavar="RUN", help="the uncontrolled fits every excess "
+                   "is a fraction of (seed mean; default: %(default)s)")
+    p.add_argument("--reference-200", default=REFERENCE_200, metavar="RUN",
+                   help="the 200/20 reference of the u200 column; 'none' "
+                        "drops it (default: %(default)s)")
+    p.add_argument("--baseline-tag", default="", metavar="TAG",
+                   help="baseline records under experiments/probe_regrade<TAG>/")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, datefmt="%H:%M:%S",
                         format="%(asctime)s %(levelname)s %(message)s")
+    refs = References(
+        runs=tuple(args.references),
+        run_200=None if args.reference_200.lower() == "none" else args.reference_200,
+        baseline_dir=f"probe_regrade{args.baseline_tag}")
     if args.reverdict:
-        reverdict(args.dataset, args.config_from)
+        reverdict(args.dataset, args.config_from, refs, args.runs or None,
+                  baselines=args.baselines if args.runs else True)
         return 0
     if args.table:
         table(args.dataset, args.table, args.runs, args.config_from,
-              args.baselines)
+              args.baselines, refs)
         return 0
     if args.baseline_latents:
         if not (args.method and len(args.run) == 1):
             p.error("--baseline-latents needs --method and one --run")
         grade_baseline(args.dataset, args.run[0], args.config_from,
                        args.baseline_latents, args.method, args.n_perm,
-                       args.force)
+                       args.force, refs)
         return 0
     if not args.run:
         p.error("give --run, --baseline-latents or --table")
     return int(grade_discell(args.dataset, args.run, args.config_from,
-                             args.n_perm, args.force, args.device) > 0)
+                             args.n_perm, args.force, args.device, refs) > 0)
 
 
 if __name__ == "__main__":

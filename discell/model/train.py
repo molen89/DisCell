@@ -86,6 +86,10 @@ class TrainConfig:
     gat_dim: int = 32
     heads: int = 4
     phi_pca: int | None = None          # None: full-dimension Phi into c
+    #: the projection test (S53, 2026-09-25): a learned nn.Linear(Phi -> D)
+    #: applied to Phi before it enters c. 0 = the full Phi = every run before
+    #: it, bit for bit.
+    phi_proj: int = 0
     v_pcs: int = 12                     # Phi PCs inside the invariance block
     # the objective -- defaults are the calibrated operating point (2026-09,
     # four calibration rounds + two sweeps; see docs/devlog.md): adversary at
@@ -316,6 +320,7 @@ class Trainer:
                                               data.gene_names)
                               if config.kappa_mode == "gene" else None),
             kappa_ratio_mean=config.kappa_ratio_mean,
+            phi_proj=config.phi_proj,
         ).to(self.device)
         self.covariances = None
         self.adversary = self.adversary_optimiser = None
@@ -1058,6 +1063,10 @@ class Trainer:
 
     # -- the fit -----------------------------------------------------------
 
+    def time_only(self, n_epochs: int) -> dict:
+        """The timing mode (``--time-only``); see :func:`_time_only`."""
+        return _time_only(self, n_epochs)
+
     def fit(self) -> dict:
         from torch.utils.tensorboard import SummaryWriter
 
@@ -1216,6 +1225,74 @@ class Trainer:
         return summary
 
 
+def _peak_mib(device) -> float | None:
+    if device.type != "cuda":
+        return None
+    torch.cuda.synchronize(device)
+    return torch.cuda.max_memory_allocated(device) / 2 ** 20
+
+
+def _time_only(trainer: "Trainer", n_epochs: int) -> dict:
+    """Pure-training timing (devlog "Metrics package", item 4, 2026-09-25).
+
+    *n_epochs* epochs of ``_step`` over the shuffled training tiles with no
+    evaluation between them (the fit loop minus its evaluation, checkpoint
+    and figure work), timed per epoch with the device synchronised; then ONE
+    ``evaluate()``, timed on its own. Peak allocated GPU memory is read for
+    the training phase (reset after model and tiles are resident, so it is
+    the step's working set on top of the resident slide) and for the
+    evaluation; the resident footprint before the first step is reported
+    beside them. Nothing is checkpointed; the result is also written to the
+    run directory as ``timing.json``.
+    """
+    device = trainer.device
+    cuda = device.type == "cuda"
+    if cuda:
+        torch.cuda.synchronize(device)
+        resident = torch.cuda.memory_allocated(device) / 2 ** 20
+        torch.cuda.reset_peak_memory_stats(device)
+    epoch_s = []
+    for epoch in range(n_epochs):
+        trainer.epoch = epoch
+        if cuda:
+            torch.cuda.synchronize(device)
+        t0 = time.perf_counter()
+        for index in trainer.rng.permutation(len(trainer.train_batches)):
+            trainer._step(trainer.train_batches[index])
+        trainer.schedule.step()
+        if cuda:
+            torch.cuda.synchronize(device)
+        epoch_s.append(time.perf_counter() - t0)
+        log.info("time-only epoch %d: %.2f s", epoch, epoch_s[-1])
+    train_peak = _peak_mib(device)
+    if cuda:
+        torch.cuda.reset_peak_memory_stats(device)
+    t0 = time.perf_counter()
+    trainer.evaluate()
+    if cuda:
+        torch.cuda.synchronize(device)
+    eval_s = time.perf_counter() - t0
+    # the first epoch carries CUDA/cuDNN warm-up; the steady state excludes it
+    steady = epoch_s[1:] if len(epoch_s) > 1 else epoch_s
+    out = {"run": trainer.config.name(), "dataset": trainer.config.dataset,
+           "n_epochs": n_epochs, "epoch_s": epoch_s,
+           "s_per_epoch": float(np.mean(steady)),
+           "s_per_epoch_all": float(np.mean(epoch_s)),
+           "eval_s": eval_s,
+           "resident_mib": resident if cuda else None,
+           "peak_train_mib": train_peak,
+           "peak_eval_mib": _peak_mib(device),
+           "n_train_tiles": len(trainer.train_batches),
+           "n_val_tiles": len(trainer.val_batches),
+           "n_cells": int(trainer.data.graph.n_cells),
+           "phi_dim": int(trainer.data.phi.shape[1]),
+           "phi_proj": trainer.config.phi_proj,
+           "device": str(device),
+           "gpu": torch.cuda.get_device_name(device) if cuda else None}
+    (trainer.run_dir / "timing.json").write_text(json.dumps(out, indent=2))
+    return out
+
+
 def _git_state() -> str:
     """Best-effort commit id (+dirty marker) so a run names the code it ran."""
     import subprocess
@@ -1256,7 +1333,8 @@ def build_parser() -> argparse.ArgumentParser:
     for field in ("d_z", "d_w", "hidden", "gat_dim", "heads", "adv_steps",
                   "adv_hidden", "v_pcs", "epochs", "tile_cells", "patience",
                   "eval_every", "figures_every", "panel_types", "seed",
-                  "w_warmup_epochs", "kl_warmup_epochs", "adv_ensemble"):
+                  "w_warmup_epochs", "kl_warmup_epochs", "adv_ensemble",
+                  "phi_proj"):
         parser.add_argument(f"--{field.replace('_', '-')}", type=int,
                             default=getattr(defaults, field))
     # 8.17's names for the two existing head-capacity knobs (aliases)
@@ -1311,6 +1389,11 @@ def build_parser() -> argparse.ArgumentParser:
                         help="attention sink: c grows with neighbour count "
                              "(saturating dose) instead of seeing fractions only")
     parser.add_argument("--device", default=defaults.device)
+    parser.add_argument("--time-only", type=int, default=0, metavar="N",
+                        help="timing mode (2026-09-25): N training epochs, no "
+                             "evaluation inside them, then one timed "
+                             "evaluation; prints s/epoch and peak GPU memory "
+                             "as JSON and writes timing.json. 0 = a normal fit")
     parser.add_argument("--quiet", action="store_true")
     return parser
 
@@ -1318,10 +1401,19 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = vars(build_parser().parse_args(argv))
     quiet = args.pop("quiet")
+    time_only = args.pop("time_only")
     logging.basicConfig(
         level=logging.WARNING if quiet else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S",
     )
+    if time_only:
+        config = TrainConfig(**args)
+        data = assemble(config.dataset, config.variant, config.embeddings,
+                        tile_cells=config.tile_cells, phi_pca=config.phi_pca,
+                        v_pcs=config.v_pcs, val_fraction=config.val_fraction,
+                        seed=config.seed, label_key=config.label_key)
+        print(json.dumps(Trainer(config, data).time_only(time_only)))
+        return 0
     run(TrainConfig(**args))
     return 0
 

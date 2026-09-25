@@ -233,3 +233,5 @@ below was confirmed by direct inspection instead.
 - **T-r26 (2026-09-24).** `test_closing_evaluation_scores_the_accepted_checkpoint` (R26 lane) is flaky under machine load: NMI re-evaluated on identical weights varies ~0.003 (k-means); tolerance should allow it. Owner: R26 agent.
 
 - **B-mf1 (2026-09-24).** `baseline_battery.py` MintFlow recon cell is identical (−5.035) across three different MintFlow fits and (−5.018) across two transfers; likely the decoded rates are not the fit's or the normalisation is degenerate. Do not quote until inspected. Open.
+
+- **G-1 (2026-09-25).** `scripts/` is gitignored: every queue script, decision script and table script of 2026-09-21→25 (`queue_*.sh`, `*_table.py`, `alpha_z_decision.py`, `envelope_tables.py`, `wcollapse_table.py`, …) is untracked and absent from the author's commits. Decide: un-ignore `scripts/*.py` and `scripts/queue_*.sh` (keep `scripts/logs/` ignored) before the next commit.

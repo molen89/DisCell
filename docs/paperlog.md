@@ -288,3 +288,19 @@ Build: exit 0, no undefined references, the same 3 pre-existing overfull boxes. 
 - **Build.** Exit 0, no undefined references, the same 3 overfull boxes.
 
 **Considered and not adopted: a learned background term as in resolVI.** It would be a second unknown share next to κ, needing a prior or a second sweep axis. A fixed false-positive floor from the Xenium controls was proposed instead as todo 8.15 and awaits the author. The review's R30 carries a new note: the data bound κ from above, one-sidedly.
+
+
+**R33 + R40 (minimum): the finding rule becomes Definition 1, the breakdown point (2026-09-25).** The old rule said: sign or order unchanged over the grid and seed envelope excluding zero, with a `\todo`. It had four defects. It had no sampling layer, no multiplicity control, and a zero null that magnitudes pass automatically. And its pass/fail verdict depended on the unsourced grid top.
+
+- **Definition 1, displayed in §2.8.** κ*(r) is the smallest grid κ at which the readout's interval contains its null or its sign flips, reported as censored above the grid otherwise. Rankings are read as pairwise differences. The breakdown point is reported, not thresholded.
+- **Intervals.** They pool the seeds with a spatial block bootstrap over tiles, so they reflect sampling as well as optimisation. The text now keeps the two uncertainties apart: the interval narrows with cells, the trajectory across the grid does not.
+- **Multiplicity.** A few primary readouts are pre-registered before the final fits and Bonferroni-adjusted; everything else is exploratory. The author accepted this over calling everything screening.
+- **Sections.** Findings are section-level. On a serial-section pair, a tissue-specific finding must hold on both, and method properties must hold on every section. Only the lung TMA pair are serial sections of the same cores; the other sections are different tissues.
+- **Framing.** "In the spirit of partial identification" is replaced by "one-parameter sensitivity analysis". A `\todo` restores the partial-identification framing if R30's proposition lands, because the data bound κ from above.
+- **Other edits.** The introduction sentence on stability is rewritten to match. `definition` was added to macros.tex (definition style). Nulls per readout are a `\todo`; a magnitude's null may need a refit.
+- **Deferred.** R40's restructure goes to R37.
+- **Registers.** Evaluation work for the coder is todo 8.19. The pre-registration of primary readouts joins 8.13.
+- **Build.** Exit 0, no undefined references, the same 3 overfull boxes.
+
+
+**tab:contact: the fresh-frozen section is ovarian cancer, not ovary (2026-09-25).** The row read "Ovary (fresh frozen)". The sample's own metadata names it "Human Ovarian Adenocarcinoma (FF)". This surfaced while drafting the lineage maps, whose clusters carry PAX8, MSLN and MUC16 tumour markers. The row is renamed "Ovarian cancer (fresh frozen)", matching "Ovarian cancer (FFPE)". No other place in the live manuscript names the section. The handover's "ovary, fresh frozen" description should be corrected by whoever next edits it.

@@ -60,6 +60,7 @@ from typing import Sequence
 
 import numpy as np
 
+from discell.model.labels import is_tumour
 from discell.model.validate import (collect_latents, load_run, niche_labels)
 
 log = logging.getLogger("discell.model.transport")
@@ -296,7 +297,7 @@ def tumour_band_labels(data, k: int = 50) -> np.ndarray:
 
     names = [str(n) for n in data.type_names]
     tumour_types = [g for g, name in enumerate(names)
-                    if "Tumor Cells" in name or "Malignant" in name]
+                    if is_tumour(name)]
     if not tumour_types:
         # cluster-labelled slide: no type name says "tumour", so there is
         # no annotation axis to band. The caller must use composition
@@ -307,10 +308,10 @@ def tumour_band_labels(data, k: int = 50) -> np.ndarray:
             "are undefined here -- use --niche-source kmeans and report the "
             "niches as composition-defined".format(
                 ", ".join(names[:4]) + " ..."))
-    is_tumour = np.isin(data.t, tumour_types).astype(np.float64)
+    is_tumour_mask = np.isin(data.t, tumour_types).astype(np.float64)
     k = min(k, data.graph.n_cells - 1)
     neighbours = cKDTree(data.positions).query(data.positions, k=k + 1)[1]
-    field = is_tumour[neighbours].mean(axis=1)
+    field = is_tumour_mask[neighbours].mean(axis=1)
     labels = np.digitize(field, TUMOUR_BANDS).astype(np.int64)
     labels[data.graph.degrees == 0] = -1
     return labels

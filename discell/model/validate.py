@@ -33,6 +33,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from discell import paths
+from discell.model.labels import is_endothelial, is_smooth_muscle, is_tumour
 from discell.model.prepare import ModelData, assemble
 from discell.model.train import TrainConfig, Trainer
 
@@ -94,7 +95,9 @@ def load_run(dataset: str, run: str, device: str = "cuda",
                     query=config.query,
                     prior_type_free=config.prior_type_free,
                     # the gene form's s_g scale is a buffer in the checkpoint
-                    kappa_mode=config.kappa_mode).to(device)
+                    kappa_mode=config.kappa_mode,
+                    # S53 projection test; 0 (every older run) = full Phi
+                    phi_proj=config.phi_proj).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()
@@ -431,7 +434,7 @@ def landmark_inventory(data: ModelData, eps_um: float = 40.0,
     names = [str(n) for n in data.type_names]
     classes: dict = {}
 
-    endo_types = [g for g, name in enumerate(names) if "Endothelial" in name]
+    endo_types = [g for g, name in enumerate(names) if is_endothelial(name)]
     vessel_members = np.flatnonzero(np.isin(data.t, endo_types))
     vessel_types = list(endo_types)
     pericyte_types = [g for g, name in enumerate(names) if "Pericyte" in name]
@@ -448,7 +451,7 @@ def landmark_inventory(data: ModelData, eps_um: float = 40.0,
             vessel_types += pericyte_types
     candidates = [("vasculature", vessel_members, vessel_types, None)]
     for g, name in enumerate(names):
-        if "Smooth Muscle" in name:
+        if is_smooth_muscle(name):
             candidates.append((f"{name} (compact)",
                                np.flatnonzero(data.t == g), [g], 500))
     for class_name, members, types, size_cap in candidates:
@@ -471,11 +474,11 @@ def landmark_inventory(data: ModelData, eps_um: float = 40.0,
 
     # interface: smooth the tumour indicator over ~tissue scale first
     tumour_types = [g for g, name in enumerate(names)
-                    if "Tumor Cells" in name or "Malignant" in name]
-    is_tumour = np.isin(data.t, tumour_types).astype(np.float64)
+                    if is_tumour(name)]
+    is_tumour_mask = np.isin(data.t, tumour_types).astype(np.float64)
     k = min(50, data.graph.n_cells - 1)
     neighbours = cKDTree(data.positions).query(data.positions, k=k + 1)[1]
-    compartment = is_tumour[neighbours].mean(axis=1) > 0.5
+    compartment = is_tumour_mask[neighbours].mean(axis=1) > 0.5
     across = compartment[data.graph.edge_i] != compartment[data.graph.edge_j]
     boundary = np.zeros(data.graph.n_cells, dtype=bool)
     boundary[data.graph.edge_i[across]] = True

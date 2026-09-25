@@ -421,7 +421,8 @@ class DisCell(nn.Module):
                  query: str = "type", prior_type_free: bool = False,
                  kappa_mode: str = "global",
                  kappa_gene_share: np.ndarray | None = None,
-                 kappa_ratio_mean: float | None = None):
+                 kappa_ratio_mean: float | None = None,
+                 phi_proj: int = 0):
         super().__init__()
         self.n_types, self.d_z, self.d_w = n_types, d_z, d_w
         self.median_counts = float(median_counts)
@@ -442,7 +443,9 @@ class DisCell(nn.Module):
         self.enc_z = mlp([n_genes + 1 + n_types, hidden, hidden, 2 * d_z])
         self.gat = GATv2(src_dim=src_dim, dst_dim=src_dim,
                          out_dim=gat_dim, heads=heads, sink=gat_sink)
-        c_dim = gat_dim + phi_dim + 1                     # +1: isolated flag
+        # the projection test (S53, 2026-09-25): phi_proj > 0 puts a learned
+        # linear map Phi -> phi_proj columns in c; 0 = the full Phi (pinned)
+        c_dim = gat_dim + (phi_proj or phi_dim) + 1       # +1: isolated flag
         # ablation (iii): p(w|t) = N(mu_t, I), the context-free DisCoVR prior.
         # Default False = the spec's m_psi(c, t) = every pinned run.
         # arm (iii), 2026-09-23: prior_type_free=True drops t from m_psi.
@@ -493,6 +496,9 @@ class DisCell(nn.Module):
             self.register_buffer("kappa_ratio_mean", torch.tensor(
                 float("nan") if kappa_ratio_mean is None
                 else float(kappa_ratio_mean)))
+        # S53: built last, so every pinned layer keeps its initialisation
+        # draw; None (the default) registers nothing and draws nothing
+        self.phi_proj = nn.Linear(phi_dim, phi_proj) if phi_proj else None
 
     # -- pieces ------------------------------------------------------------
 
@@ -524,7 +530,9 @@ class DisCell(nn.Module):
             h_dst = self.embed_t(t[:n_context])
         gat, alpha = self.gat(h_src, h_dst, edge_src, edge_dst)
         flag = isolated[:n_context].float()[:, None]
-        c = torch.cat([gat, phi[:n_context], flag], dim=-1)
+        phi_c = (phi[:n_context] if self.phi_proj is None
+                 else self.phi_proj(phi[:n_context]))
+        c = torch.cat([gat, phi_c, flag], dim=-1)
         return c, alpha
 
     def log_rho(self, z: torch.Tensor, w: torch.Tensor) -> torch.Tensor:
