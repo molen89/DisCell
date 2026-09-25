@@ -331,6 +331,9 @@ class Forward:
     #: "global" form, else (n_seeds, 1) per cell ("depth") or (n_seeds, G)
     #: per gene, zero rows for cells without a leak edge ("gene")
     kappa_eff: float | torch.Tensor | None = None
+    #: the false-positive floor's eta_i per seed, (n_seeds, 1); None = off
+    #: (todo 8.15b, discell.model.fp_floor)
+    eta: torch.Tensor | None = None
 
 
 class Adversary(nn.Module):
@@ -590,8 +593,13 @@ class DisCell(nn.Module):
                 leak_dst: torch.Tensor, leak_beta: torch.Tensor,
                 n_seeds: int, n_context: int, kappa: float,
                 sample: bool = True,
-                area: torch.Tensor | None = None) -> Forward:
+                area: torch.Tensor | None = None,
+                eta: torch.Tensor | None = None) -> Forward:
         """One tile: all nodes in [seeds | ring1 | ring2] layout.
+
+        *eta* ``(n_seeds, 1)``: the fixed false-positive floor (todo 8.15b),
+        ``p = (1 - kappa_i - eta_i) rho + kappa_i rho_bar + eta_i u`` in both
+        mixtures (:func:`leakage_mix`); None, the default, is the pinned pass.
 
         ``c``/``w``/``rho`` are built for seeds and ring1 (ring1's rho feeds
         the leak), the losses for seeds only. Exact two hops, no cache.
@@ -663,17 +671,17 @@ class DisCell(nn.Module):
             logvar_w = torch.cat([logvar_w2, logvar_w[n_seeds:]])
             w = torch.cat([w2, w[n_seeds:]])
             log_rho = torch.cat([self.log_rho(z2, w2), log_rho[n_seeds:]])
-        log_p = leakage_mix(log_rho[:n_seeds].exp(), rho_bar, kappa_eff)
+        log_p = leakage_mix(log_rho[:n_seeds].exp(), rho_bar, kappa_eff, eta)
 
         # term (b): same seeds, w drawn from the prior instead of the posterior
         w_breve = prior_mean_w[:n_seeds] + (
             torch.randn_like(mu_w[:n_seeds]) if sample
             else torch.zeros_like(mu_w[:n_seeds]))
         log_rho_breve = self.log_rho(z[:n_seeds], w_breve)
-        log_p_breve = leakage_mix(log_rho_breve.exp(), rho_bar, kappa_eff)
+        log_p_breve = leakage_mix(log_rho_breve.exp(), rho_bar, kappa_eff, eta)
 
         return Forward(mu_z=mu_z, logvar_z=logvar_z, z=z, c=c,
                        prior_mean_w=prior_mean_w, mu_w=mu_w, logvar_w=logvar_w,
                        w=w, log_rho=log_rho, rho_bar=rho_bar, log_p=log_p,
                        log_p_breve=log_p_breve, alpha=alpha,
-                       kappa_eff=kappa_eff)
+                       kappa_eff=kappa_eff, eta=eta)

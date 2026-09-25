@@ -109,6 +109,9 @@ def collect_channels(trainer, group: np.ndarray, n_groups: int,
     if (phi_by_type is None
             and getattr(trainer.model, "kappa_mode", "global") != "global"):
         keys = keys + ("kappa",)
+    # the 8.15b false-positive floor: the group mean of eta_i (group_eta)
+    if phi_by_type is None and getattr(trainer, "fp_eta", None) is not None:
+        keys = keys + ("eta",)
     acc: dict = {}
     counts = None
     with torch.no_grad():
@@ -132,6 +135,8 @@ def collect_channels(trainer, group: np.ndarray, n_groups: int,
                       "rho_bar": fwd.rho_bar[take]}
             if "kappa" in keys:
                 values["kappa"] = fwd.kappa_eff[take]
+            if "eta" in keys:
+                values["eta"] = fwd.eta[take]
             if counts is None:
                 counts = torch.zeros(n_groups, dtype=torch.float64,
                                      device=device)
@@ -174,6 +179,31 @@ def _stack_kappa(values: list):
         return first
     return np.stack([np.atleast_1d(np.asarray(v, dtype=np.float64))
                      for v in values])
+
+
+def group_eta(channels: dict, gid: int):
+    """The group mean of the false-positive floor's eta_i (todo 8.15b), or
+    None when the run has no floor -- every mixture taking it is then the
+    pinned one bit for bit."""
+    if "eta" not in channels:
+        return None
+    return float(channels["eta"][gid][0])
+
+
+def leak_rate(rho, rho_bar, kappa, eta=None):
+    """The group-level mixture ``(1 - kappa) rho + kappa rho_bar``; with the
+    8.15b floor also ``+ eta (1/G - rho)``, as :func:`leakage_mix` does."""
+    mix = (1 - kappa) * rho + kappa * rho_bar
+    if eta is None:
+        return mix
+    return mix + eta * (1.0 / rho.shape[-1] - rho)
+
+
+def _cell_eta(trainer, rows):
+    """eta_i of *rows* (8.15b): a transported cell keeps its own depth, so its
+    own false-positive share; None without the floor."""
+    eta = getattr(trainer, "fp_eta", None)
+    return None if eta is None else eta[rows]
 
 
 def score_shift(prediction: np.ndarray, observed: np.ndarray) -> dict:
@@ -528,10 +558,13 @@ def transport_check(args: argparse.Namespace) -> dict:
             # (review R12 forms; the global form is kappa on both sides)
             k_a = group_kappa(channels, gid_a, kappa)
             k_b = group_kappa(channels, gid_b, kappa)
-            full = (np.log((1 - k_b) * rho_b + k_b * bar_b + EPS)
-                    - np.log((1 - k_a) * rho_a + k_a * bar_a + EPS))
-            leak_only = (np.log((1 - k_b) * rho_a + k_b * bar_b + EPS)
-                         - np.log((1 - k_a) * rho_a + k_a * bar_a + EPS))
+            # the 8.15b floor: each population at its own mean eta; the
+            # counterfactual keeps A's cells, so A's (None: no floor)
+            e_a, e_b = group_eta(channels, gid_a), group_eta(channels, gid_b)
+            full = (np.log(leak_rate(rho_b, bar_b, k_b, e_b) + EPS)
+                    - np.log(leak_rate(rho_a, bar_a, k_a, e_a) + EPS))
+            leak_only = (np.log(leak_rate(rho_a, bar_b, k_b, e_a) + EPS)
+                         - np.log(leak_rate(rho_a, bar_a, k_a, e_a) + EPS))
 
             # observed shift on HELD-OUT tiles, depth-normalised
             obs_a = np.asarray(x_rate[members["A"][1]].mean(axis=0)).ravel()
@@ -917,7 +950,7 @@ def distribution_summary(panels: list[dict], key: str = "scores") -> dict:
 
 def _decode_cells(trainer, mu_z: np.ndarray, w: np.ndarray,
                   rho_bar: np.ndarray, kappa: float,
-                  chunk: int = 4096) -> np.ndarray:
+                  chunk: int = 4096, eta=None) -> np.ndarray:
     """``p`` for cells kept at their OWN z, given *w* and *rho_bar* per row.
 
     Exactly the decode path of ``Trainer._decode_seeds`` -- the prior head's
@@ -949,7 +982,9 @@ def _decode_cells(trainer, mu_z: np.ndarray, w: np.ndarray,
                 k = torch.as_tensor(np.asarray(kappa)[sl] if per_row
                                     else np.asarray(kappa),
                                     dtype=torch.float32, device=device)
-            out.append(leakage_mix(rho, bar, k).exp().cpu().numpy())
+            e = (None if eta is None else torch.as_tensor(   # 8.15b floor
+                np.asarray(eta)[sl], dtype=torch.float32, device=device)[:, None])
+            out.append(leakage_mix(rho, bar, k, e).exp().cpu().numpy())
     return np.vstack(out)
 
 
@@ -1040,12 +1075,14 @@ def own_target_pass(trainer, deferred: list[dict], w_of: dict,
         w_a, bar_a, k_a = w_of[target]
         p_trans = _decode_cells(trainer, mu_z[rows],
                                 np.tile(w_a, (len(rows), 1)),
-                                np.tile(bar_a, (len(rows), 1)), k_a)
+                                np.tile(bar_a, (len(rows), 1)), k_a,
+                                eta=_cell_eta(trainer, rows))
         p_unt = _decode_cells(
             trainer, mu_z[rows],
             np.stack([w_of[(int(k), g)][0] for k in own]),
             np.stack([w_of[(int(k), g)][1] for k in own]),
-            _stack_kappa([w_of[(int(k), g)][2] for k in own]))
+            _stack_kappa([w_of[(int(k), g)][2] for k in own]),
+            eta=_cell_eta(trainer, rows))
         p_tgt_own = own_p[pos[tgt]].astype(np.float64)
         p_source_obs = np.asarray(x_rate[rows].todense())
         entry["scores_model_own"] = distribution_scores(
@@ -1161,8 +1198,10 @@ def distribution_check(args: argparse.Namespace,
         w_own = np.stack([w_of[(int(k), g)][0] for k in own])
         bar_own = np.stack([w_of[(int(k), g)][1] for k in own])
         k_own = _stack_kappa([w_of[(int(k), g)][2] for k in own])
-        p_trans = _decode_cells(trainer, mu_z[rows], w_to, bar_to, k_a)
-        p_unt = _decode_cells(trainer, mu_z[rows], w_own, bar_own, k_own)
+        p_trans = _decode_cells(trainer, mu_z[rows], w_to, bar_to, k_a,
+                                eta=_cell_eta(trainer, rows))
+        p_unt = _decode_cells(trainer, mu_z[rows], w_own, bar_own, k_own,
+                              eta=_cell_eta(trainer, rows))
         tgt = test_rows[target]
         tgt = tgt[rng.permutation(len(tgt))[:SIZE_CAP]]
         p_target = np.asarray(x_rate[tgt].todense())
@@ -1182,7 +1221,7 @@ def distribution_check(args: argparse.Namespace,
         seed2 = config.seed + 1
         p_tgt_model = _decode_cells(
             trainer, mu_z[tgt], np.tile(w_a, (len(tgt), 1)),
-            np.tile(bar_a, (len(tgt), 1)), k_a)
+            np.tile(bar_a, (len(tgt), 1)), k_a, eta=_cell_eta(trainer, tgt))
         out["scores_model"] = distribution_scores(
             p_trans, p_unt, p_tgt_model, p_source_obs,
             np.random.default_rng(seed2), device=device, n_boot=args.boot)

@@ -5,37 +5,37 @@ The style file: apalike.bst
 Database file #1: references.bib
 You've used 40 entries,
             1935 wiz_defined-function locations,
-            665 strings with 10929 characters,
-and the built_in function-call counts, 17473 in all, are:
-= -- 1620
-> -- 968
-< -- 21
-+ -- 348
-- -- 340
-* -- 1484
-:= -- 3069
-add.period$ -- 125
+            665 strings with 10889 characters,
+and the built_in function-call counts, 17417 in all, are:
+= -- 1617
+> -- 963
+< -- 22
++ -- 346
+- -- 338
+* -- 1479
+:= -- 3058
+add.period$ -- 124
 call.type$ -- 40
 change.case$ -- 364
 chr.to.int$ -- 40
 cite$ -- 40
-duplicate$ -- 670
-empty$ -- 1141
+duplicate$ -- 667
+empty$ -- 1136
 format.name$ -- 400
-if$ -- 3391
+if$ -- 3380
 int.to.chr$ -- 1
 int.to.str$ -- 0
-missing$ -- 43
-newline$ -- 208
+missing$ -- 42
+newline$ -- 207
 num.names$ -- 120
-pop$ -- 422
+pop$ -- 420
 preamble$ -- 1
 purify$ -- 365
 quote$ -- 0
-skip$ -- 433
+skip$ -- 431
 stack$ -- 0
 substring$ -- 868
-swap$ -- 81
+swap$ -- 80
 text.length$ -- 9
 text.prefix$ -- 0
 top$ -- 0
@@ -43,4 +43,4 @@ type$ -- 234
 warning$ -- 0
 while$ -- 112
 width$ -- 0
-write$ -- 515
+write$ -- 513

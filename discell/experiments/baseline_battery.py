@@ -348,8 +348,9 @@ ROWS = [
     ("probe gain img/ridge", lambda r: _gain(r, "ridge", "img")),
     ("probe gain comp/mlp", lambda r: _gain(r, "mlp", "comp")),
     ("probe gain img/mlp", lambda r: _gain(r, "mlp", "img")),
-    ("invariance guard (all four blocks)",
-     lambda r: "pass" if r["probe_blocks"]["invariance_pass"] else "FAIL"),
+    ("probe 2-sd rule, all four blocks (withdrawn)",
+     lambda r: "pass" if r["probe_blocks"]["invariance_pass_2sd_legacy"]
+     else "FAIL"),
     ("mirror R2", lambda r: f"{r['mirror']['r2']:.3f}"),
     ("mirror R2 (permuted)", lambda r: f"{r['mirror']['r2_permuted']:.3f}"),
     ("cycle R2, intrinsic", lambda r: _cyc(r, "z", "r2_pooled")),
@@ -370,10 +371,12 @@ ROWS = [
 
 
 def _gain(reads: dict, family: str, block: str) -> str:
-    """``gain (floor mean +- sd) pass|FAIL`` of one probe block, in nats."""
+    """``excess (variance fraction; gain / floor mean +- sd)`` of one probe
+    block, in nats. The guard -- a fraction of the uncontrolled fit's excess
+    -- is applied by ``discell/experiments/probe_regrade.py``, not here."""
     b = reads["probe_blocks"][family][block]
-    return (f"{b['gain']:+.4f} (floor {b['floor_mean']:+.4f} ± "
-            f"{b['floor_sd']:.4f}) {'pass' if b['pass'] else 'FAIL'}")
+    return (f"{b['excess']:+.4f} ({100 * b['var_fraction']:.2f} %; "
+            f"{b['gain']:+.4f} / {b['floor_mean']:+.4f} ± {b['floor_sd']:.4f})")
 
 
 def _cyc(reads: dict, which: str, field: str) -> str:

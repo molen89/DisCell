@@ -873,8 +873,29 @@ def run_analyses(args: argparse.Namespace, run: str) -> dict:
     results.update({"run": run, "kappa": config.kappa, "seed": config.seed})
 
     if "probe" in wanted:
+        from discell.model import metrics as M
+
         record = probe_blocks_for_run(data, latents["mu_z"], config.seed)
-        record.update(run=run, dataset=args.dataset, checkpoint="best.pt")
+        record.update(run=run, dataset=args.dataset, checkpoint="best.pt",
+                      method=f"DisCell/{run}")
+        # the guard: fractions of the uncontrolled (alpha_a = 0, final
+        # budget) fits' mean excess; the 200/20 one is kept for the record
+        load = lambda r: (json.loads((run_dir.parent / r / "validation"
+                                      / "probe_blocks.json").read_text())
+                          if (run_dir.parent / r / "validation"
+                              / "probe_blocks.json").exists() else None)
+        refs = [r for r in (load("uncontrolled500_s0"),
+                            load("uncontrolled500_s1"))
+                if r is not None and r.get("run") != run]
+        if run.startswith("uncontrolled500_s"):
+            refs.append(record)
+        resolvi_path = (run_dir.parents[1] / "experiments" / "probe_regrade"
+                        / "resolVI.json")
+        resolvi = (json.loads(resolvi_path.read_text())
+                   if resolvi_path.exists() else None)
+        M.probe_verdict(record, refs, resolvi,
+                        record if run == "uncontrolled_s0"
+                        else load("uncontrolled_s0"))
         (out_dir / "probe_blocks.json").write_text(
             json.dumps(record, indent=2, default=float))
         log.info("probe blocks: invariance_pass %s (%s)",

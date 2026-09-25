@@ -34,7 +34,7 @@ literature-bib entry into `references.bib` and keep one key.
 These are cases where the text currently says something its source doesn't
 support, or where an obvious attribution is missing.
 
-- [ ] **A1. resolVI never reports mode collapse.** Three places attribute an
+- [x] *(2026-09-24: fixed with R7. The intro, method §2.6 and derivations now say resolVI closes the path "for training stability". The degeneracy is our own argument, and the derivations say we have not fitted the open-path model.)* **A1. resolVI never reports mode collapse.** Three places attribute an
   observed collapse to resolVI:
   intro.tex:13 ("because the coupling otherwise collapses the fit"),
   method.tex:204 ("after observing mode collapse with it enabled"),
@@ -219,8 +219,8 @@ International Conference on Machine Learning", and ICML 2026 is the 43rd. **[PDF
   **Methods → Model**, the paragraph on α_n and the priors. **[PDF]** Consider "a
   per-cell three-way mixture over own expression, neighbour diffusion and
   background".
-- [ ] intro.tex:13, method.tex:204, derivations.tex:47: collapse → **A1**.
-- [ ] *Bib:* the references.bib entry is wrong. It has exactly **two** authors, Can
+- [x] intro.tex:13, method.tex:204, derivations.tex:47: collapse → **A1**. *(2026-09-24: done.)*
+- [x] *(2026-09-24: corrected: two authors, title, doi, bioRxiv preprint.)* *Bib:* the references.bib entry is wrong. It has exactly **two** authors, Can
   Ergen and Nir Yosef, so drop "and others". Title: "ResolVI - addressing noise and
   bias in spatial transcriptomics"; doi 10.1101/2025.01.20.634005. The lit-bib
   entry `ergen2025resolvi` is correct, so use it.

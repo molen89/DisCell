@@ -70,7 +70,8 @@ def foreign_influx(rho_src: torch.Tensor, edge_src: torch.Tensor,
 
 
 def leakage_mix(rho: torch.Tensor, rho_bar: torch.Tensor,
-                kappa: float | torch.Tensor) -> torch.Tensor:
+                kappa: float | torch.Tensor,
+                eta: torch.Tensor | None = None) -> torch.Tensor:
     """``log p_i`` for ``p_i = (1-kappa) rho_i + kappa rho_bar_i``.
 
     Mixed in probability space -- the mixture of two simplex points is on the
@@ -89,15 +90,30 @@ def leakage_mix(rho: torch.Tensor, rho_bar: torch.Tensor,
     ``DisCell.leak_kappa``, whose clamps keep it in [0, 1)). A per-gene kappa
     makes connected rows sum to ``1 - sum_g kappa_g (rho_g - rho_bar_g)``,
     so there the renormalisation is part of the model, not a no-op.
+
+    *eta* ``(n, 1)``, the fixed false-positive floor (todo 8.15b,
+    ``discell.model.fp_floor``): after the leak mixture, a share ``eta_i`` of
+    rho's mass moves to the even ``u = 1/G``, so a connected row under a
+    per-cell kappa is ``(1 - kappa_i - eta_i) rho_i + kappa_i rho_bar_i +
+    eta_i u`` and an isolated one ``(1 - eta_i) rho_i + eta_i u``; rows still
+    sum to one (``u - rho`` sums to zero). ``None`` (the default) is the
+    pinned mixture bit for bit, and so is ``eta = 0``. Under the gene form
+    the leak part is renormalised on its own first, so eta stays the
+    false-positive share; kappa_g + eta_i <= 1 keeps every entry
+    non-negative (max kappa_g 0.28 on the ovarian core at kappa 0.1).
     """
     if isinstance(kappa, torch.Tensor):
         mix = (1.0 - kappa) * rho + kappa * rho_bar
         mix = mix / mix.sum(dim=-1, keepdim=True).clamp(min=EPS)
+        if eta is not None:
+            mix = mix + eta * (1.0 / rho.shape[-1] - rho)
         return mix.clamp(min=EPS).log()
     if not 0.0 <= kappa < 1.0:
         raise ValueError(f"kappa must be in [0, 1), got {kappa}")
     mix = (1.0 - kappa) * rho + kappa * rho_bar
     mix = mix / mix.sum(dim=-1, keepdim=True).clamp(min=EPS)
+    if eta is not None:
+        mix = mix + eta * (1.0 / rho.shape[-1] - rho)
     return mix.clamp(min=EPS).log()
 
 

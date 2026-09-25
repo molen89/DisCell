@@ -29,6 +29,19 @@ Artefacts (``probe_blocks.json``, same schema everywhere):
 * baseline      ``<D>/experiments/probe_regrade/<method>.json``
 * table         ``<D>/experiments/probe_regrade_<group>.{md,json}``
 
+The guard (devlog "Per-block probe, first read (8.16 interim)"): each
+block's excess as a fraction of the uncontrolled reference's -- the seed mean
+of the alpha_a = 0 fits at the final budget, ``uncontrolled500_s*``, of the
+same dataset, graded on the same section (the earlier 200/20
+``uncontrolled_s0`` is kept as ``fraction_of_uncontrolled200``) -- passes at
+<= 25 %, and ``invariance_pass`` needs all four blocks;
+fractions of resolVI's excess on the same slide are reported beside it. A
+record graded before its reference exists has ``invariance_pass`` None;
+``--reverdict`` re-applies the verdict to every record of a dataset
+(section) without re-fitting any probe.
+
+    python -m discell.experiments.probe_regrade --dataset D --reverdict
+
 A DisCell run's node-ordered mu_z is cached beside its record
 (``probe_latents[_<D>].npz``), so a re-grade (``--force``, another
 ``--n-perm``) skips the model. A record that exists is skipped without
@@ -56,7 +69,13 @@ log = logging.getLogger("discell.probe_regrade")
 #: the fields of a run's config that decide ``assemble``'s output
 ASSEMBLY_KEYS = ("variant", "embeddings", "tile_cells", "phi_pca", "v_pcs",
                  "val_fraction", "seed", "label_key")
-BLOCKS = (("ridge", "comp"), ("ridge", "img"), ("mlp", "comp"), ("mlp", "img"))
+BLOCKS = M.GUARD_BLOCKS
+#: the alpha_a = 0 fits at the final budget every excess is a fraction of
+#: (their seed mean), the 200/20 one they replaced (kept for the record), and
+#: the baseline beside them
+REFERENCE_RUNS = ("uncontrolled500_s0", "uncontrolled500_s1")
+REFERENCE_200 = "uncontrolled_s0"
+RESOLVI = "resolVI"
 
 
 def slug(method: str) -> str:
@@ -79,6 +98,17 @@ def record_path(dataset: str, run: str, config_from: str | None) -> Path:
 def baseline_path(dataset: str, method: str) -> Path:
     return (paths.dataset(dataset).root / "experiments" / "probe_regrade"
             / f"{slug(method)}.json")
+
+
+def references(dataset: str, config_from: str | None) -> tuple:
+    """([500/40 uncontrolled records], resolVI, 200/20 uncontrolled) for
+    *dataset*'s section; missing ones are left out / None."""
+    load = lambda p: json.loads(p.read_text()) if p.exists() else None
+    refs = [load(record_path(dataset, run, config_from))
+            for run in REFERENCE_RUNS]
+    return ([r for r in refs if r is not None],
+            load(baseline_path(dataset, RESOLVI)),
+            load(record_path(dataset, REFERENCE_200, config_from)))
 
 
 def write_atomic(path: Path, text: str) -> None:
@@ -232,6 +262,11 @@ def grade_one(dataset: str, run: str, config_from: str | None, assemblies,
                   legacy_in_trainer=legacy_reference(dataset, run,
                                                      config_from),
                   minutes=(time.time() - started) / 60)
+    refs, resolvi, ref_200 = references(dataset, config_from)
+    if run in REFERENCE_RUNS:            # a reference counts itself in
+        refs = [r for r in refs if r.get("run") != run] + [record]
+    M.probe_verdict(record, refs, resolvi,
+                    record if run == REFERENCE_200 else ref_200)
     write_atomic(out, json.dumps(record, indent=1, default=float))
     log.info("%s/%s: invariance_pass %s %s (%.1f min) -> %s", dataset,
              run, record["invariance_pass"], summary(record),
@@ -273,24 +308,60 @@ def grade_baseline(dataset: str, run: str, config_from: str | None,
                   legacy_in_trainer={"source": "baseline_battery.json",
                                      **stored} if stored else {},
                   minutes=(time.time() - started) / 60)
+    refs, resolvi, ref_200 = references(dataset, config_from)
+    M.probe_verdict(record, refs, record if method == RESOLVI else resolvi,
+                    ref_200)
     write_atomic(out, json.dumps(record, indent=1, default=str))
     log.info("%s '%s': invariance_pass %s %s -> %s", dataset, method,
              record["invariance_pass"], summary(record), out)
 
 
+def reverdict(dataset: str, config_from: str | None) -> None:
+    """Re-apply the guard to every record of *dataset*'s section: the DisCell
+    runs (own section, or ``--config-from``'s runs on this one) and the
+    baselines. Probe numbers are untouched."""
+    refs, resolvi, ref_200 = references(dataset, config_from)
+    runs_dir = paths.dataset(config_from or dataset).root / "runs"
+    records = [record_path(dataset, p.name, config_from)
+               for p in sorted(runs_dir.iterdir())
+               if p.is_dir() and not p.is_symlink()]
+    root = paths.dataset(dataset).root / "experiments" / "probe_regrade"
+    records = [p for p in records if p.exists()] + (
+        sorted(root.glob("*.json")) if root.exists() else [])
+    for path in records:
+        record = json.loads(path.read_text())
+        is_resolvi = record.get("run") is None and record["method"] == RESOLVI
+        M.probe_verdict(record, refs, record if is_resolvi else resolvi,
+                        ref_200)
+        write_atomic(path, json.dumps(record, indent=1, default=str))
+    log.info("%s: re-verdicted %d records (500/40 uncontrolled references: "
+             "%s; 200/20 %s; resolVI %s)", dataset, len(records),
+             ", ".join(r["run"] for r in refs) or "MISSING",
+             "present" if ref_200 else "missing",
+             "present" if resolvi else "missing")
+
+
 # -- tables -----------------------------------------------------------------
 
 def summary(record: dict) -> str:
+    frac = lambda x: "--" if x is None else f"{x:.2f}"
     return " ".join(f"{f}/{b} {record[f][b]['excess']:+.4f}"
-                    f"({record[f][b]['excess_in_sd']:+.1f}sd)"
-                    for f, b in BLOCKS)
+                    f"(x{frac(record[f][b].get('fraction_of_uncontrolled'))}u)"
+                    for f, b in BLOCKS) + f" invariance_pass {record['invariance_pass']}"
+
+
+def _verdict(value) -> str:
+    return "--" if value is None else ("pass" if value else "FAIL")
 
 
 def _cell(block: dict) -> str:
-    return (f"{block['gain']:+.4f} / {block['floor_mean']:+.4f} ± "
-            f"{block['floor_sd']:.5f} / **{block['excess']:+.4f}** "
-            f"({block['excess_in_sd']:+.1f} sd) "
-            f"{'pass' if block['pass'] else 'FAIL'}")
+    frac = lambda key: ("--" if block.get(key) is None
+                        else f"{block[key]:.2f}")
+    var = block.get("var_fraction", float(np.expm1(2 * block["excess"])))
+    return (f"**{block['excess']:+.4f}** ({100 * var:.2f} %) "
+            f"· {frac('fraction_of_uncontrolled')} u "
+            f"({frac('fraction_of_uncontrolled200')} u200) · "
+            f"{frac('fraction_of_resolvi')} r · {_verdict(block.get('pass'))}")
 
 
 def _legacy_check(record: dict) -> str:
@@ -303,9 +374,9 @@ def _legacy_check(record: dict) -> str:
 
 def render(dataset: str, group: str, records: list[dict]) -> str:
     head = (["method / run", "held out"]
-            + [f"{f} {b}: gain / floor ± sd / excess (in floor sd)"
-               for f, b in BLOCKS]
-            + ["invariance_pass", "ridge pooled gain / excess",
+            + [f"{f} {b}" for f, b in BLOCKS]
+            + ["invariance_pass (≤ 25 % of uncontrolled)",
+               "2-sd rule (withdrawn)", "ridge pooled excess",
                "pooled, legacy: ΔCE / floor", "legacy vs in-trainer"])
     lines = [f"# Invariance probe re-graded per block -- {dataset}, group `{group}`",
              "",
@@ -317,14 +388,23 @@ def render(dataset: str, group: str, records: list[dict]) -> str:
              "Per column k of v, gain_k = ½ log(MSE_k(type mean) / "
              "MSE_k(probe)) on held-out cells (nats); a block's gain is the "
              "mean over its columns (composition: K−1 columns of y; image: "
-             "12 PCs of Φ). Floor = the same with z permuted within type, "
-             "mean ± sd over the permutation draws; excess = gain − floor "
-             "mean; **pass** iff |excess| ≤ 2 floor sd. `invariance_pass` = "
-             "all four blocks pass (the pre-registered guard). The pooled, "
-             "legacy ΔCE is `probe_delta_ce` recomputed on the same inputs "
-             "(image-dominated); `legacy vs in-trainer` is its difference "
-             "from the in-trainer value of the same weights (or the stored "
-             "battery column), the check that the right checkpoint was read.",
+             "12 PCs of Φ). Floor = the same with z permuted within type "
+             "(mean over the permutation draws). Each cell: **excess** = "
+             "gain − floor (nats per column), (the within-type variance "
+             "fraction it implies, exp(2·excess) − 1) · the excess as a "
+             "fraction of the uncontrolled fits' (α_a = 0 at the final "
+             "500/40 budget, `uncontrolled500_s*`, seed mean, same section; "
+             "`u`; in brackets against the earlier 200/20 `uncontrolled_s0`, "
+             "`u200`, for the record) · as a fraction of resolVI's on the "
+             "same slide (`r`) · pass iff ≤ 0.25 u. `invariance_pass` = "
+             "all four blocks pass (devlog \"Per-block probe, first read "
+             "(8.16 interim)\"; `--` = no uncontrolled reference yet). The "
+             "withdrawn 15:00 rule (|excess| ≤ 2 floor sd) is shown beside "
+             "it. The pooled, legacy ΔCE is `probe_delta_ce` recomputed on "
+             "the same inputs (image-dominated); `legacy vs in-trainer` is "
+             "its difference from the in-trainer value of the same weights "
+             "(or the stored battery column), the check that the right "
+             "checkpoint was read.",
              "",
              "| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     for r in records:
@@ -333,8 +413,9 @@ def render(dataset: str, group: str, records: list[dict]) -> str:
         lines.append("| " + " | ".join(
             [r["method"], f"{r.get('n_heldout') or r['ridge']['n_test']:,}"]
             + [_cell(r[f][b]) for f, b in BLOCKS]
-            + ["pass" if r["invariance_pass"] else "FAIL",
-               f"{rp['gain']:+.4f} / {rp['excess']:+.4f}",
+            + [_verdict(r.get("invariance_pass")),
+               _verdict(r.get("invariance_pass_2sd_legacy")),
+               f"{rp['excess']:+.4f}",
                f"{lg['delta_ce']:+.4f} / {lg['noise_floor']:+.4f}",
                _legacy_check(r)]) + " |")
     n_perm = sorted({r["ridge"]["n_perm"] for r in records})
@@ -348,14 +429,22 @@ def collect(dataset: str, patterns: list[str], config_from: str | None,
             baselines: bool) -> list[dict]:
     source = config_from or dataset
     runs_dir = paths.dataset(source).root / "runs"
-    names = sorted({p.name for p in runs_dir.iterdir()
-                    if any(fnmatch.fnmatch(p.name, pat) for pat in patterns)
-                    and not p.is_symlink()})
+    names: dict = {}       # run directory -> the symlinked name, if any
+    for p in sorted(runs_dir.iterdir()):
+        if any(fnmatch.fnmatch(p.name, pat) for pat in patterns):
+            target = p.resolve().name
+            if p.is_symlink():
+                names[target] = p.name       # best_s0 -> best_az0.5_s0
+            else:
+                names.setdefault(target, None)
     records = []
-    for name in names:
+    for name in sorted(names):
         path = record_path(dataset, name, config_from)
         if path.exists():
-            records.append(json.loads(path.read_text()))
+            record = json.loads(path.read_text())
+            if names[name]:
+                record["method"] += f" (= {names[name]})"
+            records.append(record)
     if baselines:
         root = paths.dataset(dataset).root / "experiments" / "probe_regrade"
         for path in sorted(root.glob("*.json")) if root.exists() else []:
@@ -375,9 +464,15 @@ def table(dataset: str, group: str, patterns: list[str],
     write_atomic(root / f"probe_regrade_{group}.json", json.dumps(
         {r["method"]: {"invariance_pass": r["invariance_pass"],
                        "pass": r["pass"],
-                       **{f"{f}_{b}": {k: r[f][b][k] for k in
+                       "invariance_pass_2sd_legacy": r.get(
+                           "invariance_pass_2sd_legacy"),
+                       **{f"{f}_{b}": {k: r[f][b].get(k) for k in
                                        ("gain", "floor_mean", "floor_sd",
-                                        "excess", "excess_in_sd", "pass")}
+                                        "excess", "var_fraction",
+                                        "excess_in_sd",
+                                        "fraction_of_uncontrolled",
+                                        "fraction_of_resolvi", "pass",
+                                        "pass_2sd_legacy")}
                           for f, b in BLOCKS + (("ridge", "pooled"),
                                                 ("mlp", "pooled"))},
                        "legacy": r["ridge"]["legacy"]}
@@ -405,9 +500,14 @@ def main(argv=None) -> int:
                    help="--table: run-name patterns (fnmatch)")
     p.add_argument("--baselines", action="store_true",
                    help="--table: add the graded baselines")
+    p.add_argument("--reverdict", action="store_true",
+                   help="re-apply the guard to every record of the section")
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, datefmt="%H:%M:%S",
                         format="%(asctime)s %(levelname)s %(message)s")
+    if args.reverdict:
+        reverdict(args.dataset, args.config_from)
+        return 0
     if args.table:
         table(args.dataset, args.table, args.runs, args.config_from,
               args.baselines)

@@ -123,8 +123,13 @@ def probe_delta_ce(z: np.ndarray, t: np.ndarray, v: np.ndarray,
 
 # -- the probe per block (review R20 + R22, devlog 2026-09-24 15:00) ---------
 
-#: a block passes when |gain - floor mean| <= this many floor sd
+#: the pre-registered band of 15:00, withdrawn at ~15:45 (devlog "Per-block
+#: probe, first read (8.16 interim)"): kept as ``pass_2sd_legacy`` --
+#: |gain - floor mean| <= this many floor sd
 PROBE_BAND_SD = 2.0
+#: the replacement guard: a block passes when its excess is at most this
+#: fraction of the uncontrolled (alpha_a = 0) reference's, on both graders
+REFERENCE_FRACTION = 0.25
 #: keeps the log ratio finite; negligible against any graded column's MSE
 _MSE_EPS = 1e-12
 #: a column whose held-out variance is at most this is constant on the
@@ -197,8 +202,10 @@ def _block(base: np.ndarray, probe: np.ndarray, floors: list,
     excess = float(per_col.mean()) - mean
     return {"gain": float(per_col.mean()), "floor_mean": mean, "floor_sd": sd,
             "excess": excess,
+            # the within-type variance fraction the excess implies
+            "var_fraction": float(np.expm1(2.0 * excess)),
             "excess_in_sd": excess / sd if sd > 0 else float("inf"),
-            "pass": bool(abs(excess) <= PROBE_BAND_SD * sd),
+            "pass_2sd_legacy": bool(abs(excess) <= PROBE_BAND_SD * sd),
             "n_cols": int(len(cols)), "gain_per_col": per_col.tolist(),
             "floor_draws": draws}
 
@@ -252,8 +259,10 @@ def probe_gain_per_block(z: np.ndarray, t: np.ndarray, v: np.ndarray,
     first *n_comp* columns (K-1: y minus one column), the image block the
     rest (PCs of Phi). Each block reports its mean gain, the mean and sample
     sd of the same over *n_perm* within-type permutations of z (the floor),
-    ``excess`` = gain - floor mean, and ``pass`` = |excess| <= 2 floor sd.
-    Columns constant on the held-out cells are left out of the block means
+    ``excess`` = gain - floor mean, its ``var_fraction`` exp(2 excess) - 1,
+    and ``pass_2sd_legacy`` = |excess| <= 2 floor sd (the withdrawn rule;
+    the guard is :func:`probe_verdict`'s). Columns constant on the held-out
+    cells are left out of the block means
     (listed in ``constant_cols``). ``pooled`` is the same over all columns;
     ``legacy`` is
     :func:`probe_delta_ce` itself (pooled squared error), reproduced exactly.
@@ -318,20 +327,85 @@ def probe_gain_per_block_mlp(z: np.ndarray, t: np.ndarray, v: np.ndarray,
     return _blocks(cols, n_comp, n_perm, seed, "mlp", legacy_scale=v_sd ** 2)
 
 
+GUARD_BLOCKS = (("ridge", "comp"), ("ridge", "img"), ("mlp", "comp"),
+                ("mlp", "img"))
+
+
 def probe_blocks(z: np.ndarray, t: np.ndarray, v: np.ndarray,
                  vbar_t: np.ndarray, train: np.ndarray, test: np.ndarray,
                  n_comp: int, seed: int = 0, n_perm: int = 5) -> dict:
-    """Both graders per block, and the pre-registered invariance guard:
-    ``invariance_pass`` iff the composition and the image block pass for
-    both the ridge and the MLP."""
+    """Both graders per block. ``invariance_pass`` needs the uncontrolled
+    reference and is None until :func:`probe_verdict` has seen one; the
+    withdrawn 2-sd verdict is kept as ``invariance_pass_2sd_legacy``."""
     out = {family: fn(z, t, v, vbar_t, train, test, n_comp, seed=seed,
                       n_perm=n_perm)
            for family, fn in (("ridge", probe_gain_per_block),
                               ("mlp", probe_gain_per_block_mlp))}
-    out["pass"] = {f"{family}_{block}": out[family][block]["pass"]
-                   for family in ("ridge", "mlp") for block in ("comp", "img")}
-    out["invariance_pass"] = bool(all(out["pass"].values()))
+    out["pass_2sd_legacy"] = {f"{f}_{b}": out[f][b]["pass_2sd_legacy"]
+                              for f, b in GUARD_BLOCKS}
+    out["invariance_pass_2sd_legacy"] = bool(all(
+        out["pass_2sd_legacy"].values()))
+    out["pass"] = {f"{f}_{b}": None for f, b in GUARD_BLOCKS}
+    out["invariance_pass"] = None
     return out
+
+
+def probe_verdict(record: dict, reference, resolvi: dict | None = None,
+                  reference_200: dict | None = None) -> dict:
+    """The guard of devlog "Per-block probe, first read (8.16 interim)".
+
+    *reference*: the uncontrolled (alpha_a = 0) fits of the same dataset and
+    section at the final budget -- one record or a list, whose excesses are
+    averaged per block over the seeds. Each block's excess is reported as a
+    fraction of that mean and of *resolvi*'s; a guard block passes iff its
+    fraction is <= :data:`REFERENCE_FRACTION`; ``invariance_pass`` iff all
+    four do (None without a reference, or when the reference's excess is not
+    positive -- nothing to be a fraction of). *reference_200*, the 200/20
+    reference the 500/40 one replaced, is kept as
+    ``fraction_of_uncontrolled200`` for the record and decides nothing.
+    Updates *record* in place (a record written before the amendment is
+    migrated: its 2-sd verdicts move to ``*_2sd_legacy``) and returns it.
+    """
+    if isinstance(reference, dict):
+        reference = [reference]
+    reference = reference or []
+    if "invariance_pass_2sd_legacy" not in record:             # pre-amendment
+        record["pass_2sd_legacy"] = record.get("pass")
+        record["invariance_pass_2sd_legacy"] = record.get("invariance_pass")
+    ratio = lambda a, b: None if b is None or b <= 0 else a / b
+    excess_of = lambda other, f, b: (other or {}).get(f, {}).get(b, {}).get(
+        "excess")
+    for family in ("ridge", "mlp"):
+        for block in ("comp", "img", "pooled"):
+            entry = record[family][block]
+            if "pass_2sd_legacy" not in entry:
+                entry["pass_2sd_legacy"] = entry.pop("pass")
+            entry["var_fraction"] = float(np.expm1(2.0 * entry["excess"]))
+            seeds = [excess_of(r, family, block) for r in reference]
+            ref = float(np.mean(seeds)) if seeds else None
+            entry["uncontrolled_excess"] = ref
+            entry["uncontrolled_excess_per_seed"] = seeds
+            entry["fraction_of_uncontrolled"] = ratio(entry["excess"], ref)
+            entry["fraction_of_uncontrolled200"] = ratio(
+                entry["excess"], excess_of(reference_200, family, block))
+            entry["fraction_of_resolvi"] = ratio(
+                entry["excess"], excess_of(resolvi, family, block))
+            fraction = entry["fraction_of_uncontrolled"]
+            entry["pass"] = (None if fraction is None
+                             else bool(fraction <= REFERENCE_FRACTION))
+    record["pass"] = {f"{f}_{b}": record[f][b]["pass"] for f, b in GUARD_BLOCKS}
+    verdicts = list(record["pass"].values())
+    record["invariance_pass"] = (None if None in verdicts
+                                 else bool(all(verdicts)))
+    record["reference"] = {
+        "uncontrolled": [r.get("method") for r in reference],
+        "uncontrolled200": (reference_200 or {}).get("method"),
+        "resolvi": (resolvi or {}).get("method"),
+        "fraction": REFERENCE_FRACTION,
+        "rule": "composition and image excess each <= 25 % of the "
+                "uncontrolled (alpha_a = 0, final budget) fits' mean, ridge "
+                "and MLP"}
+    return record
 
 
 def w_mirror_delta_r2(mu_w: np.ndarray, neighbour_z: np.ndarray,

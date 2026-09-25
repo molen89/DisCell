@@ -93,7 +93,7 @@ def test_an_incomplete_smaller_rung_leaves_the_rule_undecided(table, tmp_path):
     ruling = table.decide(_cells(table, changes))
     assert ruling["per_rung"]["m1"]["status"] == "undecided"
     assert ruling["undecided"] and ruling["adopted_m"] is None
-    assert not table.write_decision(ruling, {"datasets": {}}, tmp_path / "D.json")
+    assert not table.write_decision({'fresh': ruling}, {"datasets": {}}, tmp_path / "D.json")
     assert not (tmp_path / "D.json").exists()
 
 
@@ -103,7 +103,7 @@ def test_a_decided_rule_is_still_withheld_until_the_grid_is_complete(table, tmp_
     changes = {**_winning(table, "m2"), (table.FF, "m1"): "missing"}
     ruling = table.decide(_cells(table, changes))
     assert ruling["adopted_m"] == 2 and not ruling["complete"]
-    assert not table.write_decision(ruling, {"datasets": {}}, tmp_path / "D.json")
+    assert not table.write_decision({'fresh': ruling}, {"datasets": {}}, tmp_path / "D.json")
 
 
 def test_the_recon_clause_reads_the_seed_spread(table):
@@ -135,7 +135,7 @@ def test_stage_one_names_the_candidates_and_decides_nothing(table):
     assert ruling["stage2_candidates"]["guards_only"] == [2, 5]
     assert ruling["stage2_candidates"]["guards_and_gse_gain"] == [2, 5]
     assert ruling["adopted_m"] is None and "needs FF" in ruling["verdict"]
-    assert not table.write_decision(ruling, {"datasets": {}}, Path("/nonexistent/D"))
+    assert not table.write_decision({'fresh': ruling}, {"datasets": {}}, Path("/nonexistent/D"))
 
 
 def test_stage_two_decides_on_the_candidates(table, tmp_path):
@@ -148,7 +148,7 @@ def test_stage_two_decides_on_the_candidates(table, tmp_path):
     ladder = {"convention": "alpha_z", "datasets": {
         ds: {"alpha_w": {f"m{m}": m * 0.001 for m in table.MULTIPLIERS},
              "lbar": 1000.0} for ds in (table.GS, table.LU, table.OV, table.FF)}}
-    assert table.write_decision(ruling, ladder, tmp_path / "D.json")
+    assert table.write_decision({'fresh': ruling}, ladder, tmp_path / "D.json")
 
 
 def test_stage_two_with_both_candidates_failing_stays_open(table):
@@ -188,3 +188,73 @@ def test_probe_blocks_are_read_from_the_run_directory(table, tmp_path):
     assert got["blocks"] == {"blocks/composition": {"excess": 0.01, "pass": True},
                              "blocks/image/ridge": {"excess": 0.2, "pass": False}}
     assert table.probe_blocks(tmp_path / "nothing") is None
+
+
+def _with_reused(table, cells, ds, **over):
+    """A reused reference pair on *ds* beside its fresh one."""
+    runs = [_seed(i, **over) for i in table.SEEDS]
+    cells[(ds, table.REUSED)] = {"alpha_w": 0.1, "runs": runs,
+                                 "n_expected": len(runs), **table.summarise(runs)}
+    return cells
+
+
+def test_the_three_reference_envelopes_can_disagree(table):
+    # fresh reference: wide w-mirror band; reused: tight; pooled in between
+    cells = _cells(table, {(table.OV, table.REFERENCE): {"w_mirror": (0.13, 0.19, 0.16)},
+                           (table.OV, "m1"): {"w_mirror": (0.145, 0.15, 0.148)},
+                           (table.GS, "m1"): {"gain": (0.01, 0.011, 0.012)},
+                           (table.FF, "m1"): {"gain": (0.01, 0.011, 0.012)}})
+    _with_reused(table, cells, table.OV, w_mirror=(0.134, 0.136, 0.135))
+    by = {v: table.decide(cells, v) for v in table.VARIANTS}
+    wm = {v: by[v]["per_rung"]["m1"]["guards"][table.OV]["w_mirror"] for v in by}
+    assert wm == {"fresh": True, "reused": False, "pooled": True}
+    pooled = table.reference_variant(cells, table.OV, "pooled")
+    assert pooled["n_expected"] == 6 and pooled["n_seeds"] == 6
+    assert by["fresh"]["adopted_m"] == 1 and by["reused"]["adopted_m"] != 1
+
+
+def test_a_dataset_with_one_kind_of_reference_uses_it_in_every_variant(table):
+    cells = _cells(table, {})
+    for v in table.VARIANTS:
+        assert table.reference_variant(cells, table.GS, v) is cells[(table.GS, table.REFERENCE)]
+    # only reused fits (FF: its aw_ref0.1 are links onto wfix): reused throughout
+    cells[(table.FF, table.REFERENCE)] = {"alpha_w": 0.1, "runs": [], "n_expected": 0,
+                                         **table.summarise([])}
+    _with_reused(table, cells, table.FF)
+    for v in table.VARIANTS:
+        assert table.reference_variant(cells, table.FF, v) is cells[(table.FF, table.REUSED)]
+
+
+def test_a_decision_needs_every_variant_to_agree_to_name_a_rung(table, tmp_path):
+    import json
+    cells = _cells(table, {(table.OV, table.REFERENCE): {"w_mirror": (0.13, 0.19, 0.16)},
+                           (table.OV, "m1"): {"w_mirror": (0.145, 0.15, 0.148)},
+                           (table.OV, "m2"): {"w_mirror": (0.12, 0.121, 0.122)},
+                           **_winning(table, "m1"), **_winning(table, "m2")})
+    _with_reused(table, cells, table.OV, w_mirror=(0.134, 0.136, 0.135))
+    rulings = {v: table.decide(cells, v) for v in table.VARIANTS}
+    ladder = {"convention": "alpha_z", "datasets": {
+        ds: {"alpha_w": {f"m{m}": m * 0.001 for m in table.MULTIPLIERS},
+             "lbar": 1000.0} for ds in (table.GS, table.LU, table.OV, table.FF)}}
+    assert table.write_decision(rulings, ladder, tmp_path / "D.json")
+    out = json.loads((tmp_path / "D.json").read_text())
+    assert out["variants_agree"] is False and out["adopted_m"] is None
+    assert out["by_reference"]["fresh"]["adopted_m"] == 1
+    assert out["by_reference"]["reused"]["adopted_m"] == 2
+
+
+def test_transport_reads_come_from_the_all_panel_tier_and_the_own_target(table, tmp_path):
+    import json
+    (tmp_path / "transport").mkdir()
+    (tmp_path / "transport" / "transport.json").write_text(json.dumps(
+        {"summary": {"extrapolation": {"n_panels": 8, "full_beats_both": 6,
+                                       "counterfactual_of_ceiling": 0.4},
+                     "extrapolation_trusted": {"n_panels": 2, "full_beats_both": 2,
+                                               "counterfactual_of_ceiling": 0.9}}}))
+    (tmp_path / "transport" / "transport_distribution.json").write_text(json.dumps(
+        {"summary_model": {"pairwise": {"median_gap_closed": 0.9}},
+         "summary_model_own": {"pairwise": {"median_gap_closed": 0.3}}}))
+    got = table.transport_reads(tmp_path)
+    assert got == {"readA_of_ceiling": 0.4, "readA_beats_both": 0.75,
+                   "readA_own_gap": 0.3}
+    assert table.transport_reads(tmp_path / "none") == {}

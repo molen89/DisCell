@@ -184,8 +184,8 @@ class AdversaryTerms:
 
 def adversary_terms(heads: Adversary, mu_z: torch.Tensor, t: torch.Tensor,
                     y: torch.Tensor, e_phi: torch.Tensor,
-                    ybar_t: torch.Tensor, phibar_t: torch.Tensor
-                    ) -> AdversaryTerms:
+                    ybar_t: torch.Tensor, phibar_t: torch.Tensor,
+                    comp_weight: float = 1.0) -> AdversaryTerms:
     """Spec 4.6's ``Adv_i``, in both of its roles.
 
     The heads are trained on ``sg mu_z`` (their optimiser owns them); the
@@ -194,17 +194,44 @@ def adversary_terms(heads: Adversary, mu_z: torch.Tensor, t: torch.Tensor,
     any gradient that reached them before the head step. Baselines are the
     type-only lookups, so each half reads as excess predictive skill over
     knowing the type alone: zero at the optimum.
+
+    *comp_weight* (8.17, 2026-09-24) multiplies the composition half in both
+    roles -- the excess in the encoder term and the CE in the head loss; 1 is
+    every run before it, bit for bit. ``excess_y`` is logged unweighted.
     """
     log_y, log_phi = heads(mu_z, t)
     base_y = soft_cross_entropy(y, ybar_t.clamp(min=1e-8).log()[t])
     base_phi = soft_cross_entropy(e_phi, phibar_t.clamp(min=1e-8).log()[t])
     excess_y = base_y - soft_cross_entropy(y, log_y)
     excess_phi = base_phi - soft_cross_entropy(e_phi, log_phi)
-    encoder_term = (excess_y + excess_phi).mean()
+    encoder_term = (comp_weight * excess_y + excess_phi).mean()
 
     log_y_sg, log_phi_sg = heads(mu_z.detach(), t)
-    head_loss = (soft_cross_entropy(y, log_y_sg)
+    head_loss = (comp_weight * soft_cross_entropy(y, log_y_sg)
                  + soft_cross_entropy(e_phi, log_phi_sg)).mean()
     return AdversaryTerms(encoder_term=encoder_term, head_loss=head_loss,
                           excess_y=float(excess_y.mean().detach()),
                           excess_phi=float(excess_phi.mean().detach()))
+
+
+def ensemble_adversary_terms(heads: list[Adversary], mu_z: torch.Tensor,
+                             t: torch.Tensor, y: torch.Tensor,
+                             e_phi: torch.Tensor, ybar_t: torch.Tensor,
+                             phibar_t: torch.Tensor,
+                             comp_weight: float = 1.0) -> AdversaryTerms:
+    """:func:`adversary_terms` over K independent head pairs (8.17).
+
+    The encoder is penalised on the members' mean excess, the head loss is
+    their sum (one optimiser over all members steps each on its own CE), and
+    the logged excesses are member means. K = 1 returns the single pair's
+    terms unchanged.
+    """
+    members = [adversary_terms(h, mu_z, t, y, e_phi, ybar_t, phibar_t,
+                               comp_weight) for h in heads]
+    if len(members) == 1:
+        return members[0]
+    return AdversaryTerms(
+        encoder_term=torch.stack([m.encoder_term for m in members]).mean(),
+        head_loss=torch.stack([m.head_loss for m in members]).sum(),
+        excess_y=sum(m.excess_y for m in members) / len(members),
+        excess_phi=sum(m.excess_phi for m in members) / len(members))

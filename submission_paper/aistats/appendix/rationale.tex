@@ -15,11 +15,25 @@ Zeroing $\vz_i$ while keeping self-loops is not an alternative: the softmax stil
 \subsection{Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}
 \label{app:graph}
 
-A discretised contact indicator (touching, near, far) looks as if it dodges the collinearity objection of \cref{sec:inference}, but on this platform, whose segmented polygons rarely touch, whether two of them touch is largely a measurement of local density: dense regions touch, sparse regions do not. The indicator would smuggle density back in, in the confounded direction, and a tolerance parameter only moves the threshold.
+A discretised contact indicator (touching, near, far) looks as if it dodges the collinearity objection of \cref{sec:inference}, but on this platform, whose segmented polygons rarely touch, whether two of them touch is largely a measurement of local density: dense regions touch, sparse regions do not. The indicator would smuggle density back in, in the confounded direction, and a tolerance parameter only moves the threshold. \Cref{fig:graph-compare} shows it on one field: exact contact leaves most cells without a neighbour, a $1\um$ tolerance connects the dense tissue but leaves the separated cells of the sparse tissue isolated, and Delaunay adjacency connects them all.
 
-Delaunay adjacency resolves it: two cells are neighbours if and only if their Voronoi cells share a face, which is the correct notion of adjacency for a packing, built from centroids alone. The one parameter that returns is the pruning of long edges, and it is much less sensitive than choosing a neighbour count. The Voronoi face length is used in the kernel rather than shared segmented boundary because the Voronoi face is where the boundary between two cells effectively lies, its length is a contact-extent proxy defined whether or not the polygons touch, and it is independent of the expansion setting.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_graph_compare}
+\caption{Three neighbour graphs on one $160\um$ field of the primary section, each a subset of the model's edge set. \textbf{a},~Edges whose segmented polygons touch. \textbf{b},~Edges along which the two polygons run within $1\um$ of each other, the contact of \cref{tab:contact}. \textbf{c},~The model's graph: Delaunay adjacency pruned at $40\um$. Cells with no edge in a panel's graph are dark. The share above each panel is over the whole section, among cells with at least one edge in~c. The field is chosen to be representative: among fields that contain both sparse and dense tissue, it is the one whose shares under a and b are closest to the section's. Edges are drawn at one width; their weights in $\beta$ are illustrated in \cref{fig:overview}a. All panels share one scale.}
+\label{fig:graph-compare}
+\end{figure}
 
-\Cref{tab:contact} makes the comparison concrete on every section. The sections were segmented mostly by an interior RNA stain rather than by nuclear expansion, and adjacent polygons still rarely touch. A contact kernel is therefore zero on about half of the edges, and it leaves a density-dependent share of cells with no leakage at all: up to a third of cells in the sparsest fifth of a section, almost none in the densest. Whether a cell can receive leakage would then be decided by local density, which is part of the niche. The Voronoi kernel gives every connected cell the same leak budget $\kappa$. Both kernels give nearer neighbours more weight; for $\beta$ that dependence is the one the distance decay introduces by design, and the face does not add to it.
+Delaunay adjacency resolves it: two cells are neighbours if and only if their Voronoi cells share a face, which is the correct notion of adjacency for a packing, built from centroids alone. The one parameter that returns is the pruning of long edges, and it is much less sensitive than choosing a neighbour count. The Voronoi face length is used in the kernel rather than shared segmented boundary because the Voronoi face is where the boundary between two cells effectively lies, its length is a contact-extent proxy defined whether or not the polygons touch, and it is independent of the expansion setting (\cref{fig:voronoi-face}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_voronoi_face}
+\caption{How the Voronoi face is built, and what bounds it, on the primary section. \textbf{a},~Segmented polygons and their centroids around a typical cell (blue). \textbf{b},~The polygons are set aside; each neighbour contributes the perpendicular bisector (dashed) of the segment joining the two centroids. \textbf{c},~The bisectors cut one another, and what survives between the cell and a neighbour is the face $f_{ij}$ (blue, length in $\mu$m); the shaded area is the cell's Voronoi region. Panels a--c share one scale. \textbf{d},~A dense neighbourhood and \textbf{e},~a cell at a tissue border, at one scale, each with the $30\um$ clip disc (dotted). At the border the unclipped region (dashed) runs into the gap, the disc bounds it, and the dark stretch of the outline between two faces is the clip arc. \textbf{f},~Face length against centroid distance for every edge of the section. Clipping bounds each face by the chord $2\sqrt{R^2-(d_{ij}/2)^2}$ of the disc, with $R = 30\um$, and removes every edge with $d_{ij} \ge 2R$; the model keeps edges up to $40\um$ (unshaded).}
+\label{fig:voronoi-face}
+\end{figure}
+
+\Cref{tab:contact} and \cref{fig:contact-kernel} make the comparison concrete on every section. The sections were segmented mostly by an interior RNA stain rather than by nuclear expansion, and adjacent polygons still rarely touch. A contact kernel is therefore zero on about half of the edges, and it leaves a density-dependent share of cells with no leakage at all: up to a third of cells in the sparsest fifth of a section, almost none in the densest. Whether a cell can receive leakage would then be decided by local density, which is part of the niche. The Voronoi kernel gives every connected cell the same leak budget $\kappa$. Both kernels give nearer neighbours more weight; for $\beta$ that dependence is the one the distance decay introduces by design, and the face does not add to it.
 
 \begin{table}[t]
 \centering
@@ -41,6 +55,13 @@ Lung TMA, section B & 87 & 12 & 1.2 & 2.2 & 47 & 6.2 & 24.6 & 0.1 & $-0.84$ & $-
 \bottomrule
 \end{tabular}
 \end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_contact_kernel}
+\caption{Why the leakage kernel is built on Voronoi faces rather than on segmented contact. \textbf{a},~An edge whose segmented polygons touch and \textbf{b},~an edge whose polygons do not, each the edge of its kind closest to the primary section's median centroid distance and median face length. The two have almost the same centroid distance $d_{ij}$ and face $f_{ij}$ (blue), which is all the kernel $\beta$ uses; contact (orange), the stretch of each cell's membrane within $1\um$ of the other cell, is present in a and absent in b. Dashed lines are the two cells' Voronoi regions; both panels share one scale. \textbf{c},~The share of cells that a contact-weighted kernel would leave with no leakage at all, by fifth of local density (centroids within $20\um$), on each section of \cref{tab:contact}: the median (bold), the range (band) and each section (thin). Both kernels use the model's edge set, the same distance decay and the same row normalisation; the Voronoi kernel leaves no connected cell without leakage on any section.}
+\label{fig:contact-kernel}
+\end{figure}
 
 
 One consequence of the softmax over a Delaunay neighbourhood should be stated. With the type as query and one-hot types as sources, the logit of edge $ij$ depends on $(t_i, t_j)$ alone, say $s_{t_i t_j}$, and grouping the neighbours by type gives, per head,

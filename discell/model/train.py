@@ -35,8 +35,9 @@ import torch
 
 from discell import paths
 from discell.model import metrics as M
-from discell.model.elbo import Weights, adversary_terms, discell_loss
+from discell.model.elbo import Weights, discell_loss, ensemble_adversary_terms
 from discell.model.equations import TypeCovariances, leakage_mix
+from discell.model.fp_floor import fp_floor_eta
 from discell.model.networks import (KAPPA_MODES, DisCell, kappa_ratio_stats,
                                     read_density_areas, read_gene_share)
 from discell.model.prepare import ModelData, assemble, tile_batch
@@ -101,8 +102,16 @@ class TrainConfig:
     gat_sink: bool = False              # attention sink: neighbour dose, saturating
     invariance: str = "adversary"       # "closed_form" before spec 4.6 escalation
     adv_lr: float = 2e-3
-    adv_steps: int = 6
-    adv_hidden: int = 64
+    adv_steps: int = 6                  # CLI also --adv-head-steps (8.17)
+    adv_hidden: int = 64                # CLI also --adv-head-width (8.17)
+    #: the adversary-capacity ladder (8.17 pre-registration, 2026-09-24).
+    #: Both defaults are every run before it, bit for bit.
+    #: adv_ensemble: K independent head pairs, their head losses summed, the
+    #: encoder penalised on the members' mean excess (elbo.
+    #: ensemble_adversary_terms). adv_comp_weight: multiplies the composition
+    #: excess (encoder term) and the composition CE (head loss).
+    adv_ensemble: int = 1
+    adv_comp_weight: float = 1.0
     kappa: float = 0.1
     omega: float = 1.0
     alpha_z: float = 0.007
@@ -164,6 +173,19 @@ class TrainConfig:
     #: once at Trainer setup and recorded here (config.json) and in the run
     #: dir's kappa_<mode>.json.
     kappa_ratio_mean: float | None = None
+    #: the fixed false-positive floor (todo 8.15b, devlog 2026-09-24 21:20 B):
+    #: p_i = (1 - kappa_i - eta_i) rho_i + kappa_i rho_bar_i + eta_i u, u = 1/G,
+    #: eta_i = min(lambda_i / l_i, 0.2), lambda from the Xenium cell table's
+    #: negative-control and genomic-control counts (discell.model.fp_floor).
+    #: False = every run before it, bit for bit; works under every kappa_mode.
+    #: fp_area: lambda_i proportional to segmented area, section total fixed
+    #: (the data-decided alternative; False = one lambda per section).
+    #: fp_lambda / fp_cap_share: None = derived at Trainer setup and recorded
+    #: here (config.json); the run dir's fp_floor.json holds the components.
+    fp_floor: bool = False
+    fp_area: bool = False
+    fp_lambda: float | None = None
+    fp_cap_share: float | None = None
     # optimisation
     epochs: int = 200
     tile_cells: int = 4096
@@ -181,6 +203,8 @@ class TrainConfig:
     device: str = "cuda"
 
     def __post_init__(self) -> None:
+        if self.adv_ensemble < 1:
+            raise ValueError(f"adv_ensemble must be >= 1, got {self.adv_ensemble}")
         if self.w_warmup_epochs > 0 and self.kl_warmup_epochs > 0:
             raise ValueError(
                 "--w-warmup-epochs and --kl-warmup-epochs are mutually "
@@ -264,6 +288,18 @@ class Trainer:
                         "normaliser"])
                 self.config = config
 
+        # 8.15b: the false-positive floor's eta_i, once per cell (numpy only:
+        # no torch draw moves); a config that carries lambda keeps it
+        self.fp_eta = self.fp_report = None
+        if config.fp_floor:
+            self.fp_eta, self.fp_report = fp_floor_eta(
+                config.dataset, config.variant, data.totals, data.x.shape[1],
+                config.fp_area, config.fp_lambda)
+            config = dataclasses.replace(
+                config, fp_lambda=self.fp_report["lambda_used"],
+                fp_cap_share=self.fp_report["cap_share"])
+            self.config = config
+
         self.model = DisCell(
             n_genes=data.x.shape[1], n_types=len(data.p_t),
             phi_dim=data.phi.shape[1], median_counts=data.median_counts,
@@ -297,9 +333,13 @@ class Trainer:
             # (G columns) instead of mu_z (d_z columns).
             adv_in = (config.d_z if config.adv_input == "mu_z"
                       else data.x.shape[1])
-            self.adversary = Adversary(adv_in, len(data.p_t),
-                                       data.e_phi.shape[1],
-                                       hidden=config.adv_hidden).to(self.device)
+            # 8.17: K = adv_ensemble independent pairs, built in order from
+            # the same RNG stream; K = 1 is the single Adversary as before
+            members = [Adversary(adv_in, len(data.p_t), data.e_phi.shape[1],
+                                 hidden=config.adv_hidden).to(self.device)
+                       for _ in range(config.adv_ensemble)]
+            self.adversary = (members[0] if len(members) == 1
+                              else torch.nn.ModuleList(members))
             self.adversary_optimiser = torch.optim.Adam(
                 self.adversary.parameters(), lr=config.adv_lr)
             self.ybar_t = torch.tensor(data.graph.ybar_t, device=self.device)
@@ -321,6 +361,9 @@ class Trainer:
                 json.dumps({"ratio_mean_used": config.kappa_ratio_mean,
                             "ratio": self.kappa_ratio_report,
                             "area": self.density_report}, indent=1))
+        if self.fp_report is not None:
+            (self.run_dir / "fp_floor.json").write_text(
+                json.dumps(self.fp_report, indent=1))
 
     def _to_device(self, tile: np.ndarray) -> dict:
         """One tile's tensors, resident on the device for the whole fit."""
@@ -360,6 +403,10 @@ class Trainer:
         if self.cell_area is not None:
             batch["area"] = torch.tensor(self.cell_area[b.nodes[:n_resident]],
                                          dtype=torch.float32, device=self.device)
+        if self.fp_eta is not None:            # 8.15b: seeds only, (n, 1)
+            batch["eta"] = torch.tensor(self.fp_eta[b.nodes[:b.n_seeds]],
+                                        dtype=torch.float32,
+                                        device=self.device)[:, None]
         return batch
 
     @staticmethod
@@ -370,6 +417,8 @@ class Trainer:
         out["x"] = batch["x"].float()          # resident int16 -> float32 per tile
         if "area" in batch:                    # the R12 density form only
             out["area"] = batch["area"]
+        if "eta" in batch:                     # the 8.15b floor only
+            out["eta"] = batch["eta"]
         return out
 
     # -- steps -------------------------------------------------------------
@@ -377,8 +426,6 @@ class Trainer:
     def _step(self, batch: dict):
         """One model update, then the adversary's update(s) when escalated."""
         import dataclasses as dc
-
-        from discell.model.networks import soft_cross_entropy
 
         config = self.config
         kwargs = self._forward_kwargs(batch)
@@ -389,9 +436,10 @@ class Trainer:
         if self.adversary is not None:
             adv_feat = (fwd.mu_z[:n] if config.adv_input == "mu_z"
                         else fwd.log_rho[:n])
-            adv = adversary_terms(self.adversary, adv_feat, batch["t"][:n],
-                                  batch["y_seed"], batch["ephi_seed"],
-                                  self.ybar_t, self.phibar_t)
+            adv = ensemble_adversary_terms(
+                self._adversary_heads(), adv_feat, batch["t"][:n],
+                batch["y_seed"], batch["ephi_seed"], self.ybar_t,
+                self.phibar_t, comp_weight=config.adv_comp_weight)
             terms = discell_loss(fwd, kwargs["x"][:n], batch["t"][:n],
                                  weights=dc.replace(weights, alpha_a=0.0))
             loss = terms.loss + weights.alpha_a * adv.encoder_term
@@ -410,17 +458,37 @@ class Trainer:
         self.optimiser.step()
 
         if self.adversary is not None:
-            z_frozen = adv_feat.detach()
-            for _ in range(config.adv_steps):
-                self.adversary_optimiser.zero_grad()
-                log_y, log_phi = self.adversary(z_frozen, batch["t"][:n])
-                head_loss = (soft_cross_entropy(batch["y_seed"], log_y)
-                             + soft_cross_entropy(batch["ephi_seed"], log_phi)
-                             ).mean()
-                head_loss.backward()
-                self.adversary_optimiser.step()
+            head_loss = self._head_steps(adv_feat.detach(), batch["t"][:n],
+                                         batch["y_seed"], batch["ephi_seed"])
             extras["adv_head_loss"] = float(head_loss.detach())
         return terms, extras
+
+    def _adversary_heads(self) -> list:
+        """The head pairs: one, or the adv_ensemble members (8.17)."""
+        return ([self.adversary] if self.config.adv_ensemble == 1
+                else list(self.adversary))
+
+    def _head_steps(self, z_frozen: torch.Tensor, t: torch.Tensor,
+                    y: torch.Tensor, e_phi: torch.Tensor) -> torch.Tensor:
+        """The adversary's ``adv_steps`` updates on ``sg`` features; returns
+        the last head loss -- the members' sum, the composition CE times
+        ``adv_comp_weight`` (8.17; K = 1 and weight 1 are the pinned loop)."""
+        from discell.model.networks import soft_cross_entropy
+
+        c = self.config.adv_comp_weight
+        heads = self._adversary_heads()
+        for _ in range(self.config.adv_steps):
+            self.adversary_optimiser.zero_grad()
+            losses = []
+            for head in heads:
+                log_y, log_phi = head(z_frozen, t)
+                losses.append((c * soft_cross_entropy(y, log_y)
+                               + soft_cross_entropy(e_phi, log_phi)).mean())
+            head_loss = (losses[0] if len(losses) == 1
+                         else torch.stack(losses).sum())
+            head_loss.backward()
+            self.adversary_optimiser.step()
+        return head_loss
 
     def _decode_seeds(self, fwd, z_seeds: torch.Tensor, n: int,
                       w_seeds: torch.Tensor | None = None) -> torch.Tensor:
@@ -433,7 +501,7 @@ class Trainer:
         """
         log_rho = self.model.log_rho(
             z_seeds, fwd.mu_w[:n] if w_seeds is None else w_seeds)
-        return leakage_mix(log_rho.exp(), fwd.rho_bar, fwd.kappa_eff)
+        return leakage_mix(log_rho.exp(), fwd.rho_bar, fwd.kappa_eff, fwd.eta)
 
     @torch.no_grad()
     def _sweep(self, batches: list[dict], want_log_p: bool = False,
@@ -1181,15 +1249,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--run-name", default=None)
     for field in ("kappa", "omega", "alpha_z", "alpha_w", "alpha_a", "lr",
                   "weight_decay", "lambda_w", "w_free_bits", "adv_lr",
+                  "adv_comp_weight",
                   "val_fraction", "nmi_guard", "cov_ema", "grad_clip"):
         parser.add_argument(f"--{field.replace('_', '-')}", type=float,
                             default=getattr(defaults, field))
     for field in ("d_z", "d_w", "hidden", "gat_dim", "heads", "adv_steps",
                   "adv_hidden", "v_pcs", "epochs", "tile_cells", "patience",
                   "eval_every", "figures_every", "panel_types", "seed",
-                  "w_warmup_epochs", "kl_warmup_epochs"):
+                  "w_warmup_epochs", "kl_warmup_epochs", "adv_ensemble"):
         parser.add_argument(f"--{field.replace('_', '-')}", type=int,
                             default=getattr(defaults, field))
+    # 8.17's names for the two existing head-capacity knobs (aliases)
+    parser.add_argument("--adv-head-steps", dest="adv_steps", type=int,
+                        default=argparse.SUPPRESS, help="= --adv-steps")
+    parser.add_argument("--adv-head-width", dest="adv_hidden", type=int,
+                        default=argparse.SUPPRESS, help="= --adv-hidden")
     parser.add_argument("--phi-pca", type=int, default=None)
     parser.add_argument("--label-key", default=None)
     parser.add_argument("--w-penalty", default=defaults.w_penalty,
@@ -1226,6 +1300,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--kappa-gene-source", default=None,
                         help="s_g file for --kappa-mode gene (default: the "
                              "dataset's experiments/gene_extranuclear_share.npy)")
+    parser.add_argument("--fp-floor", action="store_true",
+                        help="8.15b: fixed false-positive floor eta_i u, eta_i "
+                             "= min(lambda/l_i, 0.2), lambda from the Xenium "
+                             "cell table's control counts")
+    parser.add_argument("--fp-area", action="store_true",
+                        help="with --fp-floor: lambda_i proportional to the "
+                             "segmented area (section total fixed)")
     parser.add_argument("--gat-sink", action="store_true",
                         help="attention sink: c grows with neighbour count "
                              "(saturating dose) instead of seeing fractions only")

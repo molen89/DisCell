@@ -51,11 +51,10 @@ Elazar, Y. and Goldberg, Y. (2018).
 \newblock In {\em Proceedings of the 2018 Conference on Empirical Methods in
   Natural Language Processing}, pages 11--21.
 
-\bibitem[Ergen et~al., 2025]{ergen2025}
-Ergen, C., Yosef, N., et~al. (2025).
-\newblock {resolVI}: addressing noise and bias in spatial transcriptomics.
-\newblock {\em bioRxiv}.
-\newblock CHECK: exact title, author list, and identifier.
+\bibitem[Ergen and Yosef, 2025]{ergen2025}
+Ergen, C. and Yosef, N. (2025).
+\newblock {ResolVI} -- addressing noise and bias in spatial transcriptomics.
+\newblock bioRxiv preprint.
 
 \bibitem[Fischer et~al., 2023]{fischer2023}
 Fischer, D.~S., Schaar, A.~C., and Theis, F.~J. (2023).

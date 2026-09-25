@@ -1,0 +1,27 @@
+{
+ "section": "xenium_prime_ovarian_cancer_ffpe",
+ "no_neighbour_pct_of_connected": {
+  "exact": 82.94893666255561,
+  "tol": 9.764881677707454,
+  "voronoi": 0.0
+ },
+ "no_neighbour_pct_in_field": {
+  "exact": 82.90598290598291,
+  "tol": 9.82905982905983,
+  "voronoi": 0.0
+ },
+ "mean_degree": {
+  "exact": 0.20243171546472785,
+  "tol": 3.1073295342896445,
+  "voronoi": 5.818672627235213
+ },
+ "field_um": [
+  212.85999965667725,
+  372.85999965667725,
+  4641.290000915527,
+  4801.290000915527
+ ],
+ "field_cells": 234,
+ "eligible_windows": 4246,
+ "field_abs_dev": 0.0010713190792506905
+}

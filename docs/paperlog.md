@@ -184,3 +184,107 @@ Consistent with the 2026-09-23 decision not to formalise: no composite-likelihoo
 **Not added:** the coder's optional convergence diagnostic (the change in ρ̄ between evaluation epochs going to zero before the accepted checkpoint). Keep it in reserve in case a reviewer asks whether the fixed point converges.
 
 Build exits 0; no new overfull boxes; no "M-estimation" left in the built text.
+
+**Review R29, the per-type translation is near-flat, not exact (2026-09-24).**
+
+- §2.8 no longer says "(a(z) − Bμ_t, w + μ_t) is the same model". Now: shifting the response by μ_t and the baseline by −Bμ_t leaves the **prior divergence exactly** unchanged, because m_ψ and q(w) take t. The **likelihood and the influx** pass through a(z), which sees z and not t, so they are unchanged **only to the extent that t can be read from z**. The z–type agreement keeps that approximately true, so the translation is a near-flat direction that the optimisation dynamics position. The weight-decay remark and the two consequences are kept.
+- "Identified only up to a rotation" becomes "carries at least the following symmetries; we do not show that there are no others. The first is a rotation…"
+- *Motivation:* §2.2 insists the decoder takes z only, so the exact claim contradicted it. The near-flat reading also explains the large observed type offsets (revision A4). Algebra checked: a(z) − Bμ_t + B(w + μ_t) = a(z) + Bw, which requires a(z) − Bμ_t to be a function of z.
+
+**Review R36, the invariance's formal status made consistent (2026-09-24).** In app:posterior-reg, "the generative model's conditional independence z ⊥ [y, Φ] | t is what it encodes" contradicted §2.2, which says y and Φ are not modelled. It is replaced: the constraint is on which q are admissible, the generative model does not model y or Φ, and the constraint acts on the aggregate of encoder outputs across cells, so it is posterior regularisation in a looser sense than Ganchev's per-instance expectation constraints. The paragraph's opener becomes "in the spirit of Ganchev", to match (citation-audit B's suggestion).
+
+**R23 deferred** by the author's choice. It will be folded into the R20 probe rewrite, since its sentence belongs in the paragraph that rewrite replaces.
+
+Build exits 0; no new overfull boxes.
+
+**Review R31, the sweep reports only gauge-free readouts (2026-09-24).**
+
+- §2.8's readout list dropped "the loadings B" and "the per-type magnitude of the response". The identifiability paragraph just above calls both gauge statements. The list now reads: the within-type shifts of the response, the spatial autocorrelation of each latent dimension (within a fit), the held-out probes and the external-label agreement.
+- The identifiability paragraph now defines both within-type quantities and no longer calls them "equivalent" (the 2026-09-24 re-check confirmed they are not):
+  - the centred shift B(w_i − w̄_t), with w̄_t the mean response of type t, which is what the atlas and report compute;
+  - the realised prior shift B[m_ψ(c_i, t) − m_ψ(c̄_t, t)], with c̄_t now defined as the mean context of cells of type t, which is what transport uses.
+  They differ by the posterior residuals.
+- "A decline in ‖w‖ along the grid is mechanical" becomes a statement about the within-type spread.
+- *Motivation:* the method listed as "readouts of interest" two quantities it had just declared meaningless. This is method, not results, and the list may grow once the model settles (per-cell readouts if the α_w ladder opens w; per-block probes after R20).
+
+**Review R32, what stability licenses (2026-09-24).** §2.8 now says stability over the grid rules out one specific confound: leakage of the modelled form (a section-wide fraction through a fixed one-hop kernel). It does not rule out leakage that form cannot represent (longer-ranged, gene-specific, donor- or receiver-depth-dependent), which is κ-invariant and passes every grid point. A stable readout is a finding relative to that confound, not a proof of biology. The introduction's matching sentence and R2's "the sweep separates spatial association from leakage" are aligned ("…of that form").
+
+*Motivation:* "a stable readout is a finding" overclaimed, and it follows directly from R12's stated assumptions.
+
+The stability rule itself (`\todo{confirm this rule}`) is untouched. It is R33's, to be settled and pre-registered before the final sweeps.
+
+Build exits 0; no new overfull boxes.
+
+**First figure: the Voronoi face (`fig:voronoi-face`, app:graph; 2026-09-24).** Part of the figure plan for review R38. The figure is built by `submission_paper/aistats/figures/src/fig_voronoi_face.py` from the primary section's bundle. Exemplar cells are chosen by stated rules: a typical cell (degree 6, median 6th-NN distance), a dense cell (10th-percentile 6th-NN distance), and a border cell whose disc cuts 20–60 % of its region with ≥ 3 model edges. The panels:
+
+- (a) polygons;
+- (b) bisectors;
+- (c) clipped region with labelled faces;
+- (d) a dense neighbourhood and (e) a border neighbourhood, at one scale, with the clip disc and, in (e), the unclipped region;
+- (f) every edge under the chord ceiling, with the 40 µm model prune shaded.
+
+The shared style is `figures/src/style.py`: final printed width, LaTeX text in Computer Modern to match the body, and one colour per role, validated (blue = face/β, orange = contact, aqua only with labels). The PDF is vector with all fonts embedded, 727 KB. It is referenced from app:graph and from §2.1's face paragraph.
+
+**Numbers:** face lengths and an edge-count colour bar. This is the same preprocessing exception as `tab:contact`: fixed bundles, independent of the model.
+
+**Checks during drafting:** one suspected mislabel in (e) (a blue stretch looked like the clip arc) was checked face by face against the geometry and was not a bug. The focal region's outline is now drawn in ink, so the arc reads as the disc.
+
+**Second figure: contact vs Voronoi kernel (`fig:contact-kernel`, app:graph; 2026-09-24).** Built by `figures/src/fig_contact_kernel.py`; the plotted numbers are in `figures/src/data/fig_contact_kernel.json`.
+
+- **(a) and (b):** a touching and a non-touching edge from the primary section, each the edge of its kind closest to the median centroid distance and median face length. They come out matched at d = 11.0 vs 11.1 µm and f = 6.8 vs 6.9 µm, with contact 8.5 µm vs 0: the kernel sees the same edge twice where contact sees two different ones.
+- **(c):** the share of cells with no leakage under a contact kernel, by local-density fifth, on all five sections (median, range band, per-section lines). The Voronoi kernel is flat at 0.
+
+It sits beside `tab:contact`, and that table's paragraph now cites both. Numbers fall under the same preprocessing exception.
+
+**Styling choices:** labels are in ink with a coloured sample beside them, never coloured text (dataviz rule). Label positions are computed from the geometry, so they cannot collide on another exemplar. Vector PDF, 251 KB.
+
+**Figure 1, the model overview (`fig:overview`, full width at the start of §2; 2026-09-24). Closes review R38 for the method.**
+
+- **(a) The leakage neighbourhood** of the same typical cell as `fig:voronoi-face`: first ring with arrows whose width grows with β_ij (computed as the model defines β: faces and distances within the 40 µm prune), and second ring.
+- **(b) The real four-channel morphology crop** the image model receives, rendered by the pipeline's own `crop_cell`. Its geometry is read from the pinned embedding file (`egomask_ego_v1`): 128 µm field at 0.5 µm/px, 25 µm masked disc, KRONOS v1. This **settles review S15**: the 54.4 µm figure is only the code default at native resolution. The dotted square shows that (a)'s neighbourhood lies almost entirely inside the masked disc, i.e. the descriptor sees the tissue beyond the leakage neighbourhood. The caption says so.
+- **(c) The computation graph in TikZ**, using the paper's own macros, in three lanes (intrinsic / context and response / leakage). The adversary (training) and the held-out probe (evaluation, dashed) are separate boxes. The intrinsic path is shown as a dashed w̆ prior draw into w.
+
+**Drafts:** four rendered and inspected. Draft 1 was rejected (overlapping boxes, an arrow through a node, crossings). Draft 2 was fixed, and its key was corrected because it claimed "dashed = not in training", which would have mislabelled the w̆ and KL arrows. Checked at print size.
+
+A one-line pointer was added to the §2 roadmap. The microscopy uses a neutral membrane colour, so orange keeps its "contact" meaning across figures. `figures/src/build.sh` regenerates every figure. Build exits 0; no new overfull boxes. The caption is long (about 12 lines); trim it with R37.
+
+**Figure fixes after author review (2026-09-24).**
+
+- **(1) Orientation.** Every tissue panel was drawn with y up, while slide coordinates and the microscopy have y down. Figure 1(a) was therefore the vertical mirror of the tissue in 1(b). Verified by overlaying the segmentation outlines on the real crop: they land on the cells only in image orientation. `style.tissue_axes` now inverts y for every tissue panel. Figures 1, 2 and 3 were rebuilt; the Figure 1 caption states the convention.
+- **(2) Mask in 1(b).** It was drawn as a translucent overlay with the tissue visible underneath. The model receives zeros there. The panel now applies the pipeline's own `_ego_disk` mask (black) and draws the cell's outline for reference, following the repo's `ego_masking_examples.png`.
+- **(3) What the arrows in 1(a) are** (author: "if that is the GNN graph, we use no edge features"). The panel is now labelled "leakage kernel β_ij". The caption adds that the attention building the context runs over the same first ring but uses no edge features, its weights depending on the two types alone (eq:context-closed). Without that, the figure contradicted §2.3's "no per-edge geometry enters the context".
+
+The Figure 1 caption is now about 14 lines; trim it with R37.
+
+**Figure 1(b): all four channels, and the square explained (2026-09-24).**
+
+- **Channels.** The panel showed only DAPI (blue) and membrane (grey), so it read as a one-colour image; author: "why is it only blue". The model receives four channels. The panel is now an additive composite of all four: nuclei blue, membrane green, 18S RNA grey, αSMA red, with a key under the panel (ink text beside colour samples). Orange is still kept out because it is the "contact" role.
+- **Contrast.** Display contrast per channel comes from a 512 µm window around the cell, not from the crop alone. The crop's own αSMA 99th percentile is about a third of the surrounding tissue's, so a crop-only stretch would have inflated a sparse stain.
+- **The square.** It marks the window of panel a but was an unlabelled dotted line, and the author asked what it showed. It is now a solid white square labelled "a".
+- **Caption.** The old claim that the descriptor "describes the tissue beyond the leakage neighbourhood" overstated it. It now says the zeroed disc covers the cell and most of its first ring, so the descriptor describes the tissue around the neighbourhood rather than the neighbourhood itself. Check: the median model edge is 11 µm, and 5.6% of edges are longer than the 25 µm mask radius.
+- **Height.** The column is now 2.65 in, matching panel c.
+
+**New appendix figure `fig:graph-compare` in app:graph (2026-09-24).** Adopts the repo's `graph_comparison_plain`, restyled. It shows three graphs on one 160 µm field of the primary section: exact contact, contact within 1 µm (the contact of tab:contact), and the model's pruned Delaunay graph. Cells with no edge are dark; the section-level no-neighbour shares (82.9 / 9.8 / 0.0 %) are printed above each panel.
+
+- **Consistency with the table.** All three graphs are subsets of the model's edge set, and the denominator is the same as tab:contact's. The 9.8 % equals the table's "no-leak cells, all" for this section. The two contact definitions (polygon gap ≤ 1 µm, and apposed membrane > 0) disagree on 113 of 1.18 M edges.
+- **Field rule, rejected option.** The first rule picked the window with the most cells from both the sparsest and densest fifths. It found a stroma field of elongated cells that touch end to end, where only 1.7 % had no 1 µm neighbour against 9.8 % on the section. That under-showed the argument.
+- **Field rule, adopted.** The window whose no-neighbour shares under both contact graphs are closest to the section's, among windows with ≥ 150 cells and ≥ 25 from each of those two fifths. The chosen field matches the section to 0.1 points.
+- **Styling.** Panel c is titled "Delaunay" to match the text. Edges have one width. The only colours are the fixed roles, orange for contact and blue for the model graph. The scale bar is under panel c, off the cells.
+- **Text.** One sentence was added to the first app:graph paragraph pointing at the figure.
+
+Build: exit 0, no undefined references, the same 3 pre-existing overfull boxes. The later appendix figures renumber (3 = face, 4 = contact kernel); all references go through `\cref`.
+
+**Figure 1(b) key names the markers (2026-09-24).** The key said "nuclei / membrane / 18S RNA / αSMA", and the author could not see that DAPI was used. It now names the markers the image model reads: DAPI, ATP1A1, 18S, αSMA. The caption gives the slide's own channel names from the OME metadata: the ATP1A1 channel is a membrane mix with CD45 and E-cadherin, and the αSMA channel a mix with vimentin. This is stated because the image model reads each mix as a single marker. Build: exit 0, no undefined references.
+
+
+**R7 applied, with audit A1 folded in: how our leakage term relates to resolVI (2026-09-24).**
+
+- **Source.** Checked against the resolVI preprint's Methods (eq. 1), not from memory. resolVI mixes, per cell, its own decoded expression, its 20 nearest neighbours' decoded expression (same decoder, weights ν under an RBF-Dirichlet prior, MAP, not amortised) and a per-slide background, with shares α_n that are amortised and MAP-estimated.
+- **Introduction.** Now names that construction and states that ours is the same with fixed weights, one leak fraction per section and no background.
+- **Separation claim.** Our first draft said the low-dimensional separation "fails once a response exists". The author asked for support. It was weakened to "that expectation no longer separates the two on its own", with the mechanism stated: the part of a response that moves a cell toward its neighbours' profile has the same effect as leakage. The support is the devlog's planted-κ synthetic run (B seed-bistable under planted leakage, stable without) and the sweep2 trade-off of the mirror metric. Neither can be cited while the synthetic appendix is out of the build, so a `\todo` marks it. The intro also no longer calls κ "un-identified" (pending R30); it says we "sweep the leak fraction rather than estimate it".
+- **§2.1.** One clause after "never learned" pointing to the construction and naming the difference (weights fitted per cell there).
+- **A1.** resolVI never reports a collapse; its Methods say the stop-gradient "improves stability and training speed". The three attributions (intro, §2.6, derivations) now say "for training stability". The derivations add that we have not fitted the open-path model, so the heuristic stands on its own.
+- **Bibliography.** `ergen2025` corrected: two authors, exact title, doi, bioRxiv preprint. The venue check before submission stays open in the audit.
+- **Build.** Exit 0, no undefined references, the same 3 overfull boxes.
+
+**Considered and not adopted: a learned background term as in resolVI.** It would be a second unknown share next to κ, needing a prior or a second sweep axis. A fixed false-positive floor from the Xenium controls was proposed instead as todo 8.15 and awaits the author. The review's R30 carries a new note: the data bound κ from above, one-sidedly.

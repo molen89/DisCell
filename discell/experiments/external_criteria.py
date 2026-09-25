@@ -59,8 +59,8 @@ import numpy as np
 
 from discell import paths
 from discell.model.transport import (EPS, MIN_CELLS, MIN_RATE, TUMOUR_BANDS,
-                                     collect_channels, group_kappa, pick_pairs,
-                                     tumour_band_labels)
+                                     collect_channels, group_eta, group_kappa,
+                                     leak_rate, pick_pairs, tumour_band_labels)
 from discell.model.validate import collect_latents, load_run, niche_labels
 
 log = logging.getLogger("discell.experiments.external_criteria")
@@ -249,8 +249,10 @@ def signalling_share(args: argparse.Namespace) -> dict:
             # itself under the global form), B's for B's influx
             k_a = group_kappa(channels, gid_a, kappa)
             k_b = group_kappa(channels, gid_b, kappa)
-            leak = (np.log((1 - k_b) * rho_a + k_b * bar_b + EPS)
-                    - np.log((1 - k_a) * rho_a + k_a * bar_a + EPS))
+            # the 8.15b floor at A's cells' mean eta (None: no floor, pinned)
+            e_a = group_eta(channels, gid_a)
+            leak = (np.log(leak_rate(rho_a, bar_b, k_b, e_a) + EPS)
+                    - np.log(leak_rate(rho_a, bar_a, k_a, e_a) + EPS))
             obs_a = np.asarray(x_rate[rows["A"]].mean(axis=0)).ravel()
             obs_b = np.asarray(x_rate[rows["B"]].mean(axis=0)).ravel()
             keep = np.flatnonzero((obs_a > MIN_RATE) & (obs_b > MIN_RATE))
