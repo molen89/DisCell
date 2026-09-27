@@ -227,3 +227,6 @@ __marimo__/
 # raw/ and interim/ are symlinks to the external cohorts; the rest is generated.
 /data/
 /scripts/*
+!/scripts/*.py
+!/scripts/queue_*.sh
+!/scripts/cell_cycle/
