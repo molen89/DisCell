@@ -1,0 +1,19 @@
+source_label,lineage,rule,n_full,n_test
+Ciliated Epithelial Cells,Ciliated epithelial cells,map,1987,7
+Fallopian Tube Epithelium,Fallopian tube epithelium,map,3034,0
+Inflammatory Tumor Cells,Tumour,map,2158,0
+Macrophages,Macrophages,map,27415,168
+Malignant Cells Lining Cyst,Mesothelial-like cyst lining,choice:cyst=mesothelial,2534,56
+Pericytes,Pericytes,map,4828,48
+Proliferative Tumor Cells,Tumour,map,50117,440
+SOX2-OT+ Tumor Cells,Unassigned,choice:sox2ot=unassigned,39353,40
+Smooth Muscle Cells,Smooth muscle cells,map,61545,23
+Stromal Associated Endothelial Cells,Endothelial cells,map,18249,11
+Stromal Associated Fibroblasts,Fibroblasts,map,24604,6
+T and NK Cells,T/NK cells,map,9999,24
+Tumor Associated Endothelial Cells,Endothelial cells,map,3813,43
+Tumor Associated Fibroblasts,Fibroblasts,map,39332,196
+Tumor Cells,Tumour,map,103606,408
+Unassigned,Unassigned,map,2497,7
+Urothelial-like Cells,Urothelial-like cells,map,1961,1
+VEGFA+ Tumor Cells,Tumour,map,10088,22

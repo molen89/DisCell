@@ -180,3 +180,43 @@ def test_morans_analysis_flags_collapsed_dims():
     hot_z = [i for i, (value, hi) in enumerate(
         zip(result["mu_z"]["I"], result["mu_z"]["null_hi"])) if value > hi]
     assert not hot_z                         # noise z inside the null band
+
+
+def test_sweep_companion_plots_reads_without_a_landmark_analysis(
+        tmp_path, monkeypatch):
+    """Planted: a sweep read with ``--analyses kappa_survival,morans,niche``
+    (the final queue's) leaves no ``landmarks`` in any cached validation.json,
+    and the kappa = 0.1 point is a symlink to the reference fit. The mid-band
+    R^2 panel then has no data: it must be left empty, not crash the
+    companion (the lineage queue's ``zero-size array`` on all four slides),
+    and the Moran / niche envelopes must still be drawn and written."""
+    import json
+    from argparse import Namespace
+
+    from discell import paths
+    from discell.model.validate import sweep_companion
+
+    monkeypatch.setattr(paths, "DATASETS", tmp_path)
+    runs = tmp_path / "planted" / "runs"
+    (tmp_path / "planted" / "experiments").mkdir(parents=True)
+    kappas, seeds = [0.0, 0.1, 0.4], [0, 1]
+    for seed in seeds:
+        for kappa in kappas:
+            name = f"sweepL_k{kappa:g}_s{seed}"
+            target = runs / (f"finalL_s{seed}" if kappa == 0.1 else name)
+            (target / "validation").mkdir(parents=True)
+            if kappa == 0.1:
+                (runs / name).symlink_to(target.name)
+            row = {"run": name, "kappa": kappa, "seed": seed,
+                   "morans": {"mean_abs_I": {"mu_z": 0.2 + kappa,
+                                             "mu_w": 0.6 - kappa}},
+                   "niche": {"K10": {"pooled_auc": {"z": 0.6, "w": 0.8}}}}
+            (target / "validation" / "validation.json").write_text(
+                json.dumps(row))
+    args = Namespace(dataset="planted", sweep_tag="sweepL", kappas=kappas,
+                     seeds=seeds, analyses="morans,niche", force=False)
+    sweep_companion(args)
+    out = tmp_path / "planted" / "experiments"
+    rows = json.loads((out / "validation_sweepL.json").read_text())
+    assert len(rows) == len(kappas) * len(seeds)
+    assert (out / "validation_sweepL_kappa.png").stat().st_size > 0

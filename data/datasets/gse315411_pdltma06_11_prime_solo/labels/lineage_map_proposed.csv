@@ -1,0 +1,36 @@
+source_label,lineage,kind,n_cells,share,evidence,note
+Unassigned,Unassigned,lineage,193477,0.1758,"low-depth clusters 8/11/17 + QC-dropped (NaN) folded by the loader; top donor PDL085A 21%, 6 donors >=5%",
+Alveolar fibroblasts,Alveolar fibroblasts,lineage,143908,0.1308,"curated identity (curated_names.csv); top donor PDL034D 33%, 5 donors >=5%",
+EC general capillary,EC general capillary,lineage,116774,0.1061,"curated identity (curated_names.csv); top donor PDL095D 24%, 7 donors >=5%",
+AT2,AT2,lineage,62501,0.0568,"curated identity (curated_names.csv); top donor PDL072 27%, 8 donors >=5%",
+Distal epithelium,Distal epithelium,lineage,47112,0.0428,"PKHD1 FGFR2 IRX1 CDH16 HNF1B CFTR (ductal-like malformation epithelium); top donor PDL034D 89%, 2 donors >=5%","disease-restricted identity, kept"
+Multiciliated,Multiciliated,lineage,45909,0.0417,"curated identity (curated_names.csv); top donor PDL034D 24%, 7 donors >=5%",
+Adventitial fibroblasts,Adventitial fibroblasts,lineage,43388,0.0394,"curated identity (curated_names.csv); top donor PDL047T 20%, 7 donors >=5%",
+Airway smooth muscle,Airway smooth muscle,lineage,39023,0.0355,"curated identity (curated_names.csv); top donor PDL034D 36%, 4 donors >=5%",
+Pericytes,Pericytes,lineage,37317,0.0339,"curated identity (curated_names.csv); top donor PDL031A 18%, 7 donors >=5%",
+Interstitial macrophages,Interstitial macrophages,lineage,33909,0.0308,"curated identity (curated_names.csv); top donor PDL031A 16%, 7 donors >=5%",
+EC activated,per-cell: state_reassignment_proposed.csv (EC subtypes),state,32007,0.0291,"ESM1 ANGPT2 SELE IL6 CSF3 (inflamed EC); nearest EC subtype: aerocyte 45%, general capillary 42%/37%, venous 7%/8%, lymphatic 6%/10%; median margin 0.054; top donor PDL026A 71%, 2 donors >=5%",GREY state: no single EC subtype -> per-cell among EC general capillary / aerocyte / venous / lymphatic
+Inflammatory fibroblasts,per-cell: state_reassignment_proposed.csv (fibroblast subtypes),state,30984,0.0282,"CXCL13 CCL19 IL6 HAS2 (+HSPA6 stress units); nearest: alveolar 75%, adventitial 25%; median margin 0.17; top donor PDL031A 40%, 3 donors >=5%",state -> per-cell alveolar vs adventitial
+AT1,AT1,lineage,28688,0.0261,"curated identity (curated_names.csv); top donor PDL032D 56%, 4 donors >=5%",
+EC aerocyte capillary,EC aerocyte capillary,lineage,25146,0.0229,"curated identity (curated_names.csv); top donor PDL031A 53%, 2 donors >=5%",
+Myofibroblasts,per-cell: state_reassignment_proposed.csv (fibroblast subtypes),state,23962,0.0218,"POSTN TNC ASPN ELN COMP LTBP2 (fibrotic); nearest among fibroblasts: adventitial 51%, alveolar 49% (with ASM/VSM/pericytes as candidates: ASM 15%); top donor PDL018D 76%, 2 donors >=5%","GREY: fibrotic activation (single-core, PDL018D) read as state; alternative = keep as lineage (alveolar myofibroblast/SCMF identity)"
+Vascular smooth muscle,Vascular smooth muscle,lineage,22523,0.0205,"curated identity (curated_names.csv); top donor PDL026A 17%, 9 donors >=5%",
+Activated fibroblasts,per-cell: state_reassignment_proposed.csv (fibroblast subtypes),state,21035,0.0191,"PTX3 THBS1 TNC CCN4 TFPI2; nearest: alveolar 54%/53%, adventitial 46%/47%; median margin 0.12; top donor PDL040A 84%, 2 donors >=5%",state -> per-cell alveolar vs adventitial
+Secretory,Secretory,lineage,20484,0.0186,"curated identity (curated_names.csv); top donor PDL055T 57%, 2 donors >=5%",
+Neutrophils,Neutrophils,lineage,19696,0.0179,"curated identity (curated_names.csv); top donor PDL095D 22%, 6 donors >=5%",
+EC venous,EC venous,lineage,18250,0.0166,"curated identity (curated_names.csv); top donor PDL072 56%, 4 donors >=5%",
+T/NK cells,T/NK cells,lineage,15803,0.0144,"CD3E CD8A GZMB KLRB1 CD4 (already includes the proliferating-T subcluster); top donor PDL061 26%, 5 donors >=5%",
+Lymphatic EC,Lymphatic EC,lineage,13403,0.0122,"curated identity (curated_names.csv); top donor PDL072 18%, 9 donors >=5%",
+Chondrocytes,Chondrocytes,lineage,11812,0.0107,"curated identity (curated_names.csv); top donor PDL047T 26%, 6 donors >=5%",
+Skeletal muscle,Skeletal muscle,lineage,11209,0.0102,"curated identity (curated_names.csv); top donor PDL047T 70%, 2 donors >=5%",
+Alveolar macrophages,Alveolar macrophages,lineage,9445,0.0086,"curated identity (curated_names.csv); top donor PDL095D 33%, 5 donors >=5%",
+Erythroid,Erythroid,lineage,6894,0.0063,"curated identity (curated_names.csv); top donor PDL040A 31%, 6 donors >=5%",
+Schwann cells,Schwann cells,lineage,6524,0.0059,"curated identity (curated_names.csv); top donor PDL055T 62%, 3 donors >=5%",
+Goblet,Goblet,lineage,4852,0.0044,"MUC5AC ALOX15 MUC16 MUC4 with TP63 COL17A1; nearest of Secretory/Basal/Multiciliated: Basal 54%, Multiciliated 45%, Secretory 1-2%; top donor PDL055T 99%, 1 donors >=5%","GREY: mucous metaplasia on one core, but the only surface-secretory class ('Secretory' here is SMG serous) -> keep"
+B cells,B cells,lineage,3106,0.0028,"curated identity (curated_names.csv); top donor PDL061 57%, 3 donors >=5%",
+Basal,Basal,lineage,2775,0.0025,"curated identity (curated_names.csv); top donor PDL033T 61%, 2 donors >=5%",
+Proliferating,per-cell: proliferating_reassignment_proposed.csv,state,2749,0.0025,"MKI67 TOP2A FOXM1 BIRC5; nearest final-lineage centroid, cycle genes excluded: AT2 74%/70%, AT1 11%, Distal epithelium 8%; median margin 0.083/0.075; bin-weighted expected accuracy 0.76/0.73 (solo/dual); top donor PDL072 73%, 3 donors >=5%",cycling state -> per-cell reassignment
+Neuroendocrine,Neuroendocrine,lineage,1694,0.0015,"curated identity (curated_names.csv); top donor PDL018D 22%, 7 donors >=5%",
+Plasma cells,Plasma cells,lineage,1373,0.0012,"curated identity (curated_names.csv); top donor PDL061 65%, 4 donors >=5%",
+Mast cells,Mast cells,lineage,1317,0.0012,"curated identity (curated_names.csv); top donor PDL061 44%, 3 donors >=5%",
+Megakaryocytes,Megakaryocytes,lineage,1300,0.0012,"curated identity (curated_names.csv); top donor PDL032D 28%, 6 donors >=5%",

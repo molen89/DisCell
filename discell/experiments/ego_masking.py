@@ -356,11 +356,14 @@ def run(args: argparse.Namespace) -> int:
     labels_all = data.type_names[data.type_index]
 
     figures = dataset.root / "experiments"
-    plot_mask_examples(adata, image_path, figures / "ego_masking_examples.png",
+    suffix = f"_{args.tag}" if args.tag else ""
+    plot_mask_examples(adata, image_path, figures / f"ego_masking_examples{suffix}.png",
                        args.mask_radius_um, label_key=data.label_key)
 
     fits = selectable(adata, args.mask_radius_um)
     pool = np.flatnonzero(fits)
+    if args.exclude_types:            # not a scoring target; still a neighbour in the baseline
+        pool = pool[~np.isin(labels_all[pool], args.exclude_types)]
     cells = (pool if args.cells == 0 else
              pool[stratified(labels_all[pool], args.cells, rng)])
     log.info("Scoring %d cells over %d types", len(cells), len(np.unique(labels_all[cells])))
@@ -405,8 +408,9 @@ def report(results: dict, dataset, args) -> None:
     frame = pd.DataFrame(results).T
     out = dataset.root / "experiments"
     out.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(out / "ego_masking.csv")
-    (out / "ego_masking.json").write_text(json.dumps(
+    suffix = f"_{args.tag}" if args.tag else ""
+    frame.to_csv(out / f"ego_masking{suffix}.csv")
+    (out / f"ego_masking{suffix}.json").write_text(json.dumps(
         {"results": results, "args": {k: str(v) for k, v in vars(args).items()},
          "patch_px": PATCH_PX, "target_mpp": TARGET_MPP}, indent=2))
 
@@ -427,7 +431,7 @@ def report(results: dict, dataset, args) -> None:
             print(f"  {model}: masking costs {full['auc'] - ego['auc']:+.4f} AUC; "
                   f"masked patch sits {ego['auc'] - base:+.4f} above the "
                   f"neighbour-composition baseline")
-    print(f"\n  wrote {out / 'ego_masking.csv'}")
+    print(f"\n  wrote {out / f'ego_masking{suffix}.csv'}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -451,6 +455,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--hf-token", default=None)
     parser.add_argument("--force", action="store_true", help="re-embed every arm")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--exclude-types", nargs="*", default=[],
+                        help="labels never used as a scoring target (e.g. Unassigned)")
+    parser.add_argument("--tag", default="",
+                        help="suffix for the output files, so a re-score does not overwrite a result")
     parser.add_argument("--quiet", action="store_true")
     return parser
 

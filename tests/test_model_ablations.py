@@ -568,6 +568,7 @@ def test_trainer_wiring_matches_the_kappa_mode_flags(tmp_path, monkeypatch):
     args = vars(build_parser().parse_args(
         ["--dataset", "x", "--kappa-mode", "depth"]))
     args.pop("quiet")
+    args.pop("time_only")
     assert TrainConfig(**args).kappa_mode == "depth"
 
     # the share file: aligned by its sidecar's gene order, refused otherwise

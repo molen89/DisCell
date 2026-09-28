@@ -2,9 +2,11 @@
 
 ``--adv-head-steps`` (= ``adv_steps``), ``--adv-head-width`` (=
 ``adv_hidden``), ``--adv-ensemble K`` and ``--adv-comp-weight c``. Pinned
-here: at the defaults the trainer reproduces the pre-knob code bit for bit (a
-verbatim copy of it lives below), each knob reaches exactly its consumer and
-nothing else, and an ensemble of one is the single head pair.
+here: at the pre-final values, given explicitly (composition weight 1, no
+warm-up, alpha_z 0.007 -- the defaults became the final configuration on
+2026-09-28), the trainer reproduces the pre-knob code bit for bit (a verbatim
+copy of it lives below), each knob reaches exactly its consumer and nothing
+else, and an ensemble of one is the single head pair.
 """
 
 from __future__ import annotations
@@ -74,6 +76,11 @@ def pinned_step(trainer, batch):
 
 
 # -- fixtures ------------------------------------------------------------------
+
+#: the pre-final values of the fields whose defaults became the final
+#: configuration (2026-09-28): the pre-knob code ran at these
+OLD_FLAGS = dict(adv_comp_weight=1.0, w_warmup_epochs=0, alpha_z=0.007)
+
 
 @pytest.fixture(scope="module")
 def data():
@@ -147,15 +154,23 @@ def _same_state(a: torch.nn.Module, b: torch.nn.Module) -> bool:
     return sa.keys() == sb.keys() and all(torch.equal(sa[k], sb[k]) for k in sa)
 
 
-# -- defaults are the pinned code, bit for bit ---------------------------------
+# -- the old flags are the pinned code, bit for bit -----------------------------
 
-def test_parser_defaults_are_the_pinned_values():
+def test_parser_defaults_are_the_final_values():
     args = vars(build_parser().parse_args(["--dataset", "x"]))
     args.pop("quiet")
+    args.pop("time_only")
     config = TrainConfig(**args)
     assert (config.adv_steps, config.adv_hidden, config.adv_ensemble,
-            config.adv_comp_weight) == (6, 64, 1, 1.0)
+            config.adv_comp_weight) == (6, 64, 1, 3.0)
     assert dataclasses.asdict(config) == dataclasses.asdict(TrainConfig(dataset="x"))
+    # the pre-final values stay reachable from the CLI
+    old = vars(build_parser().parse_args(
+        ["--dataset", "x", "--adv-comp-weight", "1", "--w-warmup-epochs", "0",
+         "--alpha-z", "0.007"]))
+    old.pop("quiet")
+    old.pop("time_only")
+    assert TrainConfig(**old) == TrainConfig(dataset="x", **OLD_FLAGS)
 
 
 def test_adversary_terms_default_is_pinned_bitwise():
@@ -193,8 +208,8 @@ def test_trainer_defaults_build_the_pinned_heads(make, data):
     assert _same_state(trainer.adversary, reference)
 
 
-def test_trainer_step_defaults_bit_identical_to_pinned(make, one_thread):
-    a, b = make(), make()
+def test_trainer_step_old_flags_bit_identical_to_pinned(make, one_thread):
+    a, b = make(**OLD_FLAGS), make(**OLD_FLAGS)
     assert _same_state(a.model, b.model) and _same_state(a.adversary, b.adversary)
     torch.manual_seed(11)
     got = []
@@ -221,11 +236,12 @@ def test_trainer_step_defaults_bit_identical_to_pinned(make, one_thread):
     (["--adv-head-width", "128"], "adv_hidden", 128),
     (["--adv-hidden", "128"], "adv_hidden", 128),
     (["--adv-ensemble", "3"], "adv_ensemble", 3),
-    (["--adv-comp-weight", "3"], "adv_comp_weight", 3.0),
+    (["--adv-comp-weight", "1"], "adv_comp_weight", 1.0),   # 3 is the default
 ])
 def test_each_flag_sets_exactly_its_field(flags, field, value):
     args = vars(build_parser().parse_args(["--dataset", "x"] + flags))
     args.pop("quiet")
+    args.pop("time_only")
     got = dataclasses.asdict(TrainConfig(**args))
     base = dataclasses.asdict(TrainConfig(dataset="x"))
     assert {k for k in got if got[k] != base[k]} == {field}

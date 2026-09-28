@@ -6,8 +6,10 @@ Devlog policy for the lineage re-pin (2026-09-25): keep ``finalL_*``,
 ``projL*``), the ``runs/best`` pointer and the baseline latents; archive the
 superseded families -- ``final_s*``, ``best_*``, ``sweep3_*``, ``ladder_az_*``,
 ``wfix*``, ``qp_*``, ``r12_*``, ``aw_*``, ``advc_*``, ``adv_*``, ``fp_*``,
-``phiproj*``, ``uncontrolled*``, ``reference*``, ``ablation_*``, ``abl_*``,
-``dw*`` -- **once their read-out tables exist in experiments/**.
+``uncontrolled*``, ``ablation_*``, ``abl_*`` -- **once their read-out
+tables exist in experiments/**. The final-repair brief (2026-09-27) also
+keeps ``dw*``, ``reference*``, ``phiproj*``, ``best_pre_az0.5`` and the whole
+``synthetic_smoke`` dataset.
 
 A run counts as read out when one of its family's read-out tables names it:
 its own name (or, for a symlinked alias, the alias or its target), the sweep
@@ -18,10 +20,19 @@ tables live on ovarian or FF). A run of an archive family that no table names
 is kept and flagged; a family with no table at all is flagged MISSING. Names
 no rule knows are listed as UNCLASSIFIED and kept.
 
-Dry run only: prints the inventory and sizes; moves nothing.
+``--dry-run`` prints the inventory and sizes and moves nothing. ``--apply``
+MOVES (never deletes) every run the dry run marks ``archive`` into
+``runs/_archive/`` of its dataset: the read-out tables stay in experiments/
+(not touched), a symlink whose target moves is moved with it (both land in
+``_archive/``, so the relative link still resolves), and each dataset's
+``runs/_archive/ARCHIVE_2026-09-27.tsv`` records run, size, family and the
+table(s) naming it. It refuses before moving anything if a name already
+exists in ``_archive/``, a kept run would have to move, or ``runs/best``
+would not resolve to a kept run.
 
     python scripts/archive_2026-09-25.py --dry-run
     python scripts/archive_2026-09-25.py --dry-run --runs     # + one line per run
+    python scripts/archive_2026-09-25.py --apply
 """
 
 from __future__ import annotations
@@ -40,7 +51,12 @@ BASELINES = Path("/home/rmolen/github/DisCell-baselines/results")
 #: (family, run-name glob), checked in order; the first match decides
 KEEP = (("best (pointer)", "best"), ("finalL_*", "finalL_*"),
         ("uncontrolledL_*", "uncontrolledL_*"), ("sweepL_*", "sweepL_*"),
-        ("projL* (lineage projection test)", "projL*"))
+        ("projL* (lineage projection test)", "projL*"),
+        # the final-repair brief's keep list (2026-09-27)
+        ("best_pre_az0.5", "best_pre_az0.5"), ("dw*", "dw*"),
+        ("reference*", "reference*"), ("phiproj*", "phiproj*"))
+#: datasets kept whole
+KEEP_DATASETS = ("synthetic_smoke",)
 #: (family, run-name glob, read-out table globs under experiments/)
 ARCHIVE = (
     ("final_s*", "final_s*", ("envelope_table_at_best.md", "envelope_table_ci.md",
@@ -58,15 +74,11 @@ ARCHIVE = (
     ("advc_*", "advc_*", ("adv_confirm.*",)),
     ("adv_*", "adv_*", ("adv_ladder.*", "adv_confirm.*")),
     ("fp_*", "fp_*", ("fp_floor.*", "probe_regrade_fp.*")),
-    ("phiproj*", "phiproj*", ("phi_projection.*",)),
     ("uncontrolled*", "uncontrolled*", ("probe_regrade_*.md", "adv_ladder.json",
                                         "adv_confirm.json", "convergence_uncontrolled.json")),
-    ("reference*", "reference*", ("graphclust_comparison.json",
-                                  "cycle_target_reference*.json", "calibration*.json")),
     ("ablation_*", "ablation_*", ("objective_ablations.json", "cycle_target_ablation*.json",
                                   "neighbour_dose_ablation*.json", "external_*ablation*.json")),
     ("abl_*", "abl_*", ("objective_ablations.json",)),
-    ("dw*", "dw*", ("d_w_sweep*.json",)),
 )
 #: sweep families whose reports key runs without the tag prefix
 SWEEP_PREFIX = {"sweep3_*": "sweep3_", "ladder_az_*": "ladder_az_"}
@@ -95,8 +107,10 @@ def human(n: float) -> str:
         n /= 1024
 
 
-def classify(name: str) -> tuple[str, str, tuple]:
+def classify(name: str, dataset: str = "") -> tuple[str, str, tuple]:
     """(action class, family, table globs) for one run name."""
+    if dataset in KEEP_DATASETS:
+        return "keep", f"{dataset}/* (kept whole)", ()
     for family, pattern in KEEP:
         if fnmatch.fnmatch(name, pattern):
             return "keep", family, ()
@@ -161,7 +175,7 @@ def inventory(tables: Tables) -> list[dict]:
                                  cls="existing", size=size_of(p), tables=[], covered=None,
                                  alias_of=None))
                 continue
-            cls, family, globs = classify(name)
+            cls, family, globs = classify(name, dataset)
             target = Path(os.readlink(p)).name if p.is_symlink() else None
             keys = [name] + ([target] if target else []) + aliases.get(name, [])
             if family in SWEEP_PREFIX:
@@ -195,28 +209,126 @@ def rel(path: Path) -> str:
     return str(path.relative_to(DATA.parent.parent))
 
 
+ARCHIVE_TSV = "ARCHIVE_2026-09-27.tsv"
+
+
+def plan_moves(rows: list[dict]) -> dict[str, list[dict]]:
+    """Per dataset, the rows to move: the dry run's ``archive`` rows plus any
+    symlink whose target moves (it would dangle otherwise). Exits before
+    anything moves if a kept link (``runs/best`` among them) would dangle or a
+    name is already taken in ``_archive/``."""
+    by_ds = defaultdict(dict)
+    for r in rows:
+        by_ds[r["dataset"]][r["run"]] = r
+    plan = {}
+    for dataset, runs in by_ds.items():
+        moving = {n for n, r in runs.items() if action(r).startswith("archive")}
+        grew = True
+        while grew:                        # links to links: until nothing new
+            grew = False
+            for n, r in runs.items():
+                if r["alias_of"] in moving and n not in moving:
+                    if r["cls"] == "keep":
+                        sys.exit(f"REFUSED: {dataset}: kept {n} -> {r['alias_of']} "
+                                 "would dangle; nothing moved")
+                    r["family"] += " (link to an archived target)"
+                    moving.add(n)
+                    grew = True
+        archive = DATA / dataset / "runs" / "_archive"
+        taken = [n for n in moving if (archive / n).exists() or (archive / n).is_symlink()]
+        if taken:
+            sys.exit(f"REFUSED: {dataset}: already in _archive/: {', '.join(sorted(taken))}; "
+                     "nothing moved")
+        if moving:
+            plan[dataset] = [runs[n] for n in sorted(moving)]
+    return plan
+
+
+def apply(rows: list[dict]) -> int:
+    """Move the plan into ``runs/_archive/``, log it, verify what stayed."""
+    plan = plan_moves(rows)
+    kept = defaultdict(set)
+    for r in rows:
+        if r["cls"] != "existing" and not action(r).startswith("archive"):
+            kept[r["dataset"]].add(r["family"])
+    print("# Archive applied (moved, never deleted)\n")
+    for dataset, items in plan.items():
+        runs_dir = DATA / dataset / "runs"
+        archive = runs_dir / "_archive"
+        archive.mkdir(exist_ok=True)
+        moving = {r["run"] for r in items}
+        tsv = archive / ARCHIVE_TSV
+        new = not tsv.exists()
+        with tsv.open("a") as out:
+            if new:
+                out.write("run\tsize_bytes\tfamily\ttables\n")
+            for r in items:
+                src = runs_dir / r["run"]
+                src.rename(archive / r["run"])
+                if r["alias_of"] and r["alias_of"] not in moving:   # target stays
+                    link = archive / r["run"]
+                    link.unlink()
+                    link.symlink_to(Path("..") / r["alias_of"])
+                tables = r.get("covering") or []
+                out.write(f"{r['run']}\t{r['size']}\t{r['family']}\t"
+                          f"{';'.join(rel(t) for t in tables)}\n")
+        size = sum(r["size"] for r in items)
+        print(f"* {dataset}: moved {len(items)} runs, {size / 1024 ** 3:.2f} GB "
+              f"-> {rel(archive)}; log {rel(tsv)}")
+        print(f"  kept families: {', '.join(sorted(kept[dataset]))}")
+    return verify(plan)
+
+
+def verify(plan: dict[str, list[dict]]) -> int:
+    """runs/best resolves, no kept family moved, no symlink dangles."""
+    problems = []
+    for ds_dir in sorted(p for p in DATA.iterdir() if (p / "runs").is_dir()):
+        runs_dir = ds_dir / "runs"
+        best = runs_dir / "best"
+        if best.is_symlink() or best.exists():
+            ok = (best.resolve() / "best.pt").exists()
+            print(f"* {ds_dir.name}: runs/best -> {os.readlink(best) if best.is_symlink() else '(dir)'}"
+                  f" {'resolves' if ok else 'DOES NOT RESOLVE'}")
+            if not ok:
+                problems.append(f"{ds_dir.name}: runs/best does not resolve")
+        for r in plan.get(ds_dir.name, []):
+            if classify(r["run"], ds_dir.name)[0] == "keep":
+                problems.append(f"{ds_dir.name}: kept {r['run']} moved")
+        for d in (runs_dir, runs_dir / "_archive"):
+            if d.is_dir():
+                problems += [f"dangling {rel(p)}" for p in d.iterdir()
+                             if p.is_symlink() and not p.exists()]
+    print("\n" + ("\n".join(f"* PROBLEM: {p}" for p in problems) if problems
+                  else "Verified: every runs/best resolves, no kept family moved, "
+                       "no dangling symlink in runs/ or runs/_archive/."))
+    return 1 if problems else 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--dry-run", action="store_true",
-                        help="required: this script only reports")
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--dry-run", action="store_true", help="report only")
+    mode.add_argument("--apply", action="store_true",
+                      help="move the proposed runs into runs/_archive/ (never deletes)")
     parser.add_argument("--runs", action="store_true", help="also one line per run")
     args = parser.parse_args(argv)
-    if not args.dry_run:
-        parser.error("only --dry-run is implemented; nothing is ever moved by this script")
 
     tables = Tables()
     rows = inventory(tables)
+    if args.apply:
+        return apply(rows)
     by_ds = defaultdict(list)
     for r in rows:
         by_ds[r["dataset"]].append(r)
 
     print("# Run inventory, proposed actions (dry run -- nothing moved)\n")
-    print("Archive only after the lineage queue has re-pointed runs/best (stage h): "
-          "runs/best still points at final_s0 until then.\n")
     grand = defaultdict(int)
     flags = []
     for dataset, items in by_ds.items():
+        best = DATA / dataset / "runs" / "best"
         print(f"## {dataset}\n")
+        if best.is_symlink():
+            print(f"runs/best -> {os.readlink(best)}\n")
         print("| family | runs | size | proposed | read-out table(s) naming them | not named |")
         print("|---|---|---|---|---|---|")
         fam = defaultdict(list)

@@ -304,3 +304,88 @@ Build: exit 0, no undefined references, the same 3 pre-existing overfull boxes. 
 
 
 **tab:contact: the fresh-frozen section is ovarian cancer, not ovary (2026-09-25).** The row read "Ovary (fresh frozen)". The sample's own metadata names it "Human Ovarian Adenocarcinoma (FF)". This surfaced while drafting the lineage maps, whose clusters carry PAX8, MSLN and MUC16 tumour markers. The row is renamed "Ovarian cancer (fresh frozen)", matching "Ovarian cancer (FFPE)". No other place in the live manuscript names the section. The handover's "ovary, fresh frozen" description should be corrected by whoever next edits it.
+
+
+**Correction to the R33 wording: κ* = 0 means "no effect", not "not separable" (2026-09-28).** Under Definition 1, κ* = 0 only when the interval contains its null already at κ = 0, i.e. there is nothing to explain. The readout that is not separable from leakage of the modelled form is the one that breaks down at the first grid point above zero. I had carried the review's "κ* = 0 is not separable" phrasing into §2.8 and the introduction. Both now say "first grid point / leak fraction above zero", and §2.8 adds that a readout whose interval contains its null at κ = 0 is no finding. Found while drawing the breakdown-point schematic.
+
+
+**tab:contact overflow fixed (2026-09-28).** The 2026-09-25 rename to "Ovarian cancer (fresh frozen)" pushed the table 18 pt over the text width, a fourth overfull box. The row now reads "Ovarian cancer (FF)", and the caption defines "FF: fresh frozen".
+
+**New appendix figure `fig:breakdown` in app:kappa (2026-09-28).** Todo §7 had deferred the sweep schematic until R33's rule was settled. The author asked for it and put every new figure in the appendix for now. It shows four schematic readouts over the κ grid with intervals and a null line, one per case of Definition 1:
+
+- **(a)** a contrast that survives the grid (κ* > 0.4);
+- **(b)** a magnitude that shrinks by construction but stays above its permutation null;
+- **(c)** one that breaks down inside the grid (κ* = 0.2);
+- **(d)** one that breaks down at the first grid point above zero (κ* = 0.05), i.e. not separable.
+
+The curves are fixed synthetic functions, and the caption says so; only the κ grid is the model's, so the no-numbers rule holds. Colours: ink for readouts, muted dashes for the null, blue only for the κ* marker. §2.8 points to it after Definition 1. `figures/src/build.sh` includes it. Build: exit 0, no undefined references, 3 overfull boxes. A shaded band for the data-allowed range [0, κ̄] can be added once R30 is decided.
+
+
+**New appendix figure `fig:batching` and subsection app:tiles; S42 applied (2026-09-28).** This is figure-plan item 5, the tiles and halo figure.
+
+- **(a)** The primary section with its 128 tiles, recomputed with the model's own split functions and seed (the tile outlines come from a bounds-tracking copy of the recursive median split, asserted equal to it). The 19 held-out tiles are hatched.
+- **(b)** A 110 µm window where a training tile meets a held-out tile and another training tile, chosen by rule (the most ring-one cells from both at once). Cells are coloured by role: seeds, ring one, ring two, other. Solid edges run into the seeds, dashed edges from ring two. Held-out cells are hatched, so the transductive use stated in §2.6 is visible.
+- **Layout fixes** before placing it: seed outlines made light so they don't read as edges, the key rewrapped, panel letters unclipped.
+- **Placement.** It sits in a new short subsection at the end of the implementation appendix; §2.6's "The loss is evaluated on seeds only" points to it.
+- **S42.** Drawing it made the text wrong: ring two contributes a type lookup only, not a type and an image lookup (the ring-two context is never formed, confirmed in code). Fixed in §2.6 and in the implementation table's halo row, which also drops the outdated "still evaluates the count encoder on ring two".
+- **Numbers left out.** Measured ring sizes (6.7 % / 7.2 % of the seeds for this tile) stay out of the caption under the no-numbers rule.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**New appendix figure `fig:kappa-bound` plus one paragraph in app:kappa (2026-09-28).** A schematic simplex over three genes: the line of implied clean compositions ρ_i(κ) = (p_i − κρ̄_i)/(1−κ) from the observed p_i, valid up to κ̄_i = min_g p_ig/ρ̄_ig.
+
+- **(a)** A cell that expresses a little of the neighbours' marker: every κ in [0, κ̄_i] fits.
+- **(b)** A cell that cannot express it: κ̄_i equals the true κ.
+- **Values.** The compositions and the true κ (0.3) are illustrative; the caption says "schematic".
+- **Paragraph.** It states the fact at composition level, conditional on ρ̄: bounded above, never below; pinned only through a gene the cell cannot express. It ties this to the existing marker-set ceiling and the nuclear/extranuclear route, and says the bound is soft with counts. The fact holds whichever way R30 (A/B) is decided; option A would promote it to a proposition in derivations.
+- **Layout.** Iterated three times: the path enlarged, labels moved into a callout column, overflow and a leader-line collision removed.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**New appendix subsection app:image, with `fig:mask-radius`, `tab:masking` and `fig:kronos-umap` (2026-09-28).** The author asked for: why the mask is 25 µm, the old masked-vs-unmasked logistic-regression table, and a KRONOS UMAP.
+
+- **Text.** One paragraph on the image descriptor and why its mask is a fixed-radius zeroed disc, not the polygon: no silhouette, no information in the hole, a constant artefact. The radius is chosen from the covering-radius distribution; 25 µm leaves 6 cells out (excluded) and masks 12 % of the field.
+- **`fig:mask-radius`.**
+  - (a) Cells sticking out versus R on a log scale, with a small table: 15 / 22 / 25 / 36.8 µm → 2,740 / 47 / 6 / 0 cells, 4.3 / 9.3 / 12.0 / 26.0 % of the field.
+  - (b) The largest cell that fits and (c) the largest cell (excluded), drawn exactly as the model receives them.
+  - The four-stain rendering moved into `style.py` (`STAINS`, `stain_range`, `composite`), shared with Figure 1b, which re-renders pixel-identical.
+- **`tab:masking`.** The 2026-08-20 ego-masking experiment: macro one-vs-rest AUC of cell type on a 1 mm spatial tile split, for KRONOS v1/v2 × {whole patch, disc zeroed, cell alone, cell alone at native resolution}, against the neighbour-label baseline. Readings, as in the devlog:
+  - the cell alone beats the whole patch;
+  - masking costs little;
+  - the masked patch sits below the neighbour-label baseline (homophily);
+  - v1 and v2 tie on the masked patch, so v1 is kept.
+
+  Marked `\pending` for recomputation at lineage-level labels; all seven embedding arms are still on disk, so this is cheap.
+- **`fig:kronos-umap`.** UMAPs of the same 60,000 cells for the whole patch, disc zeroed (the model's Φ) and the cell alone, coloured by a display-only coarse lineage grouping. The old `figures/kronos_umap.png` predates the masking experiment (unmasked, at an earlier crop), so it was not reused. (a) and (b) look alike, which fits "masking costs little".
+- **Bibliography.** `kronos2025` corrected from the literature bib: title "A Foundation Model for Spatial Proteomics", authors, arXiv 2506.03373; the CHECK note removed.
+- **Pointer.** §2.1 ("a disc covering the cell has been masked out …") points to app:image.
+- **Devlog correction.** The 2026-08-20 entry's "34 % of the field" for the largest cell is 26 %.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes. Float placement is scattered across the appendix pages; leave for R37.
+
+**Author review of the new appendix figures (2026-09-28), changes.**
+
+- **(1) `fig:breakdown`.** The author did not follow it; it was referenced only by one sentence in app:kappa and a pointer after Definition 1.
+  - The panel titles now say what happens: "real at every leak fraction", "shrinks, but stays real", "explained away at κ = 0.2", "explained away at κ = 0.05".
+  - Panel (a) has callouts: "one refit at κ = 0.1; bar: its interval" and "no effect" on the null line.
+  - app:kappa gains a worked paragraph: a readout (e.g. a fibroblast programme's shift between tumour-adjacent and stromal fibroblasts), why refitting at larger κ shrinks a leakage-only difference, and κ* as "how much leakage it would take to explain it away", then the four cases.
+  - The caption adds "each point is a separate fit at that κ".
+- **(3) `fig:kappa-bound`.** The "gene 3" label sat above the apex and read as a subtitle; it now sits beside the apex ("gene 3: the neighbours' marker").
+- **(4) `fig:mask-radius`.**
+  - The table headers read as one phrase ("cells out field masked"), so the % looked like a share of cells sticking out. They are now two-line columns: "disc radius R (µm)", "cells outside it", "disc area, % of field", with a rule under them.
+  - "Excluded" was wrong for the model. The six uncovered cells were dropped from the masking comparison only; the model keeps them with a zero image descriptor (the loader zero-fills missing embeddings and warns). Panel (c) now reads "does not fit", and text and caption say this.
+- **(5) `tab:masking`.** Re-scored at the lineage labels (see devlog), and both KRONOS releases are named: KRONOS (first release, ViT-S/16, 384-d; the one used) and KRONOS2 (ViT-B/16, 768-d). The KRONOS2 model card asks for the same paper to be cited (Shaban et al., arXiv 2506.03373). The text now also states the approximate marker mapping: the mixes are read as their named component, and 18S is outside the vocabulary and given an unused marker id.
+- **(6) `fig:kronos-umap`.** The caption names the release (KRONOS, first release, the one the model uses). The colour is now the coder's lineage label (obs `lineage`, the one the model trains on), with small lineages grouped for display; SOX2-OT⁺ cells fall in Unassigned, as in the relabel.
+
+- **`tab:masking` at lineage labels (same day).** The table now shows the 12-class lineage re-score; `\pending` is removed. Columns are named KRONOS / KRONOS2, and the caption cites the release paper. The text's "tie on the masked patch" became "the first release does at least as well" (+0.011), and "type" became "lineage label" throughout the paragraph. Build: exit 0, no undefined references, 3 overfull boxes.
+
+
+**Follow-ups to the author's figure review (2026-09-28, later).** The first two edits were delayed by a tool outage and applied once it cleared.
+
+- **`fig:breakdown` caption.** The panels are "four different candidate findings, not four ways of choosing κ, which is never chosen". The worked paragraph adds "the higher the breakdown point, the stronger the finding" and links to fig:kappa-bound: a readout whose breakdown point lies above the data's upper bound on κ survives every leak fraction the data allow.
+- **KRONOS2.** Author's decision: keep the KRONOS2 column in tab:masking only, and say why KRONOS is used: half the embedding width (384 against 768 dimensions, keeping the image part of the context small) and about five times faster (637 vs 122 cells/s in the devlog), with no loss on the masked patch.
+- **Unassigned.** `tab:masking`'s caption says the 12 classes include Unassigned. `fig:kronos-umap`'s caption says Unassigned includes a low-depth class of mixed lineage that the original annotation called a tumour subtype. This follows the coder's evidence: median depth 27 against 333, three quarters without SOX2-OT counts, EPCAM/PAX8 ten times lower. The author accepted Unassigned over Tumour.
+- **S12 applied in §2.1.** "Cells without a label form one additional class, which enters every type-conditioned quantity like any other." I had wrongly told the author that S12 says Unassigned is excluded from readouts; per the code it is not, and the review says so.
+
+**Unassigned is never an evaluation target (author's decision 2026-09-28, devlog rule by the coder, todo 8.23).**
+
+- **§2.1.** The S12 sentence now carries both halves. In training Unassigned enters every type-conditioned quantity like any other class, and its cells remain neighbours. It is never a target of evaluation: every diagnostic and readout of §2.7–2.8 is computed on labelled cells only, because a residual class is not a cell type and a read that treats it as one measures the label's failure, not the model.
+- **`tab:masking`.** Re-scored under the same rule: 11 classes, Unassigned kept as a neighbour in the baseline. Values replaced; the caption states the rule. The readings and the KRONOS-over-KRONOS2 wording still hold (KRONOS +0.012 on the masked patch).
+- **Not done here.** The final tables reported both ways once (the coder's disclosure) belong to the experiments section, which is out of the build.

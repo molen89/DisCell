@@ -1,0 +1,64 @@
+source_label,lineage,rule,n_full,n_pdl018d
+AT1,AT1,map,27903,447
+AT2,AT2,map,59264,5660
+Activated fibroblasts,Adventitial fibroblasts,per-cell,10159,103
+Activated fibroblasts,Alveolar fibroblasts,per-cell,11462,90
+Adventitial fibroblasts,Adventitial fibroblasts,map,41974,5673
+Airway smooth muscle,Airway smooth muscle,map,39142,791
+Alveolar fibroblasts,Alveolar fibroblasts,map,147046,1929
+Alveolar macrophages,Alveolar macrophages,map,9022,77
+B cells,B cells,map,2987,20
+Basal,Basal,map,2690,21
+Chondrocytes,Chondrocytes,map,10619,2359
+Distal epithelium,Distal epithelium,map,46748,61
+EC activated,EC aerocyte capillary,per-cell,13976,68
+EC activated,EC general capillary,per-cell,11560,35
+EC activated,EC venous,per-cell,2625,48
+EC activated,Lymphatic EC,per-cell,2959,12
+EC aerocyte capillary,EC aerocyte capillary,map,24051,7734
+EC general capillary,EC general capillary,map,113858,1152
+EC venous,EC venous,map,18570,481
+Erythroid,Erythroid,map,6757,47
+Goblet,Goblet,map,4995,8
+Inflammatory fibroblasts,Adventitial fibroblasts,per-cell,7076,191
+Inflammatory fibroblasts,Alveolar fibroblasts,per-cell,22251,374
+Interstitial macrophages,Interstitial macrophages,map,34416,3472
+Lymphatic EC,Lymphatic EC,map,13398,1130
+Mast cells,Mast cells,map,1191,27
+Megakaryocytes,Megakaryocytes,map,1345,87
+Multiciliated,Multiciliated,map,45753,7357
+Myofibroblasts,Adventitial fibroblasts,per-cell,11254,8320
+Myofibroblasts,Alveolar fibroblasts,per-cell,11570,9590
+Neuroendocrine,Neuroendocrine,map,1639,362
+Neutrophils,Neutrophils,map,20073,3718
+Pericytes,Pericytes,map,37851,3152
+Plasma cells,Plasma cells,map,1444,1
+Proliferating,AT1,per-cell,320,18
+Proliferating,AT2,per-cell,1981,45
+Proliferating,Adventitial fibroblasts,per-cell,5,0
+Proliferating,Airway smooth muscle,per-cell,27,1
+Proliferating,Alveolar fibroblasts,per-cell,54,1
+Proliferating,Alveolar macrophages,per-cell,4,0
+Proliferating,B cells,per-cell,8,0
+Proliferating,Basal,per-cell,11,0
+Proliferating,Distal epithelium,per-cell,235,4
+Proliferating,EC aerocyte capillary,per-cell,8,0
+Proliferating,EC general capillary,per-cell,4,0
+Proliferating,EC venous,per-cell,8,0
+Proliferating,Goblet,per-cell,54,5
+Proliferating,Interstitial macrophages,per-cell,7,0
+Proliferating,Lymphatic EC,per-cell,3,0
+Proliferating,Multiciliated,per-cell,41,12
+Proliferating,Neuroendocrine,per-cell,5,0
+Proliferating,Neutrophils,per-cell,3,1
+Proliferating,Pericytes,per-cell,3,0
+Proliferating,Plasma cells,per-cell,6,0
+Proliferating,Secretory,per-cell,3,0
+Proliferating,T/NK cells,per-cell,38,1
+Proliferating,Vascular smooth muscle,per-cell,4,1
+Schwann cells,Schwann cells,map,6397,430
+Secretory,Secretory,map,20411,697
+Skeletal muscle,Skeletal muscle,map,10747,380
+T/NK cells,T/NK cells,map,15862,224
+Unassigned,Unassigned,map,218681,3370
+Vascular smooth muscle,Vascular smooth muscle,map,22496,970

@@ -93,7 +93,7 @@ Where & Decision & Reason \\
 Attention sources & neighbour types only; an earlier version also passed the neighbour's posterior mean under a stop-gradient & the case is empirical, not mechanistic: a seed-matched ablation improved held-out reconstruction, the $\vz$--type agreement, the mirror check and the cycle readout of $\vw$ while leaving $\vw$'s spatial readouts unchanged. The mechanism originally proposed for it, the prior reconstructing a cell from its neighbours' codes, was tested with two purpose-built detectors and not confirmed; the sources are types because the ablation is better, not because that mechanism was demonstrated \\
 Training budget & two budgets: a short one for sweep points, a long one for reference fits (\cref{sec:selection}) & sweep points must be comparable to one another; reference fits must be individually good, and the better optimisation basin is not reached at the short budget \\
 Choosing among seeds & several seeds per reference configuration, one selected on the full diagnostic battery, the rest reported as the envelope & selection on held-out reconstruction alone admits a fit that buys likelihood at the cost of the intrinsic-state readouts \\
-Halo overhead & ring one is fully encoded; ring two contributes a type and an image lookup only & the attention sources are types, so ring two needs no encoder pass. The implementation as run still evaluates the count encoder on ring two and discards the result, so the measured node overhead is an upper bound on what the design requires; it falls with tile size, and tiles are sized above the knee \\
+Halo overhead & ring one is fully encoded; ring two contributes a type lookup only & the attention sources are types, so ring two needs no encoder pass and none is run; the node overhead falls with tile size, and tiles are sized above the knee \\
 Resident count storage & the count matrix is held on the accelerator as $16$-bit integers and cast per tile & counts are small non-negative integers, so the narrow type is exact and is asserted to be; the wide type does not fit on one consumer card for the largest section, and tile size does not help, since every tile is resident \\
 \midrule
 Built but not default & leak-subtracted encoder input $\tilde\vx_i = \max(\vx_i - \kappa\ell_i\rhobar_i, 0)$, normalised by its own total with the log-depth scalar left raw, as the counts-level answer to the amortisation gap; an attention sink, a fixed null logit joining every destination's softmax so that the aggregate saturates in the number of neighbours instead of ignoring it; coupled weight decay in the optimiser & each is available behind a flag and off in every fit reported here. The encoder correction is retained as an ablation rather than as the model, since it changes the evidence $\vz$ is formed from; the sink cannot be exercised on a Delaunay graph, whose degree is nearly constant, and is kept for graphs whose degree varies; weight decay is recorded because it moves the gauge of \cref{sec:sweep} rather than removing it \\
@@ -102,3 +102,16 @@ Not built & Dirichlet-multinomial likelihood; per-cell counterfactuals with abdu
 \bottomrule
 \end{tabular}
 \end{table}
+
+\subsection{Tiles and the Two-Hop Halo}
+\label{app:tiles}
+
+\Cref{fig:batching} shows the tiles, the held-out split and the halo of one training tile on the primary section, as built for a fit (\cref{sec:batching}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_batching}
+\caption{Tiles, the held-out split and the two-hop halo on the primary section. \textbf{a},~The section cut into contiguous tiles of at most $4{,}096$ cells by recursive median split. Hatched tiles are held out ($15\%$ of tiles, one split). The blue tile is shown in b, and the black square marks the window of b. \textbf{b},~Where that training tile meets a held-out tile (left) and another training tile (below). The tile's cells are the seeds, on which the loss is evaluated. Ring one, their graph neighbours, has its context, response and clean composition computed in the same pass. Those compositions enter the seeds' foreign influx under a stop-gradient, and ring one's types are attention sources for the seeds (solid edges). Ring two, the neighbours of ring one, contributes only its types, as attention sources for ring one (dashed edges). Both rings are read from the leakage kernel's own edge list. Hatched cells belong to the held-out tile: ring cells drawn from it enter training as inputs, with no loss and no gradient (\cref{sec:batching}).}
+\label{fig:batching}
+\end{figure}
+

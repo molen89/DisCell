@@ -1,0 +1,102 @@
+{
+  "dataset": "xenium_prime_human_lung_cancer_ffpe",
+  "written_at": "2026-09-25T18:42:20",
+  "obs_key": "lineage",
+  "source_key": "graphclust",
+  "choices": {
+    "sox2ot": "unassigned",
+    "cyst": "mesothelial"
+  },
+  "applied_csv": "lineage_map_applied.csv",
+  "applied_csv_sha256": "a45b8e157f3d62e8281001d54bfac3496205d71b3dfdf1a2de95342764436b6e",
+  "inputs_sha256": {
+    "lineage_map_proposed.csv": "8416a2e78b01ce3837ff65301321ad125b3b0aeb0aee3f1de3f75428b8658bb1"
+  },
+  "categories": [
+    "AT1",
+    "AT2",
+    "Adventitial fibroblasts",
+    "Alveolar fibroblasts",
+    "Alveolar macrophages",
+    "B cells",
+    "EC general capillary",
+    "EC venous",
+    "Goblet",
+    "Interstitial macrophages",
+    "Mast cells",
+    "Multiciliated",
+    "Neuroendocrine",
+    "Neutrophils",
+    "Pericytes",
+    "Plasma cells",
+    "Smooth muscle",
+    "T/NK cells",
+    "Tumour",
+    "Unassigned"
+  ],
+  "variants": [
+    "full"
+  ],
+  "counts_before": {
+    "full": {
+      "Cluster-1": 23362,
+      "Cluster-2": 21479,
+      "Cluster-3": 20603,
+      "Cluster-4": 17335,
+      "Cluster-5": 16446,
+      "Cluster-6": 15040,
+      "Cluster-7": 14845,
+      "Cluster-8": 13538,
+      "Cluster-9": 11741,
+      "Cluster-10": 10985,
+      "Cluster-11": 10263,
+      "Cluster-12": 9409,
+      "Cluster-13": 8602,
+      "Cluster-14": 8426,
+      "Cluster-15": 8300,
+      "Cluster-16": 7591,
+      "Cluster-17": 7500,
+      "Cluster-18": 6310,
+      "Cluster-19": 6177,
+      "Cluster-20": 6081,
+      "Cluster-21": 5711,
+      "Cluster-22": 5703,
+      "Cluster-23": 4303,
+      "Cluster-24": 4161,
+      "Cluster-25": 3125,
+      "Cluster-26": 2820,
+      "Cluster-27": 2404,
+      "Cluster-28": 2179,
+      "Cluster-29": 1678,
+      "Cluster-30": 858,
+      "Cluster-31": 656,
+      "Cluster-32": 511,
+      "Unassigned": 182
+    }
+  },
+  "counts_after": {
+    "full": {
+      "Tumour": 45646,
+      "T/NK cells": 45287,
+      "EC general capillary": 29431,
+      "Adventitial fibroblasts": 24835,
+      "Interstitial macrophages": 21479,
+      "Smooth muscle": 16446,
+      "Neutrophils": 15040,
+      "Alveolar fibroblasts": 10985,
+      "AT1": 10613,
+      "B cells": 9409,
+      "EC venous": 8602,
+      "Plasma cells": 8300,
+      "Alveolar macrophages": 7591,
+      "Goblet": 6177,
+      "AT2": 6081,
+      "Multiciliated": 4999,
+      "Pericytes": 4161,
+      "Mast cells": 2404,
+      "Neuroendocrine": 656,
+      "Unassigned": 182
+    }
+  },
+  "vocabulary_checked_against": null
+}

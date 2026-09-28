@@ -120,15 +120,9 @@ def stretch(p, lo=1, hi=99.6):
 # per-channel display range from a 512 um window, not from the crop alone
 wide = crop_cell(a, find_tissue_image(SAMPLE), focal, half_um=256.0, channels=CHANNELS,
                  out_size=int(OUT_PX * 512 / FIELD_UM)).image.astype(np.float64)
-lo, hi = np.percentile(wide.reshape(-1, wide.shape[-1]), 1, axis=0), \
-    np.percentile(wide.reshape(-1, wide.shape[-1]), 99.6, axis=0)
-chan = np.clip((img - lo) / (hi - lo), 0, 1)
-# additive composite of all four channels, in channel order; no orange (the "contact" role)
-# named by the marker the image model reads each channel as; on the slide, channel 1 is an
-# ATP1A1/CD45/E-cadherin mix and channel 3 an alphaSMA/vimentin mix (OME channel names)
-STAINS = [(r"DAPI", "#3987e5"), (r"ATP1A1", "#3ccf4e"), (r"18S", "#8a8984"), (r"$\alpha$SMA", "#f03a2e")]
-tint = np.array([[int(h[i:i + 2], 16) / 255.0 for i in (1, 3, 5)] for _, h in STAINS])
-rgb = np.clip(np.einsum("hwc,ck->hwk", chan, tint), 0, 1)
+lo, hi = S.stain_range(wide)
+rgb = S.composite(img, lo, hi)
+STAINS = S.STAINS
 keep = _ego_disk(OUT_PX, MASK_UM, FIELD_UM)                  # the pipeline's own mask
 rgb = rgb * keep[..., None]
 ext = FIELD_UM / 2

@@ -196,16 +196,192 @@ def test_weighted_mmd_is_the_unbiased_estimator_at_unit_weights_and_on_duplicate
     assert float(part[0]) == pytest.approx(expected)
 
 
-def test_split_weights_halve_the_resampled_multiset():
+def test_split_weights_halve_the_distinct_resampled_cells():
     rng = np.random.default_rng(9)
     mult = np.array([0, 3, 1, 2, 0, 5])
     halves = B._split_weights(mult, rng, 4)
     assert halves.shape == (4, 2, 6)
     assert np.all(halves.sum(axis=1) == mult)
-    assert np.all(halves[:, 0].sum(axis=1) == mult.sum() // 2)
+    assert not np.any((halves[:, 0] > 0) & (halves[:, 1] > 0))  # no cell in both
+    assert np.all((halves[:, 0] > 0).sum(axis=1) == 2)          # 4 cells -> 2 + 2
 
 
 def test_gap_closed_matches_distribution_scores_definition():
     assert float(B._gap(1.0, 0.4, 0.2)) == pytest.approx(0.75)
     assert float(B._gap(1.0, -5.0, 0.2)) == 1.0
     assert np.isnan(float(B._gap(0.2, 0.1, 0.2)))
+
+
+def test_probe_cells_replay_survives_the_metrics_float32_baseline_rounding():
+    """Planted: float32 v (as ``data.v_block``) with 30k held-out cells whose
+    composition column sits far from its type mean -- thousands of identical
+    float32 squares. The metric averages them in float32 (a naive axis-0
+    sum), which drifts ~3e-4 relative from the float64 mean the bootstrap
+    takes: the lineage finalL runs' failure. The replay must still check out
+    (it compares like with like) and grade the stored excess exactly."""
+    from discell.model import metrics as M
+
+    rng = np.random.default_rng(9)
+    n_train, n_test, k = 3000, 30000, 3
+    n = n_train + n_test
+    t = rng.integers(0, k, n)
+    z = rng.standard_normal((n, 4))
+    v = np.hstack([(rng.random((n, 1)) < 0.01),                    # rare type
+                   z[:, :1] + rng.standard_normal((n, 1)),         # comp column
+                   rng.standard_normal((n, 2))]).astype(np.float32)
+    vbar = np.stack([v[t == g].mean(axis=0) for g in range(k)])
+    vbar[:, 0] = 0.7                                  # the planted offset
+    train = np.arange(n) < n_train
+    ref_cols = M._probe_columns(z, t, v, vbar, train, ~train, 0, 2,
+                                M._ridge_fit_predict)
+    exact = ((v[~train].astype(np.float64)
+              - vbar.astype(np.float64)[t[~train]]) ** 2).mean(axis=0)
+    drift = np.abs(ref_cols["baseline"] - exact) / exact
+    assert drift[0] > 1e-4                            # the planted rounding
+
+    cells = B.probe_cells(z, t, v, vbar, train, ~train, n_comp=2, seed=0,
+                          n_perm=2, family="ridge")
+    assert np.allclose(cells["baseline"].mean(axis=0), exact, rtol=1e-9)
+    ref = M.probe_gain_per_block(z, t, v, vbar, train, ~train, n_comp=2,
+                                 seed=0, n_perm=2)
+    stat = B.probe_statistic(cells)(cells, np.ones(len(cells["test_rows"])))
+    assert stat["comp_excess"] == pytest.approx(ref["comp"]["excess"], abs=1e-9)
+    assert stat["img_excess"] == pytest.approx(ref["img"]["excess"], abs=1e-9)
+
+
+def _split_half_ceiling(x_a, x_b, mult_a, mult_b, seed, n_splits=4):
+    """The bootstrap's per-draw split-half ceiling, in numpy (same halves,
+    MIN_RATE floor and Spearman-Brown step as transport_mean_bootstrap)."""
+    from discell.model import transport as T
+
+    rng = np.random.default_rng(seed)
+    halves = [B._split_weights(m, rng, n_splits) for m in (mult_a, mult_b)]
+    corrs = []
+    for s in range(n_splits):
+        shifts = []
+        for side in (0, 1):
+            rate_a = halves[0][s, side] @ x_a / halves[0][s, side].sum()
+            rate_b = halves[1][s, side] @ x_b / halves[1][s, side].sum()
+            shift = (np.log(np.maximum(rate_b, T.MIN_RATE))
+                     - np.log(np.maximum(rate_a, T.MIN_RATE)))
+            shifts.append(shift - shift.mean())
+        corrs.append(np.corrcoef(*shifts)[0, 1])
+    r = float(np.mean(corrs))
+    return 2 * r / (1 + r) if r > 0 else 0.0
+
+
+def _planted_panel(rng, n_cells=600, n_genes=150, per_tile=6, tile_um=200.0):
+    """One transport panel on a planted slide: niche B's rates are A's times
+    exp(shift), counts Poisson at depth 1000; the prediction is the shift
+    plus noise. Cells sit ``per_tile`` to a 200 um tile."""
+    import scipy.sparse as sp
+
+    from discell.model import transport as T
+
+    base = np.exp(rng.normal(np.log(1e-3), 0.8, n_genes))
+    shift = rng.normal(0.0, 0.05, n_genes)
+    rates = np.vstack([np.tile(base, (n_cells, 1)),
+                       np.tile(base * np.exp(shift), (n_cells, 1))])
+    x_rate = sp.csr_matrix(rng.poisson(rates * 1000.0) / 1000.0)
+    tiles = np.arange(2 * n_cells) // per_tile
+    side = int(np.ceil(np.sqrt(tiles.max() + 1)))
+    positions = np.stack([(tiles % side) * tile_um, (tiles // side) * tile_um], 1)
+    positions = positions + rng.uniform(1, tile_um - 1, positions.shape)
+    rows_a, rows_b = np.arange(n_cells), np.arange(n_cells, 2 * n_cells)
+    obs_a = np.asarray(x_rate[rows_a].mean(axis=0)).ravel()
+    obs_b = np.asarray(x_rate[rows_b].mean(axis=0)).ravel()
+    keep = (obs_a > T.MIN_RATE) & (obs_b > T.MIN_RATE)
+    observed = np.log(obs_b[keep] + T.EPS) - np.log(obs_a[keep] + T.EPS)
+    prediction = shift[keep] + rng.normal(0.0, 0.02, int(keep.sum()))
+    panel = {"rows_a": rows_a, "rows_b": rows_b, "keep": keep,
+             "prediction": prediction, "overlap_flag": True, "trusted": True,
+             "r2": T.score_shift(prediction, observed)["r2"],
+             "noise_ceiling": T.noise_ceiling(x_rate, rows_a, rows_b, keep, rng)}
+    return panel, x_rate, positions
+
+
+def test_duplicated_resample_keeps_the_unduplicated_split_half_ceiling():
+    """Planted: every cell resampled twice is the same sample; its split-half
+    ceiling must be the unduplicated one. Splitting copies put a cell in
+    both halves and pushed the ceiling toward 1 (the finalL transport CIs
+    that excluded their own points)."""
+    rng = np.random.default_rng(11)
+    panel, x_rate, _ = _planted_panel(rng)
+    genes = np.flatnonzero(panel["keep"])
+    x_a = x_rate[panel["rows_a"]][:, genes].toarray()
+    x_b = x_rate[panel["rows_b"]][:, genes].toarray()
+    ones_a, ones_b = np.ones(len(x_a)), np.ones(len(x_b))
+    single = _split_half_ceiling(x_a, x_b, ones_a, ones_b, seed=3)
+    double = _split_half_ceiling(x_a, x_b, 2 * ones_a, 2 * ones_b, seed=3)
+    assert single < 0.6                     # a noisy panel, as the real ones
+    assert double == pytest.approx(single, abs=1e-9)
+
+
+def test_transport_fraction_of_ceiling_ci_contains_its_point():
+    rng = np.random.default_rng(12)
+    panel, x_rate, positions = _planted_panel(rng)
+    boot = B.transport_mean_bootstrap([panel], x_rate, positions, n=200,
+                                      seed=0, device="cpu")
+    entry = boot["reads"]["transport_of_ceiling"]
+    lo, hi = entry["ci95"]
+    assert lo <= entry["estimate"] <= hi
+
+
+def _clustered_slide(rng, base, shift, pred, n_tiles=40, per_tile=20,
+                     tile_sd=0.15, tile_um=200.0):
+    """One planted panel on a clustered slide: per niche ``n_tiles`` tiles of
+    ``per_tile`` cells sharing a per-tile, per-gene lognormal rate effect;
+    niche B's rates are A's times exp(shift); counts Poisson at depth 1000;
+    the prediction *pred* is fixed (the fit is conditioned on)."""
+    import scipy.sparse as sp
+
+    from discell.model import transport as T
+
+    rows = []
+    for niche in (0, 1):
+        mu = base * (np.exp(shift) if niche else 1.0)
+        effect = np.exp(rng.normal(0.0, tile_sd, (n_tiles, len(base)))
+                        - tile_sd ** 2 / 2)
+        rows.append(rng.poisson(np.repeat(mu * effect, per_tile, axis=0)
+                                * 1000.0) / 1000.0)
+    x_rate = sp.csr_matrix(np.vstack(rows))
+    tiles = np.arange(x_rate.shape[0]) // per_tile
+    side = int(np.ceil(np.sqrt(tiles.max() + 1)))
+    positions = np.stack([(tiles % side) * tile_um, (tiles // side) * tile_um], 1)
+    positions = positions + rng.uniform(1, tile_um - 1, positions.shape)
+    n = n_tiles * per_tile
+    rows_a, rows_b = np.arange(n), np.arange(n, 2 * n)
+    obs_a = np.asarray(x_rate[rows_a].mean(axis=0)).ravel()
+    obs_b = np.asarray(x_rate[rows_b].mean(axis=0)).ravel()
+    keep = (obs_a > T.MIN_RATE) & (obs_b > T.MIN_RATE)
+    observed = np.log(obs_b[keep] + T.EPS) - np.log(obs_a[keep] + T.EPS)
+    panel = {"rows_a": rows_a, "rows_b": rows_b, "keep": keep,
+             "prediction": pred[keep], "overlap_flag": True, "trusted": True,
+             "r2": T.score_shift(pred[keep], observed)["r2"],
+             "noise_ceiling": T.noise_ceiling(x_rate, rows_a, rows_b, keep, rng)}
+    return panel, x_rate, positions
+
+
+def test_half_tile_subsampling_covers_the_fraction_of_ceiling():
+    """Planted coverage on clustered cells (tile random effects, point
+    ceiling ~0.85): over independent slides of one population, the half-tile
+    subsampling interval must cover the estimator's mean ~95 % of the time.
+    Measured at 400 slides x 200 draws: 0.940 and 0.960 on two populations
+    (the reverse-form interval: 0.667). Lower ceilings cover less -- 0.82-0.88
+    at ~0.6, 0.78 at ~0.52 -- see the final-repair report."""
+    pop = np.random.default_rng(0)
+    base = np.exp(pop.normal(np.log(2e-3), 0.6, 150))
+    shift = pop.normal(0.0, 0.08, 150)
+    pred = shift + pop.normal(0.0, 0.04, 150)
+    rng = np.random.default_rng(1)
+    points, cis = [], []
+    for rep in range(150):
+        panel, x_rate, positions = _clustered_slide(rng, base, shift, pred)
+        entry = B.transport_mean_bootstrap(
+            [panel], x_rate, positions, n=100, seed=rep,
+            device="cpu")["reads"]["transport_of_ceiling"]
+        points.append(entry["estimate"])
+        cis.append(entry["ci95"])
+    cis, target = np.array(cis), float(np.mean(points))
+    coverage = float(np.mean((cis[:, 0] <= target) & (target <= cis[:, 1])))
+    assert 0.88 <= coverage <= 0.99, coverage

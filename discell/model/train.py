@@ -68,6 +68,30 @@ def dead_w_channel(history: Sequence[dict]) -> bool:
                for record in history if record.get("kl_w_per_dim") is not None)
 
 
+#: the final configuration's alpha_z per dataset, 1/2 x 1/l-bar as pinned on
+#: 2026-09-24 (devlog "Final configuration frozen"; every finalL run). It is
+#: the default source for these datasets because the data-derived rule
+#: (alpha_z_from_counts) does not reproduce it (devlog 2026-09-24 14:25,
+#: "l-bar discrepancy"): the pinned l-bar is the all-cell median count on GSE,
+#: lung and FF (279, 242, 1401) and an earlier count scale on ovarian (143;
+#: the bundle's median is 178), not the mean of the connected training cells.
+#: Data-derived at seed 0: GSE core 0.00151, ovarian 0.00193, lung 0.00112,
+#: FF 0.000301.
+ALPHA_Z_PINNED = {
+    "gse315411_pdltma06_11_prime_solo": 0.0018,
+    "xenium_prime_ovarian_cancer_ffpe": 0.0035,
+    "xenium_prime_human_lung_cancer_ffpe": 0.002,
+    "xenium_prime_human_ovary_ff": 0.00035,
+}
+
+#: the defaults these fields had before they became the final configuration
+#: (2026-09-28). A stored config (config.json, best.pt) that lacks one of them
+#: predates the field and ran at this value, not at today's default:
+#: config_from_record fills them in.
+PRE_FINAL_DEFAULTS = {"label_key": None, "adv_comp_weight": 1.0,
+                      "w_warmup_epochs": 0, "alpha_z": 0.007}
+
+
 @dataclass(frozen=True)
 class TrainConfig:
     """Everything that defines one fit; serialised into the run directory."""
@@ -75,9 +99,14 @@ class TrainConfig:
     dataset: str
     variant: str = "full"
     embeddings: str = "egomask_ego_v1"
-    #: obs column for t; None = the bundle default (curated cell_group).
-    #: "graphclust" runs on unsupervised clusters -- the no-annotation control
-    label_key: str | None = None
+    #: obs column for t. "lineage" = the final configuration (devlog
+    #: 2026-09-25 "Final launch"); a bundle without that column falls back to
+    #: its uns['default_label'] with a warning (resolve_label_key, before the
+    #: data are assembled), and config.json records the column used. None =
+    #: the bundle default (curated cell_group), every run before lineage
+    #: labels. "graphclust" runs on unsupervised clusters -- the no-annotation
+    #: control
+    label_key: str | None = "lineage"
     run_name: str | None = None
     # the model
     d_z: int = 20
@@ -109,16 +138,22 @@ class TrainConfig:
     adv_steps: int = 6                  # CLI also --adv-head-steps (8.17)
     adv_hidden: int = 64                # CLI also --adv-head-width (8.17)
     #: the adversary-capacity ladder (8.17 pre-registration, 2026-09-24).
-    #: Both defaults are every run before it, bit for bit.
     #: adv_ensemble: K independent head pairs, their head losses summed, the
     #: encoder penalised on the members' mean excess (elbo.
-    #: ensemble_adversary_terms). adv_comp_weight: multiplies the composition
-    #: excess (encoder term) and the composition CE (head loss).
+    #: ensemble_adversary_terms); 1 = every run before it, bit for bit.
+    #: adv_comp_weight: multiplies the composition excess (encoder term) and
+    #: the composition CE (head loss); 3 = the final configuration (author,
+    #: 2026-09-25), 1 = every run before it, bit for bit.
     adv_ensemble: int = 1
-    adv_comp_weight: float = 1.0
+    adv_comp_weight: float = 3.0
     kappa: float = 0.1
     omega: float = 1.0
-    alpha_z: float = 0.007
+    #: None = the final configuration's alpha_z, resolved once at Trainer
+    #: setup (resolve_alpha_z) and recorded as a float in config.json: the
+    #: pinned per-dataset value (ALPHA_Z_PINNED) where there is one, else
+    #: 1/2 / mean total count of the connected training cells. A float is
+    #: used as given.
+    alpha_z: float | None = None
     alpha_w: float = 0.1
     alpha_a: float = 0.3
     #: optional L2 on the w channel (2026-09-21 pre-registration): 0 = off =
@@ -140,11 +175,12 @@ class TrainConfig:
     class_mean_prior: bool = False
     adv_input: str = "mu_z"             # "mu_z" | "xhat"
     #: the two context-collapse remedies (2026-09-23 pre-registration). Both
-    #: default off = every run before them, and then the objective is the
-    #: pinned one bit for bit.
+    #: off (w_warmup_epochs 0, w_free_bits 0) = every run before them, and
+    #: then the objective is the pinned one bit for bit.
     #: warm-up: alpha_w_eff(epoch) = alpha_w * min(1, epoch / N), the KL_w term
-    #: only, so the converged objective is unchanged. 0 = no warm-up.
-    w_warmup_epochs: int = 0
+    #: only, so the converged objective is unchanged. 0 = no warm-up; 30 = the
+    #: final configuration (author, 2026-09-24).
+    w_warmup_epochs: int = 30
     #: warm-up on BOTH KL terms (8.9b pre-registration, 2026-09-24): alpha_z
     #: and alpha_w each scaled by min(1, epoch / N) -- alpha_z on both copies
     #: of the z-divergence, the (1 + omega) factor unchanged. Adversary, recon
@@ -213,7 +249,8 @@ class TrainConfig:
             raise ValueError(
                 "--w-warmup-epochs and --kl-warmup-epochs are mutually "
                 f"exclusive (got {self.w_warmup_epochs} and "
-                f"{self.kl_warmup_epochs})")
+                f"{self.kl_warmup_epochs}; the w warm-up defaults to 30, so "
+                "--kl-warmup-epochs needs --w-warmup-epochs 0)")
         if self.kappa_mode not in KAPPA_MODES:
             raise ValueError(f"kappa_mode must be one of {KAPPA_MODES}, "
                              f"got {self.kappa_mode!r}")
@@ -255,6 +292,50 @@ class TrainConfig:
         return self.run_name or f"discell_k{self.kappa:g}_seed{self.seed}"
 
 
+def config_from_record(record: dict) -> TrainConfig:
+    """A stored config (best.pt's, or config.json without "git") back into a
+    TrainConfig: every field the record carries as recorded, and a field it
+    lacks at its pre-final default (PRE_FINAL_DEFAULTS), never today's."""
+    return TrainConfig(**{**PRE_FINAL_DEFAULTS, **record})
+
+
+def alpha_z_from_counts(data: ModelData) -> float:
+    """1/2 / mean total count of the connected training cells."""
+    rows = np.concatenate(data.train_tiles)
+    rows = rows[data.graph.degrees[rows] > 0]
+    return 0.5 / float(np.mean(data.totals[rows], dtype=np.float64))
+
+
+def resolve_alpha_z(dataset: str, data: ModelData | None) -> float:
+    """alpha_z for a config that leaves it None: the pinned value of
+    *dataset* when it has one (*data* is then not read), else the
+    data-derived 1/2 / mean count."""
+    if dataset in ALPHA_Z_PINNED:
+        return ALPHA_Z_PINNED[dataset]
+    return alpha_z_from_counts(data)
+
+
+def resolve_label_key(config: TrainConfig) -> TrainConfig:
+    """*config* with the label column its fit will use. Only "lineage" (the
+    default) is resolved: on a bundle without that column it falls back to
+    the bundle's uns['default_label'] (the loader's own default), with a
+    warning, so that config.json names the column actually used. Any other
+    key, and None, is returned unchanged."""
+    if config.label_key != "lineage":
+        return config
+    import h5py
+
+    bundle = paths.dataset(config.dataset).bundle_dir / f"{config.variant}.h5ad"
+    with h5py.File(bundle, "r") as f:
+        if config.label_key in f["obs"]:
+            return config
+        key = f["uns"]["default_label"][()] if "default_label" in f["uns"] else ""
+    key = (key.decode() if isinstance(key, bytes) else str(key)) or "cell_group"
+    log.warning("%s has no %r column: t falls back to the bundle's default "
+                "label %r", bundle, config.label_key, key)
+    return dataclasses.replace(config, label_key=key)
+
+
 class Trainer:
     """Owns one fit: tiles to device, steps, evaluation sweeps, the log."""
 
@@ -273,6 +354,17 @@ class Trainer:
         if config.figures_every % config.eval_every:
             raise ValueError("figures_every must be a multiple of eval_every, "
                              f"got {config.figures_every} / {config.eval_every}")
+
+        # alpha_z None = the final configuration's rule, resolved once here and
+        # recorded (config.json); a config that carries a float keeps it
+        if config.alpha_z is None:
+            config = dataclasses.replace(
+                config, alpha_z=resolve_alpha_z(config.dataset, data))
+            self.config = config
+            log.info("alpha_z = %g (%s; 1/2 / mean count of the connected "
+                     "training cells = %.4g)", config.alpha_z,
+                     "pinned" if config.dataset in ALPHA_Z_PINNED
+                     else "data-derived", alpha_z_from_counts(data))
 
         # review R12 depth/density forms: the cell areas (density) and the
         # amendment's normaliser mean_train(r), once, over the connected
@@ -1310,6 +1402,7 @@ def _git_state() -> str:
 
 
 def run(config: TrainConfig) -> dict:
+    config = resolve_label_key(config)
     data = assemble(config.dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
                     v_pcs=config.v_pcs, val_fraction=config.val_fraction,
@@ -1343,7 +1436,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--adv-head-width", dest="adv_hidden", type=int,
                         default=argparse.SUPPRESS, help="= --adv-hidden")
     parser.add_argument("--phi-pca", type=int, default=None)
-    parser.add_argument("--label-key", default=None)
+    parser.add_argument("--label-key", default=defaults.label_key,
+                        help="obs column for t (default lineage; a bundle "
+                             "without it falls back to its default label)")
     parser.add_argument("--w-penalty", default=defaults.w_penalty,
                         choices=("none", "w", "type_mean"))
     parser.add_argument("--no-second-kl", dest="second_kl", action="store_false",
@@ -1407,7 +1502,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S",
     )
     if time_only:
-        config = TrainConfig(**args)
+        config = resolve_label_key(TrainConfig(**args))
         data = assemble(config.dataset, config.variant, config.embeddings,
                         tile_cells=config.tile_cells, phi_pca=config.phi_pca,
                         v_pcs=config.v_pcs, val_fraction=config.val_fraction,

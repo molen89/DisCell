@@ -28,7 +28,7 @@ import numpy as np
 from discell import paths
 from discell.model import metrics as M
 from discell.model.prepare import assemble
-from discell.model.train import TrainConfig, Trainer
+from discell.model.train import Trainer, config_from_record
 
 log = logging.getLogger("discell.model.degeneracy")
 
@@ -138,7 +138,8 @@ def load_trainer(dataset: str, run: str, device: str):
     payload["config"].setdefault("gat_sources", "type_z")   # pre-field era
     payload["config"].setdefault("subtract_leak", False)
     payload["config"].setdefault("gat_sink", False)
-    config = dataclasses.replace(TrainConfig(**payload["config"]), device=device)
+    config = dataclasses.replace(config_from_record(payload["config"]),
+                                 device=device)
     data = assemble(dataset, config.variant, config.embeddings,
                     tile_cells=config.tile_cells, phi_pca=config.phi_pca,
                     v_pcs=config.v_pcs, val_fraction=config.val_fraction,

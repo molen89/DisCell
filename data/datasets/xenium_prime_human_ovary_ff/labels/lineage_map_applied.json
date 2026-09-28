@@ -1,0 +1,88 @@
+{
+  "dataset": "xenium_prime_human_ovary_ff",
+  "written_at": "2026-09-25T18:42:22",
+  "obs_key": "lineage",
+  "source_key": "graphclust",
+  "choices": {
+    "sox2ot": "unassigned",
+    "cyst": "mesothelial"
+  },
+  "applied_csv": "lineage_map_applied.csv",
+  "applied_csv_sha256": "52e2bb911bb987f9ae9d1e94733bcad8757f63e42db7118d1129ce6b4ba5aee3",
+  "inputs_sha256": {
+    "lineage_map_proposed.csv": "c2d695926d394f6d230cfc09f9625160169c286f09a891752ad6f5bd293ac183"
+  },
+  "categories": [
+    "Endothelial cells",
+    "Fibroblasts",
+    "Macrophages",
+    "Ovarian stroma",
+    "Pericytes",
+    "Plasma cells",
+    "Smooth muscle cells",
+    "T/NK cells",
+    "Tumour",
+    "Unassigned"
+  ],
+  "variants": [
+    "full"
+  ],
+  "counts_before": {
+    "full": {
+      "Cluster-1": 134245,
+      "Cluster-2": 103865,
+      "Cluster-3": 70910,
+      "Cluster-4": 70602,
+      "Cluster-5": 61677,
+      "Cluster-6": 59506,
+      "Cluster-7": 51996,
+      "Cluster-8": 49623,
+      "Cluster-9": 49247,
+      "Cluster-10": 45208,
+      "Cluster-11": 43995,
+      "Cluster-12": 35756,
+      "Cluster-13": 35522,
+      "Cluster-14": 34629,
+      "Cluster-15": 33443,
+      "Cluster-16": 26204,
+      "Cluster-17": 23515,
+      "Cluster-18": 22410,
+      "Cluster-19": 19714,
+      "Cluster-20": 19383,
+      "Cluster-21": 18850,
+      "Cluster-22": 18784,
+      "Cluster-23": 16246,
+      "Cluster-24": 16218,
+      "Cluster-25": 12999,
+      "Cluster-26": 12664,
+      "Cluster-27": 10222,
+      "Cluster-28": 9908,
+      "Cluster-29": 9535,
+      "Cluster-30": 9153,
+      "Cluster-31": 6645,
+      "Cluster-32": 6634,
+      "Cluster-33": 5793,
+      "Cluster-34": 4661,
+      "Cluster-35": 4624,
+      "Cluster-36": 2073,
+      "Cluster-37": 564,
+      "Cluster-38": 538,
+      "Unassigned": 76
+    }
+  },
+  "counts_after": {
+    "full": {
+      "Tumour": 552056,
+      "Macrophages": 168319,
+      "Ovarian stroma": 146662,
+      "Fibroblasts": 87518,
+      "T/NK cells": 86451,
+      "Unassigned": 49323,
+      "Plasma cells": 28139,
+      "Endothelial cells": 26742,
+      "Pericytes": 6634,
+      "Smooth muscle cells": 5793
+    }
+  },
+  "vocabulary_checked_against": null
+}

@@ -36,7 +36,7 @@ import numpy as np
 
 from discell import paths
 from discell.model.prepare import ModelData, assemble
-from discell.model.train import TrainConfig, Trainer
+from discell.model.train import TrainConfig, Trainer, resolve_label_key
 
 log = logging.getLogger("discell.model.calibrate")
 
@@ -100,16 +100,18 @@ def _short_fit(data: ModelData, base: TrainConfig, **overrides) -> dict:
 
 
 def run(args: argparse.Namespace) -> int:
-    data = assemble(args.dataset, args.variant, args.embeddings,
-                    tile_cells=args.tile_cells, seed=args.seed)
-    base = TrainConfig(
+    base = resolve_label_key(TrainConfig(
         dataset=args.dataset, variant=args.variant, embeddings=args.embeddings,
         kappa=args.kappa, epochs=args.epochs, eval_every=args.eval_every,
         figures_every=args.epochs * 2 // args.eval_every * args.eval_every
         or args.eval_every,                     # effectively off
         patience=10 * args.epochs, device=args.device, seed=args.seed,
         tile_cells=args.tile_cells,
-    )
+    ))
+    # the data carry the label column the config records
+    data = assemble(args.dataset, args.variant, args.embeddings,
+                    tile_cells=args.tile_cells, seed=args.seed,
+                    label_key=base.label_key)
 
     results: dict = {"alpha_a": {}, "phi_ablation": {}}
     started = time.time()

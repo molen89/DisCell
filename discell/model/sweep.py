@@ -36,7 +36,7 @@ import numpy as np
 from discell import paths
 from discell.model.degeneracy import W_GUARD_NICHES, w_channel_guard
 from discell.model.prepare import assemble
-from discell.model.train import TrainConfig, Trainer
+from discell.model.train import TrainConfig, Trainer, config_from_record
 
 log = logging.getLogger("discell.model.sweep")
 
@@ -267,7 +267,7 @@ def report(args: argparse.Namespace) -> dict:
                         subtract_leak=state["config"]["subtract_leak"],
                         gat_sink=state["config"]["gat_sink"]).to(device)
         model.load_state_dict(state["model"])
-        trainer = Trainer(TrainConfig(**state["config"]), data)
+        trainer = Trainer(config_from_record(state["config"]), data)
         trainer.model = model.eval()
         sweep_out = trainer._sweep(trainer.val_batches, want_log_p=True)
         val_rows = sweep_out["nodes"]

@@ -39,6 +39,9 @@ def small_fit(tmp_path_factory, monkeypatch_session=None):
         dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8, epochs=4, eval_every=2, figures_every=4,
         patience=100, device="cpu", alpha_z=0.007, alpha_w=0.1, alpha_a=0.3,
         v_pcs=4, invariance="closed_form",   # synthetic data carries no e_phi
+        # the pre-final value, explicit: a 4-epoch fit inside the default
+        # 30-epoch warm-up would never reach a checkpoint
+        w_warmup_epochs=0,
     )
     from discell import paths
 
@@ -247,6 +250,7 @@ def test_closing_evaluation_scores_the_accepted_checkpoint(tmp_path, monkeypatch
         dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8,
         epochs=8, eval_every=1, figures_every=1000, patience=2, device="cpu",
         alpha_z=0.007, alpha_w=0.1, alpha_a=0.3, v_pcs=4, invariance="closed_form",
+        w_warmup_epochs=0,          # the pre-final value: epoch 0 may be best
     )
     monkeypatch.setattr(paths, "dataset", lambda _: type("D", (), {"root": tmp_path})())
     trainer = Trainer(config, data)
@@ -284,3 +288,133 @@ def test_closing_evaluation_scores_the_accepted_checkpoint(tmp_path, monkeypatch
     stored = json.loads((trainer.run_dir / "metrics.json").read_text())
     assert stored["final_epoch"] == stored["best"]["epoch"]
     assert stored["last_epoch"] == summary["last_epoch"]
+
+
+# -- the final configuration as the code default (2026-09-28) ----------------
+
+#: every finalL_s0 run, and the fields in which the default TrainConfig is
+#: allowed to differ from it: the run's name, the reference budget (500/40,
+#: figures every 100 -- flags, like --epochs) and, on the GSE core, the data
+#: variant and tile size (data knobs, not model settings)
+FINAL_RUNS = {
+    "gse315411_pdltma06_11_prime_solo": {"variant": "pdl018d", "tile_cells": 2048},
+    "xenium_prime_ovarian_cancer_ffpe": {},
+    "xenium_prime_human_lung_cancer_ffpe": {},
+    "xenium_prime_human_ovary_ff": {},
+}
+BUDGET = {"run_name": "finalL_s0", "epochs": 500, "patience": 40,
+          "figures_every": 100}
+
+
+@pytest.mark.parametrize("dataset", sorted(FINAL_RUNS))
+def test_default_config_is_finalL_s0(dataset):
+    """TrainConfig() with alpha_z and the label column resolved as a fit
+    resolves them equals the dataset's finalL_s0 config.json in every field
+    but the name, the budget and (GSE) the data knobs."""
+    import dataclasses
+
+    from discell import paths
+    from discell.model.train import resolve_alpha_z, resolve_label_key
+
+    stored = paths.dataset(dataset).root / "runs" / "finalL_s0" / "config.json"
+    if not stored.exists():
+        pytest.skip(f"no {stored}")
+    final = json.loads(stored.read_text())
+    final.pop("git")
+    default = resolve_label_key(TrainConfig(dataset=dataset,
+                                            **FINAL_RUNS[dataset]))
+    default = dataclasses.replace(default,
+                                  alpha_z=resolve_alpha_z(dataset, None))
+    got = dataclasses.asdict(default)
+    assert set(got) == set(final)
+    differs = {k: final[k] for k in final if got[k] != final[k]}
+    assert differs == BUDGET
+
+
+def test_old_records_reload_at_the_pre_final_defaults():
+    """A stored config that predates a field ran at that field's old default:
+    config_from_record must fill in the old value, never today's."""
+    from discell.model.train import config_from_record
+
+    old = config_from_record({"dataset": "x", "kappa": 0.2})
+    assert (old.label_key, old.adv_comp_weight, old.w_warmup_epochs,
+            old.alpha_z) == (None, 1.0, 0, 0.007)
+    assert old.kappa == 0.2
+    # recorded values are taken as recorded, whatever the defaults
+    recorded = {"dataset": "x", "label_key": "lineage", "adv_comp_weight": 3.0,
+                "w_warmup_epochs": 30, "alpha_z": 0.0018}
+    assert config_from_record(recorded) == TrainConfig(**recorded)
+
+
+def test_alpha_z_none_is_resolved_at_setup_and_recorded(tmp_path, monkeypatch):
+    """alpha_z None: 1/2 / mean count of the connected training cells on a
+    dataset without a pinned value, the pinned value on one with it; the
+    float goes into config.json and the config round-trips."""
+    from discell import paths
+    from discell.model.train import ALPHA_Z_PINNED
+
+    monkeypatch.setattr(paths, "dataset",
+                        lambda _: type("D", (), {"root": tmp_path})())
+    data = _small_data()
+    rows = np.concatenate(data.train_tiles)
+    rows = rows[data.graph.degrees[rows] > 0]
+    planted = 0.5 / float(np.asarray(data.totals, dtype=np.float64)[rows].mean())
+    base = dict(kappa=0.1, d_z=6, d_w=2, hidden=32, gat_dim=8, epochs=1,
+                eval_every=1, figures_every=1000, patience=100, device="cpu",
+                v_pcs=4, invariance="closed_form")
+    trainer = Trainer(TrainConfig(dataset="synthetic-smoke", run_name="az",
+                                  **base), data)
+    assert trainer.config.alpha_z == pytest.approx(planted, rel=1e-12)
+    trainer.fit()
+    stored = json.loads((trainer.run_dir / "config.json").read_text())
+    assert stored["alpha_z"] == trainer.config.alpha_z
+    stored.pop("git")
+    assert TrainConfig(**stored) == trainer.config
+    # a pinned dataset takes its table value, not the counts
+    ovarian = "xenium_prime_ovarian_cancer_ffpe"
+    pinned = Trainer(TrainConfig(dataset=ovarian, run_name="az_pinned", **base),
+                     data)
+    assert pinned.config.alpha_z == ALPHA_Z_PINNED[ovarian] == 0.0035
+    # a float is used as given
+    given = Trainer(TrainConfig(dataset=ovarian, run_name="az_given",
+                                alpha_z=0.007, **base), data)
+    assert given.config.alpha_z == 0.007
+
+
+def test_label_key_falls_back_to_the_bundle_default_with_a_warning(
+        tmp_path, monkeypatch, caplog):
+    import dataclasses
+    import logging
+
+    import h5py
+
+    from discell import paths
+    from discell.model.train import resolve_label_key
+
+    monkeypatch.setattr(paths, "dataset",
+                        lambda _: type("D", (), {"bundle_dir": tmp_path})())
+
+    def bundle(columns, default_label):
+        with h5py.File(tmp_path / "full.h5ad", "w") as f:
+            obs = f.create_group("obs")
+            for column in columns:
+                obs.create_dataset(column, data=np.zeros(3))
+            uns = f.create_group("uns")
+            if default_label is not None:
+                uns.create_dataset("default_label", data=default_label)
+
+    config = TrainConfig(dataset="d")
+    assert config.label_key == "lineage"
+    bundle(["cell_group", "lineage"], "cell_group")
+    assert resolve_label_key(config) == config          # the column is there
+    bundle(["graphclust"], "graphclust")
+    with caplog.at_level(logging.WARNING, logger="discell.model.train"):
+        fallen = resolve_label_key(config)
+    assert fallen == dataclasses.replace(config, label_key="graphclust")
+    assert "falls back" in caplog.text
+    bundle(["cell_group"], None)                        # the loader's own default
+    assert resolve_label_key(config).label_key == "cell_group"
+    # any other key, and None, is left to the loader
+    for key in ("cell_group", "graphclust", None):
+        other = TrainConfig(dataset="d", label_key=key)
+        assert resolve_label_key(other) is other

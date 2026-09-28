@@ -14,6 +14,7 @@ The three categorical slots pass the palette validator with all pairs compared
 (worst CVD dE 9.2, worst normal-vision dE 24.0 on white).
 """
 import matplotlib as mpl
+import numpy as np
 
 TEXTWIDTH, COLWIDTH = 6.75, 3.25          # inches, from aistats2026.sty
 
@@ -68,3 +69,25 @@ def tissue_axes(ax):
         ax.invert_yaxis()
     for s in ax.spines.values():
         s.set_visible(False)
+
+
+# ---- the morphology composite shared by every figure that shows the image input
+#: named by the marker the image model reads each channel as; on the slide, channel 1 is an
+#: ATP1A1/CD45/E-cadherin mix and channel 3 an alphaSMA/vimentin mix (OME channel names).
+#: Additive, in channel order; no orange (the "contact" role).
+STAINS = [(r"DAPI", "#3987e5"), (r"ATP1A1", "#3ccf4e"), (r"18S", "#8a8984"), (r"$\alpha$SMA", "#f03a2e")]
+
+
+def stain_range(wide):
+    """Per-channel display range (1st, 99.6th percentile) from a wide window, so a
+    sparse stain is not stretched into noise by a crop-only range."""
+    flat = wide.reshape(-1, wide.shape[-1])
+    return np.percentile(flat, 1, axis=0), np.percentile(flat, 99.6, axis=0)
+
+
+def composite(img, lo, hi):
+    """Four-channel crop -> RGB, each channel scaled to [lo, hi] and tinted by STAINS."""
+    chan = np.clip((img - lo) / (hi - lo), 0, 1)
+    tint = np.array([[int(h[i:i + 2], 16) / 255.0 for i in (1, 3, 5)] for _, h in STAINS])
+    return np.clip(np.einsum("hwc,ck->hwk", chan, tint), 0, 1)
+

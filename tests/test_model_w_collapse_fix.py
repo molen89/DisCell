@@ -94,8 +94,8 @@ def test_free_bits_keep_the_gradient_on_the_charged_dimensions_only():
 # -- warm-up ----------------------------------------------------------------
 
 def test_warmup_off_is_the_constant_alpha_w_at_every_epoch():
-    config = TrainConfig(dataset="x", alpha_w=0.1)
-    assert config.w_warmup_epochs == 0
+    # off = the pre-final value, given explicitly (the default is now 30)
+    config = TrainConfig(dataset="x", alpha_w=0.1, w_warmup_epochs=0)
     for epoch in (0, 1, 15, 199):
         assert config.alpha_w_at(epoch) == config.alpha_w
         assert config.weights(epoch) == config.weights()
@@ -136,22 +136,25 @@ def test_warmup_scales_exactly_the_kl_w_term_and_nothing_else():
 # -- the wiring -------------------------------------------------------------
 
 def test_trainer_wiring_reaches_exactly_the_two_consumers():
-    base = TrainConfig(dataset="x")
-    assert (base.w_warmup_epochs, base.w_free_bits) == (0, 0.0)
+    # the pinned objective = the pre-final values, given explicitly
+    old = dict(alpha_z=0.007, w_warmup_epochs=0)
+    base = TrainConfig(dataset="x", **old)
+    assert base.w_free_bits == 0.0
     assert base.weights().w_free_bits == 0.0
 
-    fb = TrainConfig(dataset="x", w_free_bits=0.05)
+    fb = TrainConfig(dataset="x", w_free_bits=0.05, **old)
     assert fb.weights().w_free_bits == 0.05
     # free bits never touch the schedule
     assert fb.alpha_w_at(0) == fb.alpha_w
 
-    wu = TrainConfig(dataset="x", alpha_w=0.1, w_warmup_epochs=30)
+    wu = TrainConfig(dataset="x", alpha_w=0.1, alpha_z=0.007,
+                     w_warmup_epochs=30)
     # warm-up never touches Weights except through alpha_w
     assert wu.weights(0) == dc.replace(base.weights(), alpha_w=0.0)
     assert wu.weights(30) == base.weights()
 
-    both = TrainConfig(dataset="x", alpha_w=0.1, w_warmup_epochs=30,
-                       w_free_bits=0.05)
+    both = TrainConfig(dataset="x", alpha_w=0.1, alpha_z=0.007,
+                       w_warmup_epochs=30, w_free_bits=0.05)
     assert both.weights(15) == dc.replace(base.weights(), alpha_w=0.05,
                                           w_free_bits=0.05)
 
@@ -175,13 +178,16 @@ def test_both_flags_together_compose_multiplicatively_on_the_charged_kl():
 def test_the_cli_carries_both_flags_into_the_config():
     from discell.model.train import build_parser
 
+    # 0 (the pre-final value) is now the non-default warm-up to carry
     args = vars(build_parser().parse_args(
-        ["--dataset", "d", "--w-warmup-epochs", "30", "--w-free-bits", "0.05"]))
+        ["--dataset", "d", "--w-warmup-epochs", "0", "--w-free-bits", "0.05"]))
     args.pop("quiet")
+    args.pop("time_only")
     config = TrainConfig(**args)
-    assert config.w_warmup_epochs == 30 and config.w_free_bits == 0.05
+    assert config.w_warmup_epochs == 0 and config.w_free_bits == 0.05
     defaults = vars(build_parser().parse_args(["--dataset", "d"]))
     defaults.pop("quiet")
+    defaults.pop("time_only")
     assert TrainConfig(**defaults).weights() == TrainConfig(dataset="d").weights()
 
 
@@ -210,7 +216,8 @@ def _smoke_fit(tmp_path, **config_kw):
         v_block=v,
         vbar_t=np.stack([v[t == g].mean(axis=0) for g in range(k)]),
         train_tiles=tiles[:-1], val_tiles=tiles[-1:])
-    defaults = dict(epochs=6, eval_every=2, patience=100)
+    # w_warmup_epochs 0 = the pre-final value, explicit (the default is 30)
+    defaults = dict(epochs=6, eval_every=2, patience=100, w_warmup_epochs=0)
     defaults.update(config_kw)
     config = TrainConfig(
         dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2, hidden=32,
@@ -245,7 +252,7 @@ def test_a_real_fit_logs_the_warmed_up_alpha_w_and_records_both_flags(tmp_path):
     assert trainer.config.weights(1).alpha_w == 0.1 * 0.25
 
 
-def test_a_default_fit_logs_the_constant_alpha_w(tmp_path):
+def test_a_fit_at_the_old_flags_logs_the_constant_alpha_w(tmp_path):
     import json
 
     trainer = _smoke_fit(tmp_path)
@@ -348,7 +355,8 @@ def _pinned_weights(config):
 
 def test_kl_warmup_off_is_the_pinned_loss_bit_for_bit():
     fwd, x, t, _ = _tile()
-    config = TrainConfig(dataset="x", alpha_z=0.00035, alpha_w=0.1)
+    config = TrainConfig(dataset="x", alpha_z=0.00035, alpha_w=0.1,
+                         w_warmup_epochs=0)
     assert config.kl_warmup_epochs == 0 and config.warmup_epochs == 0
     pinned = discell_loss(fwd, x, t, weights=_pinned_weights(config)).loss
     for epoch in (0, 1, 15, 30, 199):
@@ -362,7 +370,7 @@ def test_kl_warmup_off_is_the_pinned_loss_bit_for_bit():
 def test_kl_warmup_schedule_at_zero_half_full_and_double_n_for_both_terms():
     n, az, aw = 30, 0.00035, 0.1
     config = TrainConfig(dataset="x", alpha_z=az, alpha_w=aw,
-                         kl_warmup_epochs=n)
+                         kl_warmup_epochs=n, w_warmup_epochs=0)
     assert config.warmup_epochs == n
     for alpha_at, target in ((config.alpha_z_at, az), (config.alpha_w_at, aw)):
         assert alpha_at(0) == 0.0
@@ -384,7 +392,8 @@ def test_kl_warmup_scales_exactly_the_two_kl_terms_and_nothing_else():
     fwd, x, t, _ = _tile()
     for omega in (1.0, 0.5):
         config = TrainConfig(dataset="x", omega=omega, alpha_z=0.05,
-                             alpha_w=0.3, alpha_a=0.3, kl_warmup_epochs=30)
+                             alpha_w=0.3, alpha_a=0.3, kl_warmup_epochs=30,
+                             w_warmup_epochs=0)
         # the Weights differ from the pinned ones in alpha_z and alpha_w only
         for epoch, f in ((0, 0.0), (15, 0.5), (30, 1.0), (60, 1.0)):
             assert config.weights(epoch) == dc.replace(
@@ -420,7 +429,8 @@ def test_kl_warmup_keeps_the_single_copy_under_the_second_kl_ablation():
     one copy and does not reintroduce the second."""
     fwd, x, t, _ = _tile()
     config = TrainConfig(dataset="x", alpha_z=0.05, alpha_w=0.3,
-                         second_kl=False, kl_warmup_epochs=30)
+                         second_kl=False, kl_warmup_epochs=30,
+                         w_warmup_epochs=0)
     full = discell_loss(fwd, x, t, weights=config.weights(30))
     half = discell_loss(fwd, x, t, weights=config.weights(15))
     planted = 0.5 * (config.alpha_z * full.kl_z + config.alpha_w * full.kl_w)
@@ -442,20 +452,26 @@ def test_kl_and_w_warmup_are_mutually_exclusive():
     # each alone is fine, and the w-only warm-up never touches alpha_z
     wu = TrainConfig(dataset="x", alpha_z=0.007, w_warmup_epochs=30)
     assert wu.alpha_z_at(0) == 0.007 and wu.weights(0).alpha_z == 0.007
-    assert TrainConfig(dataset="x", kl_warmup_epochs=30).warmup_epochs == 30
+    assert TrainConfig(dataset="x", kl_warmup_epochs=30,
+                       w_warmup_epochs=0).warmup_epochs == 30
+    # the w warm-up defaults to 30, so the KL warm-up alone is refused
+    with pytest.raises(ValueError, match="--w-warmup-epochs 0"):
+        TrainConfig(dataset="x", kl_warmup_epochs=30)
 
 
 def test_the_cli_carries_the_kl_warmup_flag_into_the_config():
     from discell.model.train import build_parser
 
     args = vars(build_parser().parse_args(
-        ["--dataset", "d", "--kl-warmup-epochs", "30"]))
+        ["--dataset", "d", "--kl-warmup-epochs", "30", "--w-warmup-epochs", "0"]))
     args.pop("quiet")
+    args.pop("time_only")
     config = TrainConfig(**args)
     assert config.kl_warmup_epochs == 30 and config.w_warmup_epochs == 0
     assert config.warmup_epochs == 30
     defaults = vars(build_parser().parse_args(["--dataset", "d"]))
     defaults.pop("quiet")
+    defaults.pop("time_only")
     assert TrainConfig(**defaults).kl_warmup_epochs == 0
 
 

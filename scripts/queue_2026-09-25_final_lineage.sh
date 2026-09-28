@@ -29,6 +29,16 @@
 # --label-key $LABEL_KEY. A preflight re-derives every arm's TrainConfig and
 # stops unless it differs from final_s0 only where the arm says it does.
 #
+# Since 2026-09-28 (devlog "Author's directions on the handover audit") these
+# model flags are the code defaults of discell.model.train.TrainConfig:
+# adv_comp_weight 3, w_warmup_epochs 30, label_key lineage, and alpha_z
+# resolved per dataset (train.ALPHA_Z_PINNED, the same four values as FLAGS
+# below), with kappa 0.1, d_w 6, alpha_w 0.1, alpha_a 0.3 and type_only as
+# before. What remains a flag: the budget (--epochs 500 --patience 40
+# --figures-every 100) and the GSE core's data knobs (--variant pdl018d
+# --tile-cells 2048). The explicit flags below are kept so this script runs
+# exactly as launched.
+#
 # Stages (every step logged to $ROOT/logs/<marker>.log; markers keyed by step
 # AND dataset AND run under $ROOT/done; a relaunch resumes):
 #  (a) apply_lineage on ovarian, GSE solo (+ the dual section, one

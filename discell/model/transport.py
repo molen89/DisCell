@@ -247,9 +247,29 @@ def top_gene_overlap(prediction: np.ndarray, observed: np.ndarray,
             "chance": float(k / len(observed))}
 
 
+def _tile_halves(rows_a: np.ndarray, rows_b: np.ndarray, tile_of: np.ndarray,
+                 rng: np.random.Generator, tries: int = 100):
+    """One tile split-half of a panel: a random half of the tiles its source
+    cells occupy (both niches together), every cell of a tile in the same
+    half on both sides. Redrawn while a niche would be empty in a half;
+    None when no draw within *tries* separates both niches (a niche inside
+    a single tile has no tile split at all)."""
+    tiles = np.unique(tile_of[np.concatenate([rows_a, rows_b])])
+    if min(len(np.unique(tile_of[rows])) for rows in (rows_a, rows_b)) < 2:
+        return None
+    for _ in range(tries):
+        first = rng.permutation(tiles)[:len(tiles) // 2]
+        masks = [np.isin(tile_of[rows], first) for rows in (rows_a, rows_b)]
+        if all(m.any() and not m.all() for m in masks):
+            return [[rows[m], rows[~m]]
+                    for rows, m in zip((rows_a, rows_b), masks)]
+    return None
+
+
 def noise_ceiling(x_rate, rows_a: np.ndarray, rows_b: np.ndarray,
                   keep: np.ndarray, rng: np.random.Generator,
-                  n_splits: int = N_SPLITS) -> float:
+                  n_splits: int = N_SPLITS, split: str = "cells",
+                  tile_of: np.ndarray | None = None) -> float:
     """The largest R² any predictor of this panel's observed shift can get.
 
     The observed shift is a noisy estimate: it is a difference of two
@@ -261,14 +281,34 @@ def noise_ceiling(x_rate, rows_a: np.ndarray, rows_b: np.ndarray,
     full-sample shift -- which is the ceiling of the R² the scorer
     reports. Half-sample rates are floored at ``MIN_RATE`` (the gene mask
     guarantees the full sample clears it), which can only push the
-    estimate down, so the number is a conservative ceiling."""
+    estimate down, so the number is a conservative ceiling.
+
+    *split* says what is halved. ``"cells"`` (the default, the published
+    read): random halves of each niche's cells, so every tile sits in both
+    halves and noise its cells share (spatial batch, local depth,
+    segmentation) correlates across them and counts as signal -- on
+    clustered slides the ceiling is inflated. ``"tiles"``: a random half of
+    the tiles the panel's cells occupy (*tile_of*: tile id per cell), whole
+    tiles in one half and the same cut on both niches, so a tile's noise
+    lands in one half only (devlog 2026-09-28 A; an added read beside the
+    default, never a replacement). NaN when the tiles cannot separate both
+    niches (see :func:`_tile_halves`)."""
+    if split not in ("cells", "tiles"):
+        raise ValueError(f"split must be 'cells' or 'tiles', not {split!r}")
+    if split == "tiles" and tile_of is None:
+        raise ValueError("split='tiles' needs tile_of (tile id per cell)")
     half_shifts = []
     for _ in range(n_splits):
-        halves = []
-        for rows in (rows_a, rows_b):
-            order = rng.permutation(len(rows))
-            halves.append([rows[order[:len(rows) // 2]],
-                           rows[order[len(rows) // 2:]]])
+        if split == "tiles":
+            halves = _tile_halves(rows_a, rows_b, tile_of, rng)
+            if halves is None:
+                return float("nan")
+        else:
+            halves = []
+            for rows in (rows_a, rows_b):
+                order = rng.permutation(len(rows))
+                halves.append([rows[order[:len(rows) // 2]],
+                               rows[order[len(rows) // 2:]]])
         for side in (0, 1):
             rate_a = np.asarray(x_rate[halves[0][side]].mean(axis=0)).ravel()
             rate_b = np.asarray(x_rate[halves[1][side]].mean(axis=0)).ravel()
@@ -377,6 +417,20 @@ def tier_summary(tier: list[dict]) -> dict:
         for p in tier))
     summary["selection_share"] = float(summary["full"]
                                        - summary["counterfactual"])
+    if all("ceiling_tiles" in p for p in tier):
+        # the tile-split ceiling (devlog 2026-09-28 A), added beside the
+        # cell-split keys: the same ratio of means, over the panels whose
+        # tiles could be split (all of them unless a niche sat in one tile)
+        tiled = [p for p in tier if np.isfinite(p["ceiling_tiles"])]
+        summary["n_panels_tiles"] = len(tiled)
+        summary["n_trusted_tiles"] = int(sum(p["trusted_tiles"]
+                                             for p in tier))
+        summary["ceiling_tiles"] = float(np.mean(
+            [p["ceiling_tiles"] for p in tiled])) if tiled else float("nan")
+        summary["fraction_of_ceiling_tiles"] = float(
+            np.mean([p["counterfactual"]["r2"] for p in tiled])
+            / summary["ceiling_tiles"]
+            ) if summary["ceiling_tiles"] >= 0.05 else float("nan")
     return summary
 
 
@@ -477,6 +531,12 @@ def transport_check(args: argparse.Namespace) -> dict:
     rng = np.random.default_rng(config.seed)
     held_out = latents["fold"] == 0            # spatial-block held-out tiles
     kappa = config.kappa
+    # the tile-split ceiling's own stream (the cell split's stays as it was)
+    # and the prepare tiles every fold is a union of (collect_latents)
+    rng_tiles = np.random.default_rng([config.seed, 1])
+    tile_of = np.full(data.graph.n_cells, -1, dtype=np.int64)
+    for k, tile in enumerate(data.train_tiles + data.val_tiles):
+        tile_of[tile] = k
 
     # model quantities are read from the TRAINING folds, per (niche, type);
     # the forward pass accumulates those group means directly (memory)
@@ -625,6 +685,18 @@ def transport_check(args: argparse.Namespace) -> dict:
                 panel["counterfactual_phi_fixed"]["r2"]
                 / panel["counterfactual"]["r2"]) if (
                     panel["counterfactual"]["r2"] > 1e-6) else float("nan")
+            # the same ceiling split by prepare tile, not by cell (devlog
+            # 2026-09-28 A): added beside the cell-split keys above, with
+            # the same trust rule and fraction; never replaces them
+            panel["ceiling_tiles"] = noise_ceiling(
+                x_rate, members["A"][1], members["B"][1], keep, rng_tiles,
+                split="tiles", tile_of=tile_of)
+            panel["trusted_tiles"] = bool(
+                panel["ceiling_tiles"] >= TRUST_CEILING
+                and panel["n_genes"] >= TRUST_GENES)
+            panel["fraction_of_ceiling_tiles"] = float(
+                panel["counterfactual"]["r2"] / panel["ceiling_tiles"]
+                ) if panel["ceiling_tiles"] >= 0.05 else float("nan")
             results["panels"].append(panel)
             curves[(niche_a, niche_b, g)] = (
                 (program + leak_only)[keep], observed)
@@ -677,6 +749,11 @@ def transport_check(args: argparse.Namespace) -> dict:
     for tier_name in ("supported", "extrapolation"):
         tiers[f"{tier_name}_trusted"] = [p for p in tiers[tier_name]
                                          if p["trusted"]]
+    # ... and the panels trusted under the tile-split ceiling (added tiers;
+    # their headline is fraction_of_ceiling_tiles)
+    for tier_name in ("supported", "extrapolation"):
+        tiers[f"{tier_name}_trusted_tiles"] = [p for p in tiers[tier_name]
+                                               if p["trusted_tiles"]]
     for name, tier in tiers.items():
         if not tier:
             continue
@@ -697,6 +774,10 @@ def transport_check(args: argparse.Namespace) -> dict:
                  name, summary["noise_ceiling"], summary["n_trusted"],
                  summary["n_panels"],
                  100 * summary["counterfactual_of_ceiling"])
+        log.info("transport [%s]: tile-split ceiling %.3f (%d/%d panels "
+                 "trusted) -> %.0f%% of it", name, summary["ceiling_tiles"],
+                 summary["n_trusted_tiles"], summary["n_panels"],
+                 100 * summary["fraction_of_ceiling_tiles"])
 
     summary_figure(results, out_dir / f"{stem}_summary.png")
     (out_dir / f"{stem}.json").write_text(

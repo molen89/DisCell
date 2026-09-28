@@ -35,7 +35,7 @@ import scipy.sparse as sp
 from discell import paths
 from discell.model.labels import is_endothelial, is_smooth_muscle, is_tumour
 from discell.model.prepare import ModelData, assemble
-from discell.model.train import TrainConfig, Trainer
+from discell.model.train import Trainer, config_from_record
 
 log = logging.getLogger("discell.model.validate")
 
@@ -76,7 +76,8 @@ def load_run(dataset: str, run: str, device: str = "cuda",
     payload["config"].setdefault("class_mean_prior", False)
     payload["config"].setdefault("query", "type")
     payload["config"].setdefault("prior_type_free", False)
-    config = TrainConfig(**payload["config"])
+    # a field the record lacks takes its pre-final default, not today's
+    config = config_from_record(payload["config"])
     if data is None:
         data = assemble(dataset, config.variant, config.embeddings,
                         tile_cells=config.tile_cells, phi_pca=config.phi_pca,
@@ -1120,10 +1121,11 @@ def sweep_companion(args: argparse.Namespace) -> None:
     def series(picker):
         by_kappa: dict = {}
         for row in rows:
-            try:
-                by_kappa.setdefault(row["kappa"], []).append(picker(row))
+            try:   # pick before setdefault: a read not run leaves no empty list
+                kappa, value = row["kappa"], picker(row)
             except (KeyError, TypeError):
                 continue
+            by_kappa.setdefault(kappa, []).append(value)
         return by_kappa
 
     panels = {
@@ -1145,8 +1147,12 @@ def sweep_companion(args: argparse.Namespace) -> None:
             ("Moran mean |I| (z)", "Moran mean |I| (w)"),
             ("niche AUC (z)", "niche AUC (w)"),
             ("mid-band R² (z)", "mid-band R² (w)")]):
+        drawn = False
         for title, colour in ((title_z, "#3b6fb6"), (title_w, "#c9662a")):
             data_k = panels[title]
+            if not data_k:   # e.g. landmarks not in --analyses
+                continue
+            drawn = True
             kappas = sorted(data_k)
             mean = [float(np.mean(data_k[k])) for k in kappas]
             lo = [float(np.min(data_k[k])) for k in kappas]
@@ -1156,7 +1162,11 @@ def sweep_companion(args: argparse.Namespace) -> None:
             ax.fill_between(kappas, lo, hi, color=colour, alpha=0.2)
         ax.set_xlabel("kappa")
         ax.set_title(title_z.split(" (")[0], fontsize=9)
-        ax.legend(fontsize=7)
+        if drawn:
+            ax.legend(fontsize=7)
+        else:
+            ax.text(0.5, 0.5, "not read", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=8)
     fig.suptitle("allegiance vs kappa (seed envelopes)", fontsize=10)
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     out = paths.dataset(args.dataset).root / "experiments"

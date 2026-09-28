@@ -26,7 +26,7 @@ import numpy as np
 from discell import paths
 from discell.model.metrics import principal_curve
 from discell.model.prepare import assemble
-from discell.model.train import TrainConfig, Trainer
+from discell.model.train import TrainConfig, Trainer, config_from_record
 
 log = logging.getLogger("discell.model.report")
 
@@ -263,7 +263,7 @@ def build(args: argparse.Namespace) -> Path:
     payload["config"].setdefault("gat_sources", "type_z")   # pre-field era
     payload["config"].setdefault("subtract_leak", False)
     payload["config"].setdefault("gat_sink", False)
-    config = TrainConfig(**payload["config"])
+    config = config_from_record(payload["config"])
     run_meta = json.loads((run_dir / "config.json").read_text())
 
     images, scalars = extract_tensorboard(run_dir, fig_dir)
@@ -544,6 +544,12 @@ def transport_table(summaries: dict) -> str:
               ("noise_ceiling", "noise ceiling of the observed shift", "{:.3f}"),
               ("counterfactual_of_ceiling", "**share of the ceiling taken"
                " (the headline)**", "{:.2f}"),
+              # devlog 2026-09-28 A: the ceiling split by tile, beside it
+              ("n_trusted_tiles", "of which trusted under the tile-split"
+               " ceiling", "{:.0f}"),
+              ("ceiling_tiles", "tile-split noise ceiling", "{:.3f}"),
+              ("fraction_of_ceiling_tiles", "share of the tile-split ceiling"
+               " taken", "{:.2f}"),
               ("top_gene_overlap", "top-50 predicted-up genes in the observed"
                " top 50 (fraction)", "{:.2f}"),
               ("top_gene_chance", "... chance level for that overlap (50/G)",

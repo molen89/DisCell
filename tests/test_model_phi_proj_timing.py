@@ -75,7 +75,10 @@ def _config(**kw) -> TrainConfig:
     return TrainConfig(dataset="synthetic-smoke", kappa=0.1, d_z=6, d_w=2,
                        hidden=32, gat_dim=8, epochs=4, eval_every=2,
                        figures_every=4, patience=100, device="cpu", v_pcs=4,
-                       invariance="closed_form", **kw)
+                       invariance="closed_form",
+                       # the pre-final value: a 4-epoch fit inside the default
+                       # 30-epoch warm-up would never reach a checkpoint
+                       w_warmup_epochs=0, **kw)
 
 
 def test_time_only_trains_without_evaluating_and_times_one_evaluation(run_root):

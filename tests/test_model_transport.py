@@ -525,3 +525,161 @@ def test_collect_own_p_returns_the_cells_own_decode_in_the_wanted_order():
     # the first round used (the two seeds see different neighbourhoods)
     assert np.allclose(both.sum(axis=1), 1.0, atol=1e-5)
     assert not np.allclose(both[0], both[1], atol=1e-6)
+
+
+# -- the tile-split noise ceiling (devlog 2026-09-28 A) ----------------------
+
+
+def _noise_ceiling_before(x_rate, rows_a, rows_b, keep, rng, n_splits=4):
+    """``noise_ceiling`` verbatim as published before the ``split`` option:
+    the default must reproduce it bit for bit."""
+    half_shifts = []
+    for _ in range(n_splits):
+        halves = []
+        for rows in (rows_a, rows_b):
+            order = rng.permutation(len(rows))
+            halves.append([rows[order[:len(rows) // 2]],
+                           rows[order[len(rows) // 2:]]])
+        for side in (0, 1):
+            rate_a = np.asarray(x_rate[halves[0][side]].mean(axis=0)).ravel()
+            rate_b = np.asarray(x_rate[halves[1][side]].mean(axis=0)).ravel()
+            half_shifts.append(
+                np.log(np.maximum(rate_b[keep], 1e-5))
+                - np.log(np.maximum(rate_a[keep], 1e-5)))
+    corrs = [float(np.corrcoef(half_shifts[2 * i], half_shifts[2 * i + 1])[0, 1])
+             for i in range(n_splits)]
+    r = float(np.mean(corrs))
+    return float(2 * r / (1 + r)) if r > 0 else 0.0
+
+
+def _clustered_panel(seed: int, sd_tile: float, n_genes: int = 2000,
+                     n_tiles: int = 20, per_tile: int = 20):
+    """One planted panel on a clustered slide: niche A's cells in tiles
+    0..n-1, niche B's in n..2n-1; every tile carries a per-gene log-scale
+    offset (sd *sd_tile*) shared by all its cells, on top of per-cell noise.
+    The prediction is the true shift plus independent error, so its R²
+    against the noiseless shift is known (~0.75)."""
+    rng = np.random.default_rng(seed)
+    base = np.log(rng.uniform(1e-3, 1e-2, n_genes))
+    shift = rng.normal(0.0, 0.3, n_genes)
+    prediction = shift + rng.normal(0.0, 0.15, n_genes)
+    tile_of = np.repeat(np.arange(2 * n_tiles), per_tile)
+    in_b = tile_of >= n_tiles
+    log_rate = (base + shift * in_b[:, None]
+                + rng.normal(0.0, sd_tile, (2 * n_tiles, n_genes))[tile_of]
+                + rng.normal(0.0, 1.5, (len(tile_of), n_genes)))
+    x_rate = sp.csr_matrix(np.exp(log_rate))
+    rows_a, rows_b = np.flatnonzero(~in_b), np.flatnonzero(in_b)
+    observed = (np.log(np.asarray(x_rate[rows_b].mean(axis=0)).ravel())
+                - np.log(np.asarray(x_rate[rows_a].mean(axis=0)).ravel()))
+    keep = np.ones(n_genes, dtype=bool)
+    return {"r2": score_shift(prediction, observed)["r2"],
+            "noiseless_r2": score_shift(prediction, shift)["r2"],
+            "cells": noise_ceiling(x_rate, rows_a, rows_b, keep,
+                                   np.random.default_rng(seed)),
+            "tiles": noise_ceiling(x_rate, rows_a, rows_b, keep,
+                                   np.random.default_rng([seed, 1]),
+                                   split="tiles", tile_of=tile_of)}
+
+
+def _planted_slide(sd_tile: float, n_panels: int = 6) -> dict:
+    """Fraction of ceiling as ``tier_summary`` forms it (mean R² over the
+    panels / their mean ceiling) under both splits, beside the panels' mean
+    noiseless R²."""
+    panels = [_clustered_panel(p, sd_tile) for p in range(n_panels)]
+    r2 = np.mean([p["r2"] for p in panels])
+    return {"noiseless_r2": float(np.mean([p["noiseless_r2"] for p in panels])),
+            "fraction_cells": float(r2 / np.mean([p["cells"] for p in panels])),
+            "fraction_tiles": float(r2 / np.mean([p["tiles"] for p in panels])),
+            "ceiling_cells": float(np.mean([p["cells"] for p in panels])),
+            "ceiling_tiles": float(np.mean([p["tiles"] for p in panels]))}
+
+
+def test_tile_split_ceiling_recovers_the_noiseless_r2_under_shared_tile_noise():
+    """Planted: niches in separate tiles, each tile adding a shared per-gene
+    offset (sd 0.5). A random cell split puts every tile in both halves, so
+    the offsets correlate across them and count as signal: the ceiling is
+    inflated and the fraction of ceiling falls well below the prediction's
+    noiseless R². The tile split puts each tile in one half and recovers it
+    (30 planted slides: |tile - noiseless| <= 0.037, |cell - noiseless|
+    >= 0.17)."""
+    slide = _planted_slide(sd_tile=0.5)
+    print("tile noise:", {k: round(v, 4) for k, v in slide.items()})
+    assert slide["ceiling_cells"] > slide["ceiling_tiles"] + 0.1
+    assert abs(slide["fraction_tiles"] - slide["noiseless_r2"]) <= 0.05
+    assert abs(slide["fraction_cells"] - slide["noiseless_r2"]) > 0.05
+
+
+def test_tile_and_cell_split_agree_without_tile_noise():
+    """Planted: the same slide with no tile offset -- cells within a tile are
+    independent, so both splits measure the same noise and give the same
+    fraction of ceiling (30 planted slides: |tile - cell| <= 0.007)."""
+    slide = _planted_slide(sd_tile=0.0)
+    print("no tile noise:", {k: round(v, 4) for k, v in slide.items()})
+    assert abs(slide["fraction_tiles"] - slide["fraction_cells"]) <= 0.02
+
+
+def test_default_noise_ceiling_is_bit_identical_to_the_published_read():
+    rng = np.random.default_rng(3)
+    n_genes = 300
+    dense = rng.lognormal(-6, 1.0, (700, n_genes))
+    dense[400:] *= np.exp(rng.normal(0, 0.4, n_genes))
+    x_rate = sp.csr_matrix(dense)
+    rows_a, rows_b = np.arange(400), np.arange(400, 700)
+    keep = rng.random(n_genes) > 0.1
+    for seed in range(5):
+        before = _noise_ceiling_before(x_rate, rows_a, rows_b, keep,
+                                       np.random.default_rng(seed))
+        assert noise_ceiling(x_rate, rows_a, rows_b, keep,
+                             np.random.default_rng(seed)) == before
+        assert noise_ceiling(x_rate, rows_a, rows_b, keep,
+                             np.random.default_rng(seed), split="cells",
+                             tile_of=np.arange(700) // 50) == before
+
+
+def test_tile_split_keeps_whole_tiles_in_one_half_on_both_niches():
+    from discell.model.transport import _tile_halves
+
+    # tiles hold cells of both niches, as real prepare tiles do
+    tile_of = np.repeat(np.arange(10), 30)
+    rows_a = np.flatnonzero(np.arange(300) % 3 == 0)
+    rows_b = np.flatnonzero(np.arange(300) % 3 != 0)
+    for seed in range(20):
+        halves = _tile_halves(rows_a, rows_b, tile_of,
+                              np.random.default_rng(seed))
+        first = set(tile_of[halves[0][0]])
+        assert set(tile_of[halves[1][0]]) == first          # same cut on B
+        assert not first & set(tile_of[halves[0][1]])        # whole tiles
+        assert not first & set(tile_of[halves[1][1]])
+        assert len(first) == 5
+    # a niche inside one tile cannot be split by tile: no tile ceiling
+    lonely = np.flatnonzero(tile_of == 0)
+    x_rate = sp.csr_matrix(np.random.default_rng(0).lognormal(-6, 1, (300, 50)))
+    assert np.isnan(noise_ceiling(x_rate, lonely, rows_b, np.ones(50, bool),
+                                  np.random.default_rng(0), split="tiles",
+                                  tile_of=tile_of))
+
+
+def test_tier_summary_adds_the_tile_split_keys_beside_the_cell_split_ones():
+    def panel(cf, ceiling, ceiling_tiles):
+        return {"counterfactual": {"r2": cf, "slope": 1.0},
+                "counterfactual_phi_fixed": {"r2": cf, "slope": 1.0},
+                "program_only": {"r2": 0.0}, "leak_only": {"r2": 0.0},
+                "program_phi_fixed": {"r2": 0.0}, "full": {"r2": cf},
+                "noise_ceiling": ceiling, "trusted": ceiling >= 0.5,
+                "ceiling_tiles": ceiling_tiles,
+                "trusted_tiles": bool(ceiling_tiles >= 0.5)}
+
+    tier = [panel(0.3, 0.9, 0.6), panel(0.1, 0.5, 0.2),
+            panel(0.2, 0.4, float("nan"))]          # a niche in one tile
+    s = tier_summary(tier)
+    # the cell-split keys are untouched
+    assert s["n_trusted"] == 2
+    assert abs(s["counterfactual_of_ceiling"] - 0.2 / 0.6) < 1e-12
+    # the tile keys: ratio of means over the panels with a tile ceiling
+    assert s["n_panels_tiles"] == 2 and s["n_trusted_tiles"] == 1
+    assert abs(s["ceiling_tiles"] - 0.4) < 1e-12
+    assert abs(s["fraction_of_ceiling_tiles"] - 0.2 / 0.4) < 1e-12
+    # panels from before the tile read carry no tile keys, and get none
+    old = [{k: v for k, v in p.items() if "tiles" not in k} for p in tier]
+    assert "fraction_of_ceiling_tiles" not in tier_summary(old)

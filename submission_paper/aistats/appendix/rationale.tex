@@ -37,7 +37,7 @@ Delaunay adjacency resolves it: two cells are neighbours if and only if their Vo
 
 \begin{table}[t]
 \centering
-\caption{Segmented-polygon contact as a leakage kernel, against the Voronoi-face kernel $\beta$, on every section and on the model's edge set (Delaunay adjacency pruned at $40\um$). Both kernels use the same distance decay $\exp(-d_{ij}/\tau)$ and the same row normalisation. The contact kernel weights an edge by the length of membrane along which the two segmented polygons run within $1\um$ of each other; $\beta$ weights it by the Voronoi face. \emph{Touching}: adjacent pairs whose polygons are at zero distance. \emph{No-leak cells}: connected cells whose kernel row is all zero, so that they receive no leakage at any $\kappa$; \emph{sparse} and \emph{dense} are the lowest and highest fifth of cells by the number of centroids within $20\um$. $\rho$: Spearman correlation, over edges, between a neighbour's share of the row and the gap between the two polygons. The Voronoi kernel has no zero-weight edges and no no-leak cells on any section. Its dependence on the gap is that of the distance decay alone (shares from the decay alone: $\rho$ between $-0.49$ and $-0.62$).}
+\caption{Segmented-polygon contact as a leakage kernel, against the Voronoi-face kernel $\beta$, on every section and on the model's edge set (Delaunay adjacency pruned at $40\um$). Both kernels use the same distance decay $\exp(-d_{ij}/\tau)$ and the same row normalisation. The contact kernel weights an edge by the length of membrane along which the two segmented polygons run within $1\um$ of each other; $\beta$ weights it by the Voronoi face. FF: fresh frozen. \emph{Touching}: adjacent pairs whose polygons are at zero distance. \emph{No-leak cells}: connected cells whose kernel row is all zero, so that they receive no leakage at any $\kappa$; \emph{sparse} and \emph{dense} are the lowest and highest fifth of cells by the number of centroids within $20\um$. $\rho$: Spearman correlation, over edges, between a neighbour's share of the row and the gap between the two polygons. The Voronoi kernel has no zero-weight edges and no no-leak cells on any section. Its dependence on the gap is that of the distance decay alone (shares from the decay alone: $\rho$ between $-0.49$ and $-0.62$).}
 \label{tab:contact}
 \small
 \setlength{\tabcolsep}{3.5pt}
@@ -49,7 +49,7 @@ Section & interior & boundary & nucleus & touching & no contact & all & sparse &
 \midrule
 Ovarian cancer (FFPE) & 69 & 29 & 2.0 & 3.5 & 47 & 9.8 & 33.6 & 0.6 & $-0.82$ & $-0.48$ \\
 Lung cancer (FFPE) & 82 & 16 & 2.2 & 2.7 & 57 & 11.1 & 27.4 & 0.7 & $-0.84$ & $-0.55$ \\
-Ovarian cancer (fresh frozen) & 70 & 28 & 2.5 & 6.7 & 38 & 3.2 & 10.6 & 0.1 & $-0.80$ & $-0.52$ \\
+Ovarian cancer (FF) & 70 & 28 & 2.5 & 6.7 & 38 & 3.2 & 10.6 & 0.1 & $-0.80$ & $-0.52$ \\
 Lung TMA, section A & 87 & 12 & 1.0 & 2.2 & 47 & 6.3 & 24.8 & 0.1 & $-0.84$ & $-0.54$ \\
 Lung TMA, section B & 87 & 12 & 1.2 & 2.2 & 47 & 6.2 & 24.6 & 0.1 & $-0.84$ & $-0.53$ \\
 \bottomrule
@@ -72,6 +72,45 @@ One consequence of the softmax over a Delaunay neighbourhood should be stated. W
 with $\mathbf{e}_k$ the $k$-th unit vector: a learned, type-specific reweighting of the neighbour composition in which the degree cancels. The context therefore depends on the fractions $\vy_i$, not on the counts. It distinguishes one tumour neighbour among six from five among six, but not a neighbourhood from the same neighbourhood with every type count scaled up together; in particular a single-type neighbourhood gives the same context whatever its size. On this tessellation the degree is nearly constant across the section, so a fraction determines a count and the blindness costs little. An attention sink, a fixed null logit that joins every softmax and restores a saturating dependence on the count, is implemented and was tested over three seeds. It learned no dose response, placing its half-point below a single neighbour, did not improve the held-out transport of the response, and in two of the seeds made the prior mean read the context less faithfully. It is therefore left off. It would become meaningful only on a graph whose degree varies, where the invariance target would have to grow with it.
 
 The fallback is empirical. If $\mpsi$ predicts responses poorly, or held-out reconstruction is worse than a comparison run whose attention layer carries edge features (distance, face length), that is direct evidence that the continuous signal mattered. If it is added back, the correlation between $\att_{ij}$ and $\beta_{ij}$ must be monitored: a high correlation means the attention has rediscovered the leakage kernel and $\vw$ is becoming collinear with $\rhobar$. That risk is tolerable while $\kappa$ is fixed, since there is no free contamination parameter to feed, and intolerable once $\kappa$ is estimated. \pending{the edge-feature comparison run has not been performed}
+
+\subsection{The Image Descriptor and Its Mask}
+\label{app:image}
+
+The image descriptor $\vPhi_i$ is the embedding of a $128\um$ field around the cell ($256$ pixels at $0.5\um$ per pixel) in the section's four morphology channels (\cref{fig:overview}b), by KRONOS, a frozen foundation model for multiplexed tissue images \citep{kronos2025}: its first release, a ViT-S/16 with a $384$-dimensional embedding. The channels map onto the model's marker vocabulary only approximately: the membrane and $\alpha$SMA channels are antibody mixes read as their named component, and 18S RNA lies outside the vocabulary and is given an unused marker identity. The cell is removed by setting a disc around it to zero, not its own polygon: a polygon-shaped hole would keep the cell's outline, the most type-informative feature of all. The disc is centred on the crop anchor and has one radius for every cell, so the hole carries no information about the cell it removes, and it is filled with zeros, a constant artefact that the image model encodes identically for every cell. Its radius is the smallest that covers essentially every cell (\cref{fig:mask-radius}). A cell's covering radius, the radius of the smallest disc centred on its anchor that contains its polygon, has a long tail of elongated smooth-muscle cells; a $25\um$ disc leaves six cells of the primary section outside it and masks $12\%$ of the field. Those six cells were left out of the comparison below, and in the model their image descriptor is set to zero. A cell that sticks out of the disc would leak the identity the disc exists to remove, so partial coverage is not an option. At this density the disc also removes the cell's first ring or two, so $\vPhi_i$ describes the tissue beyond roughly $25\um$.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_mask_radius}
+\caption{Why the mask is a $25\um$ disc, on the primary section. \textbf{a},~The number of cells that would stick out of a disc of radius $R$ centred on the crop anchor, from each cell's covering radius; the table gives the radii considered, the cells left outside, and the share of the $128\um$ field each disc masks. The last row is the largest cell on the section. \textbf{b},~The largest cell that fits the chosen disc and \textbf{c},~the largest cell on the section, which does not, both drawn as the image model receives them: four channels, disc set to zero, with the cell's outline for reference. Both are elongated smooth-muscle cells.}
+\label{fig:mask-radius}
+\end{figure}
+
+\Cref{tab:masking} shows what each mask leaves in the embedding, read by a multinomial logistic regression that predicts the cell's lineage label from it. The split is spatial, in tiles with a margin, because the fields of neighbouring cells overlap almost completely and a random split would put the same pixels on both sides. Three readings follow. The cell alone carries more type information than the whole patch: the surrounding tissue dilutes it rather than adding to it. Removing the cell costs little, because the patch embedding is dominated by its surroundings (\cref{fig:kronos-umap}a,~b). And the masked patch predicts the label less well than the neighbours' labels alone, so what it knows about the cell is what type-homogeneous neighbourhoods imply, which is what a descriptor of the niche should carry. On the masked patch the first release does at least as well as its successor KRONOS2 (a ViT-B/16 with a $768$-dimensional embedding, from the same authors); KRONOS2 is better only on the cell alone, where the model deliberately does not look. We therefore use the first release: its embedding is half as wide ($384$ against $768$ dimensions), which keeps the image part of the context descriptor small, and it embeds cells about five times faster.
+
+\begin{table}[t]
+\centering
+\caption{What each mask leaves in the image embedding, on the primary section: macro one-versus-rest AUC of a multinomial logistic regression predicting the cell's lineage label (the labels the model is fitted with; 11 classes, Unassigned cells excluded as targets but counted as neighbours) from the embedding, on a spatial split ($1\,$mm tiles, cells within half a field of a tile edge dropped; $40{,}000$ training and about $74{,}000$ test cells), for the two releases of the image model, KRONOS and KRONOS2 \citep{kronos2025}. The first row predicts the label from the neighbours' labels alone, with no image. The model uses KRONOS with the disc zeroed (bold).}
+\label{tab:masking}
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Input to the classifier & KRONOS & KRONOS2 \\
+\midrule
+Neighbours' labels, no image & \multicolumn{2}{c}{$0.918$} \\
+Whole patch & $0.881$ & $0.878$ \\
+Disc over the cell zeroed & $\mathbf{0.857}$ & $0.846$ \\
+The cell alone & $0.905$ & $0.919$ \\
+The cell alone, native resolution & $0.923$ & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_kronos_umap}
+\caption{The KRONOS embedding (first release, the one the model uses) under three masks, as UMAPs of the same $60{,}000$ cells of the primary section (principal components, then UMAP). \textbf{a},~The whole $128\um$ patch. \textbf{b},~The disc over the cell zeroed, the descriptor $\vPhi_i$ the model uses; it differs little from~a, because the patch is dominated by the surrounding tissue. \textbf{c},~Everything outside the cell's polygon zeroed, what the cell alone carries. Colour is the section's lineage label, the one the model is fitted with, with the smaller lineages grouped for display. Unassigned includes a low-depth class of mixed lineage that the section's original annotation had called a tumour subtype.}
+\label{fig:kronos-umap}
+\end{figure}
 
 \subsection{Three Routes to a Vanishing Response Divergence}
 \label{app:qw}
@@ -99,6 +138,24 @@ The marginal-invariance failure is documented by \citet{slavutsky2025} for the c
 The grid range comes from three sources: zero as anchor; published misassignment estimates for this platform \needsource; and a marker-set ceiling. For an atlas-defined set $\mathcal{M}$ of genes that a cell of type $t_i$ should not express, and an empirical neighbour profile $\tilde{\vrho}_i$ obtained by averaging the observed compositions of $i$'s neighbours with the kernel $\beta$, the ratio $\sum_{g \in \mathcal{M}} x_{ig} / (\ell_i \sum_{g \in \mathcal{M}} \tilde\rho_{ig})$ bounds the leak fraction from above. The set must be defined externally: ranking genes by their neighbour-to-own expression ratio from the same counts selects the zero-count genes and drives the bound to zero with probability one. \pending{compute the marker-set ceiling on both sections}
 
 This version of the model sweeps $\kappa$; it cannot estimate it. Assigning transcripts to cells by position does not settle it either: counts of transcripts that lie nearer a neighbour's nucleus than the cell's own are dominated by segmentation geometry, since a large cell beside small ones counts its own far-side transcripts as foreign, so such counts bound leakage from above but do not identify how it scales with the depth of the receiving or the donating cell. Estimation needs two views of one cell that share a foreign profile at different contamination levels, which a nuclear/extranuclear split of the transcript coordinates provides. Its identifying condition is that gene-wise nuclear retention varies across genes, which is also a reason to expect the gene-specific leakage that the main model does not represent (\cref{sec:generative}), and which a two-view likelihood would be the natural place to model; with constant retention both views lie on the same line between $\vrho_i$ and $\rhobar_i$ and nothing is pinned. Adding it does not restructure the model: the likelihood becomes a multinomial over $2G$ bins and $\kappa$ moves from hyperparameter to latent. We leave it as future work.
+
+Given the neighbours' clean compositions, a leak fraction $\kappa$ implies the clean composition $\vrho_i(\kappa) = (\vp_i - \kappa\rhobar_i)/(1-\kappa)$ for a cell whose composition is $\vp_i$ (\cref{fig:kappa-bound}). Lowering $\kappa$ below its true value mixes $\rhobar_i$ back in and always gives a valid composition; raising it subtracts $\rhobar_i$ and stops being valid at $\bar\kappa_i = \min_g p_{ig}/\bar\rho_{ig}$, where some gene's share reaches zero. At the level of compositions, before the decoder's form enters, the data therefore bound $\kappa$ from above and never from below, and they pin it only through a gene the cell cannot express itself, which is what the marker-set ceiling above and a nuclear/extranuclear split would supply. With counts in place of compositions the bound is soft: a $\kappa$ above it charges each cell for neighbour transcripts it does not show.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_kappa_bound}
+\caption{What the data say about $\kappa$, on the simplex of three genes; schematic, with compositions chosen for legibility. With the neighbours' influx $\rhobar_i$ held fixed, each $\kappa$ implies the clean composition $\vrho_i(\kappa) = (\vp_i - \kappa\rhobar_i)/(1-\kappa)$: a line that starts at the observed composition $\vp_i$ ($\kappa = 0$) and runs away from $\rhobar_i$ (arrow). It is valid until it leaves the simplex at $\bar\kappa_i$ (diamond) and invalid beyond (dashed). \textbf{a},~A cell that expresses a little of the neighbours' marker itself: every $\kappa \in [0, \bar\kappa_i]$ reproduces $\vp_i$ exactly, and the true value lies inside. \textbf{b},~A cell that cannot express the marker: its true composition lies on the edge, the line leaves the simplex exactly there, and $\bar\kappa_i$ is the true $\kappa$.}
+\label{fig:kappa-bound}
+\end{figure}
+
+\Cref{def:breakdown} is easiest to read on an example. A readout is any number reported from a fit, for instance how much a fibroblast programme differs between fibroblasts next to tumour and fibroblasts in stroma. At $\kappa = 0$ the model assigns all of that difference to the cells themselves. Refitting at each larger $\kappa$ attributes more of the resemblance between neighbours to leakage, so a difference that is only leakage shrinks toward its null value, and one that reflects biology persists. The breakdown point $\kappa^\star$ is the smallest leak fraction at which the readout can no longer be told from its null, or changes sign: how much leakage it would take to explain the readout away. \Cref{fig:breakdown} shows the four cases. A readout that survives every grid value cannot be explained by leakage of the modelled form up to the top of the grid (a). A magnitude may shrink as $\kappa$ grows without breaking down (b): it shrinks by construction, because the mixture takes over part of the resemblance between neighbours, and it stands as long as it stays above its null. A readout that breaks down inside the grid is explained away by that much leakage (c), and one that breaks down at the first grid point above zero is explained away by any leakage at all (d). The higher the breakdown point, the stronger the finding. Read with \cref{fig:kappa-bound}, the two say what a finding needs: the data bound the leak fraction from above, and a readout whose breakdown point lies above that bound survives every leak fraction the data allow.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_breakdown}
+\caption{The breakdown point of \cref{def:breakdown}, on four schematic readouts: four different candidate findings, not four ways of choosing $\kappa$, which is never chosen. The curves are illustrative, not fitted, and only the grid of $\kappa$ is the model's. Each panel shows a readout at every grid value with its interval (bars) and its null value $r_0$ (dashed). Filled markers: the interval is clear of the null and the readout keeps the sign it has at $\kappa = 0$; hollow markers: from the breakdown point $\kappa^\star$ (dotted) on. Each point is a separate fit at that $\kappa$. \textbf{a},~A signed contrast that survives the grid, reported as $\kappa^\star > 0.4$. \textbf{b},~A magnitude that shrinks as $\kappa$ grows, as expected by construction because more of the resemblance between neighbours is assigned to the mixture, but stays above its permutation null: it also survives. \textbf{c},~A contrast that $20\%$ leakage explains away, $\kappa^\star = 0.2$; its sign flips beyond it. \textbf{d},~A contrast that breaks down at the first grid point above zero, $\kappa^\star = 0.05$: any leakage explains it away, so it is not separable from leakage of the modelled form.}
+\label{fig:breakdown}
+\end{figure}
 
 \subsection{Learned Variances: What to Learn and What Not To}
 \label{app:variances}

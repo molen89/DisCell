@@ -1,0 +1,34 @@
+source_label,lineage,rule,n_full
+Cluster-1,T/NK cells,map,23362
+Cluster-10,Alveolar fibroblasts,map,10985
+Cluster-11,Tumour,map,10263
+Cluster-12,B cells,map,9409
+Cluster-13,EC venous,map,8602
+Cluster-14,Tumour,map,8426
+Cluster-15,Plasma cells,map,8300
+Cluster-16,Alveolar macrophages,map,7591
+Cluster-17,Adventitial fibroblasts,map,7500
+Cluster-18,AT1,map,6310
+Cluster-19,Goblet,map,6177
+Cluster-2,Interstitial macrophages,map,21479
+Cluster-20,AT2,map,6081
+Cluster-21,T/NK cells,map,5711
+Cluster-22,EC general capillary,map,5703
+Cluster-23,AT1,map,4303
+Cluster-24,Pericytes,map,4161
+Cluster-25,EC general capillary,map,3125
+Cluster-26,Multiciliated,map,2820
+Cluster-27,Mast cells,map,2404
+Cluster-28,Multiciliated,map,2179
+Cluster-29,Tumour,map,1678
+Cluster-3,EC general capillary,map,20603
+Cluster-30,T/NK cells,map,858
+Cluster-31,Neuroendocrine,map,656
+Cluster-32,T/NK cells,map,511
+Cluster-4,Adventitial fibroblasts,map,17335
+Cluster-5,Smooth muscle,map,16446
+Cluster-6,Neutrophils,map,15040
+Cluster-7,T/NK cells,map,14845
+Cluster-8,Tumour,map,13538
+Cluster-9,Tumour,map,11741
+Unassigned,Unassigned,map,182

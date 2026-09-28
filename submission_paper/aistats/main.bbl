@@ -207,6 +207,12 @@ Sch{\"a}fer, J. and Strimmer, K. (2005).
 \newblock {\em Statistical Applications in Genetics and Molecular Biology},
   4(1).
 
+\bibitem[Shaban et~al., 2025]{kronos2025}
+Shaban, M., Chang, Y., Qiu, H., Yeo, Y.~Y., Song, A.~H., Jaume, G., et~al.
+  (2025).
+\newblock A foundation model for spatial proteomics.
+\newblock arXiv preprint 2506.03373.
+
 \bibitem[Slavutsky et~al., 2026]{slavutsky2025}
 Slavutsky, Y., Beker, O., Blei, D., and Dumitrascu, B. (2026).
 \newblock Variational learning of disentangled representations.

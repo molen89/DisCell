@@ -1,0 +1,103 @@
+{
+  "dataset": "xenium_prime_ovarian_cancer_ffpe",
+  "written_at": "2026-09-25T18:42:13",
+  "obs_key": "lineage",
+  "source_key": "cell_group",
+  "choices": {
+    "sox2ot": "unassigned",
+    "cyst": "mesothelial"
+  },
+  "applied_csv": "lineage_map_applied.csv",
+  "applied_csv_sha256": "a506a5a7444365399dffbce6320be45cb921361cdd7be06bcf4a58cb2f2bdce8",
+  "inputs_sha256": {
+    "lineage_map_proposed.csv": "6138c974df571729fced8174c27aa12b4578271b01a00af441cd831000097bf4"
+  },
+  "categories": [
+    "Ciliated epithelial cells",
+    "Endothelial cells",
+    "Fallopian tube epithelium",
+    "Fibroblasts",
+    "Macrophages",
+    "Mesothelial-like cyst lining",
+    "Pericytes",
+    "Smooth muscle cells",
+    "T/NK cells",
+    "Tumour",
+    "Unassigned",
+    "Urothelial-like cells"
+  ],
+  "variants": [
+    "full",
+    "test"
+  ],
+  "counts_before": {
+    "full": {
+      "Tumor Cells": 103606,
+      "Smooth Muscle Cells": 61545,
+      "Proliferative Tumor Cells": 50117,
+      "SOX2-OT+ Tumor Cells": 39353,
+      "Tumor Associated Fibroblasts": 39332,
+      "Macrophages": 27415,
+      "Stromal Associated Fibroblasts": 24604,
+      "Stromal Associated Endothelial Cells": 18249,
+      "VEGFA+ Tumor Cells": 10088,
+      "T and NK Cells": 9999,
+      "Pericytes": 4828,
+      "Tumor Associated Endothelial Cells": 3813,
+      "Fallopian Tube Epithelium": 3034,
+      "Malignant Cells Lining Cyst": 2534,
+      "Unassigned": 2497,
+      "Inflammatory Tumor Cells": 2158,
+      "Ciliated Epithelial Cells": 1987,
+      "Urothelial-like Cells": 1961
+    },
+    "test": {
+      "Proliferative Tumor Cells": 440,
+      "Tumor Cells": 408,
+      "Tumor Associated Fibroblasts": 196,
+      "Macrophages": 168,
+      "Malignant Cells Lining Cyst": 56,
+      "Pericytes": 48,
+      "Tumor Associated Endothelial Cells": 43,
+      "SOX2-OT+ Tumor Cells": 40,
+      "T and NK Cells": 24,
+      "Smooth Muscle Cells": 23,
+      "VEGFA+ Tumor Cells": 22,
+      "Stromal Associated Endothelial Cells": 11,
+      "Ciliated Epithelial Cells": 7,
+      "Unassigned": 7,
+      "Stromal Associated Fibroblasts": 6,
+      "Urothelial-like Cells": 1
+    }
+  },
+  "counts_after": {
+    "full": {
+      "Tumour": 165969,
+      "Fibroblasts": 63936,
+      "Smooth muscle cells": 61545,
+      "Unassigned": 41850,
+      "Macrophages": 27415,
+      "Endothelial cells": 22062,
+      "T/NK cells": 9999,
+      "Pericytes": 4828,
+      "Fallopian tube epithelium": 3034,
+      "Mesothelial-like cyst lining": 2534,
+      "Ciliated epithelial cells": 1987,
+      "Urothelial-like cells": 1961
+    },
+    "test": {
+      "Tumour": 870,
+      "Fibroblasts": 202,
+      "Macrophages": 168,
+      "Mesothelial-like cyst lining": 56,
+      "Endothelial cells": 54,
+      "Pericytes": 48,
+      "Unassigned": 47,
+      "T/NK cells": 24,
+      "Smooth muscle cells": 23,
+      "Ciliated epithelial cells": 7,
+      "Urothelial-like cells": 1
+    }
+  },
+  "vocabulary_checked_against": null
+}

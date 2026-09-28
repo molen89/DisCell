@@ -28,6 +28,7 @@ dependencies = [
     "tensorboard>=2.16", # training-loop logging
     "pyreadr>=0.5.6",
     "rdata>=1.1.0",
+    "diptest>=0.11", # Hartigan's dip test, discell.experiments.dapi_cycle
 ]
 
 [project.optional-dependencies]

@@ -252,6 +252,7 @@ def test_trainer_on_carries_eta_per_seed_and_records_lambda(fp_env):
     tmp_path, data, controls, calls = fp_env
     args = vars(build_parser().parse_args(["--dataset", "x", "--fp-floor"]))
     args.pop("quiet")
+    args.pop("time_only")
     assert TrainConfig(**args).fp_floor and not TrainConfig(**args).fp_area
 
     trainer = Trainer(_config(run_name="fp_on", fp_floor=True), data)

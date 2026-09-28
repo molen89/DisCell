@@ -1,0 +1,40 @@
+source_label,lineage,rule,n_full
+Cluster-1,Tumour,map,134245
+Cluster-10,Macrophages,map,45208
+Cluster-11,Tumour,map,43995
+Cluster-12,Tumour,map,35756
+Cluster-13,Fibroblasts,map,35522
+Cluster-14,Macrophages,map,34629
+Cluster-15,Tumour,map,33443
+Cluster-16,Endothelial cells,map,26204
+Cluster-17,Plasma cells,map,23515
+Cluster-18,T/NK cells,map,22410
+Cluster-19,Macrophages,map,19714
+Cluster-2,Tumour,map,103865
+Cluster-20,Macrophages,map,19383
+Cluster-21,Tumour,map,18850
+Cluster-22,T/NK cells,map,18784
+Cluster-23,Ovarian stroma,map,16246
+Cluster-24,T/NK cells,map,16218
+Cluster-25,Macrophages,map,12999
+Cluster-26,Macrophages,map,12664
+Cluster-27,T/NK cells,map,10222
+Cluster-28,Macrophages,map,9908
+Cluster-29,T/NK cells,map,9535
+Cluster-3,Ovarian stroma,map,70910
+Cluster-30,Macrophages,map,9153
+Cluster-31,T/NK cells,map,6645
+Cluster-32,Pericytes,map,6634
+Cluster-33,Smooth muscle cells,map,5793
+Cluster-34,Macrophages,map,4661
+Cluster-35,Plasma cells,map,4624
+Cluster-36,T/NK cells,map,2073
+Cluster-37,T/NK cells,map,564
+Cluster-38,Endothelial cells,map,538
+Cluster-4,Tumour,map,70602
+Cluster-5,Tumour,map,61677
+Cluster-6,Ovarian stroma,map,59506
+Cluster-7,Fibroblasts,map,51996
+Cluster-8,Tumour,map,49623
+Cluster-9,Unassigned,map,49247
+Unassigned,Unassigned,map,76

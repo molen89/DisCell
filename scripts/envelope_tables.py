@@ -110,6 +110,10 @@ ROWS = (
      "transport_of_ceiling_trusted", "{:.3f}"),
     ("transport, mean read: fraction of ceiling (all panels)",
      "transport_of_ceiling", "{:.3f}"),
+    ("transport, mean read: fraction of ceiling, tile-split ceiling (trusted)",
+     "transport_of_ceiling_tiles_trusted", "{:.3f}"),
+    ("transport, mean read: fraction of ceiling, tile-split ceiling (all "
+     "panels)", "transport_of_ceiling_tiles", "{:.3f}"),
     ("Read A gap closed, group-w target (pairwise median)",
      "readA_gap_group", "{:.3f}"),
     ("Read A gap closed, own-w target (pairwise median)",
@@ -224,6 +228,14 @@ def transport_row(run_dir: Path) -> dict:
             value = (summary.get(tier) or {}).get("counterfactual_of_ceiling")
             out[key] = (None if value is None or not np.isfinite(value)
                         else float(value))
+        # the tile-split ceiling (devlog 2026-09-28 A), beside the above;
+        # "trusted" is the same rule applied to the tile-split ceiling
+        for key, tier in (("transport_of_ceiling_tiles_trusted",
+                           "extrapolation_trusted_tiles"),
+                          ("transport_of_ceiling_tiles", "extrapolation")):
+            value = (summary.get(tier) or {}).get("fraction_of_ceiling_tiles")
+            out[key] = (None if value is None or not np.isfinite(value)
+                        else float(value))
     dist = _load(run_dir / "transport" / "transport_distribution.json")
     if dist:
         for key, block in (("readA_gap_group", "summary_model"),
@@ -334,7 +346,8 @@ def render(dataset: str, records: list[dict], ci: bool = False) -> str:
     held = [r["held_out"] for r in records if r.get("held_out")]
     head = ["metric", "min", "mean", "max", "n"]
     if ci:
-        head += ["tile 95 % CI, seed envelope (n)"]
+        head += ["tile 95 % CI, seed envelope (n); transport rows: "
+                 "half-tile subsampling"]
     if held:
         head += ["held-out mean", "held-out n"]
     lines = ["| " + " | ".join(head) + " |",
@@ -359,13 +372,26 @@ def render(dataset: str, records: list[dict], ci: bool = False) -> str:
     if held:
         note += (f" The held-out column is the {CROSS_SLIDE[dataset]} "
                  f"section, evaluated with the weights fitted on this one.")
+    note += (" The tile-split ceiling rows divide by the split-half noise "
+             "ceiling over random halves of the prepare tiles (whole tiles in "
+             "one half) instead of random halves of the cells, so noise a "
+             "tile's cells share is not counted as signal; their \"trusted\" "
+             "is the same rule (ceiling ≥ 0.5 on ≥ 100 genes) applied to that "
+             "ceiling (devlog 2026-09-28 A; an added row, the cell-split rows "
+             "are unchanged).")
+    if ci:
+        note += (" The tile-split ceiling rows carry no interval.")
     if ci:
         note += (" The CI column is the envelope of the per-seed 200 um "
                  "tile-bootstrap 95 % intervals (1000 draws; conditional on "
                  "the fitted probes, clustering and model; "
                  "`discell/experiments/bootstrap.py`, reconstruction rows from "
-                 "`recon_modes.json`); † = the recomputed point estimate did "
-                 "not reproduce the stored one on some seed.")
+                 "`recon_modes.json`); the two transport fraction-of-ceiling "
+                 "rows use half-tile subsampling instead (half the tiles "
+                 "without replacement, spread about the draws' median scaled "
+                 "by sqrt(m/(n-m)), placed on the point); † = the recomputed "
+                 "point estimate did not reproduce the stored one on some "
+                 "seed.")
     if any("at_best" in r for r in records):
         fell_back = [r["run"] for r in records if not r["at_best"]]
         note += (f" In-trainer rows: {HEADER}; last-epoch fallbacks: "

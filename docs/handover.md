@@ -1,856 +1,1179 @@
-# DisCell — project handover (state as of 2026-09-21)
+# DisCell — project handover (state as of 2026-09-28)
 
-Written to crystallise everything done so far for whoever picks the project up
-cold (architect or engineer). Every number carries its artefact pointer;
-narrative lives in [docs/devlog.md](devlog.md), bugs and instrument defects in
-[docs/issues.md](issues.md), spec decisions in
-[docs/spec_deviations.md](spec_deviations.md), the work queue in
-[docs/todo.md](todo.md). **A null or failed leg is a finding here, never
-softened**, and several of the most informative results below are negatives.
+This document is for an engineer who picks the project up cold. It says where
+things stand and names the file that holds each number. **It does not copy
+numbers that already live in a table: "see X" means the number is in X, so
+copy it from X, not from here.** Where no table exists, a number is quoted
+with the devlog entry it comes from. Anything I could not check against a file
+is marked *(unverified)*.
 
-Replaces the 2026-09-14 version, which predated `type_only` being pinned, the
-atlas rewrite, the transport rewrite, the four-dataset sweeps with the held-out
-section, the two leak-measurement programmes, the cell-cycle target decision and
-the x̃ verdict. Claims that version carried and that are now withdrawn are listed
-in §5, not silently dropped.
+The other registers:
+
+- Narrative and motivations: [devlog.md](devlog.md). Every decision since the
+  freeze is in the entries from "Phase change: model frozen; validation and
+  analysis begin (author, 2026-09-21)" to the end.
+- Bugs and watch items: [issues.md](issues.md).
+- Spec departures: [spec_deviations.md](spec_deviations.md).
+- Work queue: [todo.md](todo.md) §8.
+- Manuscript changes: [paperlog.md](paperlog.md).
+
+**A null or failed leg is a finding here, never softened.**
+
+This replaces the 2026-09-21 version, which is in git at `ea44931`
+(`git show ea44931:docs/handover.md`). That version described the old pins
+(`ablation_gat_type_only_s1`, `reference_graphclust`, `reference`) at curated or
+graphclust labels. Since then:
+
+- The model was frozen, then unfrozen for exactly three changes: KL warm-up on
+  w, α_z at ½, and adversary composition weight 3.
+- The labels became lineage-level.
+- All four datasets were re-pinned twice: `final_s*` on 2026-09-24 and
+  `finalL_s*` on 2026-09-25/26.
+- The invariance probe was rebuilt per block.
+- Every decision table is now read at the accepted checkpoint.
+- A tile-bootstrap layer wraps the headline reads.
+
+The 2026-09-21 version's §4 results were computed on the old pins and are now
+history. §9 below says which of its findings still stand.
+
+## 0. Status in one paragraph
+
+The model and its configuration are final (`finalL`, §2). The final queue (fits,
+κ sweep, baselines, tables) finished on 2026-09-26 at 21:07. Two read-out families
+that had failed were repaired on 2026-09-27, the run archive was applied, and 6b.2
+(marker pairs) and the cycle 2×2 were scored. **Two additions are in progress as of
+2026-09-28:** todo 8.21 (a noise-ceiling column with a tile-level split) and 8.22
+(subtype recovery). When this was written, no module or output for either was in
+the working tree. Two decisions await the author: the cycling set for cycle_z, and
+which ceiling column is primary. After those, what remains is paper work (numbers
+for sections B/C) and two baseline-comparison figures (6b.7, 6b.9). **Nothing since
+`6a21936` (2026-09-27 18:43) is committed** (§13).
 
 ## 1. What this is
 
-**Question.** In imaging spatial transcriptomics (10x Xenium Prime 5K) a cell's
-measured expression mixes three things: what the cell is doing on its own, how
-its neighbourhood modulates it, and transcripts that physically belong to
-neighbours (segmentation spill-over). DisCell-simple
-([07-simple-spec_7.md](../07-simple-spec_7.md)) is a VAE that splits a cell's
-counts into
+**Question.** In imaging spatial transcriptomics (10x Xenium Prime 5K), a cell's
+measured expression mixes three things: what the cell does on its own, how its
+neighbourhood modulates it, and transcripts that belong to its neighbours
+(segmentation spill-over). DisCell-simple ([07-simple-spec_7.md](../07-simple-spec_7.md))
+is a VAE that splits a cell's counts into three parts:
 
-- an **intrinsic state z** (d_z = 20), encoder `q(z | x_i, ℓ_i, t_i)` — the
-  cell's own counts, depth and type, never its neighbours;
-- a **spatial response w** (d_w = 6), posterior `q(w | c, t, z, x)` around a
-  context-conditional prior `m_ψ(c, t)`, decoded through a gene-programme
-  matrix B as `softmax(a(z) + B·w)`;
-- a **fixed leakage channel**, `p_i = (1 − κ) ρ_i + κ ρ̄_i` with ρ̄ the
-  β-weighted neighbour rates and κ = 0.1 swept, never fitted.
+- **An intrinsic state z** (d_z 20). Encoder `q(z | x_i, ℓ_i, t_i)`: the cell's
+  own counts, depth and type, never its neighbours.
+- **A spatial response w** (d_w 6). Posterior `q(w | c, t, z, x)` around a
+  context-conditional prior `m_ψ(c, t)`, decoded through B as
+  `softmax(a(z) + B·w)`.
+- **A fixed leak channel**, `p_i = (1 − κ) ρ_i + κ ρ̄_i`. Here ρ̄ is the
+  β-weighted neighbour rate (Voronoi-face kernel on the model's 40 µm-pruned
+  graph). κ = 0.1 is swept, never fitted.
 
-The context is
+The context `c_i` concatenates three parts:
 
-```
-c_i  =  Σ_j α_ij · W_src · onehot(t_j)   ⊕   Φ_i   ⊕   isolated_i
-```
+- a GATv2 over the neighbours' **types only** (`type_only`);
+- the ego-masked 384-d KRONOS image embedding Φ;
+- an isolated flag.
 
-— a GATv2 over the neighbours' **types only** (`gat_sources = "type_only"`, the
-pinned default since 2026-09-12; `type_z`, which also passed the neighbour's
-`sg μ_z`, is kept only to reload old checkpoints), the 384-d KRONOS image
-embedding Φ, and an isolated flag. Invariance of z to context is enforced by an
-adversary (α_a = 0.3) on the block `v = [y^(−K), 12 PCs(Φ)]`.
+The invariance of z to context comes from an adversary (α_a 0.3). It has two
+heads: a categorical cross-entropy on composition and a soft cross-entropy on
+image-niche membership. The composition head is now weighted ×3 (§2.3).
 
-The `type_only` case is **empirical, not mechanistic**: the mechanism spec 9
-gives for it (m_ψ reconstructing the cell through neighbours' μ_z) was falsified
-twice by purpose-built detectors (`experiments/w_mirror_certification.json`);
-what stands is that the three-seed ablation improved recon, NMI, mirror and
-cycle_w with w's spatial rows unchanged. Spec 9 and the devlog disagree here;
-flagged to the architect and recorded in `spec_deviations.md`.
+**What w is at the operating point (R19 reframing, adopted 2026-09-25).** At
+α_w = 0.1 the posterior sits on the prior, so every delivered w read is the
+context regression `m_ψ(c, t)`. The per-cell deviation channel is closed by
+design. The reconstruction modes show this directly: the full-posterior and
+intrinsic-only decodes agree (`runs/<run>/recon_modes.json`). w's value lies in
+predicting held-out between-niche shifts (transport), not in fitting counts.
 
-The claim is a division of labour that can be *tested*: z must carry intrinsic
-dynamics and fail spatial tests; w the reverse.
+Low KL_w is therefore *not* a closed channel. A dead channel is the case where
+prior and posterior both ignore c (devlog 2026-09-23, "Interpretive correction").
+The I(niche; w) guard decides that, not KL_w.
 
-**Datasets (four, five slides).**
+**The claim** is a testable division of labour. z carries intrinsic dynamics and
+fails spatial tests; w does the reverse; the leak channel absorbs spill-over, so
+neither latent has to.
 
-| dataset id | tissue / prep | cells | labels | α_z | role |
-|---|---|---|---|---|---|
-| `xenium_prime_ovarian_cancer_ffpe` | HGSOC, FFPE | 407,120 | curated K = 18 | 0.007 | development slide, pinned reference, all batteries |
-| `xenium_prime_human_lung_cancer_ffpe` | lung ca., FFPE | 278,324 | graphclust 33 | 0.004 | transfer slide |
-| `xenium_prime_human_ovary_ff` | ovary, **fresh frozen**, 8× depth | 1,157,637 | graphclust 39 | 0.0007 | depth contrast; strongest transport read |
-| `gse315411_pdltma06_11_prime_solo` / `…_10_prime_dual`, variant `pdl018d` | pediatric-lung TMA, two serial sections of one fibrotic core | 69,422 / 70,757 | shared curated K = 35 | 0.0036 | **held-out-section protocol** |
+**Datasets (four datasets, five sections).** The roles come from the phase-change
+entry (devlog 2026-09-21):
 
-Nuclear share of assigned q20 counts is 0.45–0.58 pooled on all five slides
-(`qc/nuclear_summary.json`): roughly half of every cell's counts lie outside its
-nucleus on every slide — the material the leak channel acts on.
+- **Primary:** GSE315411 (train on the section-11 core, evaluate on the
+  section-10 core; the only genuinely out-of-sample read) and the fresh-frozen
+  ovary (the deepest slide, with the most cells).
+- **Secondary:** ovarian FFPE (the development slide) and lung FFPE.
 
-## 2. Operating point, pinned reference, seeds
-
-| knob | value | where set |
-|---|---|---|
-| κ (leak) | **0.1**, swept {0, 0.05, 0.1, 0.2, 0.3, 0.4} | `TrainConfig.kappa` |
-| α_z | **1/ℓ̄ per dataset** — 0.007 ovarian, 0.004 lung, 0.0007 FF, 0.0036 GSE core | CLI `--alpha-z` |
-| α_w, α_a, ω | 0.1, 0.3, 1 | `TrainConfig` |
-| invariance | adversary, 6 steps, lr 2e-3, hidden 64 | `TrainConfig.invariance` |
-| GAT sources | **`type_only`** (era guard reloads old checkpoints as `type_z`) | `networks.DisCell`, `validate.load_run` |
-| d_z / d_w / hidden / gat_dim / heads | 20 / **6** / 256 / 32 / 4 | `TrainConfig` |
-| tiles / v_pcs / Φ | 4096 cells (**2048** on the 69k GSE core), 12 PCs in the invariance block, Φ full 384-d | `TrainConfig` |
-| budget | **reference fits 500 / patience 40**; **sweeps 200 / 20** (FF swept at 500/40) | CLI |
-| resident counts | **int16** on device, cast per tile (`< 32768` assert) | `Trainer._to_device` |
-| `subtract_leak` (x̃) | **off** — final, see §4.9 | `TrainConfig` |
-| `gat_sink` | **off** — option only, see §5 | `TrainConfig` |
-| `weight_decay` | **0** — see §5 | `TrainConfig` |
-
-**Pinned reference: `ablation_gat_type_only_s1`** (ovarian, seed 1, 500/40, best
-epoch 64 of 104, 22 min), selected from the type_only seed triple by the full
-battery, never by likelihood alone:
-
-| run | best recon (held-out nats/count) | NMI(z, t) | cycle_z R² pooled | cycle_w | mirror R² (perm 0.016) | probe ΔCE (floor ≈ −0.05) |
+| dataset id | tissue / prep | cells | lineage classes (from) | α_z | tile | role |
 |---|---|---|---|---|---|---|
-| `ablation_gat_type_only` (s0) | −7.2527 | 0.667 | 0.440 | 0.007 | 0.044 | −0.009 |
-| **`ablation_gat_type_only_s1`** | **−7.1924** | 0.654 | **0.499** | 0.008 | 0.046 | 0.002 |
-| `ablation_gat_type_only_s2` | −7.2310 | 0.666 | 0.465 | 0.010 | 0.045 | −0.011 |
+| `gse315411_pdltma06_11_prime_solo`, variant `pdl018d` (`…_10_prime_dual` held out) | pediatric-lung TMA, two serial sections | 69,422 / 70,757 (cores) | 30 (curated 35) | 0.0018 | 2048 | primary; held-out section |
+| `xenium_prime_human_ovary_ff` | ovary, fresh frozen | 1,157,637 | 10 (38 graphclust clusters) | 0.00035 | 4096 | primary |
+| `xenium_prime_ovarian_cancer_ffpe` | HGSOC, FFPE | 407,120 | 12 (curated 18) | 0.0035 | 4096 | secondary; development slide |
+| `xenium_prime_human_lung_cancer_ffpe` | lung cancer, FFPE | 278,324 | 20 (32 graphclust clusters) | 0.002 | 4096 | secondary |
 
-(`runs/<run>/metrics.json`: `best.recon_val`, `best.nmi`,
-`final.cycle.z.r2_pooled`, `final.cycle.w.r2_pooled`, `final.mirror.r2`,
-`final.probe.delta_ce`; `final.cycle.ceiling` is the pre-rename key for the
-50-PC linear reference.) The 0.06 recon spread is optimisation variance over a
-rugged landscape — all three seeds are clean on every instrument. s1 sits in the
-"strong family" optimum that 200-epoch sweep seeds never reach
-(`sweep3_k0.1_s*`: −7.2562 ± 0.0011), which is why **the reference budget is
-500/40 and selection is by battery**: one member of the family exists that buys
-recon and drains cycle_z (`alphaw_0.03_s2`, 0.354).
+Sources:
 
-`gat_type_only_wd0_s1` reproduces the pinned run under the current tree (same
-best epoch, recon within 0.003, same per-type offsets): the int16 change is
-inert and the run is reproducible.
+- cell counts: 2026-09-21 handover §1 and `scripts/logs/final_prep_2026-09-25/AGENT_REPORT.md`;
+- class counts: the same report, and each dataset's `labels/lineage_map_applied.csv`;
+- α_z and tile size: `runs/finalL_s0/config.json`.
 
-Reproduce the reference:
+The scope decisions of 2026-09-17 (todo §0) still hold:
+
+- all four datasets are in scope;
+- GSE sweeps run on the core, with the full slides held out;
+- compute is not a constraint, and every long job runs detached;
+- the LR ladder keeps all three rungs.
+
+## 2. The final configuration, and why each element
+
+Checked against each dataset's `runs/finalL_s0/config.json`:
+
+| knob | value | set by |
+|---|---|---|
+| architecture | type_only GATv2 ⊕ Φ (384) ⊕ flag; d_z 20, d_w 6; query = type; prior m_ψ(c, t) | frozen 2026-09-21 |
+| κ and its form | 0.1, `kappa_mode global` | §2.6 |
+| α_z | ½ × 1/ℓ̄ per dataset (values in §1) | §2.2 |
+| α_w | 0.1 | §2.4 |
+| adversary | α_a 0.3; 6 head steps, width 64, lr 2e-3, ensemble 1, input μ_z; **composition weight 3** | §2.3 |
+| KL warm-up | **30 epochs on KL_w only**; no checkpoint and no patience inside the ramp | §2.1 |
+| labels | **`lineage`** | §2.5 |
+| budget | 500 epochs, patience 40, figures every 100 | frozen |
+| off | `subtract_leak`, `gat_sink`, `w_penalty`/`lambda_w`, free bits, `kl_warmup_epochs`, `fp_floor`, `phi_proj`, `class_mean_prior`, `prior_type_free` | §2.8 |
+
+**Trap: the `TrainConfig` defaults are not the final configuration.** In
+`discell/model/train.py` the defaults are `adv_comp_weight 1.0`,
+`w_warmup_epochs 0`, `alpha_z 0.007` and `label_key None`. The final configuration
+exists only as CLI flags, set in the `COMMON` and `FLAGS` blocks of
+`scripts/queue_2026-09-25_final_lineage.sh`. To reproduce a final fit (the queue's
+command with its variables expanded; I have not re-run it):
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 uv run python -m discell.model.train \
-  --dataset xenium_prime_ovarian_cancer_ffpe --run-name ablation_gat_type_only_s1 \
-  --epochs 500 --patience 40 --seed 1          # all other knobs are the defaults
+  --dataset xenium_prime_ovarian_cancer_ffpe --run-name finalL_s0 --seed 0 \
+  --alpha-z 0.0035 --gat-sources type_only --kappa 0.1 --d-w 6 --alpha-w 0.1 \
+  --alpha-a 0.3 --epochs 500 --patience 40 --figures-every 100 \
+  --w-warmup-epochs 30 --adv-comp-weight 3 --label-key lineage
+# GSE:  --alpha-z 0.0018 --variant pdl018d --tile-cells 2048
+# lung: --alpha-z 0.002      FF: --alpha-z 0.00035
 ```
 
-## 3. How to run everything
+Run it detached for anything larger than GSE (§8).
 
-All paths are keyed by dataset id under `data/` (`discell/paths.py`;
-`DISCELL_DATA` relocates the tree). `DS=xenium_prime_ovarian_cancer_ffpe`,
-`RUN=ablation_gat_type_only_s1` below. Long jobs: launch detached
-(`setsid nohup … > log 2>&1 < /dev/null & disown`) — session-tied background
-tasks die with the session. The shell is fish; chain with `&&`.
+### 2.1 KL warm-up of 30 epochs on w
+
+**Problem.** FF fits failed with a dead context channel: w constant within type,
+and I(niche; w) exactly zero, at the pinned α_w. It showed up in three places:
+
+- FF `best_s2`;
+- a survey of 329 runs on disk;
+- the control arm of the collapse grid.
+
+**Why warm-up.** Warm-up ramps α_w from 0 to 0.1 over 30 epochs, and the converged
+objective is unchanged. It is the only remedy whose channel carried niche
+information on every FF seed. The others failed:
+
+- Free bits opened the channel in KL but left I(niche; w) at zero on FF: open in
+  divergence, dead in information.
+- Warm-up on both KL terms (8.9b) failed its rule.
+- The warm-up + free-bits combination failed its rule.
+
+**Cost.** Stated in the paper: NMI falls by 0.01–0.02 at the checkpoint (devlog
+2026-09-24, "Re-read at the accepted checkpoint").
+
+**Evidence:**
+
+- tables: `data/datasets/xenium_prime_human_ovary_ff/experiments/wcollapse{,_at_best}.md` and `wcollapse_b{,_at_best}.md`;
+- verdicts: `scripts/logs/wcollapse_2026-09-23/DECISION{,_at_best}.json` and `scripts/logs/wcollapse_b_2026-09-24/DECISION_B{,_at_best}.json`;
+- decision: devlog "Final configuration frozen; re-pin launched (author's decision, 2026-09-24 ~10:00)".
+
+**Rule history, disclosed.** Two amendments were made after seeing data, and they
+pushed in opposite directions. Both the original and the amended verdicts are
+reported (devlog 2026-09-23, "8.9 rule amendment" and "amendment 2"). The FF-margin
+amendment is withdrawn for any future use.
+
+### 2.2 α_z = ½ × 1/ℓ̄
+
+**The ladder.** The pre-registered α_z ladder {¼, ½, 1, 2} adopted ½ on last-epoch
+reads (2026-09-22).
+
+**The R26 re-read.** Read at the accepted checkpoint, **no rung qualifies**. The
+cycle_z clause misses by 0.003–0.004, because one control seed widened the control
+range.
+
+**The decision.** The author kept ½ as a disclosed **near miss, not a rule pass**:
+every rung seed beats every control seed but one, with the guards intact.
+
+**Evidence:** `data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/alpha_z_decision{,_at_best}.json`
+and `scripts/logs/at_best_2026-09-24/AGENT_REPORT.md` §1.
+
+**The ℓ̄ caveat (R18, open).** The pinned α_z values are not ½ × the mean count of
+the training cells. They match the all-cell median on GSE, lung and FF, and match
+neither on ovarian (`scripts/logs/awladder_2026-09-24/AGENT_REPORT.md`, section
+"ℓ̄"). The paper must define ℓ̄ explicitly (todo 8.12, "Weights in units of 1/ℓ̄").
+
+### 2.3 Adversary composition weight 3
+
+**Why it was needed.** The per-block probe (R20/R22, §5) showed that z still
+carries within-type composition beyond type. A planted world where z ⟂ niche by
+construction reproduces the same-sized residual, so the cause is adversary
+capacity or weighting, not biology (`scripts/logs/planted_probe_2026-09-24/AGENT_REPORT.md`).
+
+**The adversary ladder (8.17), on ovarian:**
+
+- More head steps did nothing.
+- Wider heads and a 3-head ensemble helped a little.
+- Weighting the composition head ×3 lowered every probe block, lowered the
+  mirror and raised the transport gap closed, at no extra head time.
+
+**The confirmation** on GSE, FF and a third ovarian seed repeated the pattern.
+The pre-stated rule still reads "not confirmed":
+
+- on GSE, recon and NMI miss a two-seed envelope by a hair;
+- on FF, NMI and cycle_z fall outside the envelope.
+
+The author adopted weight 3 on the trade, and the FF cost is stated in the paper.
+Weight 5 cuts leakage further but starts to cost NMI and cycle_z.
+
+**Evidence:**
+
+- tables: `…ovarian_cancer_ffpe/experiments/adv_ladder.md` and `adv_confirm.md` (GSE, FF and ovarian sections);
+- verdicts: `scripts/logs/adv_ladder_2026-09-24/DECISION_ADV.json` and `scripts/logs/adv_confirm_2026-09-25/DECISION_ADVC.json`;
+- decision: devlog "Final launch (author's decisions, 2026-09-25)".
+
+### 2.4 α_w = 0.1, with the R19 reframing
+
+**The issue (R19).** α_w = 0.1 is 14–143× the bound-equivalent 1/ℓ̄, so KL_w ≈ 0
+by construction.
+
+**The ladder.** A pre-registered multiplier ladder tested α_w = m × 1/ℓ̄ for
+m ∈ {1, 2, 5, 10, 25}. As α_w falls, the per-cell deviation channel opens and does
+real held-out work, but no rung passes every guard:
+
+- On GSE and ovarian, only NMI blocks m5–m10, by 0.004–0.005 under the fresh
+  reference.
+- On FF (stage 2), m5 and m10 cost NMI heavily.
+
+Lung was dropped from the ladder by a scope amendment made before any fit counted.
+
+**Verdict,** the same under all three reference variants: α_w stays at 0.1, and
+the paper adopts R19's reframing. w is the context regression m_ψ(c, t), the
+per-cell channel is closed by design, and the ladder is reported as the
+sensitivity analysis of what opening that channel costs and buys.
+
+**Evidence:**
+
+- `…ovarian_cancer_ffpe/experiments/awladder.md` (sections for GSE, ovarian and FF, plus the rule under each reference envelope);
+- `probe_regrade_awladder.md`;
+- `scripts/logs/awladder_2026-09-24/DECISION_AW.json`;
+- decision: devlog "Overnight results, 2026-09-25 morning", decision (1).
+
+### 2.5 Lineage-level labels (R9)
+
+**Why.** Every part of the model conditions on t. Where a label encodes a state
+(proliferative, VEGFA⁺, inflammatory, activated) or a location (tumour- or
+stroma-associated, lining a cyst), that part of the response is handed to the
+label, where neither w nor the invariance can see it. **The rule:** merge states
+and locations into their lineage, and keep developmentally distinct subtypes
+(devlog 2026-09-25, "Lineage-level labels (R9, motivation)").
+
+**The author's choices** (devlog "Final launch"):
+
+- **SOX2-OT⁺ Tumor Cells (ovarian, 9.7 % of cells) → Unassigned.**
+  - The pre-registered keep rule (≥ 50 DE genes, plus contiguity) *passes*.
+  - But the class is mostly low-depth non-tumour cells. The depth, marker,
+    NNLS-decomposition and depth-matched DE reads are in
+    `scripts/logs/lineage_2026-09-25/AGENT_REPORT.md`.
+  - Lesson recorded: at these cell counts every merged tumour *state* also passes
+    DE plus contiguity, so that rule cannot separate a clone from a state.
+  - Ovarian Unassigned becomes 10.3 % of cells.
+- **"Malignant Cells Lining Cyst" → its own lineage, "Mesothelial-like cyst
+  lining".**
+  - Mesothelial markers are on; epithelial and Müllerian markers are off.
+  - It does not count as tumour in any tumour-band or interface read, even under
+    the old labels (`spec_deviations.md`, "Tumour-band definition (2026-09-25)").
+- **Grey merges, as proposed:**
+  - TAF/SAF → Fibroblasts; TAEC/SAEC → Endothelial.
+  - GSE Proliferating, EC activated, Inflammatory, Activated and Myofibroblasts
+    are reassigned cell by cell. Expected accuracy for the Proliferating calls is
+    ~0.75.
+- **FF's mixed immune-near-tumour clusters** keep their lineage call, with the flag
+  recorded. The tumour signal in them is the leakage the model exists to handle.
+
+**Where the tables are:**
+
+- `data/datasets/<ds>/labels/lineage_map_{proposed,applied}.csv`;
+- `lineage_map_applied.json`, which holds the sha256 of every input;
+- the GSE per-cell tables `*_reassignment_proposed.csv`.
+
+`discell/experiments/apply_lineage.py` writes the obs column `lineage` into every
+bundle variant and leaves the bundle's `default_label` untouched. **These tables
+sit under the gitignored `/data/`, so they are not in git**, although todo 8.13
+planned to commit them.
+
+**Label matchers.** Name-matched reads use `discell/model/labels.py` (`is_tumour`,
+`is_smooth_muscle`, `is_endothelial`, all case-insensitive). One latent bug: the
+`t.?cell` exclusion also matches "Malignan**t C**ells". No current class triggers
+it (`scripts/logs/final_prep_2026-09-25/AGENT_REPORT.md`, Addendum 2).
+
+**Consequences, stated in advance:**
+
+- NMI is not comparable with pre-lineage values, because there are fewer classes.
+- cycle_z is not comparable either (§5, cycle 2×2).
+- The pre-lineage NMI floor of 0.63 is void. The 0.9 × running-max guard still
+  applies.
+
+### 2.6 κ = 0.1 in the global form, with the κ-form sensitivity rows (R12)
+
+κ stays swept, not measured: both measurement programmes failed (2026-09-21
+handover §4.2). R12 asked what the global form assumes: (a) the same κ for every
+gene, and (b) a leaked amount that scales with the receiver's depth.
+
+**Test 1 and 1b (read-only, from transcript positions).**
+
+- Test 1 concluded "donor scaling ruled out"; test 1b withdrew that. At fixed
+  receiver and donor area, the donor-depth elasticity is practically positive on
+  FFPE and small but not zero on FF.
+- What stands: position counts bound leakage from above, and identify neither
+  scaling.
+- Evidence: `…/experiments/r12_depth_test.{json,md,png}` (ovarian and FF); devlog
+  "R12 test 1b — donor scaling is NOT ruled out".
+
+**Test 2 (sensitivity arms).**
+
+- Three arms beside `global`: `--kappa-mode depth`, `gene` and `density`. Each is
+  normalised so that the post-clip mean of κ_i equals κ exactly; only the shape
+  of the leak differs.
+- Every response finding is unchanged: transport on both reads, the response
+  channel's LR share, and the surface lean of B. The leak channel's own LR share
+  collapses under the gene arm, by construction.
+- Verdict: "stable across κ and its form". The global form stands.
+- Evidence: `…ovarian_cancer_ffpe/experiments/r12_arms.md` and
+  `probe_regrade_r12.md`; devlog "R12 test 2 — the leak's form does not move the
+  response findings".
+
+**Caveat.** These arms ran at the *pre-lineage* configuration: ovarian, 200/20,
+old labels, composition weight 1, with control `wfix_warmup30_aw0.1_s{0,1,2}`
+(checked in `runs/_archive/r12_gene_s0/config.json`). They have not been re-run at
+`finalL`, and I found no decision on whether they need to be.
+
+`report.py` and `sweep.py` do not pass `kappa_mode`, so they fail on a gene-form
+checkpoint (issue W-qp1 addendum).
+
+### 2.7 The false-positive floor: a sensitivity row only
+
+**The model.** `p_i = (1 − κ − η_i) ρ_i + κ ρ̄_i + η_i·u`, with η_i taken from the
+section's negative-control and genomic-control probe counts (`--fp-floor`,
+`--fp-area`; `discell/model/fp_floor.py`).
+
+**What happened:**
+
+- "Small changes" held on GSE.
+- On ovarian it did not hold: the floor moves about one percentage point of the
+  between-niche shift from the leak channel to the response channel, and moves
+  the invariance reads by 2–4 seed-sd.
+- Almost all of λ rests on an even-spread assumption for genomic-DNA binding.
+
+**Decision (author, 2026-09-25):** not adopted; reported as a sensitivity row
+beside the κ-form rows.
+
+**Evidence:**
+
+- `…ovarian_cancer_ffpe/experiments/fp_floor.md` (ovarian and GSE sections) and `probe_regrade_fp.md`;
+- runs `fp_s*` and `fp_area_s*`, now in `_archive/`;
+- decision: devlog 2026-09-25 morning, decision (2).
+
+The same caveat as §2.6 applies: these ran at the pre-lineage configuration
+(`runs/_archive/fp_s0/config.json`: 200/20, composition weight 1, old labels). The
+paper text is todo 8.18 (writer, open).
+
+### 2.8 Considered since 2026-09-21 and not adopted
+
+| alternative | outcome | where |
+|---|---|---|
+| free bits on KL_w (λ 0.05), alone or with warm-up | open by KL, dead by I(niche; w) on FF; the combination fails the ovarian cycle_w guard | `wcollapse*.md` |
+| warm-up on both KL_z and KL_w (8.9b) | fails "nothing worse than control" (NMI, cycle_w) | `wcollapse_b*.md` |
+| type-free GAT query, image query, type-free prior (8.10) | no read improved; query and prior kept; reported as supporting ablations, run at the w-only warm-up objective | `…ovarian_cancer_ffpe/experiments/queryprior.md` |
+| learned projection of Φ to 32 dims (S53) | buys invariance at the cost of type structure in z; not adopted; reported in the implementation table | `…ovarian_cancer_ffpe/experiments/phi_projection{,_lineage}.md` |
+| head steps ×2, width ×2, 3-head ensemble (8.17) | no or small effect; composition weight chosen instead | `adv_ladder.md` |
+| composition weight 5 | more leakage removed, at a cost in NMI and cycle_z | `adv_confirm.md` |
+| lower α_w (m × 1/ℓ̄, m from 1 to 25) | §2.4 | `awladder.md` |
+| depth, density or gene-tilted κ as the default | §2.6 | `r12_arms.md` |
+| false-positive floor as the default | §2.7 | `fp_floor.md` |
+
+Everything rejected before 2026-09-21 stays rejected: the x̃ input, L2 on w and
+weight decay, per-cell κ from the leak meter or transcript flux, the class-mean
+prior, the adversary on x̂, DAPI cycle labels, the depth-transformed cycle
+target, `gat_sink`, and the doc-10 guard. See §9 and §5 of the 2026-09-21
+handover.
+
+## 3. Run inventory (after the 2026-09-27 archive)
+
+The runs kept under `data/datasets/<ds>/runs/` on each dataset (listing checked
+2026-09-28):
+
+| family | what it is | notes |
+|---|---|---|
+| `finalL_s{0,1,2}` | the final triple: 500/40, final configuration | No dead fit (`READOUT.md`). Each run holds `metrics.json`, `history.jsonl`, `best.pt`, `degeneracy.json`, `validation/`, `atlas/`, `transport/`, `recon_modes*.json`, `bootstrap_ci.json`, `marker_pairs.json` and `report/`; GSE runs also hold `crossslide/`. |
+| `best` → `finalL_s0` | symlink; "read on best" means this run | re-pins logged in `scripts/logs/final_lineage_2026-09-25/REPIN.tsv` |
+| `uncontrolledL_s{0,1}` | α_a = 0 references, otherwise the final configuration; the denominators of every probe fraction | **Both FF references have a dead w channel**: without the adversary, z carries the niche. Recorded in `DEAD_RUNS.tsv`, not refitted. The probe denominators are z-based, so they stand. |
+| `sweepL_k{0,0.05,0.2,0.3,0.4}_s{0,1,2}` | κ sweep at the reference budget (500/40, R28), with light reads | a dead sweep fit is recorded, never refitted; none occurred |
+| `sweepL_k0.1_s{0,1,2}` | **symlinks** to `finalL_s{0,1,2}` | listed in `SWEEP_LINKS.tsv`; never refitted, never re-read |
+| `reference*`, lung `best_pre_az0.5`, ovarian `reference_best` | old pins from before the freeze, kept for history | no read-out table names them |
+| ovarian `dw{2,3,8}_s*` | the only ovarian d_w envelope | kept; no read-out table |
+| ovarian `phiproj32_s*`, `projL{32,384}_s*` | projection test (S53), on old and on lineage labels | 200/20 |
+| `timing_phi{,_dropped,_zeroed}`, ovarian `timing_phiproj32` | timing-mode outputs (only `timing.json`) | |
+
+**`runs/_archive/`: moved, never deleted.**
+
+- Size: 81 runs on GSE, 60 on lung, 106 on FF and 144 on ovarian, about
+  15.8 GiB in all.
+- Record: every move, with the read-out table that covers it, is listed in
+  `runs/_archive/ARCHIVE_2026-09-27.tsv` (columns run, size_bytes, family,
+  tables).
+- Contents include:
+  - the 2026-09-24 re-pin `final_s*` (pre-lineage);
+  - the α_z/2 generation `best_s*` / `best_az0.5_s0`;
+  - `uncontrolled{,500}_s*`;
+  - every decision arm: `wfix*`, `wfixb*`, `qp_*`, `aw_*`, `adv_*`, `advc_*`,
+    `r12_*`, `fp_*`, `ladder_az_*`, `sweep3_*`.
+- Symlinks moved together with their targets and resolve inside `_archive/`.
+- `experiments/` was not touched.
+- *(unverified)* I did not check whether every CLI accepts an archived run as
+  `--run _archive/<name>`.
+
+**Baselines live outside this repo,** in `/home/rmolen/github/DisCell-baselines/`:
+
+- Exports are under `data/`; the lineage exports are in `data/lineage/`.
+- Latents are under `results/{resolvi,resolvi_lineage,simvi,mintflow}`, 7.2 GB in
+  all.
+
+At lineage labels:
+
+- **resolVI was refit** on all five bundles (`results/resolvi_lineage/`).
+- **SIMVI and MintFlow were not refit.** Their latents come from training on the
+  old labels (MintFlow conditions on the label) and were only re-scored on the
+  lineage battery (`scripts/logs/final_prep_2026-09-25/AGENT_REPORT.md` §2,
+  "Needs a decision", item 3).
+- SIMVI on FF is a 100k-cell window.
+- MintFlow on FF is infeasible on this host: host OOM before training. The failed
+  MintFlow FF directory was deleted.
+
+Coverage per section:
+
+- GSE solo and dual: all three baselines.
+- FF: resolVI and the SIMVI window.
+- ovarian and lung: resolVI only.
+
+**The final queue's records** are in `scripts/logs/final_lineage_2026-09-25/`:
+
+- `READOUT.md`: the per-run table, dead fits, links, re-pins, failed steps and
+  output checklist. It was written 2026-09-26 21:07, *before* the repairs, so its
+  MISSING and failed entries for `validation_sweepL.json`, κ-survival and the
+  bootstrap are stale. See `scripts/logs/final_repair_2026-09-27/AGENT_REPORT.md`.
+- `code_hashes.tsv`: the same four model-code hashes (train, networks, equations,
+  elbo) at all 86 fit launches.
+- `DEAD_RUNS.tsv`, `SWEEP_LINKS.tsv`, `REPIN.tsv`.
+- `timing_all_lineage.md`.
+- `envelope_tables_finalL_at_best_ci.md`: the combined envelope tables.
+
+## 4. How to run
+
+All paths are keyed by dataset id under `data/` (`discell/paths.py`). Below,
+`DS=<dataset id>`, `RUN=finalL_s0` and
+`REFS="--references uncontrolledL_s0 uncontrolledL_s1 --reference-200 none --baseline-tag _lineage"`.
+The invocations are taken from `scripts/queue_2026-09-25_final_lineage.sh`.
 
 | step | command | output |
 |---|---|---|
-| preprocess (bundle, graphs, embeddings, figures) | `uv run python -m discell.preprocess --sample <sample> [--only bundle\|graph\|embed\|figures] [--donors PDL018D --variant pdl018d]` | `bundle/full.h5ad`, `embeddings/*.pt` |
-| train one run | `uv run python -m discell.model.train --dataset $DS --run-name $RUN --epochs 500 --patience 40 [--seed N] [--label-key graphclust] [--alpha-z …] [--tile-cells 2048] [--variant …] [--figures-every 100]` | `runs/$RUN/{best.pt,config.json,history.jsonl,metrics.json,events.*}` |
-| any sweep, any dataset | `uv run python -m discell.model.sweep --dataset $DS --param {kappa,d_w,alpha_w} --values … --seeds 0 1 2 --tag sweep3 [--report-only]` | `runs/<tag>_{k,dw,aw}<v>_s<seed>/`, `experiments/kappa_sweep_<tag>.json` |
-| **held-out section** | `uv run python -m discell.model.crossslide --dataset <A> --run $RUN --eval-dataset <B> [--eval-variant …]` | `runs/$RUN/crossslide/<B>.json` |
-| §7.10 degeneracy, post hoc | `uv run python -m discell.model.degeneracy --dataset $DS --run $RUN` | `runs/$RUN/degeneracy.json` |
-| report | `uv run python -m discell.model.report --dataset $DS --run $RUN` | `runs/$RUN/report/report.md` + `figures/` |
-| doc-08 §§3–5 battery | `uv run python -m discell.model.validate --dataset $DS --run $RUN [--analyses morans,niche,landmarks,matrix] [--n-perms 1000] [--sweep-tag sweep3]` | `runs/$RUN/validation/validation.json` |
-| doc-08 §6 atlas (rewritten) | `uv run python -m discell.model.atlas --dataset $DS --run $RUN [--compare-runs …] [--compare-atlas …]` | `runs/$RUN/atlas/`, recurrence JSON |
-| doc-08 §7 transport (rewritten) | `uv run python -m discell.model.transport --dataset $DS --run $RUN [--niches 10]` | `runs/$RUN/transport/{transport.json,transport_table.md,*_summary.png}` |
-| doc-09 communication / §8 ladder | `…model.communication` / `…model.lr_map --dataset $DS --run $RUN` | `runs/$RUN/communication/{communication,lr_map}.json` |
-| doc-11 shared data | `…applications.shared --dataset $DS --stage {dapi,nuclear-counts,nuclear-summary}` | `qc/nuclear_dapi.parquet`, `qc/nuclear_counts.npz`, `qc/nuclear_summary.json` |
-| doc-11 A4 (parked) | `…applications.a4_cycle --dataset $DS --run $RUN` | `runs/$RUN/applications/a4_cycle.{json,png}` |
-| x̃ planted gate (closed) | `…applications.xtilde_gate` | `data/experiments_synthetic/xtilde_gate*.{json,png}` |
-| leak meter (rejected) | `…experiments.leak_meter --dataset $DS` | `experiments/leak_meter*.json` |
-| transcript-flux β^T / κ_i (instrument) | `…experiments.transcript_flux --dataset $DS [--power] [--decisive]` | `experiments/transcript_flux{,_decisive}_*.json` |
-| DAPI cycle gates (closed negative) | `…experiments.dapi_cycle --dataset $DS` | `experiments/dapi_cycle.{json,png}` |
-| cycle-target before/after | `…model.cycle_target --dataset $DS --run $RUN` | `experiments/cycle_target_<run>.json` |
-| neighbour dose | `…experiments.neighbour_dose --dataset $DS --run $RUN` | `experiments/neighbour_dose_<run>.{json,png}` |
-| tests | `uv run pytest -q` → **239 passed, 1 skipped** (2026-09-21) | — |
+| relabel (done) | `uv run python -m discell.experiments.apply_lineage …` (`--sox2ot`, `--cyst` required; `--dry-run`) | obs `lineage`; `labels/lineage_map_applied.{csv,json}` |
+| fit | §2 | `runs/$RUN/` |
+| dead-channel guard + §7.10 degeneracy | `uv run python -m discell.model.degeneracy --dataset $DS --run $RUN` | `runs/$RUN/degeneracy.json` (block `w_channel`) |
+| battery | `uv run python -m discell.model.validate --dataset $DS --run $RUN --analyses morans,niche,probe` | `runs/$RUN/validation/validation.json` (see the probe trap in §5) |
+| per-block probe vs the lineage references | `uv run python -m discell.experiments.probe_regrade --dataset $DS --run $RUN --force $REFS` (GSE: repeat with `--dataset gse315411_pdltma06_10_prime_dual --config-from gse315411_pdltma06_11_prime_solo`) | `runs/$RUN/validation/probe_blocks*.json` |
+| probe tables | `uv run python -m discell.experiments.probe_regrade --dataset $DS --table lineage_final --baselines --runs 'finalL_s*' 'uncontrolledL_s*' $REFS` | `experiments/probe_regrade_lineage_final.md` (and `…_sweep.md`) |
+| atlas | `uv run python -m discell.model.atlas --dataset $DS --run $RUN [--compare-runs finalL_s1 finalL_s2]` | `runs/$RUN/atlas/` |
+| transport | `uv run python -m discell.model.transport --dataset $DS --run $RUN --read both --hvg 1000 [--niche-source tumour-band]` | `runs/$RUN/transport/` |
+| held-out section (GSE) | `uv run python -m discell.model.crossslide --dataset gse315411_pdltma06_11_prime_solo --run $RUN --eval-dataset gse315411_pdltma06_10_prime_dual` | `runs/$RUN/crossslide/` |
+| reconstruction modes | `uv run python -m discell.experiments.recon_modes --dataset $DS --run $RUN [--eval-dataset …]` | `runs/$RUN/recon_modes*.json` |
+| tile bootstrap | `uv run python -m discell.experiments.bootstrap --dataset $DS --run $RUN --n 1000 [--reads transport_mean]` | `runs/$RUN/bootstrap_ci.json` |
+| envelope tables | `uv run python scripts/envelope_tables.py --datasets <ids> --runs finalL_s0 finalL_s1 finalL_s2 --at best --ci --combined <file>` | `experiments/envelope_table_ci_at_best.md` |
+| κ sweep report | `uv run python -m discell.model.sweep --dataset $DS --report-only --tag sweepL --param kappa --values 0 0.05 0.1 0.2 0.3 0.4 --seeds 0 1 2 --label-key lineage --alpha-z … --epochs 500 --patience 40` | `experiments/kappa_sweep_sweepL.json` (caveats in §11) |
+| κ-survival | `uv run python -m discell.model.validate --dataset $DS --sweep-tag sweepL --kappas 0 0.05 0.1 0.2 0.3 0.4 --seeds 0 1 2 --analyses kappa_survival,morans,niche --survival-reference finalL_s0` | `experiments/{validation_sweepL,atlas_kappa_survival{,_internal}}.json`, `validation_sweepL_kappa.png` |
+| baseline battery | `uv run python -m discell.experiments.baseline_battery --dataset $DS --discell-run $RUN --config-run finalL_s0 --tag _lineage`; one baseline: `--method "<label>" --latents <h5ad>` | `experiments/baseline_battery_lineage.{json,md}` |
+| external criteria | `uv run python -m discell.experiments.external_criteria {signalling-share,mi-quadrant,axis-test} --dataset $DS --run $RUN` | `experiments/external_*_<run>.{json,png}` |
+| GO localisation | `uv run python -m discell.experiments.go_localisation --dataset $DS --run finalL_s0 --run finalL_s1 --run finalL_s2 --out-stem go_localisation_lineage` | `experiments/go_localisation_lineage.{json,md,png}` |
+| cycle 2×2 | `uv run python -m discell.experiments.cycle_2x2 --dataset $DS` | `experiments/cycle_2x2.{json,md}` |
+| marker pairs (6b.2) | `uv run python -m discell.experiments.marker_pairs --dataset $DS --run <runs…> --kappa` | `runs/<run>/marker_pairs.json`, `experiments/marker_pairs_kappa.{json,md,png}` |
+| timing | `uv run python scripts/timing_mode.py …` (wraps `train --time-only N`) | `experiments/timing*/`, `timing*.md` |
+| report | `uv run python -m discell.model.report --dataset $DS --run $RUN` | `runs/$RUN/report/` |
+| tests | `uv run pytest -q` | not re-run for this handover (§13) |
 
-Queue scripts that produced the current grids: `scripts/queue_2026-09-17.sh`
-(two lanes, one per GPU) and `scripts/queue_2026-09-21_gse.sh`. Sweeps are
-idempotent per run name (a run with a `metrics.json` is skipped before
-`assemble()`), so a queue is resumable by relaunch.
+The queue scripts that produced the current state:
 
-External data: `data/external/CellChatDB.human.rda`,
-`nichenet_ligand_target_matrix_nsga2r_final.rds`,
-`msigdb_hallmarks_h.all.v2023.2.Hs.symbols.gmt`.
+| queue | what it ran |
+|---|---|
+| `scripts/queue_2026-09-25_final_lineage.sh` | everything under §3 |
+| `scripts/queue_2026-09-25_metrics.sh` | bootstrap, recon modes, projection test and timing on the pre-lineage finals |
+| `scripts/queue_2026-09-27_marker_pairs.sh` | 6b.2 scoring |
+| `scripts/logs/final_repair_2026-09-27/rerun*.sh` | the repairs |
 
-Code map: `discell/model/` — `networks.py` (DisCell, GATv2 incl. the optional
-sink), `elbo.py`, `equations.py` (leak mixture, invariance penalty,
-TypeCovariances), `prepare.py`, `train.py` (Trainer/TrainConfig/CLI),
-`metrics.py`, `degeneracy.py`, `cell_cycle.py` + `cycle_target.py`, `report.py`,
-`validate.py`, `atlas.py`, `transport.py`, `communication.py`, `lr_map.py`,
-`crossslide.py`, `sweep.py`, `calibrate.py`, `synthetic.py`;
-`discell/applications/` — `shared.py`, `planted.py`, `a4_cycle.py`,
-`xtilde_gate.py`; `discell/experiments/` — `leak_meter.py`,
-`transcript_flux.py`, `dapi_cycle.py`, `neighbour_dose.py`;
-`discell/preprocess/`, `discell/data/`; `tests/` (24 files).
+Code missing from the 2026-09-21 handover's code map. All of it was added on or
+after 2026-09-21; `cycle_2x2` and `marker_pairs` are still untracked:
 
-## 4. Results, by claim
+- `discell/experiments/`: `apply_lineage`, `at_best`, `baseline_battery`,
+  `bootstrap`, `cycle_2x2`, `export_for_baselines`, `external_criteria`,
+  `go_localisation`, `marker_pairs`, `planted_posterior`, `planted_probe`,
+  `probe_regrade`, `r12_depth_test`, `recon_modes`, `w_deviation`.
+- `discell/model/`: `labels.py`, `attention_read.py`, `fp_floor.py`.
+- `scripts/*_table.py`: the decision read-outs.
 
-Reading conventions (doc-08 §1): posterior means, within type, spatial-block
-folds, every probe judged against a within-type permutation **floor**, a
-log-depth **ℓ-baseline**, and where relevant the 50-PC **linear expression
-reference** — a reference line, not a bound.
+The rest of the code map is unchanged from §3 of the 2026-09-21 handover.
 
-> **Depth qualifier on the cycle ratio (todo 3.3).** The *absolute* read is the
-> claim: cycle R² from z far above the permuted control and the ℓ-baseline
-> (both ≈ 0 ± 0.001 on every slide), w at zero. The **ratio** z / linear
-> reference is a property of the target's reliability and the frame's strength,
-> not of the model: **2.1 on ovarian FFPE (178 tx/cell), 2.1 on lung (242),
-> 0.96 on the GSE315411 core (279, curated 35 classes), 0.90 on the
-> fresh-frozen slide (1,401)** (devlog 2026-09-17, FF results). "z beats the
-> 50-PC linear reference ~2×" is an ovarian/lung observation and must never be
-> quoted as a model property. The report text and issues M6 carry the
-> qualifier.
+## 5. Evaluation instruments
 
-### 4.1 The disentanglement quadrant — z is intrinsic, w is context
+Reading conventions are unchanged (doc-08 §1): posterior means, within type,
+spatial-block folds, and a within-type permutation floor. **Every decision and
+envelope table is read at the accepted checkpoint.** In practice:
 
-`runs/$RUN/report/report.md`, `validation/validation.json`:
+- Runs fitted after the R26 trainer fix carry `final_epoch` = the accepted epoch,
+  so their `final` block describes `best.pt`.
+- Older runs lack `final_epoch` and `last_epoch`. For those,
+  `discell/experiments/at_best.py` and the `--at best` flag of the decision
+  scripts read the `history.jsonl` row at `best.epoch`.
+- Post-hoc tools (validate, degeneracy, transport, atlas, baseline battery) load
+  `best.pt` and were never affected.
 
-| target | z | w | floor / ℓ / linear ref | expect |
-|---|---|---|---|---|
-| S/G2M cycle score, within cycling types (R² pooled) | **0.50** (report, val split) / 0.44 (battery subsample) | 0.006 | −0.001 / −0.000 / 0.235 | z |
-| niche label K = 10 (macro AUC, block-CV logistic) | 0.654 † | **0.767** | 0.501 / 0.585 | w |
-| pseudotime tissue gradient, type-partialled (niche R², coherence) | 0.005, 0.045 | **0.566, 0.489** | (raw: z 0.60/0.63, w 0.90/0.99) | w |
-| Moran's I, mean \|I\| over dims (perm null ±0.002) | 0.061 | **0.628** | — | w |
-| mid-band landmark distance (R²) | −0.011 | 0.023 | −0.002 / −0.011 | w (near-null) |
+### 5.1 The battery at the accepted checkpoint
 
-† the one flagged cell: z above max(floor, ℓ) on the discrete niche label.
-Triage (`morans.mu_z.triage`): the hot z dims are not y-explainable (≤ 3.6 %
-R²) → benign intrinsic spatial structure read through spatial contiguity, not
-context leakage; κ-reducible (+0.062 → +0.039 over the grid). Standing watch
-item.
+- **What it reads:** NMI(z, t); mirror R²; cycle_z and cycle_w (pooled,
+  per-type-centred, with permuted control, log-depth baseline and 50-PC linear
+  reference); the §7.10 degeneracy pair (I(z;t)/H(t), within-type variance
+  fraction of z); the type-mean-z reconstruction gap; KL_w.
+- **Code:** in-trainer `Trainer.evaluate` plus `discell.model.degeneracy`.
+- **Where:** `metrics.json` and `history.jsonl`; aggregated per dataset in
+  `experiments/envelope_table_ci_at_best.md`.
+- **Caveats:** NMI re-evaluated on identical weights varies by up to ~0.003
+  (k-means); this is issue T-r26.
 
-Training-time guards (all seeds): probe ΔCE at zero with the floor below it;
-mirror R² 0.044–0.046 vs permuted 0.016; KL_w ≈ 0.002/dim — **w rides its
-context prior; it is a context field evaluated at the cell, not a per-cell
-measurement** (prior-R² 0.9998).
+### 5.2 Per-block invariance probe vs the uncontrolled fit (R20, R22)
 
-**z is not just t (spec §7.10, built 2026-09-17; `runs/<run>/degeneracy.json`).**
-On the ovarian seed triple and `reference_best`: I(z;t)/H(t) **0.80–0.82** (a
-linear-probe lower bound; high by design — the decoder gets no t), within-type
-variance fraction **0.68–0.70**, and replacing every cell's z by its type mean
-costs **0.118–0.148 nats/count** of held-out reconstruction with w, ρ̄ and κ
-untouched. The pre-registered degenerate pattern (all three at their degenerate
-ends) does not occur; the seed triple is tight (spreads 0.019 / 0.021 / 0.022).
-Per dimension the within-type fraction runs 0.24 → 0.98: the scalar is a
-mixture of near-pure type axes and near-pure state axes, not a uniform property.
-Caveats: linear probe, `H(t)` from training frequencies, three seeds scored on
-three different held-out sets, and a *substitution* rather than the spec's
-one-hot-t retrain (registered as a deviation). The diagnostics now run in
-`Trainer.evaluate` on every fit and were back-filled on the 18 sweep3 κ runs.
+- **What it reads:** per column, the gain ½·log(MSE of the type-only baseline /
+  MSE of the probe), in two blocks: composition, and 12 Φ PCs. It is graded by a
+  ridge and by an MLP (one network per block), each against its own within-type
+  permutation floor.
+- **How it is reported:** excess in nats per column; the implied within-type
+  variance exp(2·excess) − 1; and fractions of the α_a = 0 fit (·u) and of
+  resolVI.
+- **The guard:** all four blocks at ≤ 25 % of uncontrolled. The 25 % is a
+  judgement, stated as such.
+- **Code:** `metrics.probe_gain_per_block{,_mlp}`; `discell/experiments/probe_regrade.py`.
+- **Where:** `runs/<run>/validation/probe_blocks.json`,
+  `experiments/probe_regrade_lineage_{final,sweep}.md`,
+  `experiments/probe_regrade_lineage/` (baselines), and the envelope rows
+  "probe excess …" and "invariance guard …".
+- **Caveats:**
+  - The legacy pooled ΔCE was > 99 % image block. It is kept as a row only.
+  - The 2-sd rule was withdrawn the same day as the wrong scale.
+  - The denominators come from 2 reference seeds, which is about 10–40 % noise.
+  - **Trap:** `validate --analyses probe` grades against `uncontrolled500_s*`
+    (old labels, now in `_archive/`). Always follow it with
+    `probe_regrade --force $REFS`. The final queue did exactly this
+    (`final_prep` report, "Other points to know").
 
-**What w buys once z is type-averaged (todo 2.3, `experiments/w_contribution.json`).**
-Ten runs, six decodes each, ρ̄ and κ fixed: the context-varying part of w is
-worth **0.0087–0.0097 nats/count at α_w = 0.1** and grows monotonically as α_w
-falls (0.0122 / 0.0126 / 0.0166 / 0.0215 / 0.0244 at 0.1 / 0.07 / 0.05 / 0.03 /
-0.02, type_z era) against **0.108–0.118 for per-cell z**. The gauge offset plus
-decoder nonlinearity plus the leak mixture buy **exactly nothing** over an
-empirical per-type profile lookup ((d)−(e) = −0.004…+0.003, no α_w trend).
-Total recon does not move across α_w (0.008 span against a 0.06 seed spread) —
-**α_w decides which channel carries the likelihood, not how much there is**, so
-recon cannot adjudicate an α_w choice.
+### 5.3 I(niche; w) guard (dead-channel guard)
 
-### 4.2 The κ envelope — four slides
+- **What it reads:** kNN MI between the niche label (K = 10 k-means on
+  composition) and μ_w on held-out cells, against a 5-fold within-type
+  permutation floor, plus the across-cell variance fraction of w. An excess
+  ≤ 0 is flagged "failed fit: dead context channel".
+- **Code:** `degeneracy.w_channel_guard`.
+- **Where:** `runs/<run>/degeneracy.json["w_channel"]`; envelope row
+  "I(niche; w) excess".
+- **Caveats:** this guard, not KL_w, decides whether the channel is alive.
 
-Sweeps under tag `sweep3`, three seeds per value, 200/20 (FF 500/40);
-`runs/sweep3_k*/metrics.json`, aggregate `experiments/kappa_sweep_sweep3.json`
-per dataset.
+### 5.4 Dead-channel detector (training time)
 
-| slide | recon along κ | NMI | cycle_z | mirror | type-mean-z recon gap |
-|---|---|---|---|---|---|
-| ovarian | plateau to 0.1, then → −7.285 (0.4) | 0.64–0.67 | 0.42–0.46 | 0.050 → 0.037 | 0.10–0.15 |
-| lung | −7.254 (0) → −7.300 (0.4) | 0.660–0.665 | 0.38–0.43 | 0.031 → 0.024 | 0.149 → 0.105 |
-| FF | −7.315 (0.05–0.1) → −7.326 (0.4) | 0.59 → 0.61, flat after | 0.77–0.78, 0.749 at 0.4 | — | 0.059 → 0.035 |
-| GSE core | −7.210 (0) → −7.215 (0.1) → −7.256 (0.4) | 0.60–0.62 | 0.49–0.51 | 0.029 → 0.022 | 0.162 → 0.109 |
+- **What it reads:** summed KL_w < 1e-5 in any of the first 20 epochs. It logs a
+  WARNING and sets a flag; training continues.
+- **Code:** `train.kl_w_is_dead`.
+- **Where:** `metrics.json["dead_w_channel"]`.
+- **Caveats:**
+  - It can disagree with the guard in the thin-but-live regime.
+  - Queues refit a dead `finalL` slot with the next seed (3–8) and log it in
+    `DEAD_RUNS.tsv`. Dead sweep fits are recorded, not refitted.
 
-**The envelope shape replicates on four slides**: a likelihood plateau then a
-decline past κ = 0.1–0.2, disentanglement reads flat, mirror falling with κ, and
-the type-mean-z gap falling with κ on all four (the leak channel absorbs part of
-what per-cell z carried). Guards hold at every grid point of every grid: probe
-ΔCE at floor, cycle_w ≤ 0.02, I(z;t)/H(t) 0.73–0.85, within-type variance
-fraction 0.59–0.72 — **z is not degenerate at any point of any grid**.
+### 5.5 Transport, mean read
 
-**α_w grid** (new, 0.02–0.3). Ovarian NMI rises monotonically with α_w
-(0.604 → 0.657 → 0.676), FF the same and steeper (0.534 → 0.607 → 0.619), GSE
-core the same (0.594 → 0.618 → 0.630), lung flat (0.659–0.667); cycle_z flat
-everywhere; KL_w max closes from ~0.05 to ~0.0002 as α_w rises. **0.1 sits where
-the w channel is just closed and NMI has plateaued.** Above 0.1 nothing improves
-but NMI by 0.01–0.02 while the channel shuts entirely.
+- **What it reads:** per (type, niche pair) panel, the predicted log-rate shift.
+  The programme part comes via m_ψ and B, the leak part via κ, with z held
+  fixed. It is scored against the observed held-out shift as a fraction of the
+  split-half noise ceiling. The trusted tier is ceiling ≥ 0.5.
+- **Code:** `discell/model/transport.py`, `--read mean|both`.
+- **Where:** `runs/<run>/transport/transport{,_table}.{json,md}`; envelope rows
+  "transport, mean read: fraction of ceiling (trusted / all panels)".
+- **Caveats:**
+  - The ceiling splits *cells* at random, so shared tile noise counts as signal.
+    That inflates the ceiling and biases the fraction low. A tile-split column is
+    being added (8.21).
+  - On GSE the trusted tier exists on 2 of 3 seeds.
+  - The "all panels" fraction can exceed 1: it is a ratio of means over panels
+    whose ceilings can be near 0.
 
-**α_w = 0.05 under type_only, three seeds — rejected (todo 2.2, 2026-09-21).**
-`runs/alphaw0.05_type_only_s{0,1,2}`, 500/40, full battery. The w side did
-exactly what 2.3 predicted: KL_w up 5–10×, effective rank 3–4 against 2,
-axis-2 share 0.25–0.39 (bar 0.15), niche AUC w 0.781–0.815 against 0.768. The
-veto fired on the z side: **NMI 0.627 / 0.611 against the 0.63 floor on two of
-three seeds**, cycle_z 0.438 on one against a 0.44 bar. Recorded, not tuned;
-**α_w stays 0.1**. The 2026-09-14 "α_w = 0.05 is a live candidate" entry is
-thereby closed.
+### 5.6 Transport, Read A (distribution level)
 
-**d_w** flat within seed spread across {2, 3, 6, 8} on lung, FF (and ovarian
-from 2026-09-15); **d_w = 6 stands on three slides**. Effective rank is a
-(d_w, α_w, budget) property of the optimiser — fill is 1 of 2, 2 of 3, 1–2 of 6,
-2 of 8 — never a tissue property, so any "N programmes" statement must name all
-three. d_w = 8 costs cycle_w (0.008–0.020, the highest on record).
+- **What it reads:** the MMD gap closed, pairwise and leave-one-niche-out, with
+  two target sides:
+  - **group-w:** the target is decoded at its group's mean w;
+  - **own-target:** each target cell is decoded at its own posterior μ_z, μ_w,
+    real context and influx (keys `*_own*`; 6a.6).
 
-**How much leak is there really? Two independent attempts, both instructive.**
+  A type-mean predictor is the reference.
+- **Code:** `transport.py --read both --hvg 1000` (HVG-1000 companion).
+- **Where:** `transport_distribution.json`; envelope rows "Read A …".
+- **Caveats:** quote the own-target numbers. The group-w target carries a
+  shared-w circularity.
 
-- **Leak meter (doc 16, `discell/experiments/leak_meter.py`) — rejected.** A
-  type-pooled table from sender-specific genes and the nuclear/extranuclear
-  split. The estimator is correct (planted worlds recover the table to 5 %,
-  ζ to 0.02, per-cell κ to RMSE < 0.02), but on real slides **every substantive
-  check fails**: 0 of 17 ovarian senders reach 30 specific genes (curated labels
-  are lineage-nested, so the dominant tumour compartment has none); ζ median
-  0.746 against measured nuclear fractions 0.41–0.59, i.e. the wrong side; 20 of
-  66 table entries negative, which no leak model can produce; factorisation
-  R² = −4.12; per-cell κ median 2.32 at 18 types; a **50× spread over five
-  learn/fit tile splits**; and the two sections of one TMA correlate at
-  **Spearman −0.085**. Kept as a 6 s/slide diagnostic that asks whether a
-  pooled leak table is measurable at all. Answer on these slides: no.
-- **Transcript-flux β^T and per-cell κ_i (`transcript_flux.py`) — instrument
-  only, adoption refused.** Geometry, no labels, no specific genes: the signed
-  nucleus-bisector offset of extranuclear transcripts. Replication across the
-  two GSE sections **Spearman 0.843**; β^T vs β_face Spearman 0.485–0.495
-  (correlated, not identical); κ_i is a share — median **0.126–0.130**, p95
-  0.30–0.32, no tail at 1 on three slides; the nuclear-fraction anchor agrees in
-  sign (TAFs low nuclear fraction, high κ; stromal fibroblasts the reverse), the
-  anchor the leak meter could not reproduce. Then the three decisive tests
-  (todo 5.4–5.7) **all fail**: the cosine-excess content statistic provably
-  cannot carry a crossing bar (the p = 0.5 mixture is invariant under swapping
-  the arms, so the crossing is at 0.5 for *any* gene subset); κ_i's level is
-  insensitive to the transcript-to-own-nucleus relationship it is built from
-  (polygon-centroid arm moves it only 0.130 → 0.117); and **the per-edge
-  geometric flux share does not predict the content it stands for** (count-matched
-  Spearman −0.539 / +0.685 / +0.539, slope 0.23–0.29 against a [0.5, 2] bar),
-  while the same machinery recovers a planted per-edge admixture cleanly. The
-  two content moments disagree by a factor 1.8–2.5 and the difference-in-differences
-  is significantly negative — wrong sign for influx, logged as open anomaly W-tf10.
-  **Todo 5.8 is not built**; `equations.leakage_mix` keeps its scalar κ and
-  `prepare` keeps β_face.
+### 5.7 Transport, Read B (matched twin)
 
-  **What can be said about κ = 0.1:** the geometric median is 0.126–0.130
-  (upper bound by construction, and band-dependent 0.076–0.171 over the 3 × 3
-  sensitivity grid) and the independent gene-content estimate brackets the
-  admixture at **0.11–0.26**. Combined bracket **0.09–0.25** behind κ = 0.1:
-  order-of-magnitude consistency, enough to say the operating point is not off
-  by a factor of five, **not enough to call κ = 0.1 measured**.
+- **What it reads:** the nearest-z source cell is transported and compared cell
+  to cell with the target.
+- **Code:** same module.
+- **Where:** `transport_twins.json`; envelope rows "Read B …".
 
-Partial-isolation strata (`recon_strata`): cells that lost edges to the 40 µm
-prune reconstruct *better* (−7.04 vs −7.26) at every κ — unexplained, still on
-the watch list.
+### 5.8 Transport on tumour bands (ovarian)
 
-### 4.3 Landmarks and the allegiance matrix (doc-08 §2, §5)
+- **What it reads:** six nested bands of the kNN-smoothed tumour fraction.
+- **Code:** `--niche-source tumour-band`.
+- **Where:** `transport_tumour-band*.json`.
+- **Caveats:** the cyst lining is excluded from "tumour" (§2.5), so old-label
+  tumour-band numbers are not bit-reproducible.
 
-`validation.json: landmarks, matrix`. Inventory: vasculature = endothelial ∪
-pericytes (206 instances, 8,387 cells), compact smooth muscle 20–500 cells
-(238 / 18,578), kNN-smoothed tumour/stroma interface (36,062 cells, 8.9 % of the
-slide). Per-band fits carry a **y-baseline** because the sets are type-defined:
-interface mid-band w 0.054 vs y-baseline 0.036 → ~60 % of the w signal is
-definitional; **vasculature is the only geometry-grade test and is a certified
-null** (mid-band y −0.004, w 0.007). θ cross-type cosine 0.05–0.37. On
-cluster-labelled slides `landmark_inventory` returns empty (type *names* are
-matched) — guarded since 2026-09-21 so the atlas no longer crashes, but §2
-landmarks and the §5 matrix remain **unrunnable on lung, FF and any graphclust
-slide**; naming the clusters would unlock them.
+### 5.9 Tile-bootstrap CIs (R33)
 
-### 4.4 The w-programme atlas (doc-08 §6) — rewritten 2026-09-21
+- **What it does:** resamples 200 µm tiles of held-out cells, 1000 draws. Each
+  adapter replays its metric's random stream, so the unit-weight value *is* the
+  stored number (`reproduces` is recorded per read). Intervals are conditional on
+  the fitted probes, clustering and model. The seed envelope is
+  [min lo, max hi] over the per-seed intervals.
+- **Code:** `discell/experiments/bootstrap.py`.
+- **Where:** `runs/<run>/bootstrap_ci.json`; the CI column of the envelope tables.
+- **Caveats:**
+  - The two transport fraction-of-ceiling rows use **half-tile subsampling
+    without replacement** instead: centred on the draws' median, scaled by
+    √(m/(n−m)).
+  - Planted coverage of those rows is ~0.95 at high ceilings but 0.78–0.88 at
+    ceilings of 0.5–0.6. Real panels sit at or below that, so **read those
+    intervals as roughly 0.8 coverage.**
+  - Most of each envelope's width is seed spread.
+  - Holm over the κ grid exists (`bootstrap.paired_comparisons`) but has no CLI
+    entry.
+  - The κ* breakdown layer (R33 Definition 1) is not built (todo 8.19,
+    "Evaluation layer for Definition 1").
 
-`runs/<run>/atlas/`. The rewrite closes issues V10/V11/V12 and todo 1.4/1.5; the
-old atlas would have misread every sweep run on disk. What changed: activity by
-the **effective rank r of cov(μ_w)** on **within-type gauge-centred** w
-(components ≥ 1 % of variance), varimax *within* the r-dim subspace, each
-programme's variance share reported; stability by **shift-space overlap of
-μ_w·B** plus per-axis cross-seed cosines (matched-column correlation dropped);
-enrichment by a Mann–Whitney rank test on the full loading vector against the
-expressed-panel background, BH per programme, q ≤ 0.05; the landmark driver
-block skipped when the inventory is empty; label recurrence across seeds and
-across slides; **a programme whose label does not recur ships as *unlabelled*,
-never named**. 12 planted tests certify it (rank-2 w in 6 dims reads r = 2 where
-the old read said 6/6; a permuted sign-flipped basis reads cosine 1.0).
+### 5.10 Reconstruction modes (R24)
 
-- **Ovarian seed triple (α_w = 0.1):** r = **2 of 6** on all three seeds, spectra
-  [0.95, 0.05] / [0.62, 0.38] / [0.94, 0.06]. Axis-1 cross-seed |cos| 0.93–0.98,
-  axis-2 0.40–0.83; shift-space overlap 0.67–0.93. Dominant programme = the
-  macrophage/stromal axis (F13A1, MRC1, TNXB, KLF4) on every seed, Moran I
-  0.37–0.47, **joint context-driver R² 0.92** with Φ the largest partial
-  (0.25–0.31) and landmarks ≈ 0; second = the matrix axis (COMP, SFRP4, COL10A1,
-  COL11A1), Moran 0.61–0.69. Labels recurring in ≥ 2 of 3 seeds: **EMT and
-  HYPOXIA (3/3)**, E2F_TARGETS and G2M_CHECKPOINT (2/3).
-- **Cluster-labelled slides:** lung r = 1 ([0.999, 0.001]), Moran 0.42, joint
-  0.87, EMT (q < 1e-4). FF r = 3 ([0.55, 0.27, 0.18]), labels EMT,
-  MYC_TARGETS_V1, EMT/HYPOXIA; its second programme carries 27 % of w's variance
-  but **71 % of the realised shift** — the two shares are reported separately
-  for this reason.
-- **Cross-slide recurrence** (ovarian s1, lung, FF): EMT 3/3, HYPOXIA 2/3,
-  KRAS_SIGNALING_UP 2/3.
-- **α_w = 0.05 triple** supplies the cosines the 2.2 verdict lacked: r = 4 / 3 /
-  3, and a **third programme with the same signature in all three fits**
-  (FOXL2, SFRP4, POSTN, GRIA2, WNT4, GREB1), Moran I 0.84–0.88 — the most
-  territorial programme seen — most modulated in stromal fibroblasts and smooth
-  muscle, Φ-driven (partial 0.50–0.57 vs composition 0.02–0.09), and
-  **unlabelled** (no hallmark at q ≤ 0.05 on 2 of 3 seeds). The extra axes do
-  reproduce; it does not reopen the α_w decision, whose veto was on the z side.
+- **What it reads:** per count on held-out cells:
+  - full (own posterior);
+  - intrinsic-only (posterior z, w = m_ψ);
+  - context-only (type-mean z, w = m_ψ);
+  - type-profile reference.
 
-κ-survival (`experiments/atlas_kappa_survival*.json`) is unchanged and
-**sweep-internal** (0.29–0.43, flat over κ); it has not been regenerated under
-the new basis and is now the one w-stability read not in shift space — the
-weakest of the three concordance reads (todo 1.6).
+  GSE is also scored on the dual section.
+- **Code:** `discell/experiments/recon_modes.py`.
+- **Where:** `runs/<run>/recon_modes{,_<dual>}.json`; envelope rows
+  "held-out recon, …".
+- **Caveats:** checkpoint selection used the full (autoencoding) score. The paper
+  must say so.
 
-### 4.5 Counterfactual transport (doc-08 §7) — rewritten 2026-09-21
+### 5.11 Cycle 2×2
 
-`runs/<run>/transport/{transport.json,transport_table.md,*_summary.png}`,
-`experiments/transport_kappa_sensitivity_v2.json`. This is the one experiment
-that exercises the whole system — z held fixed, the response channel through
-m_ψ and B, the leak channel through β and κ — where every other read isolates a
-subsystem.
+- **What it reads:** old vs new model × old vs new cycling set (top-4 types of
+  each label set, centred per type or lineage), on the same held-out cells. It
+  reproduces the in-trainer battery to 1e-8.
+- **Code:** `discell/experiments/cycle_2x2.py` (untracked).
+- **Where:** `experiments/cycle_2x2.md`; `scripts/logs/cycle_2x2_2026-09-27/AGENT_REPORT.md`.
+- **The cycling-set caveat:**
+  - The FF and lung cycle_z drop is a **read change**, not a model change.
+  - FF's cycle_w exceeds the 0.02 guard on 2 of 3 seeds under the registered
+    read. That is the pre-registered over-merging mechanism, and the paper
+    states it rather than re-reading the guard to a pass.
+  - The devlog's "first reading" of 2026-09-27 was backwards, and is corrected
+    in the same entry.
+  - Decision pending (§11).
 
-**What is predicted, plainly.** For one cell type and two neighbourhoods A and
-B: the per-gene log-rate shift a cell of that type undergoes going from A to B,
-from two channels added — the **programme** channel (m_ψ at B's mean context
-minus at A's, through B) and the **leak** channel (κ times the difference in
-mean foreign influx; κ never changes inside a prediction). Held fixed: the
-cell's intrinsic z. Scored on held-out tiles against the observed
-depth-normalised mean shift, both sides mean-centred, as R² against the
-zero-prediction null plus a calibration slope. The "model account" additionally
-lets the type's intrinsic mix differ between niches; its excess is the
-**selection share**.
+### 5.12 Marker pairs (6b.2)
 
-- **Headline, pinned reference:** counterfactual beats both single channels in
-  **100/155 (65 %)**, median slope **0.92**, mean R² **0.099** — reproduces the
-  record exactly after a substantial rewrite. Seed triple 0.085 / 0.099 / 0.092,
-  slope 0.91–0.97; selection share 0.029–0.047 (about a third of an observed
-  niche difference is *which cells live there*).
-- **The noise ceiling — the main clarity gain, and it changes the reading.**
-  Every panel now carries the Spearman–Brown split-half reliability of the
-  *observed* shift: the largest R² any predictor could reach. On ovarian the
-  mean ceiling is **0.123** — 141 of 155 composition panels are essentially
-  unmeasurable, and the 0.099 headline is a mean over mostly noise. On the **14
-  trusted panels (ceiling ≥ 0.5 on ≥ 100 genes) the counterfactual reads 0.205
-  at slope 1.08, beating both channels in 13/14**, taking 34 % of what is
-  reachable. The ceiling is identical at all six κ, as it must be. **The
-  transport R² was never small because the model is weak; it was small because
-  most panels contain almost nothing measurable. Never quote 0.099 without
-  0.205 beside it.**
-- **Annotation niches.** Six ordered bands of the kNN-smoothed tumour fraction
-  (cuts 0.1/0.3/0.5/0.7/0.9 fixed before any result). Being nested they share
-  composition support, which k-means niches cannot: **supported tier 71 panels**
-  (73 / 75 on the other seeds), 13 types, R² 0.068, slope 0.79 (0.88 / 0.88
-  elsewhere — the one marginal miss, recorded), beats both 42/71; best panel
-  Tumor Cells rim → core R² 0.322. **Handover limitation "supported tier empty
-  by construction" closes for annotated slides.** Slides whose type names name
-  no tumour fall back to composition niches, named as such.
-- **The Φ question, answered against expectation.** Freezing Φ at the receiver
-  type's mean bites (the programme channel moves by > 0.02 in 47/155 panels) yet
-  leaves the total counterfactual unchanged on every slide: **interventionable
-  share ≈ 1** (1.04; per-panel median 0.99, IQR 0.94–1.06; envelope 0.86–1.13).
-  Neighbour-dose measured Φ's share of *cell-to-cell* variation within a type;
-  transport asks about differences of *niche means*, and Φ's cell-to-cell part
-  averages out inside a niche. The pre-registered worry that a composition
-  counterfactual carrying real Φ mixes intervention with description comes back
-  **negative**.
-- **κ as a range, on the corrected object** (six sweep3 κ seeds): leak 0.000
-  (κ = 0, sanity) → 0.084 (0.3), programme 0.056 → 0.042, total peaking at 0.086
-  (κ = 0.2), slope falling 0.99 → 0.60 and leaving the [0.8, 1.2] band at
-  κ ≥ 0.3. **Quotable range κ ∈ [0.05, 0.2].** The pre-correction
-  `transport_kappa_sensitivity.json` (which scored the *model account*, not the
-  counterfactual) is superseded and must not be quoted.
-- **Slides.** Lung 158 panels, 0.082, slope 0.84, 92/158. **FF now runs** — the
-  exit-137 kill was the instrument holding per-cell rate matrices (23 GB on
-  1.16 M cells); it accumulates per-(niche, type) means in the forward pass now,
-  ~3 min — and is the strongest read in the programme: **248 panels, R² 0.280,
-  beats both 223/248 (90 %), 140 trusted panels at 0.391**, ceiling 0.51; slope
-  1.25, just outside the band. **GSE core: ceiling 0.049, zero trusted panels —
-  it does not reach the noise floor, and its 0.062 is not a transport result.**
+- **What it reads:** resolVI's double-positive metric on raw counts, x̃, the
+  decode and the counts-corrected decode, across κ, on the pairs approved on
+  2026-09-23.
+- **Code:** `discell/experiments/marker_pairs.py` (untracked).
+- **Where:** `experiments/marker_pairs_kappa.{md,json,png}`,
+  `runs/<run>/marker_pairs.json`; pairs in
+  `experiments/marker_pairs_proposed.csv` and `scripts/logs/marker_pairs_2026-09-23/`.
+- **Caveats:**
+  - The pre-registered wish is not met as stated by any arm.
+  - The ratio is the read.
+  - The metric does not identify κ.
+  - FF keeps RGS5/EPCAM, as the approved list is written.
 
-Stale pre-correction `transport.json` files remain on unrelated runs
-(`gat_sink_*`, `xtilde_*`, `alphaw0.05_*`, `wd0`) and **must not be compared to
-the new numbers**.
+### 5.13 GO localisation of B (6b.10)
 
-A distribution-level companion (MMD, pairwise and leave-one-niche-out) is
-**pre-registered and not yet run** (devlog 2026-09-21).
+- **What it reads:** Mann–Whitney tests of |loading| against GO
+  cellular-component closures.
+- **Code:** `discell/experiments/go_localisation.py`.
+- **Where:** `experiments/go_localisation_lineage.{md,json,png}` (finalL);
+  `go_localisation.md` (older pins).
+- **Caveats:**
+  - The FF ovary was the inconsistent slide on the older pins.
+  - **The lineage file has not been read into the devlog.**
 
-### 4.6 Communication (doc-09) — a debunking instrument
+### 5.14 External criteria (6b.1 signalling share, 6b.3 MIG/MIC, 6b.4 axis test)
 
-`runs/<run>/communication/{communication,lr_map}.json`. Gate zero: 618 CellChat
-pairs with ≥ 20 in-panel NicheNet targets.
+- **What it reads:** MintFlow's signalling-gene share, DisCoVR's MIG/MIC with a
+  within-type floor, and SIMVI's true-axis / false-axis test.
+- **Code:** `discell/experiments/external_criteria.py`.
+- **Where:** `experiments/external_{signalling_share,mi_quadrant,axis_test}_finalL_s*.json`.
+  6b.1 covers ovarian and FF, 6b.3 covers ovarian, GSE and FF, and 6b.4 covers
+  ovarian.
+- **Caveats:** **none of these has been read into the devlog.**
 
-- **Exposure visibility is null in every arm** (mean w-R² −0.010 across
-  reference, s1, s0 and α_w = 0.05) and under `type_only` this is
-  **architectural**: c carries no channel for neighbour expression detail.
-- Programmes: at most 1–2 fragile candidates — PDGFB→PDGFRB, POSTN→ITGAV/B5 —
-  **nothing clears in 3/3 arms**. The paper reports the tally, not a winner.
-- **Doc-09 §8 ladder** (`lr_map.py`, three seeds, three rungs kept): uncontrolled
-  A′ |ρ| up to 0.7 with 20–29 of 60 entries surviving a Moran-preserving null
-  (that is the SIMVI-comparable view, and it is type composition); within
-  receiver type max |ρ| 0.26–0.34 with 1–10 surviving; composition-partialled
-  max |ρ| 0.14–0.16 and **0 survivors in every seed**. Side lesson the figure
-  demonstrates on itself: a plain permutation null on ~60k spatially smooth
-  cells is not a null — its counts barely fall down the ladder while effect size
-  collapses 0.7 → 0.3 → 0.15.
-- Reattribution (61 % of naive exposure-associated genes leak-attributed) is
-  **uncalibrated** — the §5a planted worlds never ran; **do not quote**.
+### 5.15 κ-survival
 
-### 4.7 The cell-cycle target — decided 2026-09-21, after two negative programmes
+- **What it reads:** shift-space overlap of μ_w·B across κ at fixed seed,
+  against the seed-to-seed yardstick at κ = 0.1, plus axis-1 |cos| and label
+  recurrence.
+- **Code:** `validate --sweep-tag`.
+- **Where:** `experiments/atlas_kappa_survival{,_internal}.json`,
+  `validation_sweepL.json`; numbers in `scripts/logs/final_repair_2026-09-27/AGENT_REPORT.md` §1.
+- **Caveats:** there is no pre-registered threshold; the verdict is relative to
+  the seed spread.
 
-**Decision: the plain Scanpy S/G2M marker score stays the target**, used
-continuously, never as a hard phase call, and stated as an imperfect reference
-rather than a gold standard. The claim is the *asymmetry* (z predicts it, w does
-not) against the permuted floor, the depth baseline and the split-half
-reliability as ceiling.
+### 5.16 Atlas
 
-- **No DNA-content label exists on either slide.** Ovarian
-  (`experiments/cell_cycle_dapi_analysis.json`): nucleus overlap is 0.179 % of
-  nuclei and is *not* the mechanism; integrated DAPI is nuclear footprint area
-  (log–log slope 1.035, R² 0.734) with ~12 % background, a 2.65× tile drift and
-  a segmentation-route swing 0.17 → 0.86; no variant clears AUROC ≥ 0.70 or
-  MKI67 ratio ≥ 2 (median AUROC 0.45–0.49). Fresh frozen, the only remaining
-  candidate, through six pre-registered gates
-  (`experiments/dapi_cycle.{json,png}`): **every thresholded gate fails, the
-  first at gate 1** — flat-field residual 1.55× (bar < 1.2), background 5.0 %
-  (< 3), R² on nuclear area **0.853** (< 0.1), bimodality 0 of 38 types (dip
-  test 0/38 while BIC alone would have licensed 36), AUROC 0.543 and MKI67 ratio
-  1.59. The blocker is physics — a single projected focus plane through a ~5 µm
-  section leaves the sectioned fraction of each nucleus unobserved and varying by
-  more than the twofold that *is* the 2N/4N signal. Fourth confirmation after
-  A4 leg 1, A4 v2 and the ovarian gating analysis. Todo 3.5 closed negative.
-- **The "joint" DAPI × Scanpy consensus label of
-  `docs/cell_cycle_comparison_report.md` is not defensible and is not adopted**:
-  its marker enrichment is the depth axis of the DAPI gate (the 4N gate is 49 %
-  top-depth-decile cells against the 2N gate's 7 %); **within depth deciles the
-  two MKI67 rates are equal**, depth-matched ratio 1.13. Its niche-border
-  enrichment claim for the "leakage candidate" class is unsupported.
-- **The depth-neutral target was built and not adopted** (todo 3.6,
-  `discell/model/cycle_target.py`, `experiments/cycle_target_<run>.json`). Depth
-  neutrality passes cleanly (worst within-type |Spearman(score, log counts)|
-  0.356 → 0.016 ovarian, 0.252 → 0.009 lung, zero violations), but split-half
-  reliability **falls to 0.082 / 0.160 (ovarian S / G2M) and 0.078 / 0.111
-  (lung)**: most of the old score's agreement with itself was depth. cycle_z
-  moves −0.08 (ovarian) and −0.16 (lung), attributed cleanly — depth
-  conditioning itself costs 0.022 / 0.003, the rest is the rank transform's
-  tie-breaking at 50–300 transcripts per cell. Kept as a **robustness column**,
-  not a method change; a transformed target would look like a workaround for an
-  issue the controls already show is absent.
-- **Carried forward as a caveat beside every cycle R²: the honest reliability
-  ceiling is ~0.16 for G2M on ovarian, not 0.52** — the old figure was inflated
-  by depth. FF is the reliable slide (S 0.52 / G2M 0.69).
+- **What it reads:** effective rank and programmes on gauge-centred w;
+  cross-seed axis-1 cosine; hallmark labels (BH).
+- **Code:** `discell/model/atlas.py`.
+- **Where:** `runs/<run>/atlas/`; envelope rows "atlas …".
+- **Caveats:** some seed pairs carry null cosines, which are skipped and
+  footnoted in the envelope table.
 
-### 4.8 Transfer, and the held-out section
+### 5.17 Timing
 
-**Annotation-free control** (ovarian with graphclust labels,
-`experiments/graphclust_comparison.json`): recon −7.2556, NMI vs curated 0.646,
-cycle_w 0.004, **but the invariance probe re-fitted against the *curated* labels
-reads ΔCE 0.061** (reference 0.004, floor −0.056): with coarser training labels
-the adversary guards a coarser target and finer-label niche information stays in
-z — the label-granularity cost of annotation-free operation.
+- **What it reads:** pure training time: s/epoch, s/evaluation and peak memory,
+  with Φ, zeroed Φ and dropped Φ, beside the baselines' fit times.
+- **Code:** `train --time-only`, `scripts/timing_mode.py`.
+- **Where:** `scripts/logs/final_lineage_2026-09-25/timing_all_lineage.md`,
+  `experiments/timing_lineage.md`.
+- **Caveats:** runs only on an idle card.
 
-**Lung** (`…lung…/runs/reference_graphclust`, α_z 0.004, 33 clusters): recon
-−7.2577, NMI 0.653, cycle_z 0.347 vs linear ref 0.166, cycle_w −0.000, probe
-ΔCE −0.010 (floor −0.021), mirror 0.036, Moran |I| w 0.428 / z 0.059, niche AUC
-w 0.731 / z 0.617 / ℓ 0.544. **The allegiance structure transfers with one knob
-(α_z) changed.**
+### 5.18 Projection test (S53)
 
-**Fresh frozen** (`…ovary_ff…/runs/reference_graphclust`, α_z 0.0007, 39
-classes, 409 epochs / best 369, 183 min): recon −7.3138, NMI 0.595 (drifting
-down from 0.643 while recon improves — the §7.10 guard *engaged* and blocked two
-recon-improving checkpoints), KL_z **1.22 nats/dim** (the most open z of any
-slide), probe ΔCE 0.0054 vs floor −0.0133, mirror 0.055 / 0.016, cycle_z
-**0.766** / cycle_w 0.0027, KL_w ≤ 0.0001/dim at the checkpoint (12–30× below
-the FFPE slides — α_w sits 140× above 1/ℓ̄ here). **Pass; the α_z bracket does
-not fire; nothing is tuned.** Single seed — nothing bounds FF's envelope.
-Practical note: **69 % of that run's wall time was TensorBoard figures**;
-`--figures-every 100` makes a 500-epoch FF fit ≈ 1.2 h.
+- **What it reads:** full Φ (384) against a learned 32-dim projection, ovarian,
+  3 seeds, 200/20.
+- **Code:** `--phi-proj 32`, `scripts/phi_projection_table.py`.
+- **Where:** `experiments/phi_projection_lineage.md` (lineage labels) and
+  `phi_projection.md` (old labels).
+- **Caveats:** not adopted.
 
-**The held-out section (GSE315411, `runs/sweep3_*/crossslide/`) — the strongest
-stability statement the programme has.** Train on the `pdl018d` core of section
-11, evaluate every swept checkpoint on section 10 under the same 35-class
-vocabulary (`discell/model/crossslide.py` asserts vocabulary equality; it
-refuses a mismatch rather than remapping). At **every grid point of all three
-grids**: reconstruction over all 64 dual tiles is **0.015–0.017 nats/count worse**
-than the same-section best (a quarter of the ovarian seed envelope); NMI −0.02
-to −0.03; **cycle_z on the held-out section 0.505–0.527, slightly *above* the
-same-section 0.49–0.51**; cycle_w ≤ 0.009; probe ΔCE at its floor; mirror
-0.033–0.043; I(z;t)/H(t) 0.76–0.79. **The section-to-section generalisation cost
-is a constant, independent of κ, d_w and α_w** — the disentanglement reads
-survive a change of section at every point of three grids.
+### 5.19 Held-out section (GSE)
 
-The shared-label pipeline behind it is itself a finding
-(`scripts/annotate_gse315411/`): **scANVI/scArches transfer is a failed
-instrument at this depth** — 60 % of cells called "Alveolar fibroblasts" at
-median max-probability 1.000, the majority HLCA label in 26 of 44 clusters, and
-every one would have passed the pre-registered gates; the CellRef leg collapses
-harder (97 % → CAP1) and the two label sets agree at ARI 0.026. Replaced by
-pseudobulk correlation plus marker curation; 35 classes, vocabulary identical on
-both slides, cross-slide composition JSD 0.0005, ~19 % Unassigned on the full
-slides (core-level low-depth tissue, characterised, kept in the graph as
-neighbours) and 3.7–4.8 % on the `pdl018d` core.
+- **What it reads:** the whole battery with weights fitted on section 11,
+  evaluated on section 10.
+- **Code:** `crossslide.py`, `recon_modes --eval-dataset`,
+  `probe_regrade --config-from`.
+- **Where:** the envelope column "held-out mean";
+  `gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.md`.
 
-### 4.9 x̃, the amortisation gap, and what replaced it
+### 5.20 Baseline battery
 
-**x̃ = x − κℓρ̄ as the encoder input (`--subtract-leak`): option-only, final
-(todo 2.1, closed 2026-09-21).**
+- **What it reads:** one column per method on the same held-out cells, label key
+  and cycle scores.
+- **Code:** `discell/experiments/baseline_battery.py`.
+- **Where:** `experiments/baseline_battery_lineage.{md,json}` per section.
+- **Caveats:**
+  - The MintFlow recon cell must not be quoted (B-mf1).
+  - SIMVI and MintFlow were trained on the old labels (§3).
+  - The baselines see held-out counts unlabelled, which makes a DisCell win
+    conservative.
 
-- On the slide (three seeds, 2026-09-14): recon identical (±0.001), niche-z
-  residual −0.006 mean (−0.011 / −0.013 / **+0.005**), cycle_z inside envelope,
-  w-side rows unmoved, **NMI −0.017 consistent**, Moran-w down in 2/3. Near-neutral.
-- In a **powered planted world** (`xtilde_gate.py`, V9's defects fixed:
-  within-type thresholds, excess FPR = victim − control, power gate raw AUROC
-  ≥ 0.9 and raw excess ≥ 0.1; `data/experiments_synthetic/xtilde_gate*.json`):
-  the gate passes 6/6 seeds; z beats raw 3/3 (excess 0.265/0.370/0.379 →
-  0.106/0.177/0.118); **x̃-z beats plain z on 1 of 3, then on 3 of 12** with
-  **3 reversals** over the decisive six-seed follow-up.
-- At a **weakened (unsaturated) plant**, x̃ is **worse than plain z on 3 of 6
-  seeds with the CI above zero**, and the z probe's own AUROC collapses to
-  0.61–0.92 against raw's 0.82–0.96: z is blunting, not decontaminating. The
-  saturated-plant benefit was an artefact of a plant too strong to lose anything to.
-- With **genuinely cycling victims**, the doc-11 sensitivity-loss fail state
-  fires: recall Δ(x̃-z − z) +0.014 / −0.060 / **−0.221** — up to 22 points of
-  recall on real cycling cells.
-- **Verdict: `subtract_leak` stays default off; spec-07 §7.13 stays parked; no
-  κ-sweep rerun.** The author's condition ("if it improves trust in z") is not met.
-- Two findings survive the exercise. (i) **The amortisation-gap hypothesis as
-  stated is refuted**: per-cell z carries only 31–48 % of raw's excess, so the
-  amortised posterior mean does *not* simply inherit what leaked into x_i — the
-  penalty and the population-level z law remove most of it. (ii) **The
-  counts-level route sits on its own ceiling**: the model's ρ̄ and the *true* ρ̄
-  give the same excess to three decimals, so subtracting a mean from a
-  multinomial draw removes about a quarter of the excess and no more.
-- **New watch item, independent of x̃ and more important than it: the z probe
-  itself loses 0.25–0.38 of raw's recall on genuinely planted cycling cells at
-  an unsaturated plant.** That bears on every per-cell z claim (doc-11
-  A1/A2/A5) and is the finding to carry forward.
+### 5.21 Planted instruments
 
-### 4.10 Baselines — surveyed, not yet run (todo 4.1)
+- **What they read:** the amortisation gap against an exact posterior (6b.8), and
+  whether the probe residual is adversary capacity or biology.
+- **Code:** `planted_posterior.py`, `planted_probe.py`.
+- **Where:** `data/datasets/synthetic_smoke/experiments/planted_posterior.{json,md,png}`;
+  `scripts/logs/planted_probe_2026-09-24/`.
+- **Caveats:** the claims are comparative. The oracles are regression
+  references, not information ceilings.
 
-Devlog 2026-09-21; no installs, no runs; five `uv pip install --dry-run`
-resolutions against the live env.
+### 5.22 Subtype recovery (8.22) — being added
 
-- **The bracketing is confirmed and sharper than expected.** SIMVI = our split
-  *without* a leak channel (intrinsic + spatial-induced, annotation-free;
-  largest published dataset ≈ 33k cells). resolVI = our leak channel *without* a
-  split (one latent, true/diffusion/background mixture with per-cell mixture
-  proportions; 1.4 M cells in < 6 h on a 3090). MintFlow sits between (three
-  latents, in-silico microenvironment perturbation — a counterfactual analogue
-  for the *programme half* of our transport — but no contamination model, and
-  labels required). scVIVA and NicheCompass are w-side only. **No published
-  method occupies both axes, which is the paper's claim.**
-- **Install plan.** `scvi-tools` 1.5.1 and `scviva-tools` 0.1.7 resolve into the
-  existing env with zero downgrades (resolVI, scVIVA need only an extra).
-  MintFlow would downgrade zarr 3.3 → 2.18 and break the tifffile image path →
-  own venv, mandatory. SIMVI pins `scvi-tools ≤ 0.16.2` → own venv on python
-  3.10, behind a tutorial-reproduction gate. NicheCompass drags mlflow → isolate.
-- **Order and cost:** resolVI first (~12 GPU-h; it owns the contamination row
-  nothing else fills), SIMVI second (~10–18), MintFlow third (~20–26), scVIVA /
-  NicheCompass last (~7–9). **≈ 50–65 GPU-h total; stages 1–2 (~25 GPU-h)
-  already deliver the bracketing claim.** Fairness pre-registered: same tile
-  split and fold map, same labels, our graph (and theirs where a method
-  insists), d_z 20 / d_w 6 matched, matched wall clock, three seeds, every number
-  through `validate.py` against floor / ℓ / linear reference, empty cells read
-  "n/a by construction", baseline spatial latents gauge-centred and compared in
-  shift space.
-- Caveats: `08-validation-analyses_1.md` has no §8 in this revision (the
-  bracketing framing was reconstructed from the handover and the register); no
-  runtime figure is published for four of the five methods; dry-runs prove
-  resolvability, not importability.
+- **What it reads:** whether the old state and location sublabels can be
+  recovered from μ_z, μ_w, m_ψ(c, t) and both combined, within each lineage, on
+  held-out cells, with floors.
+- **Code:** not in the working tree on 2026-09-28.
+- **Design:** devlog 2026-09-28, "Two additions before the paper numbers", B.
 
-## 5. Retractions, falsified hypotheses, parked work
+### 5.23 Tile-split noise ceiling (8.21) — being added
 
-| item | what was claimed | what killed it | what remains |
+- **What it adds:** a second column, "fraction of ceiling, tile-split ceiling",
+  beside the current one, never as a silent replacement.
+- **Code:** not in the working tree on 2026-09-28.
+- **Where:** illustration at `docs/figures/noise_ceiling_split.png`.
+- **Design:** devlog 2026-09-28, A.
+
+Instruments that were **not re-run on `finalL`:**
+
+- landmarks and the §5 allegiance matrix (`validate --analyses landmarks,matrix`);
+- doc-09 communication and the LR ladder;
+- leak meter, transcript flux, DAPI gates and the x̃ gate.
+
+Their last results are on the old pins (2026-09-21 handover §§4.3, 4.6, 4.2,
+4.7, 4.9). Landmark classes now exist on lung and FF too, through
+`labels.py`.
+
+## 6. Where the current numbers are, by claim
+
+| claim | read it from |
+|---|---|
+| z intrinsic, w context (NMI, cycle_z vs cycle_w, degeneracy pair, I(niche; w)) | `data/datasets/<ds>/experiments/envelope_table_ci_at_best.md`, four datasets; combined `scripts/logs/final_lineage_2026-09-25/envelope_tables_finalL_at_best_ci.md` |
+| held-out section generalisation | GSE envelope table, "held-out mean" column; `gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.md` |
+| invariance: what the adversary removes, what remains | envelope rows "probe excess …", "÷ uncontrolled …", "invariance guard"; `probe_regrade_lineage_final.md`; planted-world attribution in `scripts/logs/planted_probe_2026-09-24/AGENT_REPORT.md` |
+| DisCell vs resolVI / SIMVI / MintFlow | `experiments/baseline_battery_lineage.md` per section (five sections); training times in `timing_all_lineage.md` |
+| w predicts held-out shifts (transport) | envelope rows "transport …", "Read A …", "Read B …"; per run `transport/` |
+| w does no likelihood work (R19, R24) | envelope rows "held-out recon, intrinsic-only / context-only / type-profile" |
+| the atlas is stable across κ and seeds | envelope row "atlas cross-seed axis-1 cosine"; `atlas_kappa_survival*.json`; final_repair report §1 |
+| the κ envelope at the reference budget | `experiments/kappa_sweep_sweepL.json`, `probe_regrade_lineage_sweep.md`, `validation_sweepL.json`, and `READOUT.md` per-run rows. **Not yet read into the devlog**, apart from κ-survival. |
+| the leak form does not matter (κ-form rows) | `…ovarian_cancer_ffpe/experiments/r12_arms.md` (pre-lineage configuration) |
+| the false-positive floor changes little | `…ovarian_cancer_ffpe/experiments/fp_floor.md` (pre-lineage configuration) |
+| leak-induced false positives are rare; the corrected decode removes them specifically | `experiments/marker_pairs_kappa.md` per dataset |
+| the surface lean of B | `experiments/go_localisation_lineage.md` (unread); older pins `go_localisation.md` |
+| cycle_z depends on the label set | `experiments/cycle_2x2.md` per dataset |
+| the amortisation gap | `synthetic_smoke/experiments/planted_posterior.md` |
+| what opening the per-cell w channel would buy (α_w ladder) | `…ovarian_cancer_ffpe/experiments/awladder.md` (pre-lineage configuration) |
+| design ablations (query/prior, collapse remedies, adversary ladder, projection) | `queryprior.md`, `wcollapse*.md`, `adv_ladder.md`, `adv_confirm.md`, `phi_projection_lineage.md` |
+
+Label-set comparability, for anyone tabling old and new together:
+
+- **NMI and cycle_z at lineage labels are not comparable with any pre-lineage
+  number.**
+- Pre-R26 `final` blocks describe the last epoch, not the accepted model.
+
+## 7. Review-driven corrections: done vs open
+
+The review is `submission_paper/aistats/review_2026-09-23.md`. Its checkboxes
+track the *paper text*; the experiment and code side is tracked in the devlog and
+todo §8.
+
+| item | the defect | experiment / code | paper text (review checkbox) |
 |---|---|---|---|
-| **Per-type ‖w‖ ranking** (report, old handover §4.1, paper app:w-norm) | VEGFA⁺ tumour most context-responsive, stable over 18 fits | issues **V12**: ‖w‖ is an unidentified per-type gauge — `(a(z) − Bμ_t, w + μ_t)` is the same model. Offsets are 4–10× the within-type spread; Spearman(raw rank, centred rank) **−0.41**. Coupled weight decay makes it *worse* (global offset 23, ‖B·mean_t w‖ 81–92) because L2 decays parameters, not a network output | **withdrawn in place.** The read is the **within-type-centred** spread (macrophages, SOX2-OT⁺ tumour, T/NK most modulated; VEGFA⁺ tumour least), or a programme coordinate's within-type variance. Any "clean profile" decodes at `softmax(a(z) + B·m_ψ(c̄_t, t))`, never at w = 0 |
-| **"6 programmes, 0 spare"** (atlas) | six active w dimensions | issues **V10**: activity was judged on varimax-rotated variance; a rank-2 w rotated onto 6 axes gives six collinear coordinates that all pass | **superseded.** Programmes = effective rank of cov(μ_w) on gauge-centred w; ovarian r = 2, lung 1, FF 3. Rank is a (d_w, α_w, budget) property — name all three |
-| **Matched-column B stability** | κ > 0 destabilises B (cosine 0.43–0.52 vs 0.70 at κ = 0) | issues **V11**: the metric reads the four *null* w-directions, which carry no variance and whose B columns are therefore arbitrary | **replaced** by shift-space overlap of μ_w·B (0.97–0.99 across seeds) + per-axis cosines. **The κ = 0 → κ > 0 drop is still unexplained** and must be said so |
-| **Old transport κ-sensitivity** (`transport_kappa_sensitivity.json`) | κ-robustness of the counterfactual | it was run on the *pre-correction* object (the model account, not the counterfactual) | **superseded** by `transport_kappa_sensitivity_v2.json`; quotable range κ ∈ [0.05, 0.2] |
-| **α_w = 0.05 as a live candidate** (2026-09-14) | a second context axis becomes seed-stable and pays | run under type_only at 500/40, three seeds: **NMI 0.627 / 0.611 against a 0.63 floor** on two seeds (todo 2.2) | **rejected**; α_w = 0.1. The w-side prediction was *correct* (channel opens, rank 3–4, extra axes reproduce) — the price is on the z side |
-| **w-mirror mechanism** | the high-recon runs at α_w < 0.1 were m_ψ reading neighbours' μ_z | two pre-registered detectors failed certification; recon survives replacing w by a linear function of composition; s1 reached −7.19 with neighbour z structurally absent | the **instability** at α_w < 0.1 is real; the high-recon family is a **better optimum**; `type_only`'s case is **empirical only** |
-| **Doc-10 z–w guard** | a Gaussian-MI guard rescues low α_w | arm 0 (20 configs): guard-on never holds what guard-off loses | PARKED, **code removed**; a second attempt must first reproduce the historical M3 cliff |
-| **A4 decontaminated cycle call** | z rejects leak-induced cycle false positives | v1 instrument-limited; v2's contamination-specific gene-split fingerprint is **null** (Δ ring 1 0.006, CI [−0.006, 0.020]) | honest outcome: **leak-induced cycle false positives are rare at κ = 0.1 on this slide**; parked. Its planted leg has been **retired into `xtilde_gate.py`**, which fixes V9 |
-| **x̃ as a default** | a bias fix that improves trust in per-cell z | 12-seed powered world: every clause of the rule fails; reverses at an unsaturated plant; −22 pts recall on real cycling cells | **option-only, final** |
-| **`gat_sink` as a default** | letting c count neighbours should help | 3 paired seeds: transport ≥ reference in 1/3; the fitted half-point sits **below one neighbour** (Voronoi degree ≈ 6 gives no dose variation to learn from); in 2/3 seeds m_ψ reads context *worse* (posterior displacement 6×, 64 % context-predictable, zero reconstruction gain) | **option, off by default.** Earns a second look only with a variable-degree graph *plus* a degree-aware invariance target, and with m_ψ fed both the softmax composition and the sink mass |
-| **Weight decay as a gauge fix** | Adam L2 would collapse the per-type offsets | offsets grew ~4× and became one global vector; the decoder's gene bias migrated into `B_5 · w_5` | `--weight-decay` stays at 0. A training-time fix needs a penalty on `E[m_ψ]` per type, not on parameters |
-| **Doc-16 leak meter** | a per-cell κ_i from a type-pooled leak table | every substantive check fails on three slides (§4.2) | instrument only |
-| **Transcript-flux κ_i adoption** | a measured per-cell leak vector replacing the κ grid | the three decisive tests all fail; per-edge flux share does not predict content (slope 0.23–0.29 against [0.5, 2]) | instrument + reporting statistic; the 0.09–0.25 bracket behind κ = 0.1 |
-| **DNA-content cycle label** | an independent cycle target from DAPI | ovarian: the integral is nuclear area; FF: all six gates fail, the first at gate 1 | the marker score, with per-slide reliability stated |
-| **"Joint" DAPI × Scanpy label** | a consensus cycle label | its enrichment is the DAPI gate's depth axis; depth-matched MKI67 ratio 1.13 | not adopted |
-| **Hallmark labels on atlas programmes 2–5** | SPERMATOGENESIS, ADIPOGENESIS, HEDGEHOG, G2M | shipped ungated (p 0.08–0.37) | BH gate; a non-recurring label ships as *unlabelled* |
-| **"Ceiling" for the cycle probe** | the 50-PC ridge is an upper bound | z exceeds it on the shallow slides | renamed **linear expression reference**; and the *ratio* now carries the depth qualifier (§4) |
-| **M6 mean-of-types cycle R²** | headline | dominated by non-cycling types' noise | headline = **pooled**, cell-weighted. A sweep-report defect that resurrected `r2_mean_types` was fixed 2026-09-21 |
+| **R26** | the closing evaluation scored the last-epoch model (`metrics.json["final"]` was `patience` epochs past `best.pt`) | **Done.** The trainer reloads `best.pt` before the closing evaluation; `metrics.json` gains `final_epoch` / `last_epoch`; `at_best.py` and `--at best` re-read older runs. Two decisions flipped on the re-read: α_z (§2.2) and the KL-defined clause of 8.9 (§2.1). Test `test_closing_evaluation_scores_the_accepted_checkpoint` is flaky (T-r26). | open |
+| **R20 / R22** | the probe was blind to composition (pooled MSE, > 99 % image); the nonlinear probe was run once | **Done.** Per-block V-information gain, ridge and MLP, uncontrolled denominators, every decision input and baseline re-graded (§5.2). Composition leakage was flat across every swept knob, which led to 8.17 (§2.3). | open (numbers pending) |
+| **R12** | the leak term's assumptions (per-gene κ; receiver vs donor depth) | **Done.** Tests 1/1b and 2 (§2.6). Donor scaling is *not* ruled out on FFPE; the response findings are stable across κ's form. The sensitivity rows are at the pre-lineage configuration. | wording applied [x]; sensitivity-row text is todo 8.18 (open) |
+| **R17** | what the objective is (coupled model, "M-estimation") | Wording only: the two paths are bounds, J is a criterion; a non-independence note is in app:bound; the convergence diagnostic is held in reserve (`paperlog.md` 2026-09-24). | applied [x] |
+| **R19** | the response is priced out: every w read is m_ψ | **Done.** The α_w ladder, the decision and the reframing (§2.4). Recon modes confirm it in likelihood terms. | open; text is todo 8.18 |
+| **R9** | labels encode state and location | **Done.** Lineage relabel and re-pin (§2.5). Subtype recovery (8.22) is running. | text adopted [x] |
+| **R24** | held-out reconstruction is an autoencoding score and drove selection | **Done.** Recon modes (§5.10), in every envelope table. | open (the paper must name the selection score) |
+| **R33** | the finding rule needs a sampling layer | **Partly done.** Tile-bootstrap CIs on every headline read; half-tile subsampling for the transport ratios, with the coverage caveat (§5.9). **Open:** the κ* breakdown table with Bonferroni over the primary readouts (todo 8.19, "Evaluation layer for Definition 1"); Holm over the κ grid has no CLI. | Definition 1 text applied [x] |
+| **S53** | the projection test named in the table was never run | **Done** at both label sets; not adopted (§2.8). | open |
+| R18 | α_z is not ≈ 1/ℓ̄ | ℓ̄ discrepancy documented (§2.2) | open (todo 8.12, units) |
+| R27 | for reference fits the seed also redraws the held-out split | not changed: each `finalL` seed has its own held-out tiles, so the seed envelope mixes model and split variance | open (todo 8.13) |
+| R28 | sweep fits do not match the reference protocol | **Done:** `sweepL` runs at the reference budget and configuration | open *(checkbox not updated)* |
 
-## 6. Limitations and threats to validity (ranked)
+## 8. Queues, locks, markers, and the gitignore change
 
-1. **Type labels enter everywhere** — `enc_z`, `enc_w`, `m_ψ`, the adversary, the
-   GAT sources, the landmark sets. z is type-informed by design and every
-   "within type" read is conditional on labels that are themselves
-   expression-derived. Mitigations in place: y-baseline rows, the graphclust
-   control (structure survives relabelling), and now a *second* vocabulary
-   (GSE315411's curated 35 classes) with a genuine held-out section. Not
-   mitigated: validation at finer-than-t granularity (doc-11 A5's guard).
-   Measured cost of coarse labels: probe ΔCE 0.061 against curated labels.
-2. **Per-cell z claims are not supported by a powered test, and one powered test
-   argues against them.** The amortisation-gap hypothesis is refuted as stated,
-   but **the z probe loses 0.25–0.38 of raw's recall on genuinely planted cycling
-   cells at an unsaturated plant** (§4.9). Every doc-11 A1/A2/A5 per-cell claim
-   is at risk until that is settled, and the counts-level correction is at its
-   own oracle ceiling, so it is not the escape route either.
-3. **κ is swept, not measured.** Two independent measurement programmes failed
-   (§4.2). What exists is an order-of-magnitude bracket, **0.09–0.25**, and a
-   geometric per-cell statistic whose level does not depend on the nucleus it is
-   built from and whose per-edge value does not predict the content it stands
-   for. κ = 0.1 is a defensible grid point, not a measurement.
-4. **w is a context field, not a per-cell measurement** (KL_w ≈ 0.002/dim,
-   prior-R² 0.9998; the context-varying part is worth ~0.009 nats/count against
-   ~0.115 for z). The spec's deviation/anomaly channel is closed at the
-   operating point, so doc-11 A6 (QC via a w residual) would be reading m_ψ
-   noise. Opening it costs NMI (§4.2).
-5. **w is over-provisioned and any column-wise B metric reads its null space.**
-   Fill is 1–2 of 6. The strong-family optimum is reached in 1–2 of 3 seeds at
-   500 epochs and never at 200, so **the pinned model is a *selected* optimum**;
-   report by effective rank and shift space, and always with the seed envelope.
-6. **KL_w is a snapshot of a chase**, not a property of a solution: it oscillates
-   20–100× between evaluations five epochs apart in every seed, and one seed's
-   `best.pt` sits on a spike. Quote it over the trajectory.
-7. **The cycle target is weak and its ceiling was overstated.** Honest split-half
-   reliability is ~0.08–0.16 (ovarian S / G2M) once depth is removed, against
-   0.22 / 0.52 as previously quoted; FF is the only reliable slide (0.52 / 0.69).
-   Every cycle R² must carry its ceiling. There is **no** independent DNA-content
-   target on any slide.
-8. **Most transport panels are unmeasurable.** Mean noise ceiling 0.123 on
-   ovarian (141 of 155 panels essentially noise); the GSE core has **zero**
-   trusted panels. Conclusions rest on the trusted tier (ovarian 14 panels, FF
-   140) and on the annotation-niche supported tier (71 panels), not on the
-   all-panel mean.
-9. **The niche-z residual** (AUC 0.654 vs ℓ 0.585) stands as a flagged,
-   triaged-benign watch item; x̃ moved it by ~9 % of the gap and cost NMI, so it
-   is not the fix. A future operating point pushing it toward w's level must
-   rerun the triage.
-10. **Communication readout is architecturally blind** to within-composition
-    ligand variation — a feature for the debunking story, a limit for any
-    positive claim; reattribution uncalibrated and unquotable.
-11. **Landmark "zero circularity" is true of the ruler, not the sets**; only
-    vasculature is geometry-grade, and it is null. On cluster-labelled slides
-    §2 and §5 do not run at all.
-12. **No external baseline has been run.** The survey exists and is costed
-    (§4.10); every comparison so far is against the model's own references.
-13. **Absolute numbers are slide-specific.** Held-out reconstruction in nats per
-    count is **not comparable across slides**; only shapes, envelopes and
-    asymmetries transfer. The one genuine out-of-sample read is the GSE
-    held-out section, on a single 69k core of one donor.
-14. **Xenium depth** (~100–300 transcripts/cell on four of five slides): marker
-    scores are noise-dominated, hard phase calls are mostly "no signal → G1",
-    and several instruments (scANVI transfer, per-gene content statistics) fail
-    for this reason alone.
-15. **Ring-2 encoder work is wasted under `type_only`** (`posterior_z` still runs
-    on seeds ∪ ring1 ∪ ring2 though ring-2 codes are unused), so the measured
-    halo overhead is an upper bound on what the design needs (todo 1.6).
+**Launching.**
 
-## 7. Quality verdict, open questions, next steps
+- Every job longer than a minute runs detached:
+  `setsid nohup <cmd> >> <log> 2>&1 < /dev/null & disown`. Session-tied
+  background jobs die with the session.
+- The user's shell is fish. Chain commands with `&&`, and prefix inline
+  environment variables with `env` (e.g. `env SOX2OT=unassigned … setsid nohup …`).
+- Queues export `OMP_NUM_THREADS=8`, `NUMBA_NUM_THREADS=8` and
+  `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True`.
 
-**Publishable grade** (multi-seed, κ-robust, reference-cleared, certified
-instruments, and now replicated on four slides):
+**Idempotence.**
 
-- the z/w division of labour on HGSOC — cycle in z not w; tissue gradient,
-  niche and Moran in w not z, type-partialled and against floor/ℓ;
-- its transfer in *shape* to lung, fresh frozen and a pediatric-lung TMA core
-  with one knob (α_z) changed;
-- **the κ / d_w / α_w envelopes on four slides**, with the same envelope shape
-  everywhere and every guard at floor at every grid point;
-- **the held-out-section result**: a constant 0.015 nats/count and 0.02–0.03 NMI
-  cost at every point of three grids, cycle_z not degraded;
-- **z is not a re-encoding of t** (§7.10 battery, seed-tight, now on every fit);
-- the training-time guards (probe, mirror, NMI, degeneracy pair) as a battery;
-- the atlas's "few, territorial, almost entirely context-explained programmes"
-  reported at effective rank with cross-seed and cross-slide label recurrence;
-- **the transport counterfactual on its trusted tier** (ovarian 0.205 at slope
-  1.08, 13/14; FF 0.391 on 140 panels) and the interventionable share ≈ 1;
-- the doc-09 nulls (exposure invisibility, at most 1–2 fragile pairs, zero
-  survivors of a Moran-preserving null after composition control) as a
-  **debunking** result;
-- the negatives as negatives: the leak-measurement programmes, the DAPI target,
-  x̃, the sink, weight decay.
+- A fit is skipped when its `metrics.json` exists.
+- Every other step leaves a DONE marker in `<queue root>/done/`, named
+  `<step>_<dataset>_<run>`.
+- **Markers must be keyed by dataset** (issue W-q1): FF and ovarian once shared
+  run names, and a marker keyed without the dataset would have silently skipped
+  12 FF fits.
+- Relaunching a queue resumes it. Failed steps go to `failed/`, with their logs in
+  `logs/<marker>.log`.
+- Retries: 10 on a CUDA OOM, 3 on anything else.
 
-**Suggestive / single-instance**: the selected optimum's cycle_z 0.50; the
-selection share ≈ 0.03–0.05; the FF slide's everything (one seed); the interface
-landmark residual; the α_w = 0.05 third programme (FOXL2/SFRP4/POSTN, Φ-driven,
-Moran 0.84–0.88, unlabelled) — reproduced across three seeds but at a rejected
-operating point.
+**GPU picker** (from `scripts/queue_2026-09-23_wcollapse.sh`, refined through
+`…_2026-09-25_final_lineage.sh`):
 
-**Unsupported or falsified**: any per-cell w reading; the w-mirror mechanism;
-the reattribution 61 %; a positive communication claim; per-cell decontamination
-through μ_z; a *measured* κ; per-type ‖w‖ as a response ranking; "six
-programmes"; an independent DNA-content cycle label.
+- One of our jobs per GPU, through an atomic `mkdir` lock at `<root>/locks/gpu<N>`.
+- A job starts only above a memory gate: FF 18,500 MiB, everything else
+  9,500 MiB, resolVI 4,000 MiB.
+- The picker settles 45 s after taking a lock and then re-reads free memory.
+- A waiting FF step announces itself in `<root>/waiting/ff.<pid>`; smaller jobs
+  then leave FF-sized cards alone.
+- Another queue's fresh lock is respected for `FRESH=600` s (the courtesy window).
+- MintFlow is charged at its 9 GB peak.
+- Timing runs only on a card with no compute process.
+- Stale locks are cleared at start and exit.
+- Memory sizes: an FF fit needs most of a 24 GB card (about 17 GB resident at
+  200/20). Two Trainers on the FF slide do not fit on one card: one battery
+  process per card.
 
-**Open questions for the architect**
+**Per-slot bookkeeping** in the final queues:
 
-- The **z-probe recall loss** (0.25–0.38 of raw's recall on genuinely planted
-  cycling cells at an unsaturated plant) — does this sink doc-11 A1/A2/A5, or
-  does it call for a different per-cell caller? This is the most consequential
-  open item in the project.
-- Spec 9 §4.1/§7.2 motivates `type_only` with a mechanism the devlog falsified
-  twice. The paper states the empirical case; the spec should be reconciled.
-- Spec §7.13 (x̃) stays parked with the flag off — confirm, or close the section.
-- Spec §7.10's literal one-hot-t decoder retrain: the post-hoc substitution reads
-  0.118–0.148 nats/count; is the retrain worth a GPU job?
-- Reachability of the strong-family optimum (1–2 of 3 seeds at 500 epochs): is
-  seed ensemble + battery selection the standard protocol to write down?
-- Doc-11 A6 (QC via a w residual) given w ≈ m_ψ — redefine on z-side
-  Mahalanobis + likelihood deficit only?
-- Doc-08 §5 matrix: split the mid-band row (interface + vessel-null)?
+- `slots/` (the live run per slot), `seeds/` (atomically claimed replacement
+  seeds 3–8) and `accepted/`;
+- `DEAD_RUNS.tsv`, `REPIN.tsv` and `SWEEP_LINKS.tsv`;
+- `code_hashes.tsv`, the sha256 of train/networks/equations/elbo at every fit
+  start;
+- a preflight that re-derives every arm's `TrainConfig` and stops unless it
+  differs from the reference only where the arm says it should.
 
-**Recommended next steps, cost-ordered**
+**Gitignore (G-1).** Until commit `6a21936` (2026-09-27; the author decided it on
+2026-09-25), `scripts/` was ignored, so no queue, decision or table script was in
+git. That commit changed `.gitignore` to
+`/scripts/*` plus `!/scripts/*.py`, `!/scripts/queue_*.sh` and
+`!/scripts/cell_cycle/`. Scripts are now tracked; **`scripts/logs/` stays
+ignored**, and so does `/data/`. As a result, every `AGENT_REPORT.md`,
+`READOUT.md`, `DECISION*.json`, `ARCHIVE_*.tsv` and lineage map exists **only on
+this disk**. issues.md still lists G-1 as open; it is resolved in `.gitignore`,
+and the register needs the update.
 
-1. **resolVI on the ovarian tile split** (~12 GPU-h, needs the `scvi-tools`
-   extra approved) — the one row no other method fills, and stage 1 of the
-   bracketing claim (todo 4.2).
-2. **Todo 1.6 (code)**: skip the ring-2 encoder pass under `type_only` (prove
-   `metrics.json` identical on a fixed-seed smoke fit), and move κ-survival from
-   matched signature correlation to shift-space overlap so all three concordance
-   reads live in the same space.
-3. Read what the sweeps have not yet been read for: per-value B / shift-space
-   stability and the per-type rows in the regenerated reports.
-4. The **distribution-level transport read** (MMD, pairwise and
-   leave-one-niche-out), pre-registered 2026-09-21 and not yet run — the
-   leave-one-out version is a direct test of whether z is context-free.
-5. Paper section B and C items of `submission_paper/aistats/revision_2026-09-17.md`
-   (numbers return only after the sweeps are fully read).
-6. SIMVI behind its tutorial gate (~10–18 GPU-h), then MintFlow for the
-   counterfactual row.
-7. Doc-09 §5a planted worlds, if the reattribution figure is ever to be quoted.
+## 9. Retractions and superseded readings
 
-## 8. Registers — where things are written down
+**New since 2026-09-21:**
 
-- [devlog.md](devlog.md): chronological narrative, motivations written *before*
-  runs and results after. Current tail: the atlas rewrite, transport clarity,
-  the x̃ decisive follow-up, the baselines survey, the MMD motivation, and the
-  three-package motivation of 2026-09-21 that commissioned this document.
-- [issues.md](issues.md): P / E / M / T / A / V tables plus the watch list.
-  Instrument defects V1–V12; **V9 closed** (fixed inside `xtilde_gate.py`),
-  **V10 / V11 closed by the atlas rewrite**, **V12 read-time fix in place**
-  (training-time fix not attempted). M6 carries the depth qualifier.
-- [spec_deviations.md](spec_deviations.md): doc-07 rows (incl. the `type_only`
-  departure with its empirical-only case, `subtract_leak`, `gat_sink`, the
-  §7.10 type-mean-z substitution, current defaults), doc-08 rows, doc-09 rows,
-  doc-10 park record, doc-11 A4 rows.
-- [todo.md](todo.md): the work queue with §0 decisions already taken (four
-  datasets; GSE sweeps on the core with the full slides held out; compute is not
-  a constraint; FF gets its own 500/40 budget; α_w grid extended above 0.1; the
-  LR ladder keeps all three rungs; the leak meter is a diagnostic, not an input;
-  the article carries no empirical numbers until evaluation starts).
-- [sweep_programme.md](sweep_programme.md): the four-dataset grid plan with
-  measured per-fit hours.
-- `submission_paper/aistats/revision_2026-09-17.md`: paper-vs-reality revision
-  list. **A1–A7 applied**; sections B (stale/retracted numbers) and C (results
-  with no home in the paper yet) pending.
-- Architect documents at the repo root are received as-is: `07-simple-spec_7.md`,
-  `08-validation-analyses_1.md`, `09-communication-experiment_1.md`,
-  `11-z-applications_1.md`. Doc-10 and doc-16 are not in the root; their record
-  is the devlog.
-- `docs/cell_cycle_comparison_report.{md,pdf}`: **superseded** — its joint-label
-  recommendation is not defensible (§4.7) and its label-based correlation map is
-  replaced by the score-based one.
+| item | what was said | what replaced it | where |
+|---|---|---|---|
+| α_z ½ "adopted by the rule" | the ladder qualified ½ | at the accepted checkpoint no rung qualifies; kept as a disclosed near miss | §2.2 |
+| low KL_w = closed or weak w channel (2026-09-21 sweep note) | "the w channel closes entirely" | the posterior sits on an informative prior; the I(niche; w) guard decides | devlog 2026-09-23, "Interpretive correction" |
+| free bits keep FF's channel open | open by KL | dead by I(niche; w) on FF | `wcollapse.md` |
+| the FF-margin amendment (8.9) | prefer the arm with the largest KL_w margin | it measured divergence, not information; withdrawn for future use | devlog 2026-09-24, "Collapse remedy" |
+| type-free query adopted for the re-pin | 8.10 read | the author kept query and prior unchanged | devlog 2026-09-24, "Decision (author)" |
+| R12 test 1: donor scaling "ruled out" | negative donor term | confounded by geometry; test 1b: not ruled out on FFPE | `r12_depth_test.md` |
+| the 2-sd probe guard | pre-registered 2026-09-24 morning | the wrong scale (floor sd is estimation noise); withdrawn before use | devlog "Per-block probe, first read" |
+| legacy pooled probe at floor ⇒ z invariant | every earlier guard | > 99 % image block; composition ungraded (R20) | §5.2 |
+| SOX2-OT⁺ tumour cells are a lineage | passes the DE + contiguity rule | mostly low-depth non-tumour cells → Unassigned; the rule cannot tell a clone from a state | §2.5 |
+| "the relabel removed a Proliferative-type circularity in cycle_z" (2026-09-27 first reading) | cycle_z fell because a circularity went away | backwards: the old read was per-type centred; the lineage read *introduces* between-cluster variance; the drop is dilution | `cycle_2x2.md`, devlog 2026-09-27 |
+| transport fraction-of-ceiling tile-bootstrap CI | rounds 1–2 | invalid (duplicated cells in both halves, then resampling bias); replaced by half-tile subsampling with a coverage caveat | final_repair report §§2, 4, 5 |
+| the κ = 0 → κ > 0 drop in B stability (V11) | "still unexplained" | does not appear in shift space at the reference budget | κ-survival, §5.15 |
+| the model's neighbourhood radius is 60 µm (bundle clip) | Voronoi-face validation entry | the model prunes at 40 µm (`prepare.DEFAULT_MAX_EDGE_UM`) | devlog 2026-09-23, "Correction" |
+| "under nuclear-expansion segmentation" (manuscript) | the reason given against a contact kernel | 69–87 % interior-stain, 1–2.5 % nuclear expansion (R11); the contact-kernel table replaces the argument | devlog 2026-09-24, contact kernel |
+| `metrics.json["final"]` = the accepted model | every run before 2026-09-24 | the last epoch (R26) | §5 |
+| the MintFlow recon cell | −5.0 per count | constant across different fits; not a likelihood read (B-mf1) | issues.md |
 
-## 9. Repository state
+**Carried over from the 2026-09-21 handover §5, still standing** (details there):
 
-- **Nothing is committed since `096ae47`.** The working tree carries the atlas
-  rewrite, the transport rewrite, the cycle-target module, the degeneracy
-  module, the sweep tool, `crossslide.py`, the three experiment modules
-  (`leak_meter`, `transcript_flux`, `dapi_cycle`), `xtilde_gate.py`, the paper
-  edits, and this document. Untracked: `discell/experiments/{dapi_cycle,
-  transcript_flux}.py`, `discell/model/cycle_target.py`, `scripts/`,
-  `docs/{sweep_programme,todo}.md`, `docs/cell_cycle_comparison_report.*`,
-  `submission_paper/{aistats/revision_2026-09-17.md,articles/}`, and eight new
-  test files. **Commit before handing over.**
-- Tests: `uv run pytest -q` → **239 passed, 1 skipped** (2026-09-21).
-- Dependency drift to fix: `diptest` 0.11.0 was added to the venv for the DAPI
-  gates and is **not in the dependency file**.
-- Data present per dataset: `bundle/full.h5ad`, `embeddings/egomask_ego_v1.pt`
-  (the default arm, KRONOS v1, 256 px at 0.5 µm/px, 25 µm ego disk) for all five
-  slides, `qc/nuclear_counts.npz` + `qc/nuclear_summary.json` on all five,
-  `qc/nuclear_dapi.parquet` on ovarian and FF.
-- Known stale artefacts on disk: pre-correction `transport.json` on
-  `gat_sink_*`, `xtilde_*`, `alphaw0.05_*`, `wd0`; `atlas_kappa_survival*.json`
-  not regenerated under the new basis; `transport_kappa_sensitivity.json`
-  (v1) superseded by `_v2`.
-- Conventions: long jobs detached (`setsid nohup … & disown`); sweeps idempotent
-  per run name; the shell is fish, so chain with `&&`; one battery process per
-  card (every reload builds the resident Trainer); GPU 0/1 by
-  `CUDA_VISIBLE_DEVICES`; `--figures-every` matters — on the FF slide figures
-  were 69 % of wall time.
+- per-type ‖w‖ ranking: withdrawn, gauge (V12);
+- "6 programmes": superseded by effective rank (V10);
+- matched-column B stability: replaced by shift space (V11);
+- the v1 transport κ-sensitivity: superseded;
+- α_w = 0.05 as a candidate: rejected, and now also covered by the α_w ladder;
+- the w-mirror mechanism: falsified;
+- the doc-10 guard: parked and removed;
+- A4: parked;
+- x̃ as a default: option only;
+- `gat_sink` and weight decay: off;
+- leak meter and transcript-flux κ_i adoption: instruments only;
+- the DNA-content and "joint" DAPI cycle labels: not adopted;
+- ungated hallmark labels: BH-gated;
+- the "ceiling" for the cycle probe: renamed the linear reference, with the depth
+  qualifier;
+- M6 mean-of-types: pooled is the headline.
+
+## 10. Limitations and threats to validity (ranked)
+
+1. **Labels enter everywhere, and they are curated.** `enc_z`, `enc_w`, m_ψ, the
+   adversary and the GAT sources all read t.
+   - The lineage relabel is a curation with grey calls.
+   - Per-cell reassignments have an expected accuracy of ~0.75, and some GSE
+     classes come mostly from one donor.
+   - The cycle 2×2 shows that a headline read moves with the label set alone.
+   - Subtype recovery (8.22) is the test of what the merge handed to z and what
+     it handed to w.
+2. **Invariance is partial.** The adversary removes most, not all, of the
+   within-type composition information in z.
+   - The ≤ 25 %-of-uncontrolled guard is a judgement. It passes on FF and on few
+     seeds elsewhere (envelope row "invariance guard").
+   - The planted world attributes the residual to adversary capacity and
+     weighting, but the planted model is smaller than the real one.
+   - The denominators rest on two reference seeds, and both FF references have a
+     dead w channel.
+3. **κ is swept, not measured.** Donor scaling of the leak is not ruled out on
+   FFPE. The κ-form and false-positive-floor sensitivity rows exist only at the
+   pre-lineage configuration and 200/20.
+4. **w is the context regression (R19).** No per-cell w claim is supported. w's
+   value is shift prediction (transport), and its likelihood contribution is
+   negligible (recon modes).
+5. **Per-cell z claims remain at risk.** Two findings pull in different
+   directions, and neither settles it:
+   - The 2026-09-21 watch item (the z probe loses 0.25–0.38 of raw's recall on
+     planted cycling cells at an unsaturated plant) has not been revisited.
+   - 6b.8 measures the amortisation gap as below a supervised amortiser of the
+     same inputs, which is a comparative statement only.
+6. **The cycle target is weak and label-dependent.** Cycle_z depends on which
+   cycling set is read. FF's cycle_w exceeds the guard on 2 of 3 seeds under the
+   registered read. The honest reliability ceilings are the ones in the
+   2026-09-21 handover §4.7.
+7. **The transport scale is biased and its intervals under-cover.** The
+   random-cell-split ceiling inflates the ceiling, so the fraction reads low.
+   The half-tile intervals are about 0.8 coverage. GSE's trusted tier is thin.
+8. **The dead-channel failure mode exists.** Warm-up removed it in the grid, and
+   no `finalL` fit died, but the detector, the guard and the refit rule stay in
+   force.
+9. **The baselines are not symmetric.**
+   - SIMVI and MintFlow were trained on the old labels.
+   - SIMVI's FF run is a window, and MintFlow cannot run on FF on this host.
+   - MintFlow's recon cell is unusable.
+   - The baselines see held-out counts unlabelled, which is conservative for
+     DisCell.
+10. **The sensitivity and ablation rows predate the final configuration:**
+    κ-form, false-positive floor, the α_w ladder, query/prior, the adversary
+    ladder and the old-label projection test.
+11. **Absolute numbers are slide-specific**, and NMI is not comparable across
+    label sets. The one genuinely out-of-sample read is the GSE held-out section:
+    a single ~70k-cell core from one donor.
+12. **Instruments not re-run on `finalL`:** landmarks and the §5 matrix, doc-09
+    communication and the LR ladder (§5).
+13. **The seed also redraws the held-out split (R27),** so seed envelopes mix
+    model variance with split variance.
+
+## 11. Open issues, pending decisions, next steps
+
+**Open issues (register: issues.md):**
+
+| id | what | state |
+|---|---|---|
+| **G-1** | `scripts/` was gitignored | resolved in `.gitignore` (commit `6a21936`, §8); **issues.md not yet updated** |
+| **T-r26** | `test_closing_evaluation_scores_the_accepted_checkpoint` is flaky: NMI re-evaluated on identical weights varies by ~0.003 (k-means) against a tight tolerance. It also fails on a clean HEAD worktree (`scripts/logs/metrics_2026-09-25/AGENT_REPORT.md`). | open; the fix is a tolerance that allows the re-evaluation noise |
+| **W-qp1** (+ addendum) | `report.py` and `sweep.py` rebuild `DisCell` field by field and omit `class_mean_prior`, `query`, `prior_type_free` and `kappa_mode`, so ablation and κ-form runs cannot be reloaded by them. Only `validate.load_run` is complete. *(unverified whether `phi_proj` is also missing there)* | open; route both through `load_run` |
+| *(not in issues.md)* | `sweep.py` has three limits. It cannot pass `--w-warmup-epochs` or `--adv-comp-weight`, so `sweepL` was fitted with one `train.py` call per fit. In `--report-only`, its w-guard, recon strata and per-type \|w\| use seed 0's split for every seed, which overlaps train and test for seeds 1–2 (the metric rows and B-stability are unaffected). `sweep.py` also still reads `final` for runs made before the R26 fix. | open; source: `scripts/logs/final_prep_2026-09-25/AGENT_REPORT.md` and `scripts/logs/at_best_2026-09-24/AGENT_REPORT.md` |
+| **B-mf1** | the MintFlow recon cell in `baseline_battery*.md` is constant across different fits (−5.035 / −5.018); likely not the fit's decoded rates | open; **do not quote**; still present in the lineage tables |
+
+**Decisions pending (author):**
+
+1. **The cycling set for cycle_z.** Report cycle_z on both the old-type and the
+   lineage reads, or register a label-independent set (e.g. MKI67 > 0, or the
+   top decile of the S+G2M score) before use. Separately: whether the cycle_w
+   guard should in future be read centred per the finest label available.
+   Either choice must be registered before it is applied. Sources:
+   `cycle_2x2.md`; devlog 2026-09-27 "Decision needed (author)".
+2. **The primary ceiling column (8.21).** Both columns go on every transport
+   table; the author chooses after seeing both, and the choice is recorded in
+   the devlog. The tile-split correction *raises* our headline number, so it is
+   an added column, never a silent replacement.
+3. *(not raised anywhere I found)* Whether the κ-form, false-positive-floor and
+   α_w-ladder sensitivity rows must be re-run at `finalL` (lineage labels,
+   composition weight 3, 500/40) before they go in the paper.
+
+**Next steps, in order:**
+
+1. Land 8.21 (tile-split ceiling column) and 8.22 (subtype recovery) on the
+   `finalL` triples; take decisions 1–2.
+2. Read what is on disk and not yet in the devlog:
+   - external criteria at `finalL` (§5.14);
+   - `go_localisation_lineage.md`;
+   - the `sweepL` κ-envelope tables (`kappa_sweep_sweepL.json`,
+     `probe_regrade_lineage_sweep.md`).
+3. **Paper sections B and C** of `submission_paper/aistats/revision_2026-09-17.md`:
+   - B, stale or retracted numbers; C, results with no home yet;
+   - numbers only from the `finalL` tables in §6;
+   - todo 8.18 text (the false-positive-floor sentence, the κ-form rows, the R19
+     reframing, the α_w ladder as sensitivity);
+   - close the review checkboxes of §7.
+4. **6b.7, the three-way per-cell contamination figure:** our κ grid, resolVI's
+   per-cell mixture proportion (`results/resolvi_lineage/`) and MintFlow's
+   microenvironment score, against the transcript-flux share, on the same cells.
+   MintFlow exists only on GSE and on old labels.
+5. **6b.9:** MintFlow's in-silico perturbation, scored with our noise ceiling and
+   gap-closed statistic (GSE only).
+6. R33's κ* breakdown table (todo 8.19, "Evaluation layer for Definition 1"),
+   and a CLI for `bootstrap.paired_comparisons` (Holm over the κ grid).
+7. Housekeeping:
+   - commit (§13);
+   - W-qp1 and T-r26;
+   - add `diptest` to `pyproject.toml`;
+   - bring issues.md (G-1) and todo §8 up to date. Todo §8 has duplicate item
+     numbers (8.11, 8.12, 8.14, 8.15b and 8.19 each appear twice) and stale
+     statuses (8.1 "reopened", 8.14 "open", 8.7 "open").
+8. Still open from before, and not blocking the paper:
+   - todo 8.11, "Invariance escalation": all runs use the adversary, while the
+     implementation text says the rule "decides between them on each section";
+   - todo 8.12 (weights in units of 1/ℓ̄);
+   - todo 8.13 R27.
+
+## 12. Registers
+
+| register | what it holds |
+|---|---|
+| [devlog.md](devlog.md) | chronological narrative; the motivation is written before each run and results after. The current tail is 2026-09-28, "Two additions before the paper numbers". |
+| [issues.md](issues.md) | P / E / M / T / A / V tables and the watch list; the latest items are W-qp1, W-q1, T-r26, B-mf1 and G-1 |
+| [spec_deviations.md](spec_deviations.md) | doc-07/08/09/10/11 rows; the tail adds the optional flags (L2 on w, the 6b.5 ablations) and the tumour-band definition of 2026-09-25 |
+| [todo.md](todo.md) | §0 decisions; §6a/6b article-derived instruments (6b.7 and 6b.9 open); §8 finalisation |
+| [paperlog.md](paperlog.md) | manuscript changes, append-only |
+| `submission_paper/aistats/review_2026-09-23.md` | the review items (R*, S*), each with a checkbox for the paper text |
+| `submission_paper/aistats/revision_2026-09-17.md` | the paper-vs-reality list; A applied, B and C pending |
+| `scripts/logs/*/AGENT_REPORT.md` | one report per delegated work package, with code, tests, commands and caveats. **Local only** (gitignored). The ones behind this document are the `*_2026-09-2{3,4,5,7}` folders. |
+| [sweep_programme.md](sweep_programme.md) | the 2026-09-17 grid plan; historical |
+
+The architect documents (07/08/09/11-*.md) sit at the repo root and are received
+as-is. Departures from them go in `spec_deviations.md`.
+
+## 13. Repository state (2026-09-28)
+
+**Last commit.** `6a21936` (2026-09-27 18:43, "settled for default and added
+better type selection"). It added the `.gitignore` change and 33 previously
+ignored scripts. The lineage-era model and evaluation code that the final queue
+ran with (`labels.py`, `apply_lineage.py`, `bootstrap.py`, `recon_modes.py`,
+`fp_floor.py`, …) was committed earlier, in `99fdb97` (2026-09-25 18:40) and the
+commits before it.
+
+**Uncommitted.** The 2026-09-27 repairs and additions:
+
+- modified: `discell/experiments/bootstrap.py` (the replay-precision fix, the
+  distinct-cell split and half-tile subsampling), `discell/model/validate.py`
+  (the `sweep_companion` fix), `scripts/archive_2026-09-25.py` (`--apply`),
+  `scripts/envelope_tables.py`, and their tests;
+- untracked: `discell/experiments/{cycle_2x2,marker_pairs}.py`, their tests,
+  `tests/test_scripts_archive_apply.py`, `scripts/queue_2026-09-27_marker_pairs.sh`,
+  `docs/figures/`, `submission_paper/articles/litterature_review.md`;
+- `docs/devlog.md`, `docs/todo.md`, and this file.
+
+**Commit before handing over.**
+
+**Tests.** 53 test files (526 `test_*` functions by grep). The suite was **not
+re-run** for this handover. T-r26 is a known failure, also on a clean tree. The
+targeted suites named in each agent report passed when those reports were
+written.
+
+**Dependency drift.** `diptest` is used by the DAPI gates and is still not in
+`pyproject.toml`.
+
+**Data outside git.**
+
+- Everything under `data/`: bundles, runs, experiments and lineage maps.
+- `scripts/logs/`.
+- `/home/rmolen/github/DisCell-baselines/` (a separate tree).
+
+Losing this disk loses the decision records.
+
+**Stale artefacts to know about:**
+
+- `READOUT.md`'s MISSING and failed lines (§3).
+- `experiments/envelope_table_at_best.md`, `envelope_table_ci.md` and
+  `baseline_battery.md` (without `_lineage`) describe the pre-lineage `final_s*`
+  or older pins. Superseded by the `_ci_at_best` and `_lineage` files.
+- Old-label tumour-band reads differ from any re-read by the cyst-lining
+  exclusion.
+- The pre-correction `transport.json` files on runs now in `_archive/` must not
+  be compared with current transport numbers.
+
+## 14. What I could not verify for this handover
+
+- That the reproduce command in §2 produces `finalL_s0` bit for bit. I expanded
+  it from the queue script and did not run it.
+- Whether every CLI accepts `--run _archive/<name>` for archived runs.
+- Whether `report.py` and `sweep.py` also drop `phi_proj` (W-qp1 scope).
+- The current pass count of the test suite (not run).
+- What state todo 8.21 and 8.22 are in. The todo says "running 2026-09-28", but
+  I found no code or output for either in the working tree. They may be in
+  another session.
+- Whether `validate --analyses probe` still runs now that its
+  `uncontrolled500_s*` references are in `_archive/`.

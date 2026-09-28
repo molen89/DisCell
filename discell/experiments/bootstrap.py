@@ -35,7 +35,11 @@ already on disk -- ``reproduces`` in the output):
 ``transport_of_ceiling``, ``transport_of_ceiling_trusted``
     mean read, extrapolation tier: per panel the held-out cells of both
     niches (observed shift and its split-half noise ceiling are recomputed
-    per draw); tier membership is held at the point estimate's.
+    per draw); tier membership is held at the point estimate's. **Half-tile
+    subsampling**, not the tile bootstrap: a with-replacement draw adds
+    duplication noise to the observed shift that R^2 feels and the
+    split-half ceiling does not, so every draw's fraction fell below the
+    point (:func:`subsample_interval`).
 ``readA_gap_group``, ``readA_gap_own``, ``readA_type_mean_own``
     distribution read, pairwise panels: the source cells each panel scored
     (weighted unbiased MMD^2); target cells and the floor are held fixed.
@@ -294,10 +298,10 @@ def probe_cells(z, t, v, vbar_t, train, test, n_comp: int, seed: int = 0,
     M._subsample_rows(np.flatnonzero(train), rng)
     test_rows = M._subsample_rows(np.flatnonzero(test), rng)
     v_test = np.asarray(v_in)[test_rows]          # the metric's dtype
+    base_sq = (v_test - np.asarray(vbar_in)[t[test_rows]]) ** 2
     out = {"test_rows": test_rows, "n_comp": int(n_comp),
            "graded": cols["graded"],
-           "baseline": ((v_test - np.asarray(vbar_in)[t[test_rows]]) ** 2
-                        ).astype(np.float64),
+           "baseline": base_sq.astype(np.float64),
            "probe": (v_test - predictions[0]) ** 2,
            "floors": np.stack([(v_test - p) ** 2 for p in predictions[1:]])}
     # the recovered cells are the metric's: their means are its MSEs (on the
@@ -305,9 +309,22 @@ def probe_cells(z, t, v, vbar_t, train, test, n_comp: int, seed: int = 0,
     g = cols["graded"]
     assert np.allclose(out["probe"].mean(axis=0)[g], cols["probe"][g],
                        rtol=1e-5), "probe replay drifted from _probe_columns"
-    # (the metric averages the baseline's float32 squares in float32)
-    assert np.allclose(out["baseline"].mean(axis=0)[g], cols["baseline"][g],
-                       rtol=1e-4), "baseline replay drifted from _probe_columns"
+    # The metric averages the baseline's squares in their own dtype: float32
+    # for the ridge on v_block, a naive axis-0 sum that over 30k held-out
+    # rows drifts up to ~3e-4 relative from the float64 mean taken here (a
+    # composition column far from its type mean: thousands of identical
+    # squares). So the check replays the metric's arithmetic -- equal unless
+    # the rows or columns differ -- and the rounding is only logged: the
+    # baseline cancels in every gain - floor, so no excess depends on it.
+    assert np.allclose(base_sq.mean(axis=0).astype(np.float64)[g],
+                       cols["baseline"][g], rtol=1e-6), \
+        "baseline replay drifted from _probe_columns"
+    rounding = (np.abs(out["baseline"].mean(axis=0) - cols["baseline"])
+                / np.maximum(cols["baseline"], _EPS))[g]
+    if rounding.size and rounding.max() > 1e-6:
+        log.info("probe %s: the metric's %s baseline MSE rounds up to %.1e "
+                 "relative from float64 (cancels in the excess)", family,
+                 base_sq.dtype, rounding.max())
     return out
 
 
@@ -563,29 +580,64 @@ def transport_mean_panels(trainer, data, config, b_matrix, labels, fold,
 
 
 def _split_weights(mult: np.ndarray, rng, n_splits: int) -> np.ndarray:
-    """``(n_splits, 2, n)`` half weights: the resampled multiset of cells
-    (cell i repeated mult[i] times) permuted and cut in half, as
-    ``noise_ceiling`` cuts the real sample."""
-    idx = np.repeat(np.arange(len(mult)), mult.astype(np.int64))
+    """``(n_splits, 2, n)`` half weights: the resampled cells' **distinct**
+    cells permuted and cut in half, as ``noise_ceiling`` cuts the real
+    sample, each keeping its multiplicity. Every copy of a cell stays on one
+    side: splitting the multiset of copies instead put a duplicated cell in
+    both halves, which correlates the halves by construction and inflated
+    the ceiling (fraction-of-ceiling CIs 10-20x below their points)."""
+    present = np.flatnonzero(mult > 0)
     out = np.zeros((n_splits, 2, len(mult)))
+    half = len(present) // 2
     for s in range(n_splits):
-        order = rng.permutation(len(idx))
-        half = len(idx) // 2
-        out[s, 0] = np.bincount(idx[order[:half]], minlength=len(mult))
-        out[s, 1] = np.bincount(idx[order[half:]], minlength=len(mult))
+        order = present[rng.permutation(len(present))]
+        out[s, 0, order[:half]] = mult[order[:half]]
+        out[s, 1, order[half:]] = mult[order[half:]]
     return out
+
+
+def subsample_interval(point: float, draws, m: int, n: int,
+                       alpha: float = ALPHA) -> dict:
+    """Half-sampling interval of *point* from *draws* of the statistic on
+    *m*-of-*n* tile subsamples drawn **without** replacement: the draws'
+    spread about their own median, scaled by the finite-population factor
+    c = sqrt(m / (n - m)) (1 at m = n / 2), placed on the point --
+    ``[point + c q_lo, point + c q_hi]`` of ``draws - median(draws)``.
+
+    Centred on the draws' median, not on the point (Politis and Romano's
+    reverse form): a half subsample is noisier than the full sample, and
+    the fraction of ceiling shifts with noise, so deviations from the point
+    carry that shift and the reverse form mirrors it to the other side
+    (planted clustered slides: 67 % coverage of the estimator's mean, vs
+    ~95 % centred; ``tests/test_experiments_bootstrap.py``)."""
+    v = np.asarray(draws, dtype=np.float64)
+    finite = np.isfinite(v) & bool(np.isfinite(point))
+    if finite.sum() < 2:
+        return {"estimate": point, "ci95": [float("nan")] * 2,
+                "se": float("nan"), "n_finite": int(finite.sum())}
+    c = float(np.sqrt(m / (n - m)))
+    dev = v[finite] - np.median(v[finite])
+    lo, hi = np.percentile(dev, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return {"estimate": point,
+            "ci95": [float(point + c * lo), float(point + c * hi)],
+            "se": float(c * np.std(v[finite], ddof=1)),
+            "n_finite": int(finite.sum())}
 
 
 def transport_mean_bootstrap(panels: list[dict], x_rate, positions: np.ndarray,
                              n: int = N_BOOT, tile_um: float = TILE_UM,
                              seed: int = 0, device: str = "cpu",
                              alpha: float = ALPHA, chunk: int = 100) -> dict:
-    """Tile CIs of the extrapolation tiers' fraction of ceiling (mean R^2 over
-    the tier's panels / their mean noise ceiling, as ``tier_summary``).
+    """Half-tile subsampling CIs of the extrapolation tiers' fraction of
+    ceiling (mean R^2 over the tier's panels / their mean noise ceiling, as
+    ``tier_summary``).
 
-    One tile draw per replicate over every held-out cell any panel uses; per
-    panel the observed shift and its split-half ceiling (``N_SPLITS`` halves
-    of the resampled cells, ``MIN_RATE`` floor) are recomputed on the GPU.
+    One subsample per replicate: half the tiles over every held-out cell any
+    panel uses, drawn without replacement, so no cell is duplicated and a
+    subsample's own split-half ceiling measures its own noise. Per panel the
+    observed shift and its split-half ceiling (``N_SPLITS`` halves of the
+    subsample's cells, ``MIN_RATE`` floor) are recomputed on the GPU; the
+    interval is :func:`subsample_interval`.
     """
     import torch
 
@@ -597,8 +649,13 @@ def transport_mean_bootstrap(panels: list[dict], x_rate, positions: np.ndarray,
     pos[cells] = np.arange(len(cells))
     tiles, n_tiles = tile_index(positions[cells], tile_um)
     rng = np.random.default_rng(seed)
-    mults = np.stack([np.bincount(rng.integers(0, n_tiles, n_tiles),
-                                  minlength=n_tiles)[tiles] for _ in range(n)])
+    m_tiles = n_tiles // 2
+
+    def half():
+        chosen = np.zeros(n_tiles, dtype=np.int64)
+        chosen[rng.choice(n_tiles, m_tiles, replace=False)] = 1
+        return chosen[tiles]
+    mults = np.stack([half() for _ in range(n)])
     split_rng = np.random.default_rng(seed + 1)
     r2 = np.full((n, len(panels)), np.nan)
     ceil = np.full((n, len(panels)), np.nan)
@@ -658,9 +715,10 @@ def transport_mean_bootstrap(panels: list[dict], x_rate, positions: np.ndarray,
             return float(np.nanmean(r) / mc) if mc >= 0.05 else float("nan")
         point = frac(point_r2[sel], point_ceil[sel])
         draws = [frac(r2[b, sel], ceil[b, sel]) for b in range(n)]
-        out[key] = _summarise({"v": point}, {"v": draws}, alpha)["v"]
+        out[key] = subsample_interval(point, draws, m_tiles, n_tiles, alpha)
         out[key]["n_panels"] = int(sel.sum())
     return {"reads": out, "n_boot": int(n), "n_tiles": n_tiles,
+            "method": "half-tile subsampling", "m_tiles": int(m_tiles),
             "n_cells": int(len(cells)), "tile_um": float(tile_um)}
 
 
@@ -1050,7 +1108,8 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
                      or {}).get("counterfactual_of_ceiling")
             put(key, {**entry, "n_boot": n, "n_tiles": boot["n_tiles"],
                       "n_cells": boot["n_cells"]}, value,
-                {"n_panels": entry["n_panels"], "panel_replay": replay})
+                {"n_panels": entry["n_panels"], "panel_replay": replay,
+                 "method": boot["method"], "m_tiles": boot["m_tiles"]})
         log.info("transport mean read done (%.0f s)", time.time() - t0)
         torch.cuda.empty_cache()
 

@@ -1,0 +1,19 @@
+lineage,family,present,absent
+Epithelial/tumour,epi,EPCAM CDH1 MUC1,KRT8
+Mullerian epithelium (PAX8),epi,PAX8 MUC16,
+Mesothelial,epi,MSLN UPK3B CALB2 WT1,
+Ciliated,epi,FOXJ1 DNAH5 TPPP3,
+Endothelial,endo,PECAM1 CDH5 CLDN5 PLVAP,VWF
+Lymphatic EC,endo,PROX1 FLT4,
+Fibroblast,stroma,PDGFRA COL5A1 COL5A2 COL11A1 MFAP5 PI16 TCF21,DCN LUM COL1A1 COL1A2 COL3A1
+Ovarian stroma,stroma,FOXL2 ARX NR5A1,
+Smooth muscle,stroma,SYNPO2 KCNMB1 MYLK,MYH11 ACTA2 CNN1 DES
+Pericyte,stroma,RGS5 KCNJ8 CSPG4 NOTCH3 MCAM,
+T cell,lymph,CD3E CD3G CD2 CD8A,PTPRC CD3D
+NK,lymph,KLRD1 KLRF1 NCAM1,NKG7
+B cell,lymph,MS4A1 CD79A CD19 BANK1,
+Plasma,lymph,MZB1 TNFRSF17,JCHAIN
+Macrophage,myel,CD68 CSF1R MRC1 CD163,
+Mast,myel,KIT HDC MS4A2,TPSAB1 CPA3
+Neutrophil,myel,CSF3R FCGR3B,
+Dendritic,myel,CD1C CLEC9A LILRA4,
