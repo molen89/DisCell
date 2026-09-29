@@ -71,6 +71,7 @@ from pathlib import Path
 import numpy as np
 
 from discell import paths
+from discell.model import eval_mask as EM
 from discell.model import metrics as M
 
 log = logging.getLogger("discell.probe_regrade")
@@ -215,8 +216,9 @@ def legacy_reference(dataset: str, run: str, config_from: str | None) -> dict:
     run_dir = paths.dataset(source).root / "runs" / run
     if source == dataset:
         row = battery_at_best(run_dir)
-        return {"source": "history row at the accepted epoch (at_best)"
-                if row.get("at_best") else "metrics final (not at best)",
+        return {"source": row.get("source") or (
+                    "history row at the accepted epoch (at_best)"
+                    if row.get("at_best") else "metrics final (not at best)"),
                 "at_best": bool(row.get("at_best")),
                 **(row.get("probe") or {})}
     cross = run_dir / "crossslide" / f"{dataset}.json"
@@ -317,6 +319,9 @@ def grade_baseline(dataset: str, run: str, config_from: str | None,
     rows, z, _, tool_cfg = load_latents(latents, tool)
     if rows.max() >= data.n_cells:
         raise ValueError("latents carry cell ids outside the dataset")
+    mask = EM.record(data.type_names, data.t[rows])
+    on = EM.metric_target_mask(data.t[rows], data.type_names)  # eval_mask
+    rows, z = rows[on], np.asarray(z)[on]
     record = M.probe_blocks(np.asarray(z, dtype=np.float64), data.t[rows],
                             data.v_block[rows], data.vbar_t, ~test[rows],
                             test[rows], n_comp=data.n_comp, seed=cfg["seed"],
@@ -329,6 +334,7 @@ def grade_baseline(dataset: str, run: str, config_from: str | None,
                   split_run=run, split_from=config_from or dataset,
                   latents=str(latents), d_intrinsic=int(z.shape[1]),
                   n_cells=int(len(rows)), n_heldout=int(test[rows].sum()),
+                  eval_mask=mask,
                   tool_config=tool_cfg,
                   legacy_in_trainer={"source": "baseline_battery.json",
                                      **stored} if stored else {},

@@ -506,6 +506,17 @@ not in either bib. The full citation is given for those.
 
 ---
 
+### Added 2026-09-28: classical methods and Cellina (introduction, tab:components and related work)
+
+- [x] Entries copied from `articles/discell-literature.bib`, whose venues are correct: arnol2019svca, svensson2018spatialde, townes2023nsf, velten2022mefisto, cable2022cside, tanevski2022misty, ni2022spotclean, young2020soupx, yang2020decontx, fleming2023cellbender, petukhov2022baysor. The three CHECK notes are verified and removed: SVCA and SoupX against Crossref, SpotClean against PMC9142522 (full author list completed). `articles/litterature_review.md` gives wrong venues for SVCA (it is *Cell Reports*), MEFISTO (*Nature Methods*) and DecontX (*Genome Biology*); do not cite from it.
+- [x] SpotClean's model, as stated in related work: one bleeding rate per slide plus a Gaussian distance kernel, both estimated with help from background spots outside the tissue (PMC full text, Methods). **[PDF/PMC]**
+- [x] Cellina (`moeed2026cellina`, arXiv 2606.08493), checked against the arXiv HTML:
+  - intrinsic z from the cell's counts; extrinsic s from the neighbours' log-normalised expression (MLP or GATv2);
+  - a cell-type classifier on z and a spatial-domain adversary on z; NB decoder;
+  - counterfactuals by edge or node perturbation against held-out target-domain cells;
+  - its limitations section names transcript misassignment; no identifiability claim.
+- [ ] MEFISTO's likelihoods and SVCA's interaction kernel are stated from memory at the level used (GP priors on factors; an interaction term driven by the neighbours' expression). Open the PDFs if a reviewer presses.
+
 ## D. Bib hygiene: preprints and published alternatives
 
 | key (in text) | status | action |
@@ -531,3 +542,20 @@ not in either bib. The full citation is given for those.
   can partly draw on the devlog entry "Preprocessing: what the Voronoi face
   actually measures": the clip binds on 2.21% of cells slide-wide, and zero bundle
   edges survive at d ≥ 60 µm.
+
+**2026-09-29, dataset and asset sources.**
+- `williamskatek2026fishing` added for GEO GSE315411 (the TMA core and its serial section). Metadata comes from the PubMed esummary for PMID 42509025: Life Science Alliance 9(10), 2026, doi 10.26508/lsa.202603690, ten authors, with first names as initials. The preprint is PMID 41542551, bioRxiv doi 10.64898/2026.01.07.698201. GEO lists both.
+- **The three 10x datasets are not cited yet.** `\needsource` sits in §3.1. The dataset pages returned bot checks to every scripted fetch; the page URLs, titles and licence need a browser check.
+- **Licences read at the source:**
+  - KRONOS: CC BY-NC-ND 4.0, gated (HF model card MahmoodLab/KRONOS).
+  - KRONOS2: the same (local model card `data/models/kronos2/README.md`).
+  - scvi-tools 1.5.1: BSD-3 (PyPI metadata and the local install).
+  - SIMVI (KlugerLab/SIMVI), MintFlow (Lotfollahi-lab/mintflow) and Cellina (PMBio/cellina): BSD-3 (GitHub LICENSE files; PyPI has no licence field, and Cellina is not on PyPI).
+- **GEO disclaimer wording** ("no restrictions ... submitters may claim rights") is from a search snippet; the page itself was behind a CAPTCHA, so `\todo` stays.
+- **2026-09-29 follow-up.** The 10x datasets are cited as `tenx_ovarian_ffpe`, `tenx_lung_ffpe` and `tenx_ovary_ff`. Titles and URLs come from the author's clipped pages and match local `experiment.xenium`:
+  - ovarian FFPE: 407,124 cells, median 178;
+  - lung FFPE, experiment 2: 278,328 cells, median 242;
+  - FF: 1,157,659 cells, median 1,401.
+  The "Cross-Platform Comparison: FF Human Ovarian Cancer" page (200,900 cells) is a different dataset. **Open:** the release year and the licence for all three.
+- **2026-09-29.** 10x "Date Published" (author's page panels): FF 2024-09-04, lung 2024-11-06, ovarian FFPE 2024-12-17 (the ovarian page also notes a December 2024 relabel; the panel date is the one cited). Years filled; the licence is still unknown.
+- **2026-09-29.** 10x datasets: CC BY 4.0 (author's page read). The notes follow 10x's citation guidelines (support/software/cell-ranger/latest/miscellaneous/cr-citations). Janesick et al. 2023 is 10x's requested citation for Xenium Onboard Analysis and is already in §3.1. The datasets entry is closed.

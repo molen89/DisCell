@@ -176,6 +176,102 @@ def cycling_type_ranking(x, gene_names: np.ndarray, t: np.ndarray,
     return np.argsort(-fractions)
 
 
+#: the label-independent cycling set (author's decision, devlog 2026-09-28):
+#: the top decile of the S + G2M score among a slide's held-out cells. It
+#: replaces the label-derived "top-4 MKI67 types" set in every battery; that
+#: set survives only in ``discell/experiments/cycle_2x2.py``, for the record.
+CYCLING_QUANTILE = 0.9
+
+
+def cycling_set(scores: np.ndarray, held_out_mask: np.ndarray,
+                q: float = CYCLING_QUANTILE,
+                eligible: np.ndarray | None = None) -> np.ndarray:
+    """The cells of the cycle reads, chosen from the scores alone (bool, N).
+
+    *scores* (N, 2) S and G2M scores; a cell's cycling score is their sum.
+    The candidates are the *eligible* cells inside *held_out_mask* (eligible:
+    every cell by default; the reads pass every cell but Unassigned). The set
+    holds exactly ``round((1 - q) * n)`` of those n candidates, the highest
+    scoring (ties broken by row order), plus every eligible cell outside
+    *held_out_mask* that scores at least the lowest of them -- so the ridge a
+    read fits on the training cells sees the score range it is graded on.
+    No label enters.
+    """
+    scores = np.asarray(scores, dtype=np.float64)
+    total = scores.sum(axis=1) if scores.ndim == 2 else scores
+    held = np.asarray(held_out_mask, dtype=bool)
+    eligible = (np.ones(len(total), dtype=bool) if eligible is None
+                else np.asarray(eligible, dtype=bool))
+    candidates = np.flatnonzero(held & eligible)
+    k = int(round((1.0 - q) * len(candidates)))
+    out = np.zeros(len(total), dtype=bool)
+    if k == 0:
+        return out
+    top = candidates[np.argsort(-total[candidates], kind="stable")[:k]]
+    out[top] = True
+    out |= ~held & eligible & (total >= total[top[-1]])
+    return out
+
+
+def cycle_eligible(t: np.ndarray, type_names) -> np.ndarray:
+    """Cells a cycle read may take as targets: every cell but Unassigned
+    (author's decision 2026-09-28) -- the shared evaluation mask."""
+    from discell.model import eval_mask as EM
+
+    return EM.metric_target_mask(np.asarray(t), type_names)
+
+
+def slide_cycling_set(data) -> np.ndarray:
+    """:func:`cycling_set` of one assembled slide (node-indexed): held out =
+    its validation tiles, Unassigned excluded. Every read of that slide --
+    the trainer's, the battery's for each method, validate's -- restricts
+    this one mask to the rows it scores."""
+    held = np.zeros(data.n_cells, dtype=bool)
+    for tile in data.val_tiles:
+        held[tile] = True
+    scores = np.stack([data.cycle["s_score"], data.cycle["g2m_score"]], axis=1)
+    return cycling_set(scores, held,
+                       eligible=cycle_eligible(data.t, data.type_names))
+
+
+def cycle_q90_reads(designs: dict, t: np.ndarray, scores: np.ndarray,
+                    train: np.ndarray, test: np.ndarray, cells: np.ndarray,
+                    seed: int = 0) -> dict:
+    """``metrics.cycle_r2`` of every design (name -> (N, d)) on the cycling
+    set *cells*, centred per label within the set, plus the set's size."""
+    from discell.model import metrics as M
+
+    out = {"q": CYCLING_QUANTILE, "n_train": int((cells & train).sum()),
+           "n_heldout": int((cells & test).sum())}
+    for name, design in designs.items():
+        out[name] = M.cycle_r2(design, t, scores, None, train, test,
+                               seed=seed, cells=cells)
+    return out
+
+
+def trainer_cycle_q90(data, rows: np.ndarray, z: np.ndarray, w: np.ndarray,
+                      train: np.ndarray, seed: int = 0) -> dict:
+    """The in-trainer cycle reads on the top-decile set (``Trainer.evaluate``
+    and its re-read, ``discell/experiments/cycle_reread.py``): z, w, the
+    50-PC linear reference on counts and the log-depth baseline, on *rows*
+    of *data* (training rows where *train*, held out elsewhere)."""
+    cyc = data.cycle
+    return cycle_q90_reads(
+        {"z": z, "w": w, "linear_ref": cyc["x_pcs"][rows],
+         "lbaseline": np.log(data.totals[rows].clip(min=1.0)
+                             )[:, None].astype(np.float64)},
+        data.t[rows], np.stack([cyc["s_score"], cyc["g2m_score"]],
+                               axis=1)[rows],
+        train, ~train, slide_cycling_set(data)[rows], seed=seed)
+
+
+def q90_keys(block: dict | None) -> dict:
+    """The flat ``metrics.json`` keys of a :func:`cycle_q90_reads` block."""
+    pooled = lambda name: ((block or {}).get(name) or {}).get("r2_pooled")
+    return {"cycle_r2_z_q90": pooled("z"), "cycle_r2_w_q90": pooled("w"),
+            "cycle_linear_q90": pooled("linear_ref")}
+
+
 def expression_pcs(x, n_components: int = 50, seed: int = 0) -> np.ndarray:
     """Top PCs of log-normalised counts -- the probe ceiling's design matrix.
 

@@ -60,6 +60,7 @@ from typing import Sequence
 
 import numpy as np
 
+from discell.model import eval_mask as EM
 from discell.model.labels import is_tumour
 from discell.model.validate import (collect_latents, load_run, niche_labels)
 
@@ -700,6 +701,14 @@ def transport_check(args: argparse.Namespace) -> dict:
             results["panels"].append(panel)
             curves[(niche_a, niche_b, g)] = (
                 (program + leak_only)[keep], observed)
+
+    # the evaluation mask (devlog 2026-09-28): an excluded type (Unassigned)
+    # is never the moved type. Its panels were drawn above so that every
+    # other panel's ceiling draws stay the run's; they leave the record here
+    results["eval_mask"] = EM.record(names, data.t)
+    kept = [p for p in results["panels"] if not EM.is_excluded(p["type"])]
+    results["eval_mask"]["n_panels_dropped"] = len(results["panels"]) - len(kept)
+    results["panels"] = kept
 
     # per-gene calibration of the best-predicted panels -- the object scored
     # (the counterfactual), both sides centred as in the score, tier named
@@ -1386,6 +1395,16 @@ def distribution_check(args: argparse.Namespace,
                         device, args.boot, on_hvg if hvg is not None else None,
                         twins)
 
+    # the evaluation mask (devlog 2026-09-28): an excluded type is never the
+    # moved type; its panels were scored above so that the shared stream of
+    # every other panel is the run's, and leave the record here
+    results["eval_mask"] = EM.record(names, data.t)
+    for version in ("pairwise", "leave_one_out"):
+        kept = [p for p in results[version] if not EM.is_excluded(p["type"])]
+        results["eval_mask"][f"n_{version}_dropped"] = (len(results[version])
+                                                        - len(kept))
+        results[version] = kept
+
     results["summary"] = {
         "pairwise": distribution_summary(results["pairwise"]),
         "leave_one_out": distribution_summary(results["leave_one_out"])}
@@ -1475,6 +1494,7 @@ def distribution_check(args: argparse.Namespace,
     if twins:
         twin_res = {"run": args.run, "kappa": kappa,
                     "niche_source": source_kind,
+                    "eval_mask": results["eval_mask"],
                     "n_hvg": int(hvg.sum()) if hvg is not None else 0,
                     "pairwise": [], "leave_one_out": []}
         for version in ("pairwise", "leave_one_out"):

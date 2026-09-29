@@ -24,96 +24,115 @@
 \newlabel{sec:intro@cref}{{[section][1][]1}{[1][1][]1}}
 \citation{zhao2019inherent}
 \citation{slavutsky2025}
+\citation{svensson2018spatialde}
+\citation{arnol2019svca}
+\citation{townes2023nsf}
+\citation{velten2022mefisto}
+\citation{cable2022cside}
+\citation{tanevski2022misty}
+\citation{young2020soupx,yang2020decontx,fleming2023cellbender}
+\citation{ni2022spotclean}
+\citation{petukhov2022baysor}
+\citation{mitchel2026celladmix}
 \citation{fischer2023}
 \citation{dong2025simvi}
 \citation{akbarnejad2025mintflow}
 \citation{megas2026celcomen}
 \citation{birk2025nichecompass}
+\citation{moeed2026cellina}
 \citation{ergen2025}
 \citation{klys2018,slavutsky2025}
 \citation{ganchev2010}
 \citation{madras2018,li2018ciddg,pogodin2023circe}
 \citation{dong2025simvi}
 \citation{elazar2018}
-\citation{akbarnejad2025mintflow}
 \@writefile{toc}{\contentsline {paragraph}{Related work.}{2}{section*.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Contributions.}{2}{section*.3}\protected@file@percent }
+\citation{ergen2025}
+\citation{dong2025simvi}
+\citation{akbarnejad2025mintflow}
+\citation{megas2026celcomen}
+\citation{moeed2026cellina}
+\citation{akbarnejad2025mintflow}
+\@writefile{toc}{\contentsline {paragraph}{Contributions.}{3}{section*.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2}THE DISCELL MODEL}{3}{section.2}\protected@file@percent }
 \newlabel{sec:method}{{2}{3}{THE DISCELL MODEL}{section.2}{}}
 \newlabel{sec:method@cref}{{[section][2][]2}{[1][3][]3}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Setting and Notation}{3}{subsection.2.1}\protected@file@percent }
 \newlabel{sec:setting}{{2.1}{3}{Setting and Notation}{subsection.2.1}{}}
 \newlabel{sec:setting@cref}{{[subsection][1][2]2.1}{[1][3][]3}}
-\@writefile{toc}{\contentsline {paragraph}{Spatial graph.}{3}{section*.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Derived observables.}{3}{section*.6}\protected@file@percent }
-\citation{ergen2025}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces DISCELL for one cell $i$. \textbf  {a},\nobreakspace  {}The leakage kernel on the primary section: the cell (blue), its first ring of neighbours in the pruned Delaunay graph (dark grey), each sending an arrow whose width grows with its weight $\beta _{ij}$, and its second ring (light grey), which the batching of \cref  {sec:batching} also reads. The attention that builds the context runs over the same first ring but uses no edge features: its weights depend on the two cells' types alone (\cref  {eq:context-closed}). \textbf  {b},\nobreakspace  {}The input of the image descriptor $\bm  {\Phi }_i$: the four-channel morphology crop the image model receives ($128\,\mu \text  {m}$ field; the markers DAPI, ATP1A1, 18S and $\alpha $SMA as the image model reads them, shown as one colour composite; on the slide the ATP1A1 channel is a membrane mix with CD45 and E-cadherin, and the $\alpha $SMA channel a mix with vimentin), with the $25\,\mu \text  {m}$ disc over the cell set to zero; the cell's outline is drawn for reference. The square marked\nobreakspace  {}a is the window of panel\nobreakspace  {}a: the zeroed disc covers the cell and most of its first ring, so the descriptor describes the tissue around the leakage neighbourhood rather than the neighbourhood itself. Tissue panels are in image orientation. \textbf  {c},\nobreakspace  {}The computation graph. The intrinsic state $\mathbf  {z}_i$ is encoded from the cell's own counts and type. The context $\mathbf  {c}_i$ combines attention over the neighbours' types, queried with the cell's type, with $\bm  {\Phi }_i$. The response $\mathbf  {w}_i$ has the prior $p(\mathbf  {w}_i \mid \mathbf  {c}_i, t_i)$ with mean $m_{\psi }$, and a posterior that also sees the cell. The clean composition $\bm  {\rho }_i = \softmax  (a(\mathbf  {z}_i) + \mathbf  {B}\mathbf  {w}_i)$ is mixed with the neighbours' clean compositions, held under a stop-gradient, through $\beta $ and the fixed leak fraction $\kappa $. The dashed $\breve  {\mathbf  {w}}_i$ is the prior draw used by the intrinsic path. The adversary acts on the posterior mean $\bm  {\mu }_{z,i}$ during training; the held-out probe grades it afterwards and never enters training.\relax }}{4}{figure.caption.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces The models closest to DISCELL, compared on the properties this paper turns on. \emph  {Intrinsic latent}: a per-cell latent for the cell's own state. \emph  {Niche term}: a component of the model that depends on the neighbourhood. \emph  {Leakage}: misassigned transcripts are part of the generative model; \emph  {leak share}: how the amount of leakage is set. \emph  {Invariance}: the regulariser that keeps the intrinsic latent free of the niche, and whether it conditions on type. \emph  {Counterfactuals}: expression predicted under an intervention. $\text  {$\mathsurround \z@ \mathchar "458$}$: yes; $\times $: no; --: not applicable.\relax }}{4}{table.caption.3}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
-\newlabel{fig:overview}{{1}{4}{DISCELL for one cell $i$. \textbf {a},~The leakage kernel on the primary section: the cell (blue), its first ring of neighbours in the pruned Delaunay graph (dark grey), each sending an arrow whose width grows with its weight $\beta _{ij}$, and its second ring (light grey), which the batching of \cref {sec:batching} also reads. The attention that builds the context runs over the same first ring but uses no edge features: its weights depend on the two cells' types alone (\cref {eq:context-closed}). \textbf {b},~The input of the image descriptor $\vPhi _i$: the four-channel morphology crop the image model receives ($128\um $ field; the markers DAPI, ATP1A1, 18S and $\alpha $SMA as the image model reads them, shown as one colour composite; on the slide the ATP1A1 channel is a membrane mix with CD45 and E-cadherin, and the $\alpha $SMA channel a mix with vimentin), with the $25\um $ disc over the cell set to zero; the cell's outline is drawn for reference. The square marked~a is the window of panel~a: the zeroed disc covers the cell and most of its first ring, so the descriptor describes the tissue around the leakage neighbourhood rather than the neighbourhood itself. Tissue panels are in image orientation. \textbf {c},~The computation graph. The intrinsic state $\vz _i$ is encoded from the cell's own counts and type. The context $\vc _i$ combines attention over the neighbours' types, queried with the cell's type, with $\vPhi _i$. The response $\vw _i$ has the prior $p(\vw _i \mid \vc _i, t_i)$ with mean $\mpsi $, and a posterior that also sees the cell. The clean composition $\vrho _i = \softmax (a(\vz _i) + \vB \vw _i)$ is mixed with the neighbours' clean compositions, held under a stop-gradient, through $\beta $ and the fixed leak fraction $\kappa $. The dashed $\wbreve _i$ is the prior draw used by the intrinsic path. The adversary acts on the posterior mean $\vmu _{z,i}$ during training; the held-out probe grades it afterwards and never enters training.\relax }{figure.caption.4}{}}
-\newlabel{fig:overview@cref}{{[figure][1][]1}{[1][3][]4}}
-\@writefile{toc}{\contentsline {paragraph}{Leakage kernel.}{4}{section*.7}\protected@file@percent }
-\newlabel{eq:beta}{{1}{4}{Leakage kernel}{equation.2.1}{}}
-\newlabel{eq:beta@cref}{{[equation][1][]1}{[1][4][]4}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Generative Model}{4}{subsection.2.2}\protected@file@percent }
-\newlabel{sec:generative}{{2.2}{4}{Generative Model}{subsection.2.2}{}}
-\newlabel{sec:generative@cref}{{[subsection][2][2]2.2}{[1][4][]4}}
+\newlabel{tab:related}{{1}{4}{The models closest to DISCELL, compared on the properties this paper turns on. \emph {Intrinsic latent}: a per-cell latent for the cell's own state. \emph {Niche term}: a component of the model that depends on the neighbourhood. \emph {Leakage}: misassigned transcripts are part of the generative model; \emph {leak share}: how the amount of leakage is set. \emph {Invariance}: the regulariser that keeps the intrinsic latent free of the niche, and whether it conditions on type. \emph {Counterfactuals}: expression predicted under an intervention. $\checkmark $: yes; $\times $: no; --: not applicable.\relax }{table.caption.3}{}}
+\newlabel{tab:related@cref}{{[table][1][]1}{[1][3][]4}}
+\@writefile{toc}{\contentsline {paragraph}{Spatial graph.}{4}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Derived observables.}{4}{section*.7}\protected@file@percent }
+\citation{ergen2025}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces DISCELL for one cell $i$. \textbf  {a},\nobreakspace  {}The leakage kernel on the primary section: the cell (blue), its first ring of neighbours in the pruned Delaunay graph (dark grey), each sending an arrow whose width grows with its weight $\beta _{ij}$, and its second ring (light grey), which the batching of \cref  {sec:batching} also reads. The attention that builds the context runs over the same first ring but uses no edge features: its weights depend on the two cells' types alone (\cref  {eq:context-closed}). \textbf  {b},\nobreakspace  {}The input of the image descriptor $\bm  {\Phi }_i$: the four-channel morphology crop the image model receives ($128\,\mu \text  {m}$ field; the markers DAPI, ATP1A1, 18S and $\alpha $SMA as the image model reads them, shown as one colour composite; on the slide the ATP1A1 channel is a membrane mix with CD45 and E-cadherin, and the $\alpha $SMA channel a mix with vimentin), with the $25\,\mu \text  {m}$ disc over the cell set to zero; the cell's outline is drawn for reference. The square marked\nobreakspace  {}a is the window of panel\nobreakspace  {}a: the zeroed disc covers the cell and most of its first ring, so the descriptor describes the tissue around the leakage neighbourhood rather than the neighbourhood itself. Tissue panels are in image orientation. \textbf  {c},\nobreakspace  {}The computation graph. The intrinsic state $\mathbf  {z}_i$ is encoded from the cell's own counts and type. The context $\mathbf  {c}_i$ combines attention over the neighbours' types, queried with the cell's type, with $\bm  {\Phi }_i$. The response $\mathbf  {w}_i$ has the prior $p(\mathbf  {w}_i \mid \mathbf  {c}_i, t_i)$ with mean $m_{\psi }$, and a posterior that also sees the cell. The clean composition $\bm  {\rho }_i = \softmax  (a(\mathbf  {z}_i) + \mathbf  {B}\mathbf  {w}_i)$ is mixed with the neighbours' clean compositions, held under a stop-gradient, through $\beta $ and the fixed leak fraction $\kappa $. The dashed $\breve  {\mathbf  {w}}_i$ is the prior draw used by the intrinsic path. The adversary acts on the posterior mean $\bm  {\mu }_{z,i}$ during training; the held-out probe grades it afterwards and never enters training.\relax }}{5}{figure.caption.5}\protected@file@percent }
+\newlabel{fig:overview}{{1}{5}{DISCELL for one cell $i$. \textbf {a},~The leakage kernel on the primary section: the cell (blue), its first ring of neighbours in the pruned Delaunay graph (dark grey), each sending an arrow whose width grows with its weight $\beta _{ij}$, and its second ring (light grey), which the batching of \cref {sec:batching} also reads. The attention that builds the context runs over the same first ring but uses no edge features: its weights depend on the two cells' types alone (\cref {eq:context-closed}). \textbf {b},~The input of the image descriptor $\vPhi _i$: the four-channel morphology crop the image model receives ($128\um $ field; the markers DAPI, ATP1A1, 18S and $\alpha $SMA as the image model reads them, shown as one colour composite; on the slide the ATP1A1 channel is a membrane mix with CD45 and E-cadherin, and the $\alpha $SMA channel a mix with vimentin), with the $25\um $ disc over the cell set to zero; the cell's outline is drawn for reference. The square marked~a is the window of panel~a: the zeroed disc covers the cell and most of its first ring, so the descriptor describes the tissue around the leakage neighbourhood rather than the neighbourhood itself. Tissue panels are in image orientation. \textbf {c},~The computation graph. The intrinsic state $\vz _i$ is encoded from the cell's own counts and type. The context $\vc _i$ combines attention over the neighbours' types, queried with the cell's type, with $\vPhi _i$. The response $\vw _i$ has the prior $p(\vw _i \mid \vc _i, t_i)$ with mean $\mpsi $, and a posterior that also sees the cell. The clean composition $\vrho _i = \softmax (a(\vz _i) + \vB \vw _i)$ is mixed with the neighbours' clean compositions, held under a stop-gradient, through $\beta $ and the fixed leak fraction $\kappa $. The dashed $\wbreve _i$ is the prior draw used by the intrinsic path. The adversary acts on the posterior mean $\vmu _{z,i}$ during training; the held-out probe grades it afterwards and never enters training.\relax }{figure.caption.5}{}}
+\newlabel{fig:overview@cref}{{[figure][1][]1}{[1][3][]5}}
+\@writefile{toc}{\contentsline {paragraph}{Leakage kernel.}{5}{section*.8}\protected@file@percent }
+\newlabel{eq:beta}{{1}{5}{Leakage kernel}{equation.2.1}{}}
+\newlabel{eq:beta@cref}{{[equation][1][]1}{[1][5][]5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Generative Model}{5}{subsection.2.2}\protected@file@percent }
+\newlabel{sec:generative}{{2.2}{5}{Generative Model}{subsection.2.2}{}}
+\newlabel{sec:generative@cref}{{[subsection][2][2]2.2}{[1][5][]5}}
 \citation{ganchev2010}
-\newlabel{eq:gen-z}{{2}{5}{Generative Model}{equation.2.2}{}}
-\newlabel{eq:gen-z@cref}{{[equation][2][]2}{[1][5][]5}}
-\newlabel{eq:gen-w}{{3}{5}{Generative Model}{equation.2.3}{}}
-\newlabel{eq:gen-w@cref}{{[equation][3][]3}{[1][5][]5}}
-\newlabel{eq:gen-rho}{{4}{5}{Generative Model}{equation.2.4}{}}
-\newlabel{eq:gen-rho@cref}{{[equation][4][]4}{[1][5][]5}}
-\newlabel{eq:gen-rhobar}{{5}{5}{Generative Model}{equation.2.5}{}}
-\newlabel{eq:gen-rhobar@cref}{{[equation][5][]5}{[1][5][]5}}
-\newlabel{eq:gen-p}{{6}{5}{Generative Model}{equation.2.6}{}}
-\newlabel{eq:gen-p@cref}{{[equation][6][]6}{[1][5][]5}}
-\newlabel{eq:gen-x}{{7}{5}{Generative Model}{equation.2.7}{}}
-\newlabel{eq:gen-x@cref}{{[equation][7][]7}{[1][5][]5}}
-\newlabel{eq:renorm}{{8}{5}{Generative Model}{equation.2.8}{}}
-\newlabel{eq:renorm@cref}{{[equation][8][]8}{[1][5][]5}}
-\@writefile{toc}{\contentsline {paragraph}{What the leakage term assumes.}{5}{section*.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{What the decomposition means.}{5}{section*.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Why a multinomial.}{5}{section*.10}\protected@file@percent }
+\newlabel{eq:gen-z}{{2}{6}{Generative Model}{equation.2.2}{}}
+\newlabel{eq:gen-z@cref}{{[equation][2][]2}{[1][5][]6}}
+\newlabel{eq:gen-w}{{3}{6}{Generative Model}{equation.2.3}{}}
+\newlabel{eq:gen-w@cref}{{[equation][3][]3}{[1][5][]6}}
+\newlabel{eq:gen-rho}{{4}{6}{Generative Model}{equation.2.4}{}}
+\newlabel{eq:gen-rho@cref}{{[equation][4][]4}{[1][5][]6}}
+\newlabel{eq:gen-rhobar}{{5}{6}{Generative Model}{equation.2.5}{}}
+\newlabel{eq:gen-rhobar@cref}{{[equation][5][]5}{[1][5][]6}}
+\newlabel{eq:gen-p}{{6}{6}{Generative Model}{equation.2.6}{}}
+\newlabel{eq:gen-p@cref}{{[equation][6][]6}{[1][5][]6}}
+\newlabel{eq:gen-x}{{7}{6}{Generative Model}{equation.2.7}{}}
+\newlabel{eq:gen-x@cref}{{[equation][7][]7}{[1][5][]6}}
+\newlabel{eq:renorm}{{8}{6}{Generative Model}{equation.2.8}{}}
+\newlabel{eq:renorm@cref}{{[equation][8][]8}{[1][6][]6}}
+\@writefile{toc}{\contentsline {paragraph}{What the leakage term assumes.}{6}{section*.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{What the decomposition means.}{6}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Why a multinomial.}{6}{section*.11}\protected@file@percent }
 \citation{brody2022}
-\@writefile{toc}{\contentsline {paragraph}{Why $\kappa $ is fixed.}{6}{section*.11}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Why the decoder has no type input.}{6}{section*.12}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Learned and fixed quantities. $d_z= 20$, $d_w= 6$; $G$, $K$ and $d_{\Phi }$ are set by the panel, the label set and the image model.\relax }}{6}{table.caption.13}\protected@file@percent }
-\newlabel{tab:learned}{{1}{6}{Learned and fixed quantities. $\dz = 20$, $\dw = 6$; $G$, $K$ and $\dPhi $ are set by the panel, the label set and the image model.\relax }{table.caption.13}{}}
-\newlabel{tab:learned@cref}{{[table][1][]1}{[1][6][]6}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Inference Networks}{6}{subsection.2.3}\protected@file@percent }
-\newlabel{sec:inference}{{2.3}{6}{Inference Networks}{subsection.2.3}{}}
-\newlabel{sec:inference@cref}{{[subsection][3][2]2.3}{[1][6][]6}}
-\@writefile{toc}{\contentsline {paragraph}{The context descriptor $\mathbf  {c}_i$.}{6}{section*.14}\protected@file@percent }
-\newlabel{eq:context-src}{{9}{6}{The context descriptor $\vc _i$}{equation.2.9}{}}
-\newlabel{eq:context-src@cref}{{[equation][9][]9}{[1][6][]6}}
-\newlabel{eq:context-gat}{{10}{6}{The context descriptor $\vc _i$}{equation.2.10}{}}
-\newlabel{eq:context-gat@cref}{{[equation][10][]10}{[1][6][]6}}
-\newlabel{eq:context}{{11}{6}{The context descriptor $\vc _i$}{equation.2.11}{}}
-\newlabel{eq:context@cref}{{[equation][11][]11}{[1][6][]6}}
+\@writefile{toc}{\contentsline {paragraph}{Why $\kappa $ is fixed.}{7}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Why the decoder has no type input.}{7}{section*.13}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Learned and fixed quantities. $d_z= 20$, $d_w= 6$; $G$, $K$ and $d_{\Phi }$ are set by the panel, the label set and the image model.\relax }}{7}{table.caption.14}\protected@file@percent }
+\newlabel{tab:learned}{{2}{7}{Learned and fixed quantities. $\dz = 20$, $\dw = 6$; $G$, $K$ and $\dPhi $ are set by the panel, the label set and the image model.\relax }{table.caption.14}{}}
+\newlabel{tab:learned@cref}{{[table][2][]2}{[1][7][]7}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Inference Networks}{7}{subsection.2.3}\protected@file@percent }
+\newlabel{sec:inference}{{2.3}{7}{Inference Networks}{subsection.2.3}{}}
+\newlabel{sec:inference@cref}{{[subsection][3][2]2.3}{[1][7][]7}}
+\@writefile{toc}{\contentsline {paragraph}{The context descriptor $\mathbf  {c}_i$.}{7}{section*.15}\protected@file@percent }
+\newlabel{eq:context-src}{{9}{7}{The context descriptor $\vc _i$}{equation.2.9}{}}
+\newlabel{eq:context-src@cref}{{[equation][9][]9}{[1][7][]7}}
+\newlabel{eq:context-gat}{{10}{7}{The context descriptor $\vc _i$}{equation.2.10}{}}
+\newlabel{eq:context-gat@cref}{{[equation][10][]10}{[1][7][]7}}
+\newlabel{eq:context}{{11}{7}{The context descriptor $\vc _i$}{equation.2.11}{}}
+\newlabel{eq:context@cref}{{[equation][11][]11}{[1][7][]7}}
 \citation{slavutsky2025}
-\@writefile{toc}{\contentsline {paragraph}{Posterior over $\mathbf  {z}$.}{7}{section*.15}\protected@file@percent }
-\newlabel{eq:encz-input}{{12}{7}{Posterior over $\vz $}{equation.2.12}{}}
-\newlabel{eq:encz-input@cref}{{[equation][12][]12}{[1][7][]7}}
-\@writefile{toc}{\contentsline {paragraph}{Prior and posterior over $\mathbf  {w}$.}{7}{section*.16}\protected@file@percent }
-\newlabel{eq:prior-w}{{13}{7}{Prior and posterior over $\vw $}{equation.2.13}{}}
-\newlabel{eq:prior-w@cref}{{[equation][13][]13}{[1][7][]7}}
-\newlabel{eq:post-w}{{14}{7}{Prior and posterior over $\vw $}{equation.2.14}{}}
-\newlabel{eq:post-w@cref}{{[equation][14][]14}{[1][7][]7}}
 \citation{kingma2014,rezende2014}
+\@writefile{toc}{\contentsline {paragraph}{Posterior over $\mathbf  {z}$.}{8}{section*.16}\protected@file@percent }
+\newlabel{eq:encz-input}{{12}{8}{Posterior over $\vz $}{equation.2.12}{}}
+\newlabel{eq:encz-input@cref}{{[equation][12][]12}{[1][8][]8}}
+\@writefile{toc}{\contentsline {paragraph}{Prior and posterior over $\mathbf  {w}$.}{8}{section*.17}\protected@file@percent }
+\newlabel{eq:prior-w}{{13}{8}{Prior and posterior over $\vw $}{equation.2.13}{}}
+\newlabel{eq:prior-w@cref}{{[equation][13][]13}{[1][8][]8}}
+\newlabel{eq:post-w}{{14}{8}{Prior and posterior over $\vw $}{equation.2.14}{}}
+\newlabel{eq:post-w@cref}{{[equation][14][]14}{[1][8][]8}}
 \citation{slavutsky2025}
-\@writefile{toc}{\contentsline {paragraph}{Learned and fixed variances.}{8}{section*.17}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Decoder.}{8}{section*.18}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Objective}{8}{subsection.2.4}\protected@file@percent }
-\newlabel{sec:objective}{{2.4}{8}{Objective}{subsection.2.4}{}}
-\newlabel{sec:objective@cref}{{[subsection][4][2]2.4}{[1][8][]8}}
-\newlabel{eq:bound-a}{{15}{8}{Objective}{equation.2.15}{}}
-\newlabel{eq:bound-a@cref}{{[equation][15][]15}{[1][8][]8}}
-\newlabel{eq:bound-b}{{16}{8}{Objective}{equation.2.16}{}}
-\newlabel{eq:bound-b@cref}{{[equation][16][]16}{[1][8][]8}}
-\newlabel{eq:objective}{{17}{8}{Objective}{equation.2.17}{}}
-\newlabel{eq:objective@cref}{{[equation][17][]17}{[1][8][]8}}
-\@writefile{toc}{\contentsline {paragraph}{Scaling.}{8}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Learned and fixed variances.}{9}{section*.18}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Decoder.}{9}{section*.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Objective}{9}{subsection.2.4}\protected@file@percent }
+\newlabel{sec:objective}{{2.4}{9}{Objective}{subsection.2.4}{}}
+\newlabel{sec:objective@cref}{{[subsection][4][2]2.4}{[1][9][]9}}
+\newlabel{eq:bound-a}{{15}{9}{Objective}{equation.2.15}{}}
+\newlabel{eq:bound-a@cref}{{[equation][15][]15}{[1][9][]9}}
+\newlabel{eq:bound-b}{{16}{9}{Objective}{equation.2.16}{}}
+\newlabel{eq:bound-b@cref}{{[equation][16][]16}{[1][9][]9}}
+\newlabel{eq:objective}{{17}{9}{Objective}{equation.2.17}{}}
+\newlabel{eq:objective@cref}{{[equation][17][]17}{[1][9][]9}}
+\@writefile{toc}{\contentsline {paragraph}{Scaling.}{9}{section*.20}\protected@file@percent }
 \citation{hardt2016,zhang2018mitigating}
 \citation{zhao2019inherent}
 \citation{klys2018,slavutsky2025}
@@ -121,213 +140,336 @@
 \citation{slavutsky2025}
 \citation{ledoit2004,schafer2005}
 \citation{bengio2013}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}Conditional Invariance of $\mathbf  {z}$}{9}{subsection.2.5}\protected@file@percent }
-\newlabel{sec:invariance}{{2.5}{9}{Conditional Invariance of \texorpdfstring {$\vz $}{z}}{subsection.2.5}{}}
-\newlabel{sec:invariance@cref}{{[subsection][5][2]2.5}{[1][9][]9}}
-\newlabel{eq:invariance-target}{{18}{9}{Conditional Invariance of \texorpdfstring {$\vz $}{z}}{equation.2.18}{}}
-\newlabel{eq:invariance-target@cref}{{[equation][18][]18}{[1][9][]9}}
-\@writefile{toc}{\contentsline {paragraph}{Closed-form penalty.}{9}{section*.20}\protected@file@percent }
-\newlabel{eq:penalty}{{19}{9}{Closed-form penalty}{equation.2.19}{}}
-\newlabel{eq:penalty@cref}{{[equation][19][]19}{[1][9][]9}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.5}Conditional Invariance of $\mathbf  {z}$}{10}{subsection.2.5}\protected@file@percent }
+\newlabel{sec:invariance}{{2.5}{10}{Conditional Invariance of \texorpdfstring {$\vz $}{z}}{subsection.2.5}{}}
+\newlabel{sec:invariance@cref}{{[subsection][5][2]2.5}{[1][10][]10}}
+\newlabel{eq:invariance-target}{{18}{10}{Conditional Invariance of \texorpdfstring {$\vz $}{z}}{equation.2.18}{}}
+\newlabel{eq:invariance-target@cref}{{[equation][18][]18}{[1][10][]10}}
+\@writefile{toc}{\contentsline {paragraph}{Closed-form penalty.}{10}{section*.21}\protected@file@percent }
+\newlabel{eq:penalty}{{19}{10}{Closed-form penalty}{equation.2.19}{}}
+\newlabel{eq:penalty@cref}{{[equation][19][]19}{[1][10][]10}}
 \citation{louizos2016,xie2017,ganin2016,zhang2018mitigating}
 \citation{elazar2018}
+\citation{xu2020vinfo}
 \citation{strehl2002}
+\@writefile{toc}{\contentsline {paragraph}{Adversarial escalation.}{11}{section*.22}\protected@file@percent }
+\newlabel{eq:adv}{{20}{11}{Adversarial escalation}{equation.2.20}{}}
+\newlabel{eq:adv@cref}{{[equation][20][]20}{[1][11][]11}}
+\@writefile{toc}{\contentsline {paragraph}{The probe, and how to decide.}{11}{section*.23}\protected@file@percent }
+\newlabel{eq:probe}{{21}{11}{The probe, and how to decide}{equation.2.21}{}}
+\newlabel{eq:probe@cref}{{[equation][21][]21}{[1][11][]11}}
 \citation{ergen2025}
-\@writefile{toc}{\contentsline {paragraph}{Adversarial escalation.}{10}{section*.21}\protected@file@percent }
-\newlabel{eq:adv}{{20}{10}{Adversarial escalation}{equation.2.20}{}}
-\newlabel{eq:adv@cref}{{[equation][20][]20}{[1][10][]10}}
-\@writefile{toc}{\contentsline {paragraph}{The probe, and how to decide.}{10}{section*.22}\protected@file@percent }
-\newlabel{eq:probe}{{21}{10}{The probe, and how to decide}{equation.2.21}{}}
-\newlabel{eq:probe@cref}{{[equation][21][]21}{[1][10][]10}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.6}Frozen Neighbours and Batching}{10}{subsection.2.6}\protected@file@percent }
-\newlabel{sec:batching}{{2.6}{10}{Frozen Neighbours and Batching}{subsection.2.6}{}}
-\newlabel{sec:batching@cref}{{[subsection][6][2]2.6}{[1][10][]10}}
 \citation{roberts2017}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.6}Frozen Neighbours and Batching}{12}{subsection.2.6}\protected@file@percent }
+\newlabel{sec:batching}{{2.6}{12}{Frozen Neighbours and Batching}{subsection.2.6}{}}
+\newlabel{sec:batching@cref}{{[subsection][6][2]2.6}{[1][12][]12}}
+\@writefile{toc}{\contentsline {paragraph}{Two hops, one pass.}{12}{section*.24}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.7}Model Selection and Diagnostics}{12}{subsection.2.7}\protected@file@percent }
+\newlabel{sec:selection}{{2.7}{12}{Model Selection and Diagnostics}{subsection.2.7}{}}
+\newlabel{sec:selection@cref}{{[subsection][7][2]2.7}{[1][12][]12}}
 \citation{kingma2016}
-\@writefile{toc}{\contentsline {paragraph}{Two hops, one pass.}{11}{section*.23}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.7}Model Selection and Diagnostics}{11}{subsection.2.7}\protected@file@percent }
-\newlabel{sec:selection}{{2.7}{11}{Model Selection and Diagnostics}{subsection.2.7}{}}
-\newlabel{sec:selection@cref}{{[subsection][7][2]2.7}{[1][11][]11}}
-\@writefile{toc}{\contentsline {paragraph}{Budget and selection across seeds.}{11}{section*.24}\protected@file@percent }
 \citation{khemakhem2020}
 \citation{locatello2019}
+\@writefile{toc}{\contentsline {paragraph}{Budget and selection across seeds.}{13}{section*.25}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.8}What Is Identified, and the Leakage Sweep}{13}{subsection.2.8}\protected@file@percent }
+\newlabel{sec:sweep}{{2.8}{13}{What Is Identified, and the Leakage Sweep}{subsection.2.8}{}}
+\newlabel{sec:sweep@cref}{{[subsection][8][2]2.8}{[1][13][]13}}
+\@writefile{toc}{\contentsline {paragraph}{Identifiability.}{13}{section*.26}\protected@file@percent }
+\newlabel{prop:symmetries}{{1}{13}{Symmetries of the response}{proposition.1}{}}
+\newlabel{prop:symmetries@cref}{{[proposition][1][]1}{[1][13][]13}}
 \citation{rosenbaum2002}
 \citation{manski2003}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.8}What Is Identified, and the Leakage Sweep}{12}{subsection.2.8}\protected@file@percent }
-\newlabel{sec:sweep}{{2.8}{12}{What Is Identified, and the Leakage Sweep}{subsection.2.8}{}}
-\newlabel{sec:sweep@cref}{{[subsection][8][2]2.8}{[1][12][]12}}
-\@writefile{toc}{\contentsline {paragraph}{Identifiability.}{12}{section*.25}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{The sweep.}{12}{section*.26}\protected@file@percent }
-\newlabel{def:breakdown}{{1}{12}{Breakdown point}{definition.1}{}}
-\newlabel{def:breakdown@cref}{{[definition][1][]1}{[1][12][]12}}
+\@writefile{toc}{\contentsline {paragraph}{The sweep.}{14}{section*.27}\protected@file@percent }
+\newlabel{def:breakdown}{{1}{14}{Breakdown point}{definition.1}{}}
+\newlabel{def:breakdown@cref}{{[definition][1][]1}{[1][14][]14}}
 \citation{fischer2023}
+\citation{janesick2023}
+\citation{tenx_ovarian_ffpe}
+\citation{tenx_lung_ffpe}
+\citation{tenx_ovary_ff}
+\citation{williamskatek2026fishing}
+\citation{ergen2025}
+\citation{dong2025simvi}
+\citation{akbarnejad2025mintflow}
+\citation{moeed2026cellina}
+\@writefile{toc}{\contentsline {paragraph}{What $\mathbf  {w}$ is not.}{15}{section*.28}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}EXPERIMENTS}{15}{section.3}\protected@file@percent }
+\newlabel{sec:experiments}{{3}{15}{EXPERIMENTS}{section.3}{}}
+\newlabel{sec:experiments@cref}{{[section][3][]3}{[1][15][]15}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Setup}{15}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:setup}{{3.1}{15}{Setup}{subsection.3.1}{}}
+\newlabel{sec:setup@cref}{{[subsection][1][3]3.1}{[1][15][]15}}
+\@writefile{toc}{\contentsline {paragraph}{Sections.}{15}{section*.29}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Labels.}{15}{section*.30}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Graph, kernel and image.}{15}{section*.31}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Configuration.}{15}{section*.32}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Splits, seeds and read-outs.}{15}{section*.33}\protected@file@percent }
 \bibstyle{apalike}
 \bibdata{references}
-\bibcite{akbarnejad2025mintflow}{{1}{2025}{{Akbarnejad et~al.}}{{}}}
-\bibcite{bengio2013}{{2}{2013}{{Bengio et~al.}}{{}}}
-\@writefile{toc}{\contentsline {paragraph}{What $\mathbf  {w}$ is not.}{13}{section*.27}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {3}EXPERIMENTS}{13}{section.3}\protected@file@percent }
-\newlabel{sec:experiments}{{3}{13}{EXPERIMENTS}{section.3}{}}
-\newlabel{sec:experiments@cref}{{[section][3][]3}{[1][13][]13}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}CONCLUSION}{13}{section.4}\protected@file@percent }
-\newlabel{sec:conclusion}{{4}{13}{CONCLUSION}{section.4}{}}
-\newlabel{sec:conclusion@cref}{{[section][4][]4}{[1][13][]13}}
-\@writefile{toc}{\contentsline {paragraph}{Future work.}{13}{section*.28}\protected@file@percent }
-\bibcite{bilous2026split}{{3}{2026}{{Bilous et~al.}}{{}}}
-\bibcite{birk2025nichecompass}{{4}{2025}{{Birk et~al.}}{{}}}
-\bibcite{brody2022}{{5}{2022}{{Brody et~al.}}{{}}}
-\bibcite{cover2006}{{6}{2006}{{Cover and Thomas}}{{}}}
-\bibcite{dong2025simvi}{{7}{2025}{{Dong et~al.}}{{}}}
-\bibcite{elazar2018}{{8}{2018}{{Elazar and Goldberg}}{{}}}
-\bibcite{ergen2025}{{9}{2025}{{Ergen and Yosef}}{{}}}
-\bibcite{fischer2023}{{10}{2023}{{Fischer et~al.}}{{}}}
-\bibcite{ganchev2010}{{11}{2010}{{Ganchev et~al.}}{{}}}
-\bibcite{ganin2016}{{12}{2016}{{Ganin et~al.}}{{}}}
-\bibcite{hardt2016}{{13}{2016}{{Hardt et~al.}}{{}}}
-\bibcite{hernan2004}{{14}{2004}{{Hern{\'a}n et~al.}}{{}}}
-\bibcite{janesick2023}{{15}{2023}{{Janesick et~al.}}{{}}}
-\bibcite{khemakhem2020}{{16}{2020}{{Khemakhem et~al.}}{{}}}
-\bibcite{kingma2015adam}{{17}{2015}{{Kingma and Ba}}{{}}}
-\bibcite{kingma2016}{{18}{2016}{{Kingma et~al.}}{{}}}
-\bibcite{kingma2014}{{19}{2014}{{Kingma and Welling}}{{}}}
-\bibcite{klys2018}{{20}{2018}{{Klys et~al.}}{{}}}
-\bibcite{ledoit2004}{{21}{2004}{{Ledoit and Wolf}}{{}}}
-\bibcite{li2018ciddg}{{22}{2018}{{Li et~al.}}{{}}}
-\bibcite{locatello2019}{{23}{2019}{{Locatello et~al.}}{{}}}
-\bibcite{loshchilov2017}{{24}{2017}{{Loshchilov and Hutter}}{{}}}
-\bibcite{louizos2016}{{25}{2016}{{Louizos et~al.}}{{}}}
-\bibcite{madras2018}{{26}{2018}{{Madras et~al.}}{{}}}
-\bibcite{manski2003}{{27}{2003}{{Manski}}{{}}}
-\bibcite{megas2026celcomen}{{28}{2026}{{Megas et~al.}}{{}}}
-\bibcite{mitchel2026celladmix}{{29}{2026}{{Mitchel et~al.}}{{}}}
-\bibcite{pogodin2023circe}{{30}{2023}{{Pogodin et~al.}}{{}}}
-\bibcite{rezende2014}{{31}{2014}{{Rezende et~al.}}{{}}}
-\bibcite{roberts2017}{{32}{2017}{{Roberts et~al.}}{{}}}
-\bibcite{rosenbaum2002}{{33}{2002}{{Rosenbaum}}{{}}}
-\bibcite{schafer2005}{{34}{2005}{{Sch{\"a}fer and Strimmer}}{{}}}
-\bibcite{kronos2025}{{35}{2025}{{Shaban et~al.}}{{}}}
-\bibcite{slavutsky2025}{{36}{2026}{{Slavutsky et~al.}}{{}}}
-\bibcite{strehl2002}{{37}{2002}{{Strehl and Ghosh}}{{}}}
-\bibcite{tomczak2018}{{38}{2018}{{Tomczak and Welling}}{{}}}
-\bibcite{xie2017}{{39}{2017}{{Xie et~al.}}{{}}}
-\bibcite{zhang2018mitigating}{{40}{2018}{{Zhang et~al.}}{{}}}
-\bibcite{zhao2019inherent}{{41}{2019}{{Zhao and Gordon}}{{}}}
+\bibcite{tenx_ovarian_ffpe}{{1}{2024a}{{10x Genomics}}{{}}}
+\bibcite{tenx_ovary_ff}{{2}{2024b}{{10x Genomics}}{{}}}
+\@writefile{toc}{\contentsline {paragraph}{Baselines.}{16}{section*.34}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Model Quality Across Four Tissues}{16}{subsection.3.2}\protected@file@percent }
+\newlabel{sec:results-quality}{{3.2}{16}{Model Quality Across Four Tissues}{subsection.3.2}{}}
+\newlabel{sec:results-quality@cref}{{[subsection][2][3]3.2}{[1][16][]16}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}What the Intrinsic State Carries}{16}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:results-z}{{3.3}{16}{What the Intrinsic State Carries}{subsection.3.3}{}}
+\newlabel{sec:results-z@cref}{{[subsection][3][3]3.3}{[1][16][]16}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}What the Response Carries}{16}{subsection.3.4}\protected@file@percent }
+\newlabel{sec:results-w}{{3.4}{16}{What the Response Carries}{subsection.3.4}{}}
+\newlabel{sec:results-w@cref}{{[subsection][4][3]3.4}{[1][16][]16}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}The Leakage Sweep}{16}{subsection.3.5}\protected@file@percent }
+\newlabel{sec:results-sweep}{{3.5}{16}{The Leakage Sweep}{subsection.3.5}{}}
+\newlabel{sec:results-sweep@cref}{{[subsection][5][3]3.5}{[1][16][]16}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Comparison with Other Models}{16}{subsection.3.6}\protected@file@percent }
+\newlabel{sec:results-baselines}{{3.6}{16}{Comparison with Other Models}{subsection.3.6}{}}
+\newlabel{sec:results-baselines@cref}{{[subsection][6][3]3.6}{[1][16][]16}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}CONCLUSION}{16}{section.4}\protected@file@percent }
+\newlabel{sec:conclusion}{{4}{16}{CONCLUSION}{section.4}{}}
+\newlabel{sec:conclusion@cref}{{[section][4][]4}{[1][16][]16}}
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{16}{section*.35}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Future work.}{16}{section*.36}\protected@file@percent }
+\bibcite{tenx_lung_ffpe}{{3}{2024c}{{10x Genomics}}{{}}}
+\bibcite{akbarnejad2025mintflow}{{4}{2025}{{Akbarnejad et~al.}}{{}}}
+\bibcite{arnol2019svca}{{5}{2019}{{Arnol et~al.}}{{}}}
+\bibcite{bengio2013}{{6}{2013}{{Bengio et~al.}}{{}}}
+\bibcite{bilous2026split}{{7}{2026}{{Bilous et~al.}}{{}}}
+\bibcite{birk2025nichecompass}{{8}{2025}{{Birk et~al.}}{{}}}
+\bibcite{brody2022}{{9}{2022}{{Brody et~al.}}{{}}}
+\bibcite{cable2022cside}{{10}{2022}{{Cable et~al.}}{{}}}
+\bibcite{cover2006}{{11}{2006}{{Cover and Thomas}}{{}}}
+\bibcite{dong2025simvi}{{12}{2025}{{Dong et~al.}}{{}}}
+\bibcite{elazar2018}{{13}{2018}{{Elazar and Goldberg}}{{}}}
+\bibcite{ergen2025}{{14}{2025}{{Ergen and Yosef}}{{}}}
+\bibcite{fischer2023}{{15}{2023}{{Fischer et~al.}}{{}}}
+\bibcite{fleming2023cellbender}{{16}{2023}{{Fleming et~al.}}{{}}}
+\bibcite{ganchev2010}{{17}{2010}{{Ganchev et~al.}}{{}}}
+\bibcite{ganin2016}{{18}{2016}{{Ganin et~al.}}{{}}}
+\bibcite{hardt2016}{{19}{2016}{{Hardt et~al.}}{{}}}
+\bibcite{hernan2004}{{20}{2004}{{Hern{\'a}n et~al.}}{{}}}
+\bibcite{janesick2023}{{21}{2023}{{Janesick et~al.}}{{}}}
+\bibcite{khemakhem2020}{{22}{2020}{{Khemakhem et~al.}}{{}}}
+\bibcite{kingma2015adam}{{23}{2015}{{Kingma and Ba}}{{}}}
+\bibcite{kingma2016}{{24}{2016}{{Kingma et~al.}}{{}}}
+\bibcite{kingma2014}{{25}{2014}{{Kingma and Welling}}{{}}}
+\bibcite{klys2018}{{26}{2018}{{Klys et~al.}}{{}}}
+\bibcite{ledoit2004}{{27}{2004}{{Ledoit and Wolf}}{{}}}
+\bibcite{li2018ciddg}{{28}{2018}{{Li et~al.}}{{}}}
+\bibcite{locatello2019}{{29}{2019}{{Locatello et~al.}}{{}}}
+\bibcite{loshchilov2017}{{30}{2017}{{Loshchilov and Hutter}}{{}}}
+\bibcite{louizos2016}{{31}{2016}{{Louizos et~al.}}{{}}}
+\bibcite{madras2018}{{32}{2018}{{Madras et~al.}}{{}}}
+\bibcite{manski2003}{{33}{2003}{{Manski}}{{}}}
+\bibcite{megas2026celcomen}{{34}{2026}{{Megas et~al.}}{{}}}
+\bibcite{mitchel2026celladmix}{{35}{2026}{{Mitchel et~al.}}{{}}}
+\bibcite{moeed2026cellina}{{36}{2026}{{Moeed et~al.}}{{}}}
+\bibcite{ni2022spotclean}{{37}{2022}{{Ni et~al.}}{{}}}
+\bibcite{petukhov2022baysor}{{38}{2022}{{Petukhov et~al.}}{{}}}
+\bibcite{pogodin2023circe}{{39}{2023}{{Pogodin et~al.}}{{}}}
+\bibcite{rezende2014}{{40}{2014}{{Rezende et~al.}}{{}}}
+\bibcite{roberts2017}{{41}{2017}{{Roberts et~al.}}{{}}}
+\bibcite{rosenbaum2002}{{42}{2002}{{Rosenbaum}}{{}}}
+\bibcite{schafer2005}{{43}{2005}{{Sch{\"a}fer and Strimmer}}{{}}}
+\bibcite{kronos2025}{{44}{2025}{{Shaban et~al.}}{{}}}
+\bibcite{slavutsky2025}{{45}{2026}{{Slavutsky et~al.}}{{}}}
+\bibcite{strehl2002}{{46}{2002}{{Strehl and Ghosh}}{{}}}
+\bibcite{svensson2018spatialde}{{47}{2018}{{Svensson et~al.}}{{}}}
+\bibcite{tanevski2022misty}{{48}{2022}{{Tanevski et~al.}}{{}}}
+\bibcite{tomczak2018}{{49}{2018}{{Tomczak and Welling}}{{}}}
+\bibcite{townes2023nsf}{{50}{2023}{{Townes and Engelhardt}}{{}}}
+\bibcite{velten2022mefisto}{{51}{2022}{{Velten et~al.}}{{}}}
+\bibcite{williamskatek2026fishing}{{52}{2026}{{Williams-Katek et~al.}}{{}}}
+\bibcite{xie2017}{{53}{2017}{{Xie et~al.}}{{}}}
+\bibcite{xu2020vinfo}{{54}{2020}{{Xu et~al.}}{{}}}
+\bibcite{yang2020decontx}{{55}{2020}{{Yang et~al.}}{{}}}
+\bibcite{young2020soupx}{{56}{2020}{{Young and Behjati}}{{}}}
+\bibcite{zhang2018mitigating}{{57}{2018}{{Zhang et~al.}}{{}}}
+\bibcite{zhao2019inherent}{{58}{2019}{{Zhao and Gordon}}{{}}}
 \citation{slavutsky2025}
 \citation{slavutsky2025}
 \citation{slavutsky2025}
-\@writefile{toc}{\contentsline {section}{\numberline {A}DERIVATIONS}{17}{appendix.A}\protected@file@percent }
-\newlabel{app:derivations}{{A}{17}{DERIVATIONS}{appendix.A}{}}
-\newlabel{app:derivations@cref}{{[appendix][1][2147483647]A}{[1][17][]17}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}The Reconstruction Bound}{17}{subsection.A.1}\protected@file@percent }
-\newlabel{app:bound}{{A.1}{17}{The Reconstruction Bound}{subsection.A.1}{}}
-\newlabel{app:bound@cref}{{[subappendix][1][2147483647,1]A.1}{[1][17][]17}}
-\newlabel{eq:jensen}{{23}{17}{The Reconstruction Bound}{equation.A.23}{}}
-\newlabel{eq:jensen@cref}{{[equation][23][2147483647]23}{[1][17][]17}}
-\newlabel{eq:gauss-kl}{{25}{17}{The Reconstruction Bound}{equation.A.25}{}}
-\newlabel{eq:gauss-kl@cref}{{[equation][25][2147483647]25}{[1][17][]17}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}The Intrinsic Path and the Factor $(1+\omega )$}{17}{subsection.A.2}\protected@file@percent }
-\newlabel{app:pathb}{{A.2}{17}{The Intrinsic Path and the Factor \texorpdfstring {$(1+\omega )$}{(1+omega)}}{subsection.A.2}{}}
-\newlabel{app:pathb@cref}{{[subappendix][2][2147483647,1]A.2}{[1][17][]17}}
+\@writefile{toc}{\contentsline {section}{\numberline {A}DERIVATIONS}{21}{appendix.A}\protected@file@percent }
+\newlabel{app:derivations}{{A}{21}{DERIVATIONS}{appendix.A}{}}
+\newlabel{app:derivations@cref}{{[appendix][1][2147483647]A}{[1][21][]21}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}The Reconstruction Bound}{21}{subsection.A.1}\protected@file@percent }
+\newlabel{app:bound}{{A.1}{21}{The Reconstruction Bound}{subsection.A.1}{}}
+\newlabel{app:bound@cref}{{[subappendix][1][2147483647,1]A.1}{[1][21][]21}}
+\newlabel{eq:jensen}{{23}{21}{The Reconstruction Bound}{equation.A.23}{}}
+\newlabel{eq:jensen@cref}{{[equation][23][2147483647]23}{[1][21][]21}}
+\newlabel{eq:gauss-kl}{{25}{21}{The Reconstruction Bound}{equation.A.25}{}}
+\newlabel{eq:gauss-kl@cref}{{[equation][25][2147483647]25}{[1][21][]21}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}The Intrinsic Path and the Factor $(1+\omega )$}{21}{subsection.A.2}\protected@file@percent }
+\newlabel{app:pathb}{{A.2}{21}{The Intrinsic Path and the Factor \texorpdfstring {$(1+\omega )$}{(1+omega)}}{subsection.A.2}{}}
+\newlabel{app:pathb@cref}{{[subappendix][2][2147483647,1]A.2}{[1][21][]21}}
 \citation{ganchev2010}
 \citation{slavutsky2025}
 \citation{ganchev2010}
 \citation{cover2006}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}The Invariance Term as Posterior Regularisation}{22}{subsection.A.3}\protected@file@percent }
+\newlabel{app:posterior-reg}{{A.3}{22}{The Invariance Term as Posterior Regularisation}{subsection.A.3}{}}
+\newlabel{app:posterior-reg@cref}{{[subappendix][3][2147483647,1]A.3}{[1][22][]22}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.4}The Gaussian Conditional Mutual Information}{22}{subsection.A.4}\protected@file@percent }
+\newlabel{app:gaussian-mi}{{A.4}{22}{The Gaussian Conditional Mutual Information}{subsection.A.4}{}}
+\newlabel{app:gaussian-mi@cref}{{[subappendix][4][2147483647,1]A.4}{[1][22][]22}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.5}Symmetries of the Response}{22}{subsection.A.5}\protected@file@percent }
+\newlabel{app:symmetries}{{A.5}{22}{Symmetries of the Response}{subsection.A.5}{}}
+\newlabel{app:symmetries@cref}{{[subappendix][5][2147483647,1]A.5}{[1][22][]22}}
 \citation{ergen2025}
 \citation{brody2022}
 \citation{kingma2016}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}The Invariance Term as Posterior Regularisation}{18}{subsection.A.3}\protected@file@percent }
-\newlabel{app:posterior-reg}{{A.3}{18}{The Invariance Term as Posterior Regularisation}{subsection.A.3}{}}
-\newlabel{app:posterior-reg@cref}{{[subappendix][3][2147483647,1]A.3}{[1][18][]18}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.4}The Gaussian Conditional Mutual Information}{18}{subsection.A.4}\protected@file@percent }
-\newlabel{app:gaussian-mi}{{A.4}{18}{The Gaussian Conditional Mutual Information}{subsection.A.4}{}}
-\newlabel{app:gaussian-mi@cref}{{[subappendix][4][2147483647,1]A.4}{[1][18][]18}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.5}Feedback Amplification Through the Leakage Path (Heuristic)}{18}{subsection.A.5}\protected@file@percent }
-\newlabel{app:amplification}{{A.5}{18}{Feedback Amplification Through the Leakage Path (Heuristic)}{subsection.A.5}{}}
-\newlabel{app:amplification@cref}{{[subappendix][5][2147483647,1]A.5}{[1][18][]18}}
-\@writefile{toc}{\contentsline {section}{\numberline {B}DESIGN RATIONALE}{18}{appendix.B}\protected@file@percent }
-\newlabel{app:rationale}{{B}{18}{DESIGN RATIONALE}{appendix.B}{}}
-\newlabel{app:rationale@cref}{{[appendix][2][2147483647]B}{[1][18][]18}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}The Mirror Attractor}{18}{subsection.B.1}\protected@file@percent }
-\newlabel{app:mirror}{{B.1}{18}{The Mirror Attractor}{subsection.B.1}{}}
-\newlabel{app:mirror@cref}{{[subappendix][1][2147483647,2]B.1}{[1][18][]18}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Three neighbour graphs on one $160\,\mu \text  {m}$ field of the primary section, each a subset of the model's edge set. \textbf  {a},\nobreakspace  {}Edges whose segmented polygons touch. \textbf  {b},\nobreakspace  {}Edges along which the two polygons run within $1\,\mu \text  {m}$ of each other, the contact of \cref  {tab:contact}. \textbf  {c},\nobreakspace  {}The model's graph: Delaunay adjacency pruned at $40\,\mu \text  {m}$. Cells with no edge in a panel's graph are dark. The share above each panel is over the whole section, among cells with at least one edge in\nobreakspace  {}c. The field is chosen to be representative: among fields that contain both sparse and dense tissue, it is the one whose shares under a and b are closest to the section's. Edges are drawn at one width; their weights in $\beta $ are illustrated in \cref  {fig:overview}a. All panels share one scale.\relax }}{19}{figure.caption.31}\protected@file@percent }
-\newlabel{fig:graph-compare}{{2}{19}{Three neighbour graphs on one $160\um $ field of the primary section, each a subset of the model's edge set. \textbf {a},~Edges whose segmented polygons touch. \textbf {b},~Edges along which the two polygons run within $1\um $ of each other, the contact of \cref {tab:contact}. \textbf {c},~The model's graph: Delaunay adjacency pruned at $40\um $. Cells with no edge in a panel's graph are dark. The share above each panel is over the whole section, among cells with at least one edge in~c. The field is chosen to be representative: among fields that contain both sparse and dense tissue, it is the one whose shares under a and b are closest to the section's. Edges are drawn at one width; their weights in $\beta $ are illustrated in \cref {fig:overview}a. All panels share one scale.\relax }{figure.caption.31}{}}
-\newlabel{fig:graph-compare@cref}{{[figure][2][2147483647]2}{[1][19][]19}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}{19}{subsection.B.2}\protected@file@percent }
-\newlabel{app:graph}{{B.2}{19}{Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}{subsection.B.2}{}}
-\newlabel{app:graph@cref}{{[subappendix][2][2147483647,2]B.2}{[1][19][]19}}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces How the Voronoi face is built, and what bounds it, on the primary section. \textbf  {a},\nobreakspace  {}Segmented polygons and their centroids around a typical cell (blue). \textbf  {b},\nobreakspace  {}The polygons are set aside; each neighbour contributes the perpendicular bisector (dashed) of the segment joining the two centroids. \textbf  {c},\nobreakspace  {}The bisectors cut one another, and what survives between the cell and a neighbour is the face $f_{ij}$ (blue, length in $\mu $m); the shaded area is the cell's Voronoi region. Panels a--c share one scale. \textbf  {d},\nobreakspace  {}A dense neighbourhood and \textbf  {e},\nobreakspace  {}a cell at a tissue border, at one scale, each with the $30\,\mu \text  {m}$ clip disc (dotted). At the border the unclipped region (dashed) runs into the gap, the disc bounds it, and the dark stretch of the outline between two faces is the clip arc. \textbf  {f},\nobreakspace  {}Face length against centroid distance for every edge of the section. Clipping bounds each face by the chord $2\sqrt  {R^2-(d_{ij}/2)^2}$ of the disc, with $R = 30\,\mu \text  {m}$, and removes every edge with $d_{ij} \ge 2R$; the model keeps edges up to $40\,\mu \text  {m}$ (unshaded).\relax }}{20}{figure.caption.32}\protected@file@percent }
-\newlabel{fig:voronoi-face}{{3}{20}{How the Voronoi face is built, and what bounds it, on the primary section. \textbf {a},~Segmented polygons and their centroids around a typical cell (blue). \textbf {b},~The polygons are set aside; each neighbour contributes the perpendicular bisector (dashed) of the segment joining the two centroids. \textbf {c},~The bisectors cut one another, and what survives between the cell and a neighbour is the face $f_{ij}$ (blue, length in $\mu $m); the shaded area is the cell's Voronoi region. Panels a--c share one scale. \textbf {d},~A dense neighbourhood and \textbf {e},~a cell at a tissue border, at one scale, each with the $30\um $ clip disc (dotted). At the border the unclipped region (dashed) runs into the gap, the disc bounds it, and the dark stretch of the outline between two faces is the clip arc. \textbf {f},~Face length against centroid distance for every edge of the section. Clipping bounds each face by the chord $2\sqrt {R^2-(d_{ij}/2)^2}$ of the disc, with $R = 30\um $, and removes every edge with $d_{ij} \ge 2R$; the model keeps edges up to $40\um $ (unshaded).\relax }{figure.caption.32}{}}
-\newlabel{fig:voronoi-face@cref}{{[figure][3][2147483647]3}{[1][19][]20}}
-\newlabel{eq:context-closed}{{27}{20}{Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}{equation.B.27}{}}
-\newlabel{eq:context-closed@cref}{{[equation][27][2147483647]27}{[1][20][]20}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.6}Feedback Amplification Through the Leakage Path (Heuristic)}{23}{subsection.A.6}\protected@file@percent }
+\newlabel{app:amplification}{{A.6}{23}{Feedback Amplification Through the Leakage Path (Heuristic)}{subsection.A.6}{}}
+\newlabel{app:amplification@cref}{{[subappendix][6][2147483647,1]A.6}{[1][23][]23}}
+\@writefile{toc}{\contentsline {section}{\numberline {B}DESIGN RATIONALE}{23}{appendix.B}\protected@file@percent }
+\newlabel{app:rationale}{{B}{23}{DESIGN RATIONALE}{appendix.B}{}}
+\newlabel{app:rationale@cref}{{[appendix][2][2147483647]B}{[1][23][]23}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}The Mirror Attractor}{23}{subsection.B.1}\protected@file@percent }
+\newlabel{app:mirror}{{B.1}{23}{The Mirror Attractor}{subsection.B.1}{}}
+\newlabel{app:mirror@cref}{{[subappendix][1][2147483647,2]B.1}{[1][23][]23}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}{23}{subsection.B.2}\protected@file@percent }
+\newlabel{app:graph}{{B.2}{23}{Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}{subsection.B.2}{}}
+\newlabel{app:graph@cref}{{[subappendix][2][2147483647,2]B.2}{[1][23][]23}}
+\citation{kronos2025}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Three neighbour graphs on one $160\,\mu \text  {m}$ field of the primary section, each a subset of the model's edge set. \textbf  {a},\nobreakspace  {}Edges whose segmented polygons touch. \textbf  {b},\nobreakspace  {}Edges along which the two polygons run within $1\,\mu \text  {m}$ of each other, the contact of \cref  {tab:contact}. \textbf  {c},\nobreakspace  {}The model's graph: Delaunay adjacency pruned at $40\,\mu \text  {m}$. Cells with no edge in a panel's graph are dark. The share above each panel is over the whole section, among cells with at least one edge in\nobreakspace  {}c. The field is chosen to be representative: among fields that contain both sparse and dense tissue, it is the one whose shares under a and b are closest to the section's. Edges are drawn at one width; their weights in $\beta $ are illustrated in \cref  {fig:overview}a. All panels share one scale.\relax }}{24}{figure.caption.39}\protected@file@percent }
+\newlabel{fig:graph-compare}{{2}{24}{Three neighbour graphs on one $160\um $ field of the primary section, each a subset of the model's edge set. \textbf {a},~Edges whose segmented polygons touch. \textbf {b},~Edges along which the two polygons run within $1\um $ of each other, the contact of \cref {tab:contact}. \textbf {c},~The model's graph: Delaunay adjacency pruned at $40\um $. Cells with no edge in a panel's graph are dark. The share above each panel is over the whole section, among cells with at least one edge in~c. The field is chosen to be representative: among fields that contain both sparse and dense tissue, it is the one whose shares under a and b are closest to the section's. Edges are drawn at one width; their weights in $\beta $ are illustrated in \cref {fig:overview}a. All panels share one scale.\relax }{figure.caption.39}{}}
+\newlabel{fig:graph-compare@cref}{{[figure][2][2147483647]2}{[1][23][]24}}
+\newlabel{eq:context-closed}{{27}{24}{Why the Context Gets No Per-Edge Geometry, and Why the Graph Is Delaunay}{equation.B.27}{}}
+\newlabel{eq:context-closed@cref}{{[equation][27][2147483647]27}{[1][24][]24}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces How the Voronoi face is built, and what bounds it, on the primary section. \textbf  {a},\nobreakspace  {}Segmented polygons and their centroids around a typical cell (blue). \textbf  {b},\nobreakspace  {}The polygons are set aside; each neighbour contributes the perpendicular bisector (dashed) of the segment joining the two centroids. \textbf  {c},\nobreakspace  {}The bisectors cut one another, and what survives between the cell and a neighbour is the face $f_{ij}$ (blue, length in $\mu $m); the shaded area is the cell's Voronoi region. Panels a--c share one scale. \textbf  {d},\nobreakspace  {}A dense neighbourhood and \textbf  {e},\nobreakspace  {}a cell at a tissue border, at one scale, each with the $30\,\mu \text  {m}$ clip disc (dotted). At the border the unclipped region (dashed) runs into the gap, the disc bounds it, and the dark stretch of the outline between two faces is the clip arc. \textbf  {f},\nobreakspace  {}Face length against centroid distance for every edge of the section. Clipping bounds each face by the chord $2\sqrt  {R^2-(d_{ij}/2)^2}$ of the disc, with $R = 30\,\mu \text  {m}$, and removes every edge with $d_{ij} \ge 2R$; the model keeps edges up to $40\,\mu \text  {m}$ (unshaded).\relax }}{25}{figure.caption.40}\protected@file@percent }
+\newlabel{fig:voronoi-face}{{3}{25}{How the Voronoi face is built, and what bounds it, on the primary section. \textbf {a},~Segmented polygons and their centroids around a typical cell (blue). \textbf {b},~The polygons are set aside; each neighbour contributes the perpendicular bisector (dashed) of the segment joining the two centroids. \textbf {c},~The bisectors cut one another, and what survives between the cell and a neighbour is the face $f_{ij}$ (blue, length in $\mu $m); the shaded area is the cell's Voronoi region. Panels a--c share one scale. \textbf {d},~A dense neighbourhood and \textbf {e},~a cell at a tissue border, at one scale, each with the $30\um $ clip disc (dotted). At the border the unclipped region (dashed) runs into the gap, the disc bounds it, and the dark stretch of the outline between two faces is the clip arc. \textbf {f},~Face length against centroid distance for every edge of the section. Clipping bounds each face by the chord $2\sqrt {R^2-(d_{ij}/2)^2}$ of the disc, with $R = 30\um $, and removes every edge with $d_{ij} \ge 2R$; the model keeps edges up to $40\um $ (unshaded).\relax }{figure.caption.40}{}}
+\newlabel{fig:voronoi-face@cref}{{[figure][3][2147483647]3}{[1][23][]25}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}The Image Descriptor and Its Mask}{25}{subsection.B.3}\protected@file@percent }
+\newlabel{app:image}{{B.3}{25}{The Image Descriptor and Its Mask}{subsection.B.3}{}}
+\newlabel{app:image@cref}{{[subappendix][3][2147483647,2]B.3}{[1][24][]25}}
 \citation{kronos2025}
 \citation{kronos2025}
-\citation{kronos2025}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Segmented-polygon contact as a leakage kernel, against the Voronoi-face kernel $\beta $, on every section and on the model's edge set (Delaunay adjacency pruned at $40\,\mu \text  {m}$). Both kernels use the same distance decay $\qopname  \relax o{exp}(-d_{ij}/\tau )$ and the same row normalisation. The contact kernel weights an edge by the length of membrane along which the two segmented polygons run within $1\,\mu \text  {m}$ of each other; $\beta $ weights it by the Voronoi face. FF: fresh frozen. \emph  {Touching}: adjacent pairs whose polygons are at zero distance. \emph  {No-leak cells}: connected cells whose kernel row is all zero, so that they receive no leakage at any $\kappa $; \emph  {sparse} and \emph  {dense} are the lowest and highest fifth of cells by the number of centroids within $20\,\mu \text  {m}$. $\rho $: Spearman correlation, over edges, between a neighbour's share of the row and the gap between the two polygons. The Voronoi kernel has no zero-weight edges and no no-leak cells on any section. Its dependence on the gap is that of the distance decay alone (shares from the decay alone: $\rho $ between $-0.49$ and $-0.62$).\relax }}{21}{table.caption.33}\protected@file@percent }
-\newlabel{tab:contact}{{2}{21}{Segmented-polygon contact as a leakage kernel, against the Voronoi-face kernel $\beta $, on every section and on the model's edge set (Delaunay adjacency pruned at $40\um $). Both kernels use the same distance decay $\exp (-d_{ij}/\tau )$ and the same row normalisation. The contact kernel weights an edge by the length of membrane along which the two segmented polygons run within $1\um $ of each other; $\beta $ weights it by the Voronoi face. FF: fresh frozen. \emph {Touching}: adjacent pairs whose polygons are at zero distance. \emph {No-leak cells}: connected cells whose kernel row is all zero, so that they receive no leakage at any $\kappa $; \emph {sparse} and \emph {dense} are the lowest and highest fifth of cells by the number of centroids within $20\um $. $\rho $: Spearman correlation, over edges, between a neighbour's share of the row and the gap between the two polygons. The Voronoi kernel has no zero-weight edges and no no-leak cells on any section. Its dependence on the gap is that of the distance decay alone (shares from the decay alone: $\rho $ between $-0.49$ and $-0.62$).\relax }{table.caption.33}{}}
-\newlabel{tab:contact@cref}{{[table][2][2147483647]2}{[1][19][]21}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}The Image Descriptor and Its Mask}{21}{subsection.B.3}\protected@file@percent }
-\newlabel{app:image}{{B.3}{21}{The Image Descriptor and Its Mask}{subsection.B.3}{}}
-\newlabel{app:image@cref}{{[subappendix][3][2147483647,2]B.3}{[1][21][]21}}
 \citation{slavutsky2025}
 \citation{klys2018}
 \citation{hernan2004}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Why the leakage kernel is built on Voronoi faces rather than on segmented contact. \textbf  {a},\nobreakspace  {}An edge whose segmented polygons touch and \textbf  {b},\nobreakspace  {}an edge whose polygons do not, each the edge of its kind closest to the primary section's median centroid distance and median face length. The two have almost the same centroid distance $d_{ij}$ and face $f_{ij}$ (blue), which is all the kernel $\beta $ uses; contact (orange), the stretch of each cell's membrane within $1\,\mu \text  {m}$ of the other cell, is present in a and absent in b. Dashed lines are the two cells' Voronoi regions; both panels share one scale. \textbf  {c},\nobreakspace  {}The share of cells that a contact-weighted kernel would leave with no leakage at all, by fifth of local density (centroids within $20\,\mu \text  {m}$), on each section of \cref  {tab:contact}: the median (bold), the range (band) and each section (thin). Both kernels use the model's edge set, the same distance decay and the same row normalisation; the Voronoi kernel leaves no connected cell without leakage on any section.\relax }}{22}{figure.caption.34}\protected@file@percent }
-\newlabel{fig:contact-kernel}{{4}{22}{Why the leakage kernel is built on Voronoi faces rather than on segmented contact. \textbf {a},~An edge whose segmented polygons touch and \textbf {b},~an edge whose polygons do not, each the edge of its kind closest to the primary section's median centroid distance and median face length. The two have almost the same centroid distance $d_{ij}$ and face $f_{ij}$ (blue), which is all the kernel $\beta $ uses; contact (orange), the stretch of each cell's membrane within $1\um $ of the other cell, is present in a and absent in b. Dashed lines are the two cells' Voronoi regions; both panels share one scale. \textbf {c},~The share of cells that a contact-weighted kernel would leave with no leakage at all, by fifth of local density (centroids within $20\um $), on each section of \cref {tab:contact}: the median (bold), the range (band) and each section (thin). Both kernels use the model's edge set, the same distance decay and the same row normalisation; the Voronoi kernel leaves no connected cell without leakage on any section.\relax }{figure.caption.34}{}}
-\newlabel{fig:contact-kernel@cref}{{[figure][4][2147483647]4}{[1][19][]22}}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces What each mask leaves in the image embedding, on the primary section: macro one-versus-rest AUC of a multinomial logistic regression predicting the cell's lineage label (the labels the model is fitted with; 11 classes, Unassigned cells excluded as targets but counted as neighbours) from the embedding, on a spatial split ($1\,$mm tiles, cells within half a field of a tile edge dropped; $40{,}000$ training and about $74{,}000$ test cells), for the two releases of the image model, KRONOS and KRONOS2 \citep  {kronos2025}. The first row predicts the label from the neighbours' labels alone, with no image. The model uses KRONOS with the disc zeroed (bold).\relax }}{22}{table.caption.36}\protected@file@percent }
-\newlabel{tab:masking}{{3}{22}{What each mask leaves in the image embedding, on the primary section: macro one-versus-rest AUC of a multinomial logistic regression predicting the cell's lineage label (the labels the model is fitted with; 11 classes, Unassigned cells excluded as targets but counted as neighbours) from the embedding, on a spatial split ($1\,$mm tiles, cells within half a field of a tile edge dropped; $40{,}000$ training and about $74{,}000$ test cells), for the two releases of the image model, KRONOS and KRONOS2 \citep {kronos2025}. The first row predicts the label from the neighbours' labels alone, with no image. The model uses KRONOS with the disc zeroed (bold).\relax }{table.caption.36}{}}
-\newlabel{tab:masking@cref}{{[table][3][2147483647]3}{[1][21][]22}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.4}Three Routes to a Vanishing Response Divergence}{22}{subsection.B.4}\protected@file@percent }
-\newlabel{app:qw}{{B.4}{22}{Three Routes to a Vanishing Response Divergence}{subsection.B.4}{}}
-\newlabel{app:qw@cref}{{[subappendix][4][2147483647,2]B.4}{[1][22][]22}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.5}Conditional Invariance and Label Granularity}{22}{subsection.B.5}\protected@file@percent }
-\newlabel{app:conditional}{{B.5}{22}{Conditional Invariance and Label Granularity}{subsection.B.5}{}}
-\newlabel{app:conditional@cref}{{[subappendix][5][2147483647,2]B.5}{[1][22][]22}}
-\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Why the mask is a $25\,\mu \text  {m}$ disc, on the primary section. \textbf  {a},\nobreakspace  {}The number of cells that would stick out of a disc of radius $R$ centred on the crop anchor, from each cell's covering radius; the table gives the radii considered, the cells left outside, and the share of the $128\,\mu \text  {m}$ field each disc masks. The last row is the largest cell on the section. \textbf  {b},\nobreakspace  {}The largest cell that fits the chosen disc and \textbf  {c},\nobreakspace  {}the largest cell on the section, which does not, both drawn as the image model receives them: four channels, disc set to zero, with the cell's outline for reference. Both are elongated smooth-muscle cells.\relax }}{23}{figure.caption.35}\protected@file@percent }
-\newlabel{fig:mask-radius}{{5}{23}{Why the mask is a $25\um $ disc, on the primary section. \textbf {a},~The number of cells that would stick out of a disc of radius $R$ centred on the crop anchor, from each cell's covering radius; the table gives the radii considered, the cells left outside, and the share of the $128\um $ field each disc masks. The last row is the largest cell on the section. \textbf {b},~The largest cell that fits the chosen disc and \textbf {c},~the largest cell on the section, which does not, both drawn as the image model receives them: four channels, disc set to zero, with the cell's outline for reference. Both are elongated smooth-muscle cells.\relax }{figure.caption.35}{}}
-\newlabel{fig:mask-radius@cref}{{[figure][5][2147483647]5}{[1][21][]23}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.6}The Leak Fraction: Grid Range and Upgrade Path}{23}{subsection.B.6}\protected@file@percent }
-\newlabel{app:kappa}{{B.6}{23}{The Leak Fraction: Grid Range and Upgrade Path}{subsection.B.6}{}}
-\newlabel{app:kappa@cref}{{[subappendix][6][2147483647,2]B.6}{[1][23][]23}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Segmented-polygon contact as a leakage kernel, against the Voronoi-face kernel $\beta $, on every section and on the model's edge set (Delaunay adjacency pruned at $40\,\mu \text  {m}$). Both kernels use the same distance decay $\qopname  \relax o{exp}(-d_{ij}/\tau )$ and the same row normalisation. The contact kernel weights an edge by the length of membrane along which the two segmented polygons run within $1\,\mu \text  {m}$ of each other; $\beta $ weights it by the Voronoi face. FF: fresh frozen. \emph  {Touching}: adjacent pairs whose polygons are at zero distance. \emph  {No-leak cells}: connected cells whose kernel row is all zero, so that they receive no leakage at any $\kappa $; \emph  {sparse} and \emph  {dense} are the lowest and highest fifth of cells by the number of centroids within $20\,\mu \text  {m}$. $\rho $: Spearman correlation, over edges, between a neighbour's share of the row and the gap between the two polygons. The Voronoi kernel has no zero-weight edges and no no-leak cells on any section. Its dependence on the gap is that of the distance decay alone (shares from the decay alone: $\rho $ between $-0.49$ and $-0.62$).\relax }}{26}{table.caption.41}\protected@file@percent }
+\newlabel{tab:contact}{{3}{26}{Segmented-polygon contact as a leakage kernel, against the Voronoi-face kernel $\beta $, on every section and on the model's edge set (Delaunay adjacency pruned at $40\um $). Both kernels use the same distance decay $\exp (-d_{ij}/\tau )$ and the same row normalisation. The contact kernel weights an edge by the length of membrane along which the two segmented polygons run within $1\um $ of each other; $\beta $ weights it by the Voronoi face. FF: fresh frozen. \emph {Touching}: adjacent pairs whose polygons are at zero distance. \emph {No-leak cells}: connected cells whose kernel row is all zero, so that they receive no leakage at any $\kappa $; \emph {sparse} and \emph {dense} are the lowest and highest fifth of cells by the number of centroids within $20\um $. $\rho $: Spearman correlation, over edges, between a neighbour's share of the row and the gap between the two polygons. The Voronoi kernel has no zero-weight edges and no no-leak cells on any section. Its dependence on the gap is that of the distance decay alone (shares from the decay alone: $\rho $ between $-0.49$ and $-0.62$).\relax }{table.caption.41}{}}
+\newlabel{tab:contact@cref}{{[table][3][2147483647]3}{[1][24][]26}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces What each mask leaves in the image embedding, on the primary section: macro one-versus-rest AUC of a multinomial logistic regression predicting the cell's lineage label (the labels the model is fitted with; 11 classes, Unassigned cells excluded as targets but counted as neighbours) from the embedding, on a spatial split ($1\,$mm tiles, cells within half a field of a tile edge dropped; $40{,}000$ training and about $74{,}000$ test cells), for the two releases of the image model, KRONOS and KRONOS2 \citep  {kronos2025}. The first row predicts the label from the neighbours' labels alone, with no image. The model uses KRONOS with the disc zeroed (bold).\relax }}{26}{table.caption.44}\protected@file@percent }
+\newlabel{tab:masking}{{4}{26}{What each mask leaves in the image embedding, on the primary section: macro one-versus-rest AUC of a multinomial logistic regression predicting the cell's lineage label (the labels the model is fitted with; 11 classes, Unassigned cells excluded as targets but counted as neighbours) from the embedding, on a spatial split ($1\,$mm tiles, cells within half a field of a tile edge dropped; $40{,}000$ training and about $74{,}000$ test cells), for the two releases of the image model, KRONOS and KRONOS2 \citep {kronos2025}. The first row predicts the label from the neighbours' labels alone, with no image. The model uses KRONOS with the disc zeroed (bold).\relax }{table.caption.44}{}}
+\newlabel{tab:masking@cref}{{[table][4][2147483647]4}{[1][26][]26}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.4}Three Routes to a Vanishing Response Divergence}{26}{subsection.B.4}\protected@file@percent }
+\newlabel{app:qw}{{B.4}{26}{Three Routes to a Vanishing Response Divergence}{subsection.B.4}{}}
+\newlabel{app:qw@cref}{{[subappendix][4][2147483647,2]B.4}{[1][26][]26}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Why the leakage kernel is built on Voronoi faces rather than on segmented contact. \textbf  {a},\nobreakspace  {}An edge whose segmented polygons touch and \textbf  {b},\nobreakspace  {}an edge whose polygons do not, each the edge of its kind closest to the primary section's median centroid distance and median face length. The two have almost the same centroid distance $d_{ij}$ and face $f_{ij}$ (blue), which is all the kernel $\beta $ uses; contact (orange), the stretch of each cell's membrane within $1\,\mu \text  {m}$ of the other cell, is present in a and absent in b. Dashed lines are the two cells' Voronoi regions; both panels share one scale. \textbf  {c},\nobreakspace  {}The share of cells that a contact-weighted kernel would leave with no leakage at all, by fifth of local density (centroids within $20\,\mu \text  {m}$), on each section of \cref  {tab:contact}: the median (bold), the range (band) and each section (thin). Both kernels use the model's edge set, the same distance decay and the same row normalisation; the Voronoi kernel leaves no connected cell without leakage on any section.\relax }}{27}{figure.caption.42}\protected@file@percent }
+\newlabel{fig:contact-kernel}{{4}{27}{Why the leakage kernel is built on Voronoi faces rather than on segmented contact. \textbf {a},~An edge whose segmented polygons touch and \textbf {b},~an edge whose polygons do not, each the edge of its kind closest to the primary section's median centroid distance and median face length. The two have almost the same centroid distance $d_{ij}$ and face $f_{ij}$ (blue), which is all the kernel $\beta $ uses; contact (orange), the stretch of each cell's membrane within $1\um $ of the other cell, is present in a and absent in b. Dashed lines are the two cells' Voronoi regions; both panels share one scale. \textbf {c},~The share of cells that a contact-weighted kernel would leave with no leakage at all, by fifth of local density (centroids within $20\um $), on each section of \cref {tab:contact}: the median (bold), the range (band) and each section (thin). Both kernels use the model's edge set, the same distance decay and the same row normalisation; the Voronoi kernel leaves no connected cell without leakage on any section.\relax }{figure.caption.42}{}}
+\newlabel{fig:contact-kernel@cref}{{[figure][4][2147483647]4}{[1][24][]27}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.5}Conditional Invariance and Label Granularity}{27}{subsection.B.5}\protected@file@percent }
+\newlabel{app:conditional}{{B.5}{27}{Conditional Invariance and Label Granularity}{subsection.B.5}{}}
+\newlabel{app:conditional@cref}{{[subappendix][5][2147483647,2]B.5}{[1][26][]27}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.6}The Leak Fraction: Grid Range and Upgrade Path}{27}{subsection.B.6}\protected@file@percent }
+\newlabel{app:kappa}{{B.6}{27}{The Leak Fraction: Grid Range and Upgrade Path}{subsection.B.6}{}}
+\newlabel{app:kappa@cref}{{[subappendix][6][2147483647,2]B.6}{[1][27][]27}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Why the mask is a $25\,\mu \text  {m}$ disc, on the primary section. \textbf  {a},\nobreakspace  {}The number of cells that would stick out of a disc of radius $R$ centred on the crop anchor, from each cell's covering radius; the table gives the radii considered, the cells left outside, and the share of the $128\,\mu \text  {m}$ field each disc masks. The last row is the largest cell on the section. \textbf  {b},\nobreakspace  {}The largest cell that fits the chosen disc and \textbf  {c},\nobreakspace  {}the largest cell on the section, which does not, both drawn as the image model receives them: four channels, disc set to zero, with the cell's outline for reference. Both are elongated smooth-muscle cells.\relax }}{28}{figure.caption.43}\protected@file@percent }
+\newlabel{fig:mask-radius}{{5}{28}{Why the mask is a $25\um $ disc, on the primary section. \textbf {a},~The number of cells that would stick out of a disc of radius $R$ centred on the crop anchor, from each cell's covering radius; the table gives the radii considered, the cells left outside, and the share of the $128\um $ field each disc masks. The last row is the largest cell on the section. \textbf {b},~The largest cell that fits the chosen disc and \textbf {c},~the largest cell on the section, which does not, both drawn as the image model receives them: four channels, disc set to zero, with the cell's outline for reference. Both are elongated smooth-muscle cells.\relax }{figure.caption.43}{}}
+\newlabel{fig:mask-radius@cref}{{[figure][5][2147483647]5}{[1][25][]28}}
+\newlabel{prop:kappa-bound}{{2}{28}{}{proposition.2}{}}
+\newlabel{prop:kappa-bound@cref}{{[proposition][2][2147483647]2}{[1][28][]28}}
 \citation{tomczak2018}
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces The KRONOS embedding (first release, the one the model uses) under three masks, as UMAPs of the same $60{,}000$ cells of the primary section (principal components, then UMAP). \textbf  {a},\nobreakspace  {}The whole $128\,\mu \text  {m}$ patch. \textbf  {b},\nobreakspace  {}The disc over the cell zeroed, the descriptor $\bm  {\Phi }_i$ the model uses; it differs little from\nobreakspace  {}a, because the patch is dominated by the surrounding tissue. \textbf  {c},\nobreakspace  {}Everything outside the cell's polygon zeroed, what the cell alone carries. Colour is the section's lineage label, the one the model is fitted with, with the smaller lineages grouped for display. Unassigned includes a low-depth class of mixed lineage that the section's original annotation had called a tumour subtype.\relax }}{24}{figure.caption.37}\protected@file@percent }
-\newlabel{fig:kronos-umap}{{6}{24}{The KRONOS embedding (first release, the one the model uses) under three masks, as UMAPs of the same $60{,}000$ cells of the primary section (principal components, then UMAP). \textbf {a},~The whole $128\um $ patch. \textbf {b},~The disc over the cell zeroed, the descriptor $\vPhi _i$ the model uses; it differs little from~a, because the patch is dominated by the surrounding tissue. \textbf {c},~Everything outside the cell's polygon zeroed, what the cell alone carries. Colour is the section's lineage label, the one the model is fitted with, with the smaller lineages grouped for display. Unassigned includes a low-depth class of mixed lineage that the section's original annotation had called a tumour subtype.\relax }{figure.caption.37}{}}
-\newlabel{fig:kronos-umap@cref}{{[figure][6][2147483647]6}{[1][22][]24}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {B.7}Learned Variances: What to Learn and What Not To}{24}{subsection.B.7}\protected@file@percent }
-\newlabel{app:variances}{{B.7}{24}{Learned Variances: What to Learn and What Not To}{subsection.B.7}{}}
-\newlabel{app:variances@cref}{{[subappendix][7][2147483647,2]B.7}{[1][24][]24}}
 \citation{kingma2015adam}
 \citation{loshchilov2017}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces What the data say about $\kappa $, on the simplex of three genes; schematic, with compositions chosen for legibility. With the neighbours' influx $\bar  {\bm  {\rho }}_i$ held fixed, each $\kappa $ implies the clean composition $\bm  {\rho }_i(\kappa ) = (\mathbf  {p}_i - \kappa \bar  {\bm  {\rho }}_i)/(1-\kappa )$: a line that starts at the observed composition $\mathbf  {p}_i$ ($\kappa = 0$) and runs away from $\bar  {\bm  {\rho }}_i$ (arrow). It is valid until it leaves the simplex at $\bar  \kappa _i$ (diamond) and invalid beyond (dashed). \textbf  {a},\nobreakspace  {}A cell that expresses a little of the neighbours' marker itself: every $\kappa \in [0, \bar  \kappa _i]$ reproduces $\mathbf  {p}_i$ exactly, and the true value lies inside. \textbf  {b},\nobreakspace  {}A cell that cannot express the marker: its true composition lies on the edge, the line leaves the simplex exactly there, and $\bar  \kappa _i$ is the true $\kappa $.\relax }}{25}{figure.caption.38}\protected@file@percent }
-\newlabel{fig:kappa-bound}{{7}{25}{What the data say about $\kappa $, on the simplex of three genes; schematic, with compositions chosen for legibility. With the neighbours' influx $\rhobar _i$ held fixed, each $\kappa $ implies the clean composition $\vrho _i(\kappa ) = (\vp _i - \kappa \rhobar _i)/(1-\kappa )$: a line that starts at the observed composition $\vp _i$ ($\kappa = 0$) and runs away from $\rhobar _i$ (arrow). It is valid until it leaves the simplex at $\bar \kappa _i$ (diamond) and invalid beyond (dashed). \textbf {a},~A cell that expresses a little of the neighbours' marker itself: every $\kappa \in [0, \bar \kappa _i]$ reproduces $\vp _i$ exactly, and the true value lies inside. \textbf {b},~A cell that cannot express the marker: its true composition lies on the edge, the line leaves the simplex exactly there, and $\bar \kappa _i$ is the true $\kappa $.\relax }{figure.caption.38}{}}
-\newlabel{fig:kappa-bound@cref}{{[figure][7][2147483647]7}{[1][23][]25}}
-\@writefile{toc}{\contentsline {section}{\numberline {C}IMPLEMENTATION DETAILS}{25}{appendix.C}\protected@file@percent }
-\newlabel{app:implementation}{{C}{25}{IMPLEMENTATION DETAILS}{appendix.C}{}}
-\newlabel{app:implementation@cref}{{[appendix][3][2147483647]C}{[1][24][]25}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Architecture and Hyperparameters}{25}{subsection.C.1}\protected@file@percent }
-\newlabel{app:architecture}{{C.1}{25}{Architecture and Hyperparameters}{subsection.C.1}{}}
-\newlabel{app:architecture@cref}{{[subappendix][1][2147483647,3]C.1}{[1][24][]25}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Choices Made in Implementation}{25}{subsection.C.2}\protected@file@percent }
-\newlabel{app:deviations}{{C.2}{25}{Choices Made in Implementation}{subsection.C.2}{}}
-\newlabel{app:deviations@cref}{{[subappendix][2][2147483647,3]C.2}{[1][25][]25}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}Tiles and the Two-Hop Halo}{25}{subsection.C.3}\protected@file@percent }
-\newlabel{app:tiles}{{C.3}{25}{Tiles and the Two-Hop Halo}{subsection.C.3}{}}
-\newlabel{app:tiles@cref}{{[subappendix][3][2147483647,3]C.3}{[1][25][]25}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces The breakdown point of \cref  {def:breakdown}, on four schematic readouts: four different candidate findings, not four ways of choosing $\kappa $, which is never chosen. The curves are illustrative, not fitted, and only the grid of $\kappa $ is the model's. Each panel shows a readout at every grid value with its interval (bars) and its null value $r_0$ (dashed). Filled markers: the interval is clear of the null and the readout keeps the sign it has at $\kappa = 0$; hollow markers: from the breakdown point $\kappa ^\star $ (dotted) on. Each point is a separate fit at that $\kappa $. \textbf  {a},\nobreakspace  {}A signed contrast that survives the grid, reported as $\kappa ^\star > 0.4$. \textbf  {b},\nobreakspace  {}A magnitude that shrinks as $\kappa $ grows, as expected by construction because more of the resemblance between neighbours is assigned to the mixture, but stays above its permutation null: it also survives. \textbf  {c},\nobreakspace  {}A contrast that $20\%$ leakage explains away, $\kappa ^\star = 0.2$; its sign flips beyond it. \textbf  {d},\nobreakspace  {}A contrast that breaks down at the first grid point above zero, $\kappa ^\star = 0.05$: any leakage explains it away, so it is not separable from leakage of the modelled form.\relax }}{26}{figure.caption.39}\protected@file@percent }
-\newlabel{fig:breakdown}{{8}{26}{The breakdown point of \cref {def:breakdown}, on four schematic readouts: four different candidate findings, not four ways of choosing $\kappa $, which is never chosen. The curves are illustrative, not fitted, and only the grid of $\kappa $ is the model's. Each panel shows a readout at every grid value with its interval (bars) and its null value $r_0$ (dashed). Filled markers: the interval is clear of the null and the readout keeps the sign it has at $\kappa = 0$; hollow markers: from the breakdown point $\kappa ^\star $ (dotted) on. Each point is a separate fit at that $\kappa $. \textbf {a},~A signed contrast that survives the grid, reported as $\kappa ^\star > 0.4$. \textbf {b},~A magnitude that shrinks as $\kappa $ grows, as expected by construction because more of the resemblance between neighbours is assigned to the mixture, but stays above its permutation null: it also survives. \textbf {c},~A contrast that $20\%$ leakage explains away, $\kappa ^\star = 0.2$; its sign flips beyond it. \textbf {d},~A contrast that breaks down at the first grid point above zero, $\kappa ^\star = 0.05$: any leakage explains it away, so it is not separable from leakage of the modelled form.\relax }{figure.caption.39}{}}
-\newlabel{fig:breakdown@cref}{{[figure][8][2147483647]8}{[1][24][]26}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Tiles, the held-out split and the two-hop halo on the primary section. \textbf  {a},\nobreakspace  {}The section cut into contiguous tiles of at most $4{,}096$ cells by recursive median split. Hatched tiles are held out ($15\%$ of tiles, one split). The blue tile is shown in b, and the black square marks the window of b. \textbf  {b},\nobreakspace  {}Where that training tile meets a held-out tile (left) and another training tile (below). The tile's cells are the seeds, on which the loss is evaluated. Ring one, their graph neighbours, has its context, response and clean composition computed in the same pass. Those compositions enter the seeds' foreign influx under a stop-gradient, and ring one's types are attention sources for the seeds (solid edges). Ring two, the neighbours of ring one, contributes only its types, as attention sources for ring one (dashed edges). Both rings are read from the leakage kernel's own edge list. Hatched cells belong to the held-out tile: ring cells drawn from it enter training as inputs, with no loss and no gradient (\cref  {sec:batching}).\relax }}{26}{figure.caption.43}\protected@file@percent }
-\newlabel{fig:batching}{{9}{26}{Tiles, the held-out split and the two-hop halo on the primary section. \textbf {a},~The section cut into contiguous tiles of at most $4{,}096$ cells by recursive median split. Hatched tiles are held out ($15\%$ of tiles, one split). The blue tile is shown in b, and the black square marks the window of b. \textbf {b},~Where that training tile meets a held-out tile (left) and another training tile (below). The tile's cells are the seeds, on which the loss is evaluated. Ring one, their graph neighbours, has its context, response and clean composition computed in the same pass. Those compositions enter the seeds' foreign influx under a stop-gradient, and ring one's types are attention sources for the seeds (solid edges). Ring two, the neighbours of ring one, contributes only its types, as attention sources for ring one (dashed edges). Both rings are read from the leakage kernel's own edge list. Hatched cells belong to the held-out tile: ring cells drawn from it enter training as inputs, with no loss and no gradient (\cref {sec:batching}).\relax }{figure.caption.43}{}}
-\newlabel{fig:batching@cref}{{[figure][9][2147483647]9}{[1][25][]26}}
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Networks and fixed quantities. $G$ genes, $K$ types, $d_{\Phi }$ image-embedding dimension.\relax }}{27}{table.caption.40}\protected@file@percent }
-\newlabel{tab:architecture}{{4}{27}{Networks and fixed quantities. $G$ genes, $K$ types, $\dPhi $ image-embedding dimension.\relax }{table.caption.40}{}}
-\newlabel{tab:architecture@cref}{{[table][4][2147483647]4}{[1][25][]27}}
-\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Implementation choices and their reasons.\relax }}{28}{table.caption.41}\protected@file@percent }
-\newlabel{tab:deviations}{{5}{28}{Implementation choices and their reasons.\relax }{table.caption.41}{}}
-\newlabel{tab:deviations@cref}{{[table][5][2147483647]5}{[1][25][]28}}
-\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Implementation choices, continued: the configuration used in the experiments, and what exists but is switched off.\relax }}{29}{table.caption.42}\protected@file@percent }
-\newlabel{tab:deviations2}{{6}{29}{Implementation choices, continued: the configuration used in the experiments, and what exists but is switched off.\relax }{table.caption.42}{}}
-\newlabel{tab:deviations2@cref}{{[table][6][2147483647]6}{[1][25][]29}}
-\gdef \@abspage@last{29}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces The KRONOS embedding (first release, the one the model uses) under three masks, as UMAPs of the same $60{,}000$ cells of the primary section (principal components, then UMAP). \textbf  {a},\nobreakspace  {}The whole $128\,\mu \text  {m}$ patch. \textbf  {b},\nobreakspace  {}The disc over the cell zeroed, the descriptor $\bm  {\Phi }_i$ the model uses; it differs little from\nobreakspace  {}a, because the patch is dominated by the surrounding tissue. \textbf  {c},\nobreakspace  {}Everything outside the cell's polygon zeroed, what the cell alone carries. Colour is the section's lineage label, the one the model is fitted with, with the smaller lineages grouped for display. Unassigned includes a low-depth class of mixed lineage that the section's original annotation had called a tumour subtype.\relax }}{29}{figure.caption.45}\protected@file@percent }
+\newlabel{fig:kronos-umap}{{6}{29}{The KRONOS embedding (first release, the one the model uses) under three masks, as UMAPs of the same $60{,}000$ cells of the primary section (principal components, then UMAP). \textbf {a},~The whole $128\um $ patch. \textbf {b},~The disc over the cell zeroed, the descriptor $\vPhi _i$ the model uses; it differs little from~a, because the patch is dominated by the surrounding tissue. \textbf {c},~Everything outside the cell's polygon zeroed, what the cell alone carries. Colour is the section's lineage label, the one the model is fitted with, with the smaller lineages grouped for display. Unassigned includes a low-depth class of mixed lineage that the section's original annotation had called a tumour subtype.\relax }{figure.caption.45}{}}
+\newlabel{fig:kronos-umap@cref}{{[figure][6][2147483647]6}{[1][26][]29}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.7}Learned Variances: What to Learn and What Not To}{29}{subsection.B.7}\protected@file@percent }
+\newlabel{app:variances}{{B.7}{29}{Learned Variances: What to Learn and What Not To}{subsection.B.7}{}}
+\newlabel{app:variances@cref}{{[subappendix][7][2147483647,2]B.7}{[1][29][]29}}
+\@writefile{toc}{\contentsline {section}{\numberline {C}IMPLEMENTATION DETAILS}{29}{appendix.C}\protected@file@percent }
+\newlabel{app:implementation}{{C}{29}{IMPLEMENTATION DETAILS}{appendix.C}{}}
+\newlabel{app:implementation@cref}{{[appendix][3][2147483647]C}{[1][29][]29}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.1}Architecture and Hyperparameters}{29}{subsection.C.1}\protected@file@percent }
+\newlabel{app:architecture}{{C.1}{29}{Architecture and Hyperparameters}{subsection.C.1}{}}
+\newlabel{app:architecture@cref}{{[subappendix][1][2147483647,3]C.1}{[1][29][]29}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.2}Choices Made in Implementation}{29}{subsection.C.2}\protected@file@percent }
+\newlabel{app:deviations}{{C.2}{29}{Choices Made in Implementation}{subsection.C.2}{}}
+\newlabel{app:deviations@cref}{{[subappendix][2][2147483647,3]C.2}{[1][29][]29}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces What the data say about $\kappa $, on the simplex of three genes; schematic, with compositions chosen for legibility. With the neighbours' influx $\bar  {\bm  {\rho }}_i$ held fixed, each $\kappa $ implies the clean composition $\bm  {\rho }_i(\kappa ) = (\mathbf  {p}_i - \kappa \bar  {\bm  {\rho }}_i)/(1-\kappa )$: a line that starts at the observed composition $\mathbf  {p}_i$ ($\kappa = 0$) and runs away from $\bar  {\bm  {\rho }}_i$ (arrow). It is valid until it leaves the simplex at $\bar  \kappa _i$ (diamond) and invalid beyond (dashed). \textbf  {a},\nobreakspace  {}A cell that expresses a little of the neighbours' marker itself: every $\kappa \in [0, \bar  \kappa _i]$ reproduces $\mathbf  {p}_i$ exactly, and the true value lies inside. \textbf  {b},\nobreakspace  {}A cell that cannot express the marker: its true composition lies on the edge, the line leaves the simplex exactly there, and $\bar  \kappa _i$ is the true $\kappa $.\relax }}{30}{figure.caption.46}\protected@file@percent }
+\newlabel{fig:kappa-bound}{{7}{30}{What the data say about $\kappa $, on the simplex of three genes; schematic, with compositions chosen for legibility. With the neighbours' influx $\rhobar _i$ held fixed, each $\kappa $ implies the clean composition $\vrho _i(\kappa ) = (\vp _i - \kappa \rhobar _i)/(1-\kappa )$: a line that starts at the observed composition $\vp _i$ ($\kappa = 0$) and runs away from $\rhobar _i$ (arrow). It is valid until it leaves the simplex at $\bar \kappa _i$ (diamond) and invalid beyond (dashed). \textbf {a},~A cell that expresses a little of the neighbours' marker itself: every $\kappa \in [0, \bar \kappa _i]$ reproduces $\vp _i$ exactly, and the true value lies inside. \textbf {b},~A cell that cannot express the marker: its true composition lies on the edge, the line leaves the simplex exactly there, and $\bar \kappa _i$ is the true $\kappa $.\relax }{figure.caption.46}{}}
+\newlabel{fig:kappa-bound@cref}{{[figure][7][2147483647]7}{[1][28][]30}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.3}Tiles and the Two-Hop Halo}{30}{subsection.C.3}\protected@file@percent }
+\newlabel{app:tiles}{{C.3}{30}{Tiles and the Two-Hop Halo}{subsection.C.3}{}}
+\newlabel{app:tiles@cref}{{[subappendix][3][2147483647,3]C.3}{[1][29][]30}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {C.4}The Held-Out Probe}{30}{subsection.C.4}\protected@file@percent }
+\newlabel{app:probe}{{C.4}{30}{The Held-Out Probe}{subsection.C.4}{}}
+\newlabel{app:probe@cref}{{[subappendix][4][2147483647,3]C.4}{[1][30][]30}}
+\@writefile{toc}{\contentsline {section}{\numberline {D}EXPERIMENTAL DETAILS}{30}{appendix.D}\protected@file@percent }
+\newlabel{app:experimental}{{D}{30}{EXPERIMENTAL DETAILS}{appendix.D}{}}
+\newlabel{app:experimental@cref}{{[appendix][4][2147483647]D}{[1][30][]30}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.1}Sections}{30}{subsection.D.1}\protected@file@percent }
+\newlabel{app:sections}{{D.1}{30}{Sections}{subsection.D.1}{}}
+\newlabel{app:sections@cref}{{[subappendix][1][2147483647,4]D.1}{[1][30][]30}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.2}Lineage Labels}{30}{subsection.D.2}\protected@file@percent }
+\newlabel{app:lineage}{{D.2}{30}{Lineage Labels}{subsection.D.2}{}}
+\newlabel{app:lineage@cref}{{[subappendix][2][2147483647,4]D.2}{[1][30][]30}}
+\@writefile{toc}{\contentsline {paragraph}{Curated annotations.}{30}{section*.56}\protected@file@percent }
+\citation{tenx_ovarian_ffpe,tenx_lung_ffpe,tenx_ovary_ff}
+\citation{williamskatek2026fishing}
+\citation{kronos2025}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces The breakdown point of \cref  {def:breakdown}, on four schematic readouts: four different candidate findings, not four ways of choosing $\kappa $, which is never chosen. The curves are illustrative, not fitted, and only the grid of $\kappa $ is the model's. Each panel shows a readout at every grid value with its interval (bars) and its null value $r_0$ (dashed). Filled markers: the interval is clear of the null and the readout keeps the sign it has at $\kappa = 0$; hollow markers: from the breakdown point $\kappa ^\star $ (dotted) on. Each point is a separate fit at that $\kappa $. \textbf  {a},\nobreakspace  {}A signed contrast that survives the grid, reported as $\kappa ^\star > 0.4$. \textbf  {b},\nobreakspace  {}A magnitude that shrinks as $\kappa $ grows, as expected by construction because more of the resemblance between neighbours is assigned to the mixture, but stays above its permutation null: it also survives. \textbf  {c},\nobreakspace  {}A contrast that $20\%$ leakage explains away, $\kappa ^\star = 0.2$; its sign flips beyond it. \textbf  {d},\nobreakspace  {}A contrast that breaks down at the first grid point above zero, $\kappa ^\star = 0.05$: any leakage explains it away, so it is not separable from leakage of the modelled form.\relax }}{31}{figure.caption.47}\protected@file@percent }
+\newlabel{fig:breakdown}{{8}{31}{The breakdown point of \cref {def:breakdown}, on four schematic readouts: four different candidate findings, not four ways of choosing $\kappa $, which is never chosen. The curves are illustrative, not fitted, and only the grid of $\kappa $ is the model's. Each panel shows a readout at every grid value with its interval (bars) and its null value $r_0$ (dashed). Filled markers: the interval is clear of the null and the readout keeps the sign it has at $\kappa = 0$; hollow markers: from the breakdown point $\kappa ^\star $ (dotted) on. Each point is a separate fit at that $\kappa $. \textbf {a},~A signed contrast that survives the grid, reported as $\kappa ^\star > 0.4$. \textbf {b},~A magnitude that shrinks as $\kappa $ grows, as expected by construction because more of the resemblance between neighbours is assigned to the mixture, but stays above its permutation null: it also survives. \textbf {c},~A contrast that $20\%$ leakage explains away, $\kappa ^\star = 0.2$; its sign flips beyond it. \textbf {d},~A contrast that breaks down at the first grid point above zero, $\kappa ^\star = 0.05$: any leakage explains it away, so it is not separable from leakage of the modelled form.\relax }{figure.caption.47}{}}
+\newlabel{fig:breakdown@cref}{{[figure][8][2147483647]8}{[1][28][]31}}
+\@writefile{toc}{\contentsline {paragraph}{Other judgement calls.}{31}{section*.57}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Clustered sections.}{31}{section*.58}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.3}Baselines}{31}{subsection.D.3}\protected@file@percent }
+\newlabel{app:baselines}{{D.3}{31}{Baselines}{subsection.D.3}{}}
+\newlabel{app:baselines@cref}{{[subappendix][3][2147483647,4]D.3}{[1][31][]31}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.4}Assets and Licences}{31}{subsection.D.4}\protected@file@percent }
+\newlabel{app:assets}{{D.4}{31}{Assets and Licences}{subsection.D.4}{}}
+\newlabel{app:assets@cref}{{[subappendix][4][2147483647,4]D.4}{[1][31][]31}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Tiles, the held-out split and the two-hop halo on the primary section. \textbf  {a},\nobreakspace  {}The section cut into contiguous tiles of at most $4{,}096$ cells by recursive median split. Hatched tiles are held out ($15\%$ of tiles, one split). The blue tile is shown in b, and the black square marks the window of b. \textbf  {b},\nobreakspace  {}Where that training tile meets a held-out tile (left) and another training tile (below). The tile's cells are the seeds, on which the loss is evaluated. Ring one, their graph neighbours, has its context, response and clean composition computed in the same pass. Those compositions enter the seeds' foreign influx under a stop-gradient, and ring one's types are attention sources for the seeds (solid edges). Ring two, the neighbours of ring one, contributes only its types, as attention sources for ring one (dashed edges). Both rings are read from the leakage kernel's own edge list. Hatched cells belong to the held-out tile: ring cells drawn from it enter training as inputs, with no loss and no gradient (\cref  {sec:batching}).\relax }}{32}{figure.caption.51}\protected@file@percent }
+\newlabel{fig:batching}{{9}{32}{Tiles, the held-out split and the two-hop halo on the primary section. \textbf {a},~The section cut into contiguous tiles of at most $4{,}096$ cells by recursive median split. Hatched tiles are held out ($15\%$ of tiles, one split). The blue tile is shown in b, and the black square marks the window of b. \textbf {b},~Where that training tile meets a held-out tile (left) and another training tile (below). The tile's cells are the seeds, on which the loss is evaluated. Ring one, their graph neighbours, has its context, response and clean composition computed in the same pass. Those compositions enter the seeds' foreign influx under a stop-gradient, and ring one's types are attention sources for the seeds (solid edges). Ring two, the neighbours of ring one, contributes only its types, as attention sources for ring one (dashed edges). Both rings are read from the leakage kernel's own edge list. Hatched cells belong to the held-out tile: ring cells drawn from it enter training as inputs, with no loss and no gradient (\cref {sec:batching}).\relax }{figure.caption.51}{}}
+\newlabel{fig:batching@cref}{{[figure][9][2147483647]9}{[1][29][]32}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.5}Training Cost}{32}{subsection.D.5}\protected@file@percent }
+\newlabel{app:timing}{{D.5}{32}{Training Cost}{subsection.D.5}{}}
+\newlabel{app:timing@cref}{{[subappendix][5][2147483647,4]D.5}{[1][32][]32}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {D.6}Planted Worlds}{32}{subsection.D.6}\protected@file@percent }
+\newlabel{app:planted}{{D.6}{32}{Planted Worlds}{subsection.D.6}{}}
+\newlabel{app:planted@cref}{{[subappendix][6][2147483647,4]D.6}{[1][32][]32}}
+\@writefile{toc}{\contentsline {paragraph}{The amortisation gap: what is measured.}{32}{section*.63}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {10}{\ignorespaces How the held-out probe grades the invariance of $\mathbf  {z}$ (\cref  {eq:probe}); schematic, with synthetic values chosen for legibility. \textbf  {a},\nobreakspace  {}The type-only baseline and the probe are fitted on the training tiles and scored on the held-out tiles (hatched). The baseline predicts each component of the invariance block by its mean over cells of the same type; the probe predicts it from $(\bm  {\mu }_z, t)$ with a ridge regression or a small perceptron. \textbf  {b},\nobreakspace  {}One component for held-out cells of one type. The baseline's error is the spread around the type mean (dashed), the probe's the spread around its prediction (solid, the line of perfect prediction). $G_k$ is half the log ratio of the two mean squared errors, $e^{2G_k} - 1$ is the share of within-type variance the probe explains, and $G_b$ averages $G_k$ over the block. \textbf  {c},\nobreakspace  {}Reading $G_b$ for each block. The floor is its value with $\bm  {\mu }_z$ permuted within type; the uncontrolled fit is the same model with $\alpha _a= 0$. What is reported is this fit's excess over the floor (blue bar) and that excess as a fraction of the uncontrolled fit's (grey bracket), for each probe family. A block passes when that fraction is at most a quarter (dotted guard): here the composition block fails and the image block passes.\relax }}{33}{figure.caption.52}\protected@file@percent }
+\newlabel{fig:probe}{{10}{33}{How the held-out probe grades the invariance of $\vz $ (\cref {eq:probe}); schematic, with synthetic values chosen for legibility. \textbf {a},~The type-only baseline and the probe are fitted on the training tiles and scored on the held-out tiles (hatched). The baseline predicts each component of the invariance block by its mean over cells of the same type; the probe predicts it from $(\vmu _z, t)$ with a ridge regression or a small perceptron. \textbf {b},~One component for held-out cells of one type. The baseline's error is the spread around the type mean (dashed), the probe's the spread around its prediction (solid, the line of perfect prediction). $G_k$ is half the log ratio of the two mean squared errors, $e^{2G_k} - 1$ is the share of within-type variance the probe explains, and $G_b$ averages $G_k$ over the block. \textbf {c},~Reading $G_b$ for each block. The floor is its value with $\vmu _z$ permuted within type; the uncontrolled fit is the same model with $\alphaa = 0$. What is reported is this fit's excess over the floor (blue bar) and that excess as a fraction of the uncontrolled fit's (grey bracket), for each probe family. A block passes when that fraction is at most a quarter (dotted guard): here the composition block fails and the image block passes.\relax }{figure.caption.52}{}}
+\newlabel{fig:probe@cref}{{[figure][10][2147483647]10}{[1][30][]33}}
+\@writefile{toc}{\contentsline {paragraph}{The simulation.}{33}{section*.64}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The exact posterior.}{33}{section*.65}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {11}{\ignorespaces The four fitted sections. \textbf  {a},\nobreakspace  {}Every cell at its centroid, coloured by its lineage label, with the labels grouped into six families for display only; the model is fitted with the finer lineage classes of \cref  {tab:sections}. \textbf  {b},\nobreakspace  {}The morphology image of the same section, the four channels the image descriptor reads, coloured as in \cref  {fig:overview}b. The TMA panel is the fitted core only. Each section is shown at its own scale; the bars are $1$\,mm.\relax }}{34}{figure.caption.55}\protected@file@percent }
+\newlabel{fig:sections}{{11}{34}{The four fitted sections. \textbf {a},~Every cell at its centroid, coloured by its lineage label, with the labels grouped into six families for display only; the model is fitted with the finer lineage classes of \cref {tab:sections}. \textbf {b},~The morphology image of the same section, the four channels the image descriptor reads, coloured as in \cref {fig:overview}b. The TMA panel is the fitted core only. Each section is shown at its own scale; the bars are $1$\,mm.\relax }{figure.caption.55}{}}
+\newlabel{fig:sections@cref}{{[figure][11][2147483647]11}{[1][30][]34}}
+\@writefile{toc}{\contentsline {paragraph}{The fit and the comparison.}{34}{section*.66}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{The result.}{34}{section*.67}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{A leak-subtracted encoder input.}{34}{section*.69}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{A dead response channel.}{34}{section*.70}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Networks and fixed quantities. $G$ genes, $K$ types, $d_{\Phi }$ image-embedding dimension.\relax }}{36}{table.caption.48}\protected@file@percent }
+\newlabel{tab:architecture}{{5}{36}{Networks and fixed quantities. $G$ genes, $K$ types, $\dPhi $ image-embedding dimension.\relax }{table.caption.48}{}}
+\newlabel{tab:architecture@cref}{{[table][5][2147483647]5}{[1][29][]36}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces Implementation choices and their reasons.\relax }}{37}{table.caption.49}\protected@file@percent }
+\newlabel{tab:deviations}{{6}{37}{Implementation choices and their reasons.\relax }{table.caption.49}{}}
+\newlabel{tab:deviations@cref}{{[table][6][2147483647]6}{[1][29][]37}}
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces Implementation choices, continued: the configuration used in the experiments, and what exists but is switched off.\relax }}{38}{table.caption.50}\protected@file@percent }
+\newlabel{tab:deviations2}{{7}{38}{Implementation choices, continued: the configuration used in the experiments, and what exists but is switched off.\relax }{table.caption.50}{}}
+\newlabel{tab:deviations2@cref}{{[table][7][2147483647]7}{[1][29][]38}}
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces The held-out probe on the final fits, per section. For each block, the share of its within-type variance that the probe explains from $\mathbf  {z}$ beyond the permutation floor ($e^{2\,\mathrm  {excess}} - 1$, in \%), for the model trained without the adversary ($\alpha _a= 0$, two seeds) and with it (the final fits, three seeds), the largest share with the adversary that would pass (\emph  {needed to pass}: a quarter of the excess without the adversary, as a share), and the quantity the guard reads, the \emph  {fraction left}: the excess with the adversary as a fraction of the mean excess without it, $0$ when the adversary removes everything the probe can find and $1$ when it removes nothing. Ranges are over seeds. A seed passes when all four fractions (two blocks, two probes) are at most a quarter. The sections end at a similar absolute residual; the fraction left is larger where less leaked to begin with. Section B of the lung TMA is graded with the models fitted on section A. \leavevmode {\color  {violet}\textbf  {[PENDING RUNS: regenerate once Unassigned is excluded as a target in the re-read of the final fits]}}\relax }}{39}{table.caption.53}\protected@file@percent }
+\newlabel{tab:probe}{{8}{39}{The held-out probe on the final fits, per section. For each block, the share of its within-type variance that the probe explains from $\vz $ beyond the permutation floor ($e^{2\,\mathrm {excess}} - 1$, in \%), for the model trained without the adversary ($\alphaa = 0$, two seeds) and with it (the final fits, three seeds), the largest share with the adversary that would pass (\emph {needed to pass}: a quarter of the excess without the adversary, as a share), and the quantity the guard reads, the \emph {fraction left}: the excess with the adversary as a fraction of the mean excess without it, $0$ when the adversary removes everything the probe can find and $1$ when it removes nothing. Ranges are over seeds. A seed passes when all four fractions (two blocks, two probes) are at most a quarter. The sections end at a similar absolute residual; the fraction left is larger where less leaked to begin with. Section B of the lung TMA is graded with the models fitted on section A. \pending {regenerate once Unassigned is excluded as a target in the re-read of the final fits}\relax }{table.caption.53}{}}
+\newlabel{tab:probe@cref}{{[table][8][2147483647]8}{[1][30][]39}}
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces The sections. Median counts are per cell over the whole section. The TMA core and its serial section are one core of the microarray on two slides; no model is fitted to the serial section.\relax }}{39}{table.caption.54}\protected@file@percent }
+\newlabel{tab:sections}{{9}{39}{The sections. Median counts are per cell over the whole section. The TMA core and its serial section are one core of the microarray on two slides; no model is fitted to the serial section.\relax }{table.caption.54}{}}
+\newlabel{tab:sections@cref}{{[table][9][2147483647]9}{[1][30][]39}}
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces Lineage labels on the ovarian FFPE section: the curated classes merged into each lineage.\relax }}{39}{table.caption.59}\protected@file@percent }
+\newlabel{tab:lineage-ovarian}{{10}{39}{Lineage labels on the ovarian FFPE section: the curated classes merged into each lineage.\relax }{table.caption.59}{}}
+\newlabel{tab:lineage-ovarian@cref}{{[table][10][2147483647]10}{[1][31][]39}}
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces Lineage labels on the two clustered sections: the clusters assigned to each lineage.\relax }}{40}{table.caption.60}\protected@file@percent }
+\newlabel{tab:lineage-clusters}{{11}{40}{Lineage labels on the two clustered sections: the clusters assigned to each lineage.\relax }{table.caption.60}{}}
+\newlabel{tab:lineage-clusters@cref}{{[table][11][2147483647]11}{[1][31][]40}}
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces Comparison methods as run. Versions are the package versions used.\relax }}{40}{table.caption.61}\protected@file@percent }
+\newlabel{tab:baselines}{{12}{40}{Comparison methods as run. Versions are the package versions used.\relax }{table.caption.61}{}}
+\newlabel{tab:baselines@cref}{{[table][12][2147483647]12}{[1][31][]40}}
+\@writefile{lot}{\contentsline {table}{\numberline {13}{\ignorespaces Model size and training cost on one GPU. \emph  {Peak memory}: largest allocation during training, with the section resident on the GPU. \emph  {Run time}: one whole fit, for DISCELL including its evaluations every five epochs and the early stop, as the range over the three seeds of the final configuration. Where a method has no time, the reason is given: \emph  {not attempted} means it was never run on that section, \emph  {failed} that it was run and did not complete.\relax }}{41}{table.caption.62}\protected@file@percent }
+\newlabel{tab:timing}{{13}{41}{Model size and training cost on one GPU. \emph {Peak memory}: largest allocation during training, with the section resident on the GPU. \emph {Run time}: one whole fit, for DISCELL including its evaluations every five epochs and the early stop, as the range over the three seeds of the final configuration. Where a method has no time, the reason is given: \emph {not attempted} means it was never run on that section, \emph {failed} that it was run and did not complete.\relax }{table.caption.62}{}}
+\newlabel{tab:timing@cref}{{[table][13][2147483647]13}{[1][32][]41}}
+\@writefile{lot}{\contentsline {table}{\numberline {14}{\ignorespaces Amortisation gap on the simulated sections at the true leak fraction: the distance between an estimate of the posterior mean of $\mathbf  {z}$ and the exact one, in units of the exact posterior standard deviation, averaged over cells, mean of three seeds, by sequencing depth $D$. The DISCELL encoder is trained without the exact posterior; the other rows are fitted to it directly.\relax }}{41}{table.caption.68}\protected@file@percent }
+\newlabel{tab:planted-gap}{{14}{41}{Amortisation gap on the simulated sections at the true leak fraction: the distance between an estimate of the posterior mean of $\vz $ and the exact one, in units of the exact posterior standard deviation, averaged over cells, mean of three seeds, by sequencing depth $D$. The DISCELL encoder is trained without the exact posterior; the other rows are fitted to it directly.\relax }{table.caption.68}{}}
+\newlabel{tab:planted-gap@cref}{{[table][14][2147483647]14}{[1][34][]41}}
+\gdef \@abspage@last{41}

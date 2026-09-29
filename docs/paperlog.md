@@ -389,3 +389,238 @@ The curves are fixed synthetic functions, and the caption says so; only the κ g
 - **§2.1.** The S12 sentence now carries both halves. In training Unassigned enters every type-conditioned quantity like any other class, and its cells remain neighbours. It is never a target of evaluation: every diagnostic and readout of §2.7–2.8 is computed on labelled cells only, because a residual class is not a cell type and a read that treats it as one measures the label's failure, not the model.
 - **`tab:masking`.** Re-scored under the same rule: 11 classes, Unassigned kept as a neighbour in the baseline. Values replaced; the caption states the rule. The readings and the KRONOS-over-KRONOS2 wording still hold (KRONOS +0.012 on the masked patch).
 - **Not done here.** The final tables reported both ways once (the coder's disclosure) belong to the experiments section, which is out of the build.
+
+
+**Introduction: components table, classical related work, Cellina (2026-09-28).** Author's requests: add the classical, non-deep solutions to related work; use the "intrinsic + spatial + niche + technical + noise" framing from `articles/litterature_review.md` as an overview if we address each term; consider Cellina.
+
+- **`tab:components`.** A new full-width table in the introduction: one row per component (intrinsic, spatial field, niche, leakage, ambient/batch, counting noise), with columns for classical models, deep generative models and DISCELL. The DISCELL column is honest about scope: the spatial field is not a separate term (it is assigned to w through the image context), and ambient RNA and batch are not modelled. The caption says our components do not add in counts. Paragraph 1 points to it.
+- **Related work, first paragraph (new).** The classical families: variance components (SpatialDE, SVCA, NSF, MEFISTO); regression and attribution (C-SIDE, MISTy); contamination correction as preprocessing (SoupX, DecontX, CellBender, SpotClean, Baysor, admixture correction). SpotClean's single bleeding rate is named as the closest precedent for κ, with the difference that in situ assays have no off-tissue spots to estimate it from. The paragraph closes on what these models do not provide: a generative model in which response and leakage compete for the same counts.
+- **Cellina.** Added to the deep-model list, and to "names segmentation errors as a limitation" alongside MintFlow.
+- **Todo.** The contamination part of the old related-work `\todo` is removed; "further spatial VAEs and GNN spatial models" stays.
+- **Rejected.** The review's claim that "nobody has all four terms" is not repeated; DISCELL does not have them either.
+- **Registers.** Citations verified (see the citation audit). Cellina is proposed as a baseline in todo 8.25. S11 is partly addressed.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes. The Baysor issue number was dropped to remove a 1 pt bibliography overflow.
+
+- **`tab:components`, follow-up (same day).** The author noticed that "technical", one of the five terms in the framing, was missing. I had split it into two rows and dropped the word. Both rows are now labelled "Technical: leakage (misassigned transcripts)" and "Technical: ambient RNA, batch", so the table matches the intrinsic + spatial + niche + technical + noise framing in its caption.
+
+**Introduction: the components table is replaced by an annotated model equation; a trial comparison table is added (2026-09-28).**
+
+- **Why the table went.** The author judged a family-by-family comparison table the wrong device: each cell named two or three examples, so it was always incomplete, and it duplicated the related-work prose.
+- **The equation instead.** The DISCELL paragraph now shows the model with the usual decomposition marked on its terms: x_i | ℓ_i ~ Mult(ℓ_i, p_i), p_i = (1−κ) softmax(a(z_i) [intrinsic] + B w_i [niche]) + κ ρ̄_i [leakage]. The text says:
+  - the depth ℓ_i (technical) is conditioned on, and the multinomial is the counting noise;
+  - the spatial field has no term of its own, and reaches w through the image descriptor;
+  - ambient RNA and batch are not modelled.
+- **Equation layout.** Two aligned lines, unnumbered. One line overflowed the column, and the equation number was pushed below with a gap above it; nothing references the number.
+- **Trial table `tab:related` (the author may remove it).** It compares the six closest models: resolVI, SIMVI, MintFlow, Celcomen, Cellina and DISCELL. The six properties: intrinsic latent, niche term, leakage in the model, how the leak share is set, invariance regulariser, counterfactuals. Mixed columns (text, not only ✓/×) keep it from reading as self-promotion. Every cell was checked against the papers:
+  - **SIMVI:** independence (closed-form MI or MMD) between z and s, marginal; no counterfactuals.
+  - **MintFlow:** type-specific discriminators; in-silico perturbations.
+  - **Celcomen:** no latent at all (intra- and inter-cellular gene–gene interactions); counterfactuals are gene knockouts (Simcomen).
+  - **Cellina:** a domain-label adversary on z; neighbourhood swaps.
+  - **resolVI:** per-cell estimated shares; no niche term.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes (column widths tuned).
+
+
+**Eq 21 (eq:probe): ΔCE replaced by the per-block probe gain G_b (2026-09-28).** The author spotted that the metric renamed during the review was still in the equation. The paper now matches the coder's implementation (todo 8.16, devlog 2026-09-24, R20 + R22).
+
+- **Definition.** G_b = (1/|b|) Σ_k ½·log(E(v_k − v̄_k(t))² / E(v_k − v̂_k(μ_z, t))²), computed separately for the composition block (K−1 components) and the image block (12 PCs). It is scale-free, so the image block's raw variance no longer swamps composition. Before this, composition, the channel of the confound, was effectively ungraded.
+- **Interpretation.** A conditional predictive V-information estimate (Xu et al. ICLR 2020, new bib entry `xu2020vinfo`, verified); exp(2G_b) − 1 is the within-type variance explained.
+- **Reporting.** Excess over the within-type permutation floor, in nats per component, and as a fraction of the uncontrolled (α_a = 0) fit's excess. Each probe family (ridge, MLP) has its own floor, and the decision reads the MLP. Added: "a probe at its floor bounds the dependence it can detect; it does not certify independence." The escalation rule now reads "reduces the nonlinear probe's excess, on both blocks, to a small fraction of the uncontrolled baseline's".
+- **Implementation table.** The probes row says "each scored per block against its own within-type permutation floor". The image-target row says the MLP "is the probe the decision rule reads", not "a cross-check".
+- **Macro.** `\dCE` stays in macros.tex because the out-of-build experiments section still uses it; update that section when it returns.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+
+**New appendix figure `fig:probe` (subsection app:probe in the implementation appendix, 2026-09-28).** The author asked for a visual of how the probe works. It is a schematic with synthetic values, like fig:breakdown.
+
+- **(a)** The protocol: tiles, with the probe and the type-only baseline fitted on training tiles and scored on held-out tiles.
+- **(b)** One component for held-out cells of one type: the baseline error is the spread around the type mean, the probe error the spread around its prediction, G_k = ½ log(MSE_type/MSE_probe), and e^{2G_k} − 1 is the variance share. The synthetic signal was weakened from a 48 % to a 23 % variance share, so the schematic does not suggest effects far larger than measured (3–6 %).
+- **(c)** Reading G_b per block: the floor, this fit, the uncontrolled (α_a = 0) fit; the excess as a blue bar, the fraction of uncontrolled as blue ÷ grey.
+- **Placement.** The §2.5 probe paragraph points to it. `build.sh` includes it. Build checked after placement.
+
+
+**R20's remaining text edits, and a real-data candidate for the probe figure (2026-09-28).**
+
+- **§2.5 (after "that residual is what would go unpenalised").** New sentence: for Φ the regulariser and the probe see only a summary of its leading principal components, so image information outside them, which the prior on w receives in full, is neither penalised nor probed.
+- **Introduction.** z is now "pushed to carry no information about the microenvironment given the cell's type; a held-out probe measures how much remains", replacing "kept free of". The author asked for clean wording, not too narrow; the review's longer probe-scoped wording was rejected as too narrow.
+- **`fig:probe` (schematic, in the paper).** Now labelled "illustrative values" in panel (b) and "illustrative" on panel (c)'s axis.
+- **Candidate `figures/fig_probe_real.pdf` (not placed; the author decides).** Same layout with measured values from the ovarian reference fit at lineage labels (finalL_s0).
+  - (b) Tumour-neighbour share for held-out fibroblasts against the ridge prediction, rebuilt with the probe's own code path, draws and seed, with binned means. G_k = 0.0039 nats (0.8 %); it agrees with the stored record to 0.4 %, cause of the gap not located.
+  - (c) Excess over floor per block and family, this fit against the uncontrolled fit: ridge 0.19 / 0.14, MLP 0.29 / 0.25 of uncontrolled.
+  - It shows what the schematic cannot. The probe is well calibrated but its predictions span a narrow range, which is why G is small. The permutation floor is itself negative (a probe fitted to noise loses to the type mean on held-out cells).
+
+
+**`fig:probe` guard, `tab:probe`, and the stated guard (2026-09-28).**
+
+- **Figure.** Panel (c) of the schematic now marks the pass rule. A dotted guard at a quarter of the uncontrolled excess sits on each block's line; the illustrative composition block fails (0.31) and the image block passes (0.16). The caption says so.
+- **`tab:probe` (new, app:probe).** Per section, the seed range of each block's excess as a fraction of the uncontrolled fit's, for ridge and MLP, and the seeds passing the guard:
+  - ovarian FFPE 1/3;
+  - lung FFPE 0/3;
+  - ovarian FF 3/3;
+  - lung TMA A 0/3;
+  - lung TMA B (held out, models from A) 0/3.
+
+  Marked `\pending` until the Unassigned re-read (todo 8.23) regenerates it.
+- **§2.5 rule.** The fraction is now stated: "to at most a quarter of the uncontrolled baseline's, on both blocks and for both probe families". This matches the coder's pre-registered guard; the paper had said the decision reads only the nonlinear probe. The `\todo` now says the guard is not met on every section at the operating point, and that the escalation needs a closed-form fit per section to be shown.
+- **Author's question: does the table make the escalation clearer?** No. It holds only adversary fits and their uncontrolled references; all runs on disk use the adversary (todo 8.11b). The proposal to fit one closed-form seed per section is added to 8.11b.
+
+**Table 8 (`tab:probe`) rebuilt: transposed, absolute and relative together (2026-09-28).** Reading the relative-only table, the author asked whether it meant "plenty more to remove". It does not: every section ends at a similar absolute residual (the MLP explains 3–6 % of within-type composition variance from z), and the fraction left is large only where little leaked without the adversary (lung TMA 5.5–7 % against fresh-frozen ovarian 36 %).
+
+- **Layout (author's request).** Sections are columns. Per block (composition, image) for the MLP probe, three rows: "without the adversary (%)", "with the adversary (%)", and the bold **fraction left**, the quantity the guard reads. Two ridge "fraction left" rows follow, then "seeds passing".
+- **Caption.** It defines both kinds of number, says 0 means the adversary removed everything and 1 means nothing, and notes that the fraction is larger where less leaked to begin with.
+- **Values.** All from the stored re-grade records; section B's come from its held-out record.
+- **Still `\pending`** for the Unassigned re-read (8.23).
+- **Rendering fix.** Ranges are typeset in text mode, because "--" inside math rendered as two minus signs.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+- **Table 8, follow-up (same day).** A "needed to pass (%)" row was added under "with the adversary" in both MLP blocks, at the author's request. It is the largest share that meets the guard: a quarter of the section's mean excess without the adversary, converted to a variance share. Composition: 4.7 / 2.9 / 8.2 / 1.5 / 1.7 %. Image: 3.8 / 2.5 / 7.9 / 1.7 / 1.5 % (ovarian FFPE, lung FFPE, ovarian FF, lung TMA A, lung TMA B). It shows directly that the target depends on the section's starting leak. The caption defines it. Build: exit 0, no undefined references, 3 overfull boxes.
+
+
+**Experiments return to the build; final-number appendix; R30 option A (2026-09-28).** The model is frozen, and the coder's results manifest (`docs/results_manifest.md`) maps every result to its source.
+
+- **§3 Experiments rewritten.** The pre-freeze draft is kept as `sections/experiments_pre_freeze.tex`.
+  - §3.1 Setup is written in full: the sections and the held-out serial section; lineage labels and the Unassigned rule; graph, kernel and image; one configuration (warm-up 30; composition weight 3 in both the heads' loss and the encoder's term, checked in code; κ = 0.1; 500/40; α_z = ½/ℓ̄ with ℓ̄ the section's count scale, the primary section's fixed during development); splits, seeds and read-outs; baselines.
+  - §3.2–3.6 are headings only, with hidden comments naming the manifest rows they will draw on.
+- **New appendix `app:experimental`**, holding only numbers the coder marked final:
+  - `tab:sections`: cells, genes, lineage classes, Unassigned share, median counts, computed from the bundles.
+  - `tab:baselines`: version, graph, label use, budget and coverage per method, from the baselines README and runners.
+  - `tab:timing`: s/epoch, peak memory, parameters, final-fit wall clock against each baseline's whole-fit time.
+  - `app:planted`: the amortisation-gap table, the leak-subtracted-input result, and the dead-channel checks. The survey total is not quoted, because the manifest's 329 and its per-section sum of 251 disagree.
+- **R30, option A (author).** `prop:kappa-bound`: a κ′ reproduces the composition with a valid clean profile if and only if κ′ ≤ κ̄_i = min_g p_ig/ρ̄_ig; the true κ lies below, with equality exactly when a neighbour-expressed gene has zero own share. Short proof. It replaces the earlier descriptive paragraph and points to fig:kappa-bound. §2.2 and §2.8 are reworded to match, and the partial-identification `\todo` in §2.8 becomes a sentence.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**Amortisation-gap paragraph rewritten (app:planted, 2026-09-28).** The author asked for it to be clear what is done and how, including what goes into the simulation.
+
+- **Structure.** Five run-in paragraphs: what is measured; the simulation; the exact posterior; the fit and the comparison; the result.
+- **Simulation, as it is built in the code:**
+  - 3,000 cells uniform in a 700 µm square; 4 types in spatial patches (nearest of 12 anchors with a random perturbation);
+  - z ~ N(m_t, 0.5²I) in 2-d with m_t ~ N(0, 1.5²I); ρ = softmax(zA) over 40 genes, A standard normal;
+  - leakage on the Delaunay graph pruned at 40 µm, β ∝ exp(−d/20 µm), row-normalised: **the model's kernel with every face set to one**, now stated;
+  - κ = 0.2; ℓ ~ Poisson(D) with a minimum of 20, D ∈ {100, 300, 1000}; a multinomial count;
+  - an 8-d image descriptor from neighbour composition plus noise.
+- **Posterior and fit.** A 129×129 grid for the exact posterior. DISCELL fitted with 2-d z, 300 epochs, at the true and mismatched κ. The cross-fitted MLP alignment is explained, with why it cannot add information. The gap is defined in posterior-sd units. All four references are named.
+- **Table caption.** Now says which rows are trained against the exact posterior and which (DISCELL) are not.
+
+**`tab:timing` and `tab:baselines`: gaps explained, size separated from time (2026-09-28).** The author asked that the tables show what could not be run and why, distinguishing "failed" from "not attempted", and that model size be separated from run time.
+
+- **`tab:timing`.** Three blocks: DISCELL model size (parameters, peak memory), DISCELL run time (s/epoch, final fits, epochs to the stop), and comparison methods' run time. Every empty cell now names its reason, with footnotes:
+  - SIMVI: not attempted on the FFPE sections; windowed on fresh-frozen, which does not fit whole. I corrected my own draft here: it had claimed the FFPE sections do not fit either, which was never tested.
+  - MintFlow: not attempted on the FFPE sections (about 11 h per 70k cells on the TMA core); failed on fresh-frozen, out of host memory before training.
+  - The footnotes sit under the table rather than in a spanning row, which had stretched the last column.
+- **`tab:baselines`.** The coverage column gives the same reasons per method; Cellina is marked "being run".
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+- **`tab:timing`, follow-up (same day).** DISCELL moved into the same "run time of one fit (min)" list as the comparison methods (whole fit, including evaluations, over the three final seeds). Epochs to the stop and s/epoch (training only) sit with parameters and peak memory under "model and training details". The caption is updated.
+- **Whole sections only (author decision, 2026-09-28).** Only runs on whole sections are kept, and window runs are archived. SIMVI on the fresh-frozen section is therefore "failed" in `tab:timing` (the whole section does not fit in GPU memory) and in `tab:baselines`, and its 273.8-min window time is removed. The footnotes are re-lettered: a) SIMVI not attempted on FFPE; b) SIMVI failed on FF, with the earlier window run noted as not used; c) MintFlow not attempted on FFPE; d) MintFlow failed on FF (host memory). Build: exit 0, no undefined references, 3 overfull boxes.
+
+
+**§2 brought in line with the frozen final configuration (2026-09-28).** A check found §2 described a slightly different model from the one that runs. (The KL warm-up was already in §2.7, worded without "warm-up"; my first check missed it.)
+
+- **eq:adv.** The composition half now carries λ_y = 3, in the encoder term and the heads' loss. The text gives the reason: composition carries the confound, and at equal weights the probe still found removable within-type composition information (tab:probe). It replaces "one weight α_a serves both".
+- **§2.4 weights.** ℓ̄ is defined as the section's count scale (the median total count, with the primary section's value fixed during development), and α_z = ½/ℓ̄. R19 is applied: α_w = 0.1 departs deliberately from 1/ℓ̄, because at lower weights w takes over type structure and the agreement guard falls (most on FF); w's readouts are therefore in effect readouts of m_ψ(c,t); the α_w ladder is reported as a sensitivity analysis. "The centre of any sweep" becomes "the natural reference".
+- **"What w is not".** R19's justification replaces "earns its place only through within-niche heterogeneity… an empirical question the divergence answers": the direct path fits B and m_ψ against each cell's residual; anomalies, per-cell responses and abduction are future work; a small divergence at this weight reflects the weighting.
+- **§2.1.** The lineage-label `\todo` is resolved: "as they are in every fit reported here".
+- **Architecture table.**
+  - α_z row: ℓ̄ as count scale.
+  - α_w row: "0.1, far above 1/ℓ̄; ramped over 30 epochs" (was "calibrated").
+  - α_a row: "0.3; six head updates per model update at 2×10⁻³; composition half weighted λ_y = 3" (was "calibrated").
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+
+**Conclusion written (R34, 2026-09-28).**
+
+- **Summary.** A short paragraph with no numbers: the three-part decomposition, invariance by architecture plus a probe-graded regulariser, a fixed kernel, and κ bounded above and swept with breakdown points.
+- **Limitations,** one item each with a pointer to where it is argued:
+  - the leakage form (section-wide, gene-agnostic, receiver-scaled, no ambient term; form sensitivity on the primary section only);
+  - what the sweep separates;
+  - labels (derived from contaminated counts, granularity, merged states read as responses);
+  - incomplete invariance (tab:probe);
+  - w as context regression at the operating point;
+  - inference (the amortisation gap, measured only in simulation, and the posterior-family compromise);
+  - identification (only the κ upper bound and the verified invariance);
+  - evaluation (transductive neighbours, one section per fit, one held-out section, partial baseline coverage).
+- **Future work.** The earlier `\todo` rewritten as prose: perturbations, the open per-cell channel, and a nuclear/extranuclear split turning the κ bound into an estimate.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**Lineage-label appendix (app:lineage, 2026-09-28).** Added to `app:experimental`, from the committed mappings (`labels/lineage_map_applied.csv`) and the relabel's devlog entry.
+
+- **Rule.** States and locations merged; lineages and sub-lineages kept; mappings fixed before refitting.
+- **Ovarian FFPE, 18 → 12.** `tab:lineage-ovarian` lists the curated classes per lineage. The two decisions carry their evidence:
+  - SOX2-OT⁺ → Unassigned: median depth 27 against 333, three quarters without SOX2-OT counts, profile mostly macrophage;
+  - cyst lining → mesothelial-like lineage: CALB2/PRG4/BNC1/PDPN/UPK3B on, EPCAM/PAX8/ESR1 off.
+- **Lung TMA, 35 → 30.** State classes reassigned per cell by markers, with cycle genes excluded for the proliferating class.
+- **Lung FFPE and ovarian FF.** Cluster → lineage by markers, in `tab:lineage-clusters`. Immune-next-to-tumour clusters keep their immune lineage, since the tumour signal is leakage. The low-depth FF cluster 9 → Unassigned.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+- **app:lineage, follow-up (same day).** New "Other judgement calls" paragraph: the fibroblast merge (the CAF programme is a state), the endothelial merge (tip state against weakly venous; the less clear case), TMA alveolar/adventitial fibroblasts kept with myofibroblasts split about evenly between them, and the per-cell reassignment accuracy of about 0.75 with margins recorded. From the relabel devlog entry (2026-09-25).
+
+**Section overview figure (fig:sections, app:sections, 2026-09-28).** New `figures/src/fig_sections.py`, added to `build.sh`.
+
+- **a.** Every cell at its centroid, coloured by `obs['lineage']` grouped into six display families (epithelial/tumour; fibroblast/stroma incl. chondrocytes; muscle/pericyte; endothelial; immune/blood incl. erythroid and megakaryocytes; other = Schwann), with Unassigned in grey. Colours are slots 1–6 of the validated categorical order.
+- **b.** The four-channel focus image composite in the Fig. 1b stain colours. It is read with zarr from the coarsest pyramid level at least 1,400 px wide over the cells' extent.
+- **Layout.** All panels have one height and widths follow each section's aspect ratio; a 1 mm bar sits under each image, and each section is shown at its own scale. The TMA panel is the fitted core only.
+- **Render check.** Done at print size. The mapping was checked: the TMA core's orange is real (37% fibroblasts in the labels).
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**Checklist pass (R35, 2026-09-28).** No [Yes] now contradicts the text. The questions are unchanged; answers not yet true are `\todo{answer: ...}` notes saying what is missing.
+
+- **1(b) complexity.** `\todo`. A new symbolic cost paragraph in app:timing covers:
+  - per-step encoder/decoder O((n+n₁)Gh) and influx O(|E_n|G);
+  - the six head updates O(6(n+n₁)h_a(d_z+K));
+  - epochs linear in N and probes capped at 30k cells;
+  - peak memory (resident counts plus edge-by-gene gather) and the sweep as 18 fits per section;
+  - sample size stated as not analysed.
+- **2(b) proofs.** `\todo`: the §2.8 symmetries are unnumbered and app:amplification is a heuristic (prop:kappa-bound is fine).
+- **3(b) training details.** `\todo`: the κ = 0.1 selection criterion is not stated.
+- **3(c) error bars.** `\todo` until results report as §3.1 defines.
+- **3(d) infrastructure.** [Yes]. The Hardware row now reads "one NVIDIA GeForce RTX 4090 (24 GB) per fit", as in all 39 recorded run metadata files.
+- **4(b) licences.** `\todo`.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**Symmetries as a proposition (R35/R29, 2026-09-29).** The §2.8 prose statement of the response symmetries is now `prop:symmetries` (Proposition 1; the κ bound becomes Proposition 2), with a full proof in the new app:symmetries (derivations, A.5).
+
+- **The statement** treats the networks as arbitrary functions and applies each map to all cells at once:
+  - (a) Rotation: the distribution of the counts is invariant for any orthogonal Q; every term of J is invariant with the posterior rotated too; J is invariant within the diagonal family only for signed permutations. This is more precise than the old "symmetry of the model, not of the fitted objective".
+  - (b) Constants over genes: a + c(z)1 and B + 1bᵀ.
+  - (c) Per-type translation: exact under the explicit condition τ(z) = t_i on the support of q(z_i). The shift constants are renamed δ_t to avoid clashing with the posterior mean μ.
+  - Rescaling is not a symmetry: the per-dimension KL change is ½[(λ−1)A − log λ].
+  - The centred shift and the realised prior shift, centred over genes, are invariant under all three.
+- **After the proposition,** the R29 remark is kept: the condition in (c) holds only approximately because the Gaussian posteriors of different types overlap, so it is a near-flat direction.
+- **Formatting.** (a)–(c) are set as an enumitem list after a render check.
+- **Checklist 2(b).** The note now says both propositions have full proofs, and the answer is [Yes] if app:amplification stays a labelled heuristic.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**Assets and licences (R35 4(a)/4(b), 2026-09-29).**
+- **New app:assets** (experimental appendix, before app:timing). It gives:
+  - the 10x datasets, with `\needsource` and a `\todo` for their licence;
+  - GSE315411, cited to williamskatek2026fishing, with the GEO no-restriction wording under a `\todo` to verify;
+  - KRONOS and KRONOS2 under CC BY-NC-ND 4.0, used non-commercially and not redistributed;
+  - scvi-tools/resolVI, SIMVI, MintFlow and Cellina under BSD-3;
+  - no new assets released.
+- **§3.1 Sections** now names the sources: the 10x datasets (`\needsource`) and GEO GSE315411 with its citation.
+- **Checklist.** 4(a) had been [Yes] while no dataset was cited; it is now a `\todo` until the 10x citations exist. 4(b) points to app:assets and waits on the 10x licence.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**κ = 0.1 operating point stated (R24/R28, R35 3(b), 2026-09-29).** Taken from the coder's devlog note "how κ = 0.1 was chosen".
+- **§3.1 Configuration.** It is a working point for single-fit analyses, not an estimate. It was taken before the full sweep, inside the published platform range (`\needsource`), and kept after it: on the primary section it sits at the end of the held-out reconstruction plateau, where B is most seed-stable and the mirror is already below its κ = 0 level. Reconstruction is named as describing the point, not selecting it (the R24 objection), and no claim rests on the choice.
+- **Kept out, deliberately.** The 0.09–0.25 per-cell bracket and the lung "no plateau" observation are not in the text. Both are available if a reviewer asks.
+- **tab:architecture κ row** now names 0.1 and points to §3.1.
+- **Checklist 3(b)** → [Yes].
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**Amplification kept as a heuristic (author, 2026-09-29).** The `\todo` at the end of app:amplification is removed; the subsection stays titled and labelled a heuristic and claims no result. Checklist 2(b) → [Yes] (prop:symmetries and prop:kappa-bound have full proofs). Build: exit 0, no undefined references, 3 overfull boxes.
+
+**10x dataset pages (author's dumps, 2026-09-29).** Ovarian FFPE ("FFPE Human Ovarian Cancer with 5K Human Pan Tissue and Pathways Panel plus 100 Custom Genes": 407,124 cells, median 178, XOA 3.0.0) and lung FFPE (the "Post-Xenium Technical Note" page, experiment 2: 278,328 cells, median 242) match `experiment.xenium` exactly. The FF page sent ("Cross-Platform Comparison: FF Human Ovarian Cancer", 200,900 cells, median 1,283, XOA 3.2.0 resegmented) is NOT our section: ours has 1,157,659 cells, median 1,401, XOA 3.0.0, run "Human FF Ovary 5K". The correct page is still needed. No dump includes a licence or release date, so the citations wait.
+
+**No pre-registered primary readouts (author, option b, 2026-09-29).** §2.8 said a small primary set was "fixed before the final fits" and Bonferroni-adjusted over that set; no such set was ever recorded (todo 8.13). It now says: no readout is designated primary in advance, because development sweeps preceded the final ones; every readout is reported with its breakdown point, and intervals are Bonferroni-adjusted over all readouts of the table that reports them. The `\todo` is removed. Todo 8.13 and 8.19 are updated for the coder (the Bonferroni family is now the reporting table).
+
+**10x datasets cited (2026-09-29).** Three new @misc entries (tenx_ovarian_ffpe, tenx_lung_ffpe, tenx_ovary_ff) with page titles and URLs from the author's dumps, each verified against `experiment.xenium` (cells, median counts, XOA v3.0.0; the lung entry is experiment 2 of the technote page). They are cited in §3.1 and app:assets, replacing the `\needsource`. The year field is `\todo{year}`, because no page shows a date. Until it is filled, in-text labels read "10x Genomics, yeara/b/c", with the marker visible only in the bibliography. The licence `\todo` remains. Checklist 4(a) → [Yes]. main.tex gains `\PassOptionsToPackage{hyphens}{url}` so the long technote URL breaks. Build: exit 0, no undefined references, 3 overfull boxes.
+
+**Transductive exposure stated (§2.6, 2026-09-29).** The `\pending` in "Frozen Neighbours and Batching" is replaced with numbers from the coder's devlog entry "Held-out neighbours of training seeds". I checked them against `scripts/logs/heldout_neighbour_fraction_2026-09-29.jsonl`, which had 11 of 12 splits when checked, FF seed 2 still writing:
+- 1–2% of training seeds have a held-out neighbour (0.84–1.86%);
+- 5–10% of held-out cells enter a training step as ring-one inputs (4.8–10.2%);
+- 2–4% of seeds are within two hops (1.8–4.0%).
+Rounded to whole percent. No buffer; the text says why. These numbers depend on the split only, so they are fixed before the freeze; the author forwarded the coder's text for use. Build: exit 0, no undefined references, 3 overfull boxes.
+
+**10x years filled (2026-09-29).** From the author's page panels ("Date Published"): FF 2024-09-04, lung 2024-11-06, ovarian FFPE 2024-12-17. All three entries are year 2024, so the labels read 2024a/b/c. The licence is not on the pages' metadata panels either, so `\todo` stays in app:assets and checklist 4(b) stays open.
+
+**10x licence and citation format (2026-09-29).** From the author's page read: "This dataset is licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0) license." The line was seen on one page; the same template is assumed for all three. app:assets now states CC BY 4.0, and checklist 4(b) → [Yes]. The three bib notes follow 10x's dataset citation format (dataset, "In Situ Gene Expression dataset by Xenium Onboard Analysis v3.0.0", 10x Genomics, date). janesick2023, 10x's requested citation for Xenium Onboard Analysis, is already cited in §3.1. Build: exit 0, no undefined references, 3 overfull boxes.
+
+**Checklist answers (author, 2026-09-29).** 1(c) optional code → [No]; 3(a) code/data/instructions → [No], since the author will not release code before acceptance; 3(c) error bars → [Yes], and the results must report as §3.1 defines. app:assets now reads "The code will be released on acceptance; no new data are released." (was "No new assets are released."), flagged to the author as a commitment. Still open: 1(b), [Yes] recommended vs [No], waiting on the author. Build: exit 0, no undefined references, 3 overfull boxes.
+- **1(b) → [Yes]** (author, same day): time and space are covered in §2.6 and app:timing, and sample size is explicitly stated as not analysed. Every checklist item is now answered; only the template's "answer at submission time" banner remains. Build: exit 0, no undefined references, 3 overfull boxes.

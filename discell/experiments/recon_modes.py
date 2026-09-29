@@ -29,6 +29,11 @@ Each mode carries a 200 um tile-bootstrap 95 % CI over the held-out cells,
 and so do the differences between modes (same draws). Per-cell values go to
 ``recon_modes_cells.npz`` for paired comparisons across runs.
 
+Every mode is read on the held-out cells that are metric targets
+(``discell.model.eval_mask``: Unassigned is never one); the reproduction
+check of ``full`` against the stored all-cell score is made on every held-out
+cell, as that score was.
+
 With ``--eval-dataset`` the fit is applied to another section (the
 cross-slide protocol of ``discell.model.crossslide``): every tile of that
 section is held out, type means and the type profile come from the trained
@@ -137,6 +142,7 @@ def recon_modes(dataset: str, run: str, eval_dataset: str | None = None,
     import torch
 
     from discell import paths
+    from discell.model import eval_mask as EM
     from discell.model import metrics as M
     from discell.model.prepare import assemble
     from discell.model.train import Trainer
@@ -155,6 +161,13 @@ def recon_modes(dataset: str, run: str, eval_dataset: str | None = None,
         positions = np.asarray(data.positions, dtype=np.float64)
         stored = metrics["best"]["recon_val"]
         gap = metrics["best"].get("recon_gap") or {}
+        # under the mask the cross-checks are against the masked in-trainer
+        # battery of the same checkpoint (degeneracy.json), when it is there
+        post_hoc = (json.loads((run_dir / "degeneracy.json").read_text())
+                    if (run_dir / "degeneracy.json").exists() else {})
+        if (EM.exclusions() and EM.same_mask(post_hoc.get("eval_mask"))
+                and post_hoc.get("recon_gap")):
+            gap = post_hoc["recon_gap"]
         checks["typemean_z_vs_best_recon_gap"] = gap.get("recon_typemean_z")
         checks["type_profile_vs_best_recon_gap"] = gap.get("recon_type_profile")
         stored_name = "metrics.json best.recon_val"
@@ -176,6 +189,7 @@ def recon_modes(dataset: str, run: str, eval_dataset: str | None = None,
         cells = per_cell_modes(trainer, trainer.train_batches + trainer.val_batches,
                                z_bar, log_profile)
         positions = np.asarray(data_b.positions, dtype=np.float64)
+        data = data_b                      # the section whose cells are read
         cross = run_dir / "crossslide" / f"{eval_dataset}.json"
         stored = (json.loads(cross.read_text())["held_out_section"]
                   ["recon_all_tiles"] if cross.exists() else None)
@@ -183,14 +197,21 @@ def recon_modes(dataset: str, run: str, eval_dataset: str | None = None,
         out_path = run_dir / f"recon_modes_{eval_dataset}.json"
         cells_path = run_dir / f"recon_modes_cells_{eval_dataset}.npz"
 
+    # the stored score is over every held-out cell; the modes, over targets
     full = float(cells["full"].mean())
+    t_cells = data.t[cells["nodes"]]
+    mask = EM.record(data.type_names, t_cells)
+    targets = EM.metric_target_mask(t_cells, data.type_names)
+    if not targets.all():
+        cells = {k: v[targets] for k, v in cells.items()}
     if stored is not None:
         diff = abs(full - float(stored))
         assert diff <= REPRODUCE_TOL, (
             f"{run}: full-posterior recon {full:.5f} != {stored_name} "
             f"{stored:.5f} (|diff| {diff:.2e} > {REPRODUCE_TOL})")
         checks["full_vs_stored"] = {"stored": float(stored), "abs_diff": diff,
-                                    "source": stored_name}
+                                    "source": stored_name,
+                                    "cells": "every held-out cell"}
     else:
         checks["full_vs_stored"] = {"stored": None, "source": stored_name,
                                     "note": "no stored value to check against"}
@@ -208,6 +229,7 @@ def recon_modes(dataset: str, run: str, eval_dataset: str | None = None,
               "selection": "checkpoint selected on `full` (held-out recon, "
                            "own posterior) jointly with the NMI guard",
               "n_cells": int(len(cells["nodes"])),
+              "eval_mask": mask,
               **summarise(cells, positions, n_boot, seed),
               "checks": checks,
               "definitions": {

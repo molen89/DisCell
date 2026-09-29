@@ -283,6 +283,7 @@ def score_run(dataset: str, run: str, pairs: list[dict], pairs_source: str,
     import torch
 
     from discell import paths
+    from discell.model import eval_mask as EM
     from discell.model.prepare import assemble
     from discell.model.train import config_from_record
     from discell.model.validate import load_run
@@ -316,11 +317,19 @@ def score_run(dataset: str, run: str, pairs: list[dict], pairs_source: str,
                           np.array([names.index(g) for g in genes]))
     del trainer
     torch.cuda.empty_cache()
+    # the held-out cells that are metric targets (eval_mask); the leak
+    # influx each carries is the model's, from every neighbour
+    t_cells = data.t[cells["nodes"]]
+    mask = EM.record(data.type_names, t_cells)
+    targets = EM.metric_target_mask(t_cells, data.type_names)
+    if not targets.all():
+        cells = {k: v[targets] for k, v in cells.items()}
     positions = np.asarray(data.positions, dtype=np.float64)[cells["nodes"]]
     result = {"run": run, "dataset": dataset, "kappa": float(config.kappa),
               "seed": int(config.seed), "pairs_source": pairs_source,
               "section": "validation tiles (held out)",
               "n_cells": int(len(cells["nodes"])),
+              "eval_mask": mask,
               "isolated_share": float(cells["isolated"].mean()),
               "genes": genes,
               **score(cells, float(config.kappa), pairs, genes, positions,

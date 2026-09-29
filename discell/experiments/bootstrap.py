@@ -27,6 +27,10 @@ already on disk -- ``reproduces`` in the output):
     (held fixed).
 ``cycle_z``, ``cycle_w``
     pooled within-type cycle R^2: per held-out cell residual and target.
+``cycle_z_q90``, ``cycle_w_q90``, ``cycle_ref_q90``
+    the same on the top-decile cycling set (``cell_cycle.slide_cycling_set``,
+    author's decision 2026-09-28), centred per label within the set: z, w
+    and the 50-PC linear count reference (the envelope's q90 rows).
 ``nmi``
     per clustered cell: cluster label and type (weighted contingency).
 ``w_niche_mi_excess``
@@ -46,6 +50,11 @@ already on disk -- ``reproduces`` in the output):
 
 Multiplicity across the kappa grid is one stated treatment: Holm over the
 grid's pairwise comparisons (:func:`holm`, :func:`paired_comparisons`).
+
+Every read replays its metric under the evaluation mask
+(``discell.model.eval_mask``): the cells it grades are metric targets, and
+no transport panel moves an excluded type (the replay still draws those
+panels' random numbers, so the other panels' streams are the run's).
 
 Usage::
 
@@ -67,6 +76,8 @@ import time
 from typing import Callable, Mapping, Sequence
 
 import numpy as np
+
+from discell.model import eval_mask as EM
 
 log = logging.getLogger("discell.experiments.bootstrap")
 
@@ -357,12 +368,18 @@ def probe_statistic(cells: dict, reference: Mapping[str, float] | None = None):
     return stat
 
 
-def cycle_cells(latent, t, scores, types, train, test, seed: int = 0) -> dict:
-    """Held-out residuals and targets of ``metrics.cycle_r2`` (same stream)."""
+def cycle_cells(latent, t, scores, types, train, test, seed: int = 0,
+                cells=None) -> dict:
+    """Held-out residuals and targets of ``metrics.cycle_r2`` (same stream);
+    *cells*, as there, replaces the type restriction by a cycling set."""
     from discell.model import metrics as M
 
     rng = np.random.default_rng(seed)
-    keep = np.isin(t, types)
+    if cells is None:
+        keep = np.isin(t, types)
+    else:
+        keep = np.asarray(cells, dtype=bool)
+        types = np.unique(t[keep])
     rows_train = np.flatnonzero(train & keep)
     rows_test = np.flatnonzero(test & keep)
     if len(rows_train) < 200 or len(rows_test) < 200:
@@ -373,7 +390,7 @@ def cycle_cells(latent, t, scores, types, train, test, seed: int = 0) -> dict:
     latent = latent.copy().astype(np.float64)
     target = scores.copy().astype(np.float64)
     for g in types:
-        members = np.flatnonzero(t == g)
+        members = np.flatnonzero((t == g) & keep)
         latent[members] -= latent[members].mean(axis=0)
         target[members] -= target[members].mean(axis=0)
     design = np.hstack([latent[rows_train], np.ones((len(rows_train), 1))])
@@ -576,7 +593,9 @@ def transport_mean_panels(trainer, data, config, b_matrix, labels, fold,
                 "noise_ceiling": ceiling,
                 "trusted": bool(ceiling >= T.TRUST_CEILING
                                 and int(keep.sum()) >= T.TRUST_GENES)})
-    return panels
+    # an excluded type is never the moved type (eval_mask); its panels were
+    # drawn above only so that the stream matches transport_check's
+    return [p for p in panels if not EM.is_excluded(p["type"])]
 
 
 def _split_weights(mult: np.ndarray, rng, n_splits: int) -> np.ndarray:
@@ -876,6 +895,9 @@ def transport_dist_panels(trainer, data, config, labels, fold, device: str,
             raw.append({"pair": [int(niche_a), int(niche_b)], "type": names[g],
                         "g": g, "target": (niche_b, g), "rows": rows,
                         "own": np.full(len(rows), niche_a), "tgt": tgt})
+    # the stream is advanced over every panel, as the run did; an excluded
+    # type's panels then leave (eval_mask: never the moved type)
+    raw = [r for r in raw if not EM.is_excluded(r["type"])]
     if not raw:
         return {"panels": [], "n_tiles": 0, "n_cells": 0}
     universe = np.unique(np.concatenate([r["rows"] for r in raw]))
@@ -981,9 +1003,15 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
     dev = str(next(trainer.model.parameters()).device)
     metrics = _load(run_dir / "metrics.json") or {}
     final = metrics.get("final") or {}
+    # the masked in-trainer battery of best.pt (degeneracy.json), the stored
+    # number a masked NMI replays; the unmasked metrics.json under the switch
+    post_hoc = _load(run_dir / "degeneracy.json") or {}
+    masked = bool(EM.exclusions()) and EM.same_mask(post_hoc.get("eval_mask"))
+    names = data.type_names
     target = run_dir / "bootstrap_ci.json"
     record = _load(target) or {"run": run, "dataset": dataset, "reads": {}}
     record.update({"n_boot": n, "tile_um": tile_um, "seed": seed,
+                   "eval_mask": EM.record(names, data.t),
                    "conditional_on": "the fitted probes, clustering, cycle "
                    "ridge, kNN balls and model predictions (held-out cells "
                    "resampled by tile)"})
@@ -1011,10 +1039,14 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
 
     if "nmi" in reads:
         t0 = time.time()
-        cells = nmi_cells(z_all, t_all, config.seed)
-        boot = tile_bootstrap(positions[rows_all[cells["rows"]]], cells,
+        z_n, t_n = EM.nmi_inputs(z_all, t_all, names)
+        rows_n = (rows_all if z_n is z_all
+                  else rows_all[EM.metric_target_mask(t_all, names)])
+        cells = nmi_cells(z_n, t_n, config.seed)
+        boot = tile_bootstrap(positions[rows_n[cells["rows"]]], cells,
                               nmi_statistic, n, tile_um, seed)
-        put("nmi", boot, metrics.get("best", {}).get("nmi"))
+        put("nmi", boot, post_hoc.get("nmi_targets") if masked
+            else metrics.get("best", {}).get("nmi"))
         log.info("nmi done (%.0f s)", time.time() - t0)
 
     if "cycle" in reads and data.cycle is not None:
@@ -1030,13 +1062,32 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
                                   cycle_statistic, n, tile_um, seed)
             stored = ((final.get("cycle") or {}).get(name) or {}).get("r2_pooled")
             put(f"cycle_{name}", boot, stored)
+        # the top-decile set (author's decision 2026-09-28): the stored point
+        # is the masked battery's (or, under the switch, metrics final's)
+        from discell.model.cell_cycle import slide_cycling_set
+
+        cells_q90 = slide_cycling_set(data)[rows_all]
+        source = (post_hoc.get("battery") or {}) if masked else final
+        for name, latent, key in (("z", z_all, "cycle_r2_z_q90"),
+                                  ("w", w_all, "cycle_r2_w_q90"),
+                                  ("ref", cyc["x_pcs"][rows_all],
+                                   "cycle_linear_q90")):
+            cells = cycle_cells(latent, t_all, scores, None, train_mask,
+                                ~train_mask, config.seed, cells=cells_q90)
+            if not len(cells["rows_test"]):     # no held-out cell in the set
+                continue
+            boot = tile_bootstrap(positions[rows_all[cells["rows_test"]]], cells,
+                                  cycle_statistic, n, tile_um, seed)
+            put(f"cycle_{name}_q90", boot, source.get(key))
 
     if "w_mi" in reads:
         from discell.model.degeneracy import W_GUARD_NICHES
 
         niche = niche_labels(data, W_GUARD_NICHES, config.seed)
-        vrows = val["nodes"]
-        cells = w_mi_cells(val["mu_w"], niche[vrows], data.t[vrows], config.seed)
+        on = EM.metric_target_mask(data.t[val["nodes"]], names)
+        vrows = val["nodes"][on]
+        cells = w_mi_cells(val["mu_w"][on], niche[vrows], data.t[vrows],
+                           config.seed)
         boot = tile_bootstrap(positions[vrows[cells["rows"]]], cells,
                               w_mi_statistic, n, tile_um, seed)
         stored = ((_load(run_dir / "degeneracy.json") or {}).get("w_channel")
@@ -1053,6 +1104,8 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
             rows = np.concatenate(data.train_tiles + data.val_tiles)
             n_train = sum(len(tile) for tile in data.train_tiles)
             tr = np.arange(len(rows)) < n_train
+            on = EM.metric_target_mask(data.t[rows], names)
+            rows, tr = rows[on], tr[on]
             for family in ("ridge", "mlp"):
                 fam = blocks[family]
                 cells = probe_cells(mu_node[rows], data.t[rows], data.v_block[rows],

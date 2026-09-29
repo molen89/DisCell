@@ -41,6 +41,7 @@ from typing import Sequence
 
 import numpy as np
 
+from discell.model import eval_mask as EM
 from discell.model.lr_map import VAR_FRACTION, program_basis
 from discell.model.validate import (center_per_type, collect_latents,
                                     landmark_inventory, load_run, morans_i,
@@ -99,6 +100,31 @@ def centred_program_basis(mu_w: np.ndarray, t: np.ndarray,
     info["variance_share"] = share.round(4).tolist()
     info["shift_share"] = (shift / max(shift.sum(), 1e-12)).round(4).tolist()
     return u, loadings, info
+
+
+#: beside ``programs.npy``: the evaluation mask the programmes were read under
+PROGRAMS_MASK = "programs_mask.json"
+
+
+def write_programs(path: Path, loadings: np.ndarray, type_names, t) -> None:
+    """``programs.npy`` plus the mask record a cached read is checked by."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(path, np.asarray(loadings).astype(np.float32))
+    (path.parent / PROGRAMS_MASK).write_text(json.dumps(
+        {"eval_mask": EM.record(type_names, t)}, indent=1))
+
+
+def programs_cache_valid(path: Path) -> bool:
+    """A cached ``programs.npy`` read under the exclusions in force now
+    (one without a record predates the evaluation mask: nothing excluded)."""
+    path = Path(path)
+    if not path.exists():
+        return False
+    meta = path.parent / PROGRAMS_MASK
+    stored = (json.loads(meta.read_text()).get("eval_mask")
+              if meta.exists() else None)
+    return EM.same_mask(stored)
 
 
 def cross_seed(loadings: np.ndarray, other: np.ndarray) -> dict:
@@ -280,18 +306,25 @@ def build_atlas(args: argparse.Namespace) -> dict:
 
     # -- canonical basis: effective rank of within-type-centred w, varimax
     # within the r-dim subspace (V10, V12) ---------------------------------
-    u, programs, info = centred_program_basis(latents["mu_w"], data.t,
-                                              b_matrix, expressed)
+    # on the metric targets only (eval_mask): an excluded type has no centre,
+    # so its cells take no part in the programmes or any read of them
+    targets = EM.metric_target_mask(data.t, data.type_names)
+    u_targets, programs, info = centred_program_basis(
+        latents["mu_w"][targets], data.t[targets], b_matrix, expressed)
     r, d_w = info["rank"], b_matrix.shape[1]
+    u = np.zeros((data.graph.n_cells, r), dtype=u_targets.dtype)
+    u[targets] = u_targets
     log.info("effective rank %d of %d (eigen-fractions %s); program shares %s",
              r, d_w, info["variance_fraction"], info["variance_share"])
 
     # shared context blocks for the drivers
     connected = data.graph.degrees > 0
-    weights, _ = row_normalised_graph(data)
-    weights_cc = weights[connected][:, connected]
-    u_centred = center_per_type(u, data.t, connected)
-    moran = morans_i(u_centred[connected], weights_cc,
+    weights, connected_targets = row_normalised_graph(data, targets)
+    if targets.all():
+        connected_targets = connected
+    weights_cc = weights[connected_targets][:, connected_targets]
+    u_centred = center_per_type(u, data.t, connected_targets)
+    moran = morans_i(u_centred[connected_targets], weights_cc,
                      n_perms=args.n_perms, seed=config.seed)
 
     rng_phi = np.random.default_rng(0)
@@ -315,7 +348,7 @@ def build_atlas(args: argparse.Namespace) -> dict:
         blocks["landmark_distances"], classes = landmarks
     blocks = {n: center_per_type(b, data.t, everyone) for n, b in blocks.items()}
 
-    sample = np.flatnonzero(connected)
+    sample = np.flatnonzero(connected & targets)
     if len(sample) > 30_000:
         sample = np.sort(rng.choice(sample, 30_000, replace=False))
 
@@ -323,9 +356,10 @@ def build_atlas(args: argparse.Namespace) -> dict:
     out_dir.mkdir(exist_ok=True)
     for stale in out_dir.glob("program_*.png"):
         stale.unlink()
-    np.save(out_dir / "programs.npy", programs.astype(np.float32))
+    write_programs(out_dir / "programs.npy", programs, data.type_names, data.t)
     names = [str(n) for n in data.type_names]
     atlas: dict = {"run": args.run, "d_w": d_w, "rank": r,
+                   "eval_mask": EM.record(data.type_names, data.t),
                    "rank_var_fraction": VAR_FRACTION,
                    "variance_fraction": info["variance_fraction"],
                    "landmark_classes": classes,
@@ -343,8 +377,9 @@ def build_atlas(args: argparse.Namespace) -> dict:
                                                 other_programs[expressed])
         atlas["cross_seed"][other]["rank"] = int(other_programs.shape[1])
         log.info("vs %s: %s", other, atlas["cross_seed"][other])
-    show = np.sort(rng.choice(np.flatnonzero(connected),
-                              min(120_000, int(connected.sum())),
+    shown = connected & targets
+    show = np.sort(rng.choice(np.flatnonzero(shown),
+                              min(120_000, int(shown.sum())),
                               replace=False))
     for k in range(r):
         entry: dict = {"program": k, "active": True,
@@ -365,7 +400,7 @@ def build_atlas(args: argparse.Namespace) -> dict:
         entry["drivers"] = context_drivers(u[:, k], blocks,
                                            latents["fold"], sample)
         per_type_var = {names[g]: float(u[data.t == g, k].var())
-                        for g in range(len(names))}
+                        for g in EM.exclude_types(range(len(names)), names)}
         total = sum(per_type_var.values()) or 1.0
         entry["type_activity"] = dict(sorted(
             ((n, v / total) for n, v in per_type_var.items()),

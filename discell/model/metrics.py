@@ -495,8 +495,8 @@ def principal_curve(coords: np.ndarray, n_iter: int = 4,
 
 
 def cycle_r2(latent: np.ndarray, t: np.ndarray, scores: np.ndarray,
-             types: np.ndarray, train: np.ndarray, test: np.ndarray,
-             seed: int = 0) -> dict:
+             types: np.ndarray | None, train: np.ndarray, test: np.ndarray,
+             seed: int = 0, cells: np.ndarray | None = None) -> dict:
     """Within-type ridge R^2 of continuous S/G2M scores from a latent.
 
     The disentanglement read: cycle is intrinsic state, so z should score well
@@ -504,9 +504,19 @@ def cycle_r2(latent: np.ndarray, t: np.ndarray, scores: np.ndarray,
     predicts cycle, identity is leaking into the context channel. Restricted
     to *types* (the MKI67-ranked cycling ones); pooled across them with the
     per-type means removed so type identity itself carries nothing.
+
+    *cells* (bool mask) replaces the type restriction: the label-independent
+    cycling set (``cell_cycle.cycling_set``, author's decision 2026-09-28).
+    Centring and the permutation are then per label among the set's cells,
+    over every label the set touches; *types* is ignored. Without *cells*
+    the read is unchanged, bit for bit.
     """
     rng = np.random.default_rng(seed)
-    keep = np.isin(t, types)
+    if cells is None:
+        keep = np.isin(t, types)
+    else:
+        keep = np.asarray(cells, dtype=bool)
+        types = np.unique(t[keep])
     rows_train = np.flatnonzero(train & keep)
     rows_test = np.flatnonzero(test & keep)
     if len(rows_train) < 200 or len(rows_test) < 200:
@@ -519,7 +529,7 @@ def cycle_r2(latent: np.ndarray, t: np.ndarray, scores: np.ndarray,
     target = scores.copy().astype(np.float64)
     permuted = latent.copy()
     for g in types:                       # centre per type; permute within type
-        members = np.flatnonzero(t == g)
+        members = np.flatnonzero((t == g) & keep)
         latent[members] -= latent[members].mean(axis=0)
         target[members] -= target[members].mean(axis=0)
         permuted[members] = latent[members[rng.permutation(len(members))]]

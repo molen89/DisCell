@@ -1,60 +1,43 @@
 \section{EXPERIMENTS}
 \label{sec:experiments}
 
-\todo{This section is a structured skeleton. Every experiment below is described by its goal and its protocol; numbers are deliberately withheld until the multi-seed reruns are complete. The existing runs (one section, six leak fractions, three seeds, one long reference fit) are the starting point and inform the protocol text, not the reported values.}
-
-\subsection{Data and Preprocessing}
-\label{sec:data}
+\subsection{Setup}
+\label{sec:setup}
 
 \paragraph{Sections.}
-The primary section is a publicly available formalin-fixed paraffin-embedded ovarian carcinoma section profiled on the Xenium platform \needsource with a $5{,}001$-gene panel plus $100$ custom targets: $407{,}120$ segmented cells after removing four without a usable boundary polygon, a median of $178$ transcripts and $147$ detected genes per cell (\cref{app:sections}). A second section \pending{lung carcinoma section, same panel family, unsupervised cluster labels} is used to test whether the decomposition transfers to a tissue with no curated annotation.
+We fit DISCELL to four sections profiled with the same imaging-based assay and gene panel of about five thousand genes \citep{janesick2023}: an ovarian cancer section preserved by formalin fixation and paraffin embedding (FFPE), our primary section \citep{tenx_ovarian_ffpe}; a lung cancer section, also FFPE \citep{tenx_lung_ffpe}; a fresh-frozen ovarian cancer section, sequenced about eight times deeper \citep{tenx_ovary_ff}; and a core of a paediatric lung tissue microarray (TMA) from GEO series GSE315411 \citep{williamskatek2026fishing}. A serial section of the same TMA core on a second slide is the held-out section: no model is fitted to it, and it is read only through the model fitted on its neighbour. The sections range from about seventy thousand to over a million cells (\cref{tab:sections}).
 
 \paragraph{Labels.}
-On the ovarian section $t_i$ is the vendor-supplied curated annotation with $K = 18$ classes, one of which is an ``unassigned'' class that we keep as a type in the model but exclude from all biological readouts. As a label-set control we refit the ovarian section with an unsupervised graph-based clustering ($K = 26$) in place of the curated annotation (\cref{app:graphclust}) \pending{multi-seed}.
+Every section carries lineage-level labels, in which states and locations are merged into their lineage (\cref{sec:setting}). On the ovarian FFPE section and the TMA they are derived from curated annotations, and on the other two from marker-annotated clusters; the mappings were fixed before any fit. Cells without a label form one class, which enters training like any other and is never a target of evaluation.
 
-\paragraph{Graph, kernel, image embedding.}
-Delaunay adjacency with Voronoi faces, pruned at $40\um$; kernel $\beta$ with $\tau = 20\um$; image embedding from a pathology foundation model for multiplexed immunofluorescence \citep{kronos2025} applied to a $128\um$ patch at $0.5\um$ per pixel in which a $25\um$ disc around the cell centroid is masked. Every choice in this pipeline, including the measurement that a contact-based graph is degenerate on this platform, the selection of the mask radius from the distribution of cell covering radii, and the test that the masked embedding carries no cell-type information beyond neighbour homophily, is reported in \cref{app:data}.
+\paragraph{Graph, kernel and image.}
+The graph is Delaunay adjacency pruned at $40\um$, the leakage kernel is $\beta$ with $\tau = 20\um$, and the image descriptor is the KRONOS embedding of the four-channel $128\um$ field with the $25\um$ disc over the cell set to zero, on every section (\cref{sec:setting}, \cref{app:graph,app:image}).
 
-\paragraph{Splits.}
-Cells are partitioned into contiguous rectangular tiles of at most 4{,}096 cells by recursive median splits; $15\%$ of tiles are held out and serve every held-out readout and the stopping rule. There is no third split. \todo{decide whether an untouched test set of tiles is required for the final claims}
+\paragraph{Configuration.}
+One configuration is used on every section (\cref{tab:architecture}): a KL warm-up of the response over its first thirty epochs, the adversary with its composition term weighted three times its image term, in the heads' loss and in the encoder's, $\kappa = 0.1$ as the operating point, and a budget of $500$ epochs with patience $40$. Only $\alphaz$ changes between sections, because it is set to $\tfrac12 \cdot 1/\lbar$ with $\lbar$ the section's count scale: its median total count, with the primary section's value fixed during development. The operating point $\kappa = 0.1$ is where the analyses that need a single fit are read, not an estimate of the leak fraction. It was taken before the full sweep, inside the published range of misassignment for the platform \needsource, and kept after it, because on the primary section it lies at the end of the plateau of held-out reconstruction, where the loadings agree best across seeds and the mirror diagnostic (\cref{sec:selection}) is already below its level at $\kappa = 0$. Held-out reconstruction scores the fit as an autoencoder and favours small $\kappa$, so it describes the point rather than selecting it, and no claim rests on the choice: every readout is reported across the sweep (\cref{sec:sweep}).
 
-\subsection{Operating Point and Calibration}
-\label{sec:operating-point}
+\paragraph{Splits, seeds and read-outs.}
+Each section is cut into contiguous tiles of at most $4{,}096$ cells ($2{,}048$ on the TMA core), and $15\%$ of the tiles are held out (\cref{app:tiles}). Every configuration is fitted from three random seeds, and every fit is read at its accepted checkpoint. A readout is reported as the mean over seeds with its range, and, where a sampling interval is needed, with a spatial block bootstrap over tiles (\cref{def:breakdown}). The leakage sweep refits the same configuration at every $\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$ with three seeds each.
 
-\paragraph{Goal.} Fix every weight in \cref{eq:objective} other than $\kappa$ on the primary section before the sweep, by the probe protocol of \cref{sec:invariance}, so that the sweep varies one thing.
+\paragraph{Baselines.}
+We compare with resolVI \citep{ergen2025}, SIMVI \citep{dong2025simvi}, MintFlow \citep{akbarnejad2025mintflow} and Cellina \citep{moeed2026cellina}, each at its published defaults and on our graph wherever the method accepts an external one (\cref{tab:baselines}). All methods see the same cells, split and labels, and are scored by the same read-outs on their intrinsic latent.
 
-\paragraph{Protocol.} Short fits at $\kappa = 0.1$ scanning $\alphaa$ under the closed-form penalty, then $\alphaw$ and $\omega$; a convergence-length check of the closed-form operating point with both probe families; escalation to the adversary and a scan of its strength and update schedule; the operating point chosen at the crossing of held-out $\dCE$ and $\vz$--type agreement. The full calibration history, including the two knife-edges in $\alphaw$ and $\alphaa$ and the observation that an under-trained adversary is a placebo, is in \cref{app:calibration}.
+\subsection{Model Quality Across Four Tissues}
+\label{sec:results-quality}
+% manifest row 1: envelope table (recon, NMI, mirror, cycle_z/cycle_w, I(niche;w), transport, atlas)
 
-\paragraph{Result.} \pending{restate the operating point with seed envelopes once the calibration scans are repeated with three seeds}
+\subsection{What the Intrinsic State Carries}
+\label{sec:results-z}
+% manifest rows 2-3 (invariance, tab:probe), 12 (cycle 2x2; cycling-set decision pending), 13 (subtype recovery)
 
-\subsection{Synthetic Recovery}
-\label{sec:synthetic}
-
-\paragraph{Goal.} Show that the model recovers planted intrinsic states, responses and gene programmes from data simulated from its own generative story, with and without leakage, and that the invariance penalty keeps the planted niche out of $\vz$.
-
-\paragraph{Protocol.} See \cref{app:synthetic}. \pending{multi-seed recovery at planted $\kappa \in \{0, 0.2\}$; recovery as a function of the assumed $\kappa$ when it is misspecified}
+\subsection{What the Response Carries}
+\label{sec:results-w}
+% manifest rows 6-8 (transport mean read, Read A, Read B), 14 (atlas, GO localisation), 15-17 (external criteria)
 
 \subsection{The Leakage Sweep}
-\label{sec:sweep-results}
+\label{sec:results-sweep}
+% manifest rows 9-10 (kappa sweep, kappa-survival), 11 and 23 (kappa-form and false-positive-floor sensitivity, sensF), todo 8.19 (breakdown points)
 
-\paragraph{Goal.} Report every readout as a trajectory over $\kappa$ with seed envelopes, and identify which survive.
-
-\paragraph{Readouts.} Held-out reconstruction (globally and stratified by the number of edges a cell lost to pruning); the within-type mirror coefficient against its permuted control; $\vz$--type agreement; held-out probe $\dCE$ in both families against the noise floor; the stability of $\vB$ within and across seeds after optimal column matching; the per-type magnitude of the response; per-dimension spatial autocorrelation of both latents; the held-out niche probes of \cref{sec:allegiance}; details in \cref{app:low-degree,app:B-stability,app:w-norm}.
-
-\paragraph{Result.} \pending{leakage-sweep rerun with at least five seeds per $\kappa$; second section}
-
-\subsection{What \texorpdfstring{$\vz$}{z} Carries and What \texorpdfstring{$\vw$}{w} Carries}
-\label{sec:allegiance}
-
-\paragraph{Goal.} Every analysis here is a target variable with a known allegiance, probed identically from both latents against reference rows: a within-type permutation floor, a depth-only baseline (the probe from $\log \ell$ alone, since depth varies across tissue), and, for expression-derived targets, a linear reference from the leading principal components of the counts. The claim is always the asymmetry between the two latents, never one number. Spatial-block cross-validation is used throughout.
-
-\paragraph{Intrinsic target: cell-cycle phase.} Continuous S and G2/M scores from standard gene sets \citep{tirosh2016}, regressed within type from $\vmu_z$, $\vmu_w$ and the references on the types with the highest fraction of proliferating cells (\cref{app:validation}). \pending{multi-seed numbers}
-
-\paragraph{Spatial targets.} (i) A discrete niche label from $k$-means on neighbour composition ($10$ niches), predicted per type by class-balanced multinomial regression from each latent; (ii) per-dimension Moran's I \citep{moran1950} of each latent after per-type centring, against a permutation null, with collapsed response dimensions flagged; (iii) a principal-curve pseudotime in each latent space and its agreement with the tissue gradient after partialling out type; (iv) distance to anatomical landmarks (vasculature, compact smooth-muscle structures, the tumour--stroma interface) in a mid-range band where one-hop context cannot see the landmark, with an additional baseline from raw neighbour composition because the landmark sets are themselves type-defined (\cref{app:validation}). \pending{multi-seed numbers}
-
-\paragraph{Headline figure.} \todo{figure to be produced from the reruns} An allegiance matrix with the targets as rows and the two latents as columns, each cell certified by its references, expected to be block-diagonal; a companion plot of the key numbers against $\kappa$ with seed envelopes.
-
-\subsection{What the Response Looks Like at the Operating Point}
-\label{sec:w-degeneracy}
-
-\paragraph{Goal.} Report honestly how much per-cell information $\vw$ carries beyond its prior at the operating point: the coefficient of determination of $\vmu_w$ on $\mpsi(\vc, t)$, the per-dimension divergence, and the effective dimensionality of the response (\cref{app:w-prior}). \pending{multi-seed numbers}
+\subsection{Comparison with Other Models}
+\label{sec:results-baselines}
+% manifest row 4 (baseline battery at lineage labels), Cellina when run

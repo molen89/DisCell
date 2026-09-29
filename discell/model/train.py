@@ -34,7 +34,9 @@ import numpy as np
 import torch
 
 from discell import paths
+from discell.model import eval_mask as EM
 from discell.model import metrics as M
+from discell.model.cell_cycle import q90_keys, trainer_cycle_q90
 from discell.model.elbo import Weights, discell_loss, ensemble_adversary_terms
 from discell.model.equations import TypeCovariances, leakage_mix
 from discell.model.fp_floor import fp_floor_eta
@@ -226,14 +228,15 @@ class TrainConfig:
     fp_area: bool = False
     fp_lambda: float | None = None
     fp_cap_share: float | None = None
-    # optimisation
-    epochs: int = 200
+    # optimisation -- the budget is the reference fit's (author's decision
+    # 2026-09-28: a bare fit is a reference fit; sweeps pass 200/20 explicitly)
+    epochs: int = 500
     tile_cells: int = 4096
     lr: float = 1e-3
     weight_decay: float = 0.0          # Adam's coupled L2; 0 = the pinned runs
     grad_clip: float = 10.0
     val_fraction: float = 0.15
-    patience: int = 20
+    patience: int = 40
     nmi_guard: float = 0.9              # best must keep NMI >= guard * running max
     cov_ema: float = 0.05
     eval_every: int = 5
@@ -655,8 +658,17 @@ class Trainer:
 
         train_mask = np.zeros(len(rows_all), dtype=bool)
         train_mask[:len(train["nodes"])] = True
-        probe = M.probe_delta_ce(z_all, t_all, self.data.v_block[rows_all],
-                                 self.data.vbar_t, train_mask, ~train_mask,
+        # the evaluation mask (devlog 2026-09-28, Unassigned never a metric
+        # target): the type-conditioned reads grade target cells only. The
+        # checkpoint-selection pair (recon_val, nmi) keeps every held-out
+        # cell -- the fit loop reads it, and training does not change; their
+        # masked reads are recon_val_targets and nmi_targets.
+        names = self.data.type_names
+        targets = EM.metric_target_mask(t_all, names)
+        z_t, c_t, t_t = z_all[targets], c_all[targets], t_all[targets]
+        tr_t = train_mask[targets]
+        probe = M.probe_delta_ce(z_t, t_t, self.data.v_block[rows_all][targets],
+                                 self.data.vbar_t, tr_t, ~tr_t,
                                  seed=self.config.seed)
         cycle = None
         if self.data.cycle is not None:
@@ -690,25 +702,41 @@ class Trainer:
                                 )[:, None].astype(np.float64),
                          t_all, scores, cycling, train_mask, ~train_mask,
                          seed=self.config.seed)}
+        # the label-independent cycle read (author's decision 2026-09-28):
+        # the top decile of S + G2M among the held-out cells, every method
+        # alike; the top-4-MKI67-types block above is retired, kept as record
+        cycle_q90 = (None if self.data.cycle is None else trainer_cycle_q90(
+            self.data, rows_all, z_all, np.vstack([train["mu_w"], val["mu_w"]]),
+            train_mask, seed=self.config.seed))
         # spec 7.10 degeneracy pair: I(z;t)/H(t) + within-type variance, and
         # the held-out recon lost when each cell's z is its type's mean z
         recon = M.held_out_reconstruction(x_val, val["log_p"])
-        recon_typemean = M.held_out_reconstruction(x_val, val["log_p_typemean"])
+        t_val = self.data.t[val["nodes"]]
+        vt = EM.metric_target_mask(t_val, names)
+        recon_t = M.held_out_reconstruction(x_val[vt], val["log_p"][vt])
+        recon_typemean = M.held_out_reconstruction(
+            x_val[vt], val["log_p_typemean"][vt])
         recon_gap = {
-            "recon": recon, "recon_typemean_z": recon_typemean,
-            "gap": recon - recon_typemean,
+            "recon": recon_t, "recon_typemean_z": recon_typemean,
+            "gap": recon_t - recon_typemean,
             "recon_type_profile": M.type_profile_reconstruction(
-                self.data.x[train["nodes"]], t_train, x_val,
-                self.data.t[val["nodes"]])}
+                self.data.x[train["nodes"]], t_train, x_val[vt], t_val[vt])}
+        nmi = M.z_type_nmi(z_all, t_all, seed=self.config.seed)
+        z_n, t_n = EM.nmi_inputs(z_all, t_all, names)
         return {
             "cycle": cycle,
+            "cycle_q90": cycle_q90, **q90_keys(cycle_q90),
             "recon_val": recon,
-            "nmi": M.z_type_nmi(z_all, t_all, seed=self.config.seed),
-            "mirror": M.mirror_r2(z_all, c_all, t_all, seed=self.config.seed),
+            "recon_val_targets": recon_t,
+            "nmi": nmi,
+            "nmi_targets": (nmi if z_n is z_all
+                            else M.z_type_nmi(z_n, t_n, seed=self.config.seed)),
+            "mirror": M.mirror_r2(z_t, c_t, t_t, seed=self.config.seed),
             "probe": probe,
-            "degeneracy": M.type_degeneracy(z_all, t_all, train_mask,
-                                            ~train_mask, seed=self.config.seed),
+            "degeneracy": M.type_degeneracy(z_t, t_t, tr_t, ~tr_t,
+                                            seed=self.config.seed),
             "recon_gap": recon_gap,
+            "eval_mask": EM.record(names, t_all),
             "kl_w_per_dim": val["kl_w"].mean(axis=0).tolist(),
             "collected": {"rows": rows_all, "z": z_all,
                           "w": np.vstack([train["mu_w"], val["mu_w"]]),

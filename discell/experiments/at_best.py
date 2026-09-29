@@ -12,6 +12,15 @@ unchanged.
 
 The post-hoc reads (``degeneracy.json``, transport, atlas, cross-slide)
 already load ``best.pt``, so nothing here touches them.
+
+Under the evaluation mask (devlog 2026-09-28, Unassigned never a metric
+target) the history row is an unmasked read. The accepted checkpoint's
+battery under the mask is ``degeneracy.json``'s ``battery`` -- the same
+``Trainer.evaluate`` on ``best.pt``, re-run -- and :func:`battery_at_best`
+returns it when it exists, with ``nmi`` and ``recon_val`` the target reads
+(the checkpoint-selection scores kept as ``nmi_selection`` /
+``recon_val_selection``). Under the switch it returns the history row as
+before.
 """
 
 from __future__ import annotations
@@ -24,6 +33,28 @@ HEADER = "reads at the accepted checkpoint (R26)"
 AT_CHOICES = ("final", "best")
 
 
+def masked_battery(run_dir) -> dict | None:
+    """``best.pt``'s battery re-read under the evaluation mask in force
+    (``degeneracy.json``), in the shape of ``final``; None under the switch,
+    or when no such re-read is on disk."""
+    from discell.model import eval_mask as EM
+
+    path = Path(run_dir) / "degeneracy.json"
+    if not EM.exclusions() or not path.exists():
+        return None
+    post_hoc = json.loads(path.read_text())
+    battery = post_hoc.get("battery")
+    if not battery or not EM.same_mask(post_hoc.get("eval_mask")):
+        return None
+    return {**battery,
+            "nmi_selection": battery.get("nmi"),
+            "recon_val_selection": battery.get("recon_val"),
+            "nmi": battery.get("nmi_targets"),
+            "recon_val": battery.get("recon_val_targets"),
+            "at_best": True,
+            "source": "degeneracy.json battery (best.pt re-read, eval_mask)"}
+
+
 def battery_at_best(run_dir) -> dict:
     """The history row at ``metrics["best"]["epoch"]``, in the shape of ``final``.
 
@@ -34,6 +65,9 @@ def battery_at_best(run_dir) -> dict:
     ``best.pt``, as ``metrics["final_epoch"]`` says, so ``at_best`` stays True.
     """
     run_dir = Path(run_dir)
+    masked = masked_battery(run_dir)
+    if masked is not None:
+        return masked
     metrics = json.loads((run_dir / "metrics.json").read_text())
     best = metrics["best"]
     epoch = int(best["epoch"])

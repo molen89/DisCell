@@ -58,6 +58,7 @@ from typing import Sequence
 import numpy as np
 
 from discell import paths
+from discell.model import eval_mask as EM
 from discell.model.transport import (EPS, MIN_CELLS, MIN_RATE, TUMOUR_BANDS,
                                      collect_channels, group_eta, group_kappa,
                                      leak_rate, pick_pairs, tumour_band_labels)
@@ -225,7 +226,8 @@ def signalling_share(args: argparse.Namespace) -> dict:
     names = [str(n) for n in data.type_names]
     built = []
     for niche_a, niche_b in pick_pairs(labels, data.graph.y, connected):
-        for g in range(n_types):
+        # eval_mask: an excluded type (Unassigned) is never a panel's type
+        for g in EM.exclude_types(range(n_types), data.type_names):
             rows = {}
             ok = True
             for niche, side in ((niche_a, "A"), (niche_b, "B")):
@@ -274,6 +276,7 @@ def signalling_share(args: argparse.Namespace) -> dict:
 
     result = {"dataset": args.dataset, "run": args.run, "kappa": float(kappa),
               "niche_source": source, "n_panels": len(built),
+              "eval_mask": EM.record(data.type_names, data.t),
               "n_genes_scored": int(shares["scored"].sum()),
               "n_lr_in_panel": int(is_lr.sum()), "tests": {}}
     for channel in ("response", "leak", "both"):
@@ -445,7 +448,7 @@ def mi_quadrant(args: argparse.Namespace) -> dict:
     latents = collect_latents(trainer, data)
     connected = data.graph.degrees > 0
     out = {"dataset": args.dataset, "run": args.run, "kappa": float(config.kappa),
-           "sources": {}}
+           "eval_mask": EM.record(data.type_names, data.t), "sources": {}}
     rng = np.random.default_rng(config.seed)
 
     sources = ["kmeans"]
@@ -460,7 +463,8 @@ def mi_quadrant(args: argparse.Namespace) -> dict:
         labels = (bands if source == "tumour-band"
                   else niche_labels(data, args.niches, config.seed))
         rows = np.flatnonzero(connected & (labels >= 0)
-                              & (latents["fold"] == 0))   # held-out tiles
+                              & (latents["fold"] == 0)    # held-out tiles
+                              & EM.metric_target_mask(data.t, data.type_names))
         if len(rows) > MI_CELLS:
             rows = np.sort(rng.choice(rows, MI_CELLS, replace=False))
         y, t = labels[rows], data.t[rows]
@@ -581,13 +585,14 @@ def axis_test(args: argparse.Namespace) -> dict:
     names = [str(n) for n in data.type_names]
     result = {"dataset": args.dataset, "run": args.run,
               "kappa": float(config.kappa), "n_bands": n_bands,
+              "eval_mask": EM.record(data.type_names, data.t),
               "false_axis": {"coordinate": "xy"[axis_dim],
                              "spearman_with_band": {"x": rho_x, "y": rho_y}},
               "types": {}, "pooled": {}}
 
     pooled = {row: {"true": [], "false": []}
               for row in ("w_predicted", "raw_observed", "z_row", "l_row")}
-    for g in range(n_types):
+    for g in EM.exclude_types(range(n_types), data.type_names):
         members = connected & (data.t == g)
         if members.sum() < MIN_BAND_CELLS * n_bands:
             continue

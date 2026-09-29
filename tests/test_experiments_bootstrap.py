@@ -127,6 +127,31 @@ def test_cycle_cells_reproduce_the_pooled_cycle_r2():
         pytest.approx(ref["r2_pooled"])
 
 
+def test_cycle_cells_reproduce_the_top_decile_cycle_r2():
+    """The q90 read (``cycle_r2(..., cells=)``, author's decision 2026-09-28)
+    replayed per cell: the unit-weight statistic is the metric, and the
+    type path is unchanged by the ``cells`` option."""
+    from discell.model import metrics as M
+    from discell.model.cell_cycle import cycling_set
+
+    rng = np.random.default_rng(6)
+    n = 20000
+    t = rng.integers(0, 4, n)
+    latent = rng.standard_normal((n, 5))
+    scores = latent[:, :2] @ np.array([[1.0, 0.2], [0.3, 1.0]]) \
+        + 0.5 * rng.standard_normal((n, 2))
+    train = rng.random(n) < 0.7
+    cells = cycling_set(scores, ~train, eligible=t != 3)
+    ref = M.cycle_r2(latent, t, scores, None, train, ~train, seed=0,
+                     cells=cells)
+    got = B.cycle_cells(latent, t, scores, None, train, ~train, seed=0,
+                        cells=cells)
+    assert np.isfinite(ref["r2_pooled"])
+    assert B.cycle_statistic(got, np.ones(len(got["rows_test"]))) == \
+        pytest.approx(ref["r2_pooled"])
+    assert not np.isin(got["rows_test"], np.flatnonzero(t == 3)).any()
+
+
 @pytest.mark.parametrize("family", ["ridge", "mlp"])
 def test_probe_cells_reproduce_the_per_block_excess(family):
     from discell.model import metrics as M

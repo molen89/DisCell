@@ -63,6 +63,7 @@ from typing import Sequence
 
 import numpy as np
 
+from discell.model import eval_mask as EM
 from discell.model import metrics as M
 
 log = logging.getLogger("discell.experiments.cycle_2x2")
@@ -275,6 +276,8 @@ def one_seed(dataset: str, seed: int, device: str) -> dict:
     held = ~train
     lineages = {}
     for g, name in enumerate(names["new"]):
+        if EM.is_excluded(name):          # eval_mask: never a read's target
+            continue
         in_g = t_lin == g
         entry = {"name": name, "n_heldout": int((in_g & held).sum()),
                  "mki67pos_fraction": float(new["mki67"][new["t"] == g].mean()),

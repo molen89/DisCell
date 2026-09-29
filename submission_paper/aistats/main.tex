@@ -15,6 +15,7 @@
 \usepackage{xcolor}
 \usepackage{microtype}
 \usepackage{enumitem}
+\PassOptionsToPackage{hyphens}{url}
 \usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
 \usepackage[capitalise,noabbrev]{cleveref}
 
@@ -37,10 +38,7 @@
 
 \input{sections/introduction}
 \input{sections/method}
-% \input{sections/experiments}   % evaluation deferred; draft kept on disk, out of the build
-\section{EXPERIMENTS}
-\label{sec:experiments}
-\todo{Deferred. The model is still under development; every evaluation and experiment is added once the protocol is final. The drafted experiments section and the calibration, data, synthetic, validation and additional-results appendices are kept on disk, out of the build.}
+\input{sections/experiments}
 \input{sections/conclusion}
 
 \bibliographystyle{apalike}
@@ -57,6 +55,7 @@
 \input{appendix/derivations}
 \input{appendix/rationale}
 \input{appendix/implementation}
+\input{appendix/experimental}
 % evaluation-only appendices, deferred with the experiments section:
 % \input{appendix/data}
 % \input{appendix/calibration}

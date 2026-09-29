@@ -26,6 +26,7 @@ from typing import Sequence
 import numpy as np
 
 from discell import paths
+from discell.model import eval_mask as EM
 from discell.model import metrics as M
 from discell.model.prepare import assemble
 from discell.model.train import Trainer, config_from_record
@@ -110,16 +111,21 @@ def w_channel_guard(w: np.ndarray, niche: np.ndarray, t: np.ndarray,
 
 
 def w_channel_guard_from_trainer(trainer, niches: int = W_GUARD_NICHES) -> dict:
-    """``w_channel_guard`` on one fitted run's held-out (validation) cells."""
+    """``w_channel_guard`` on one fitted run's held-out (validation) cells,
+    the metric targets among them (``eval_mask``: the floor permutes within
+    the target types). The niche labels are the composition's, every cell."""
     from discell.model.validate import niche_labels
 
     seed = trainer.config.seed
     sweep = trainer._sweep(trainer.val_batches)
     rows = sweep["nodes"]
     labels = niche_labels(trainer.data, niches, seed)
-    out = w_channel_guard(sweep["mu_w"], labels[rows], trainer.data.t[rows],
-                          seed=seed)
+    t = trainer.data.t[rows]
+    targets = EM.metric_target_mask(t, trainer.data.type_names)
+    out = w_channel_guard(sweep["mu_w"][targets], labels[rows][targets],
+                          t[targets], seed=seed)
     out["niches"] = int(niches)
+    out["eval_mask"] = EM.record(trainer.data.type_names, t)
     return out
 
 
@@ -263,12 +269,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                  g["b_minus_d"], g["d_minus_e"], g["a_minus_b"])
         return 0
     report = trainer.evaluate()
+    report.pop("collected")
     guard = w_channel_guard_from_trainer(trainer, args.niches)
     out = {"run": args.run, "epoch": epoch, "recon_val": report["recon_val"],
            "nmi": report["nmi"], "degeneracy": report["degeneracy"],
            "w_channel": guard,
-           "recon_gap": report["recon_gap"]}
-    (run_dir / "degeneracy.json").write_text(json.dumps(out, indent=2))
+           "recon_gap": report["recon_gap"],
+           # the whole in-trainer battery at best.pt under the evaluation
+           # mask: the source of the at-best rows for a run not refitted
+           "recon_val_targets": report["recon_val_targets"],
+           "nmi_targets": report["nmi_targets"],
+           "eval_mask": report["eval_mask"],
+           "battery": {**report, "epoch": epoch}}
+    (run_dir / "degeneracy.json").write_text(json.dumps(out, indent=2,
+                                                         default=float))
     d, g = out["degeneracy"], out["recon_gap"]
     log.info("%s (epoch %d): I/H %.3f  within-var %.3f  recon %.4f  "
              "type-mean z %.4f  gap %.4f  type profile %.4f",

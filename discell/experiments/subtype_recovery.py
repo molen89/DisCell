@@ -536,6 +536,8 @@ def encode(dataset: str, run: str, device: str) -> dict:
 
 def grade_run(dataset: str, run: str, device: str = "cuda",
               n_boot: int = N_BOOT, n_perm: int = N_PERM) -> dict:
+    from discell.model import eval_mask as EM
+
     enc = encode(dataset, run, device)
     config = enc["config"]
     tables = label_tables(dataset)
@@ -552,9 +554,16 @@ def grade_run(dataset: str, run: str, device: str = "cuda",
     groups = build_groups(old_all, enc["lineage"], tables,
                           EXTRA_GROUPS.get(dataset, ()))
     records = []
+    excluded_groups = []
     for gi, group in enumerate(groups):
+        # eval_mask: an excluded lineage (Unassigned) is no group, and an
+        # excluded old label no sublabel; gi, the group's seed, is kept
+        if any(EM.is_excluded(lin) for lin in group["lineages"]):
+            excluded_groups.append(group["name"])
+            continue
         member = np.isin(lineage, group["lineages"])
-        subs = sorted(set(old[member].tolist()))
+        subs = sorted(s for s in set(old[member].tolist())
+                      if not EM.is_excluded(s))
         kept, dropped = [], []
         for s in subs:
             n_tr = int((member & is_train & (old == s)).sum())
@@ -595,6 +604,7 @@ def grade_run(dataset: str, run: str, device: str = "cuda",
             "variant": config.variant, "label_key": config.label_key,
             "source_key": tables["source_key"],
             "n_heldout": int((~is_train).sum()),
+            "eval_mask": {**EM.record(), "groups_excluded": excluded_groups},
             "settings": {"min_train": MIN_TRAIN, "min_test": MIN_TEST,
                          "max_train_per_class": MAX_TRAIN_PER_CLASS,
                          "ridge_penalty": RIDGE_PENALTY, "n_perm": n_perm,

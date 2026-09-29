@@ -33,6 +33,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from discell import paths
+from discell.model import eval_mask as EM
 from discell.model.labels import is_endothelial, is_smooth_muscle, is_tumour
 from discell.model.prepare import ModelData, assemble
 from discell.model.train import Trainer, config_from_record
@@ -115,16 +116,22 @@ def probe_blocks_for_run(data: ModelData, mu_z: np.ndarray, seed: int,
     validation-tile seeds (a batch's seeds are its tile, in order); the
     training tiles fit, the validation tiles (held out) grade -- so the
     ``legacy`` block is the in-trainer probe dCE of these same weights.
+    Target cells only (``eval_mask``): the floor permutes within the target
+    types, as the in-trainer probe does.
     """
     from discell.model import metrics as M
 
     rows = np.concatenate(data.train_tiles + data.val_tiles)
     n_train = sum(len(tile) for tile in data.train_tiles)
     train = np.arange(len(rows)) < n_train
+    mask = EM.record(data.type_names, data.t[rows])
+    targets = EM.metric_target_mask(data.t[rows], data.type_names)
+    rows, train = rows[targets], train[targets]
     record = M.probe_blocks(mu_z[rows], data.t[rows], data.v_block[rows],
                             data.vbar_t, train, ~train, n_comp=data.n_comp,
                             seed=seed, n_perm=n_perm)
-    record.update(n_cells=int(len(rows)), n_heldout=int((~train).sum()))
+    record.update(n_cells=int(len(rows)), n_heldout=int((~train).sum()),
+                  eval_mask=mask)
     return record
 
 
@@ -214,10 +221,19 @@ def macro_auc(target: np.ndarray, probs: np.ndarray) -> float:
 
 # -- section 3: per-dimension Moran's I -------------------------------------
 
-def row_normalised_graph(data: ModelData) -> tuple[sp.csr_matrix, np.ndarray]:
-    """Binary symmetric adjacency over connected cells, row-normalised."""
+def row_normalised_graph(data: ModelData, keep: np.ndarray | None = None
+                         ) -> tuple[sp.csr_matrix, np.ndarray]:
+    """Binary symmetric adjacency over connected cells, row-normalised.
+
+    *keep* (bool per cell): the graph induced on those cells -- the metric
+    targets of the evaluation mask; a cell whose neighbours are all dropped
+    counts as not connected. ``None`` or all True: the whole graph.
+    """
     n = data.graph.n_cells
     i, j = data.graph.edge_i, data.graph.edge_j
+    if keep is not None and not np.all(keep):
+        inside = keep[i] & keep[j]
+        i, j = i[inside], j[inside]
     adj = sp.coo_matrix(
         (np.ones(2 * len(i)), (np.concatenate([i, j]),
                                np.concatenate([j, i]))),
@@ -251,7 +267,10 @@ def morans_i(values: np.ndarray, weights: sp.csr_matrix,
 
 def analysis_morans(data: ModelData, latents: dict, n_perms: int,
                     seed: int) -> dict:
-    weights, connected = row_normalised_graph(data)
+    # target cells only (eval_mask): an excluded cell has no type centre, so
+    # it enters neither as a value nor as a neighbour of the read
+    weights, connected = row_normalised_graph(
+        data, EM.metric_target_mask(data.t, data.type_names))
     weights = weights[connected][:, connected]
     out = {}
     for label in ("mu_z", "mu_w"):
@@ -352,7 +371,7 @@ def analysis_niche(data: ModelData, latents: dict, k_grid: Sequence[int],
     for k in k_grid:
         labels = niche_labels(data, k, seed)
         per_type: dict = {}
-        for g in range(len(data.p_t)):
+        for g in EM.exclude_types(range(len(data.p_t)), data.type_names):
             members = np.flatnonzero((data.t == g) & (labels >= 0))
             counts = np.bincount(labels[members], minlength=k)
             kept = np.flatnonzero(counts >= 500)
@@ -589,7 +608,7 @@ def analysis_landmarks(data: ModelData, latents: dict, b_matrix: np.ndarray,
 
         per_type: dict = {}
         theta_by_type: dict = {}
-        for g in range(len(data.p_t)):
+        for g in EM.exclude_types(range(len(data.p_t)), data.type_names):
             type_rows = eligible & (data.t == g)
             if type_rows.sum() < MIN_CELLS_PER_TYPE:
                 continue
@@ -728,15 +747,17 @@ def landmark_figure(result: dict, path: Path) -> None:
 
 def cycle_row(data: ModelData, latents: dict, max_cells: int,
               seed: int) -> dict:
-    """S/G2M from both latents under this doc's conventions (block CV,
-    within cycling types), with floor, l-baseline and the 50-PC linear
-    expression reference (not a ceiling -- z may exceed it)."""
+    """S/G2M from both latents under this doc's conventions (block CV, on
+    the top-decile cycling set -- author's decision 2026-09-28, the set of
+    every battery -- centred per label within it), with floor, l-baseline
+    and the 50-PC linear expression reference (not a ceiling -- z may
+    exceed it)."""
+    from discell.model.cell_cycle import slide_cycling_set
+
     rng = np.random.default_rng(seed)
     cyc = data.cycle
-    names = [str(n) for n in data.type_names]
-    types = [g for g in cyc["cycling_types"] if "nassigned" not in names[g]][:4]
     scores = np.stack([cyc["s_score"], cyc["g2m_score"]], axis=1)
-    members = np.flatnonzero(np.isin(data.t, types)
+    members = np.flatnonzero(slide_cycling_set(data)
                              & (data.graph.degrees > 0))
     if len(members) > max_cells:
         members = np.sort(rng.choice(members, max_cells, replace=False))
@@ -756,7 +777,7 @@ def cycle_row(data: ModelData, latents: dict, max_cells: int,
         out[name] = float(np.mean([r2(target[:, k], held[:, k])
                                    for k in range(2)]))
     floor_target = target.copy()
-    for g in types:
+    for g in np.unique(data.t[members]):
         sel = np.flatnonzero(data.t[members] == g)
         floor_target[sel] = target[sel[rng.permutation(len(sel))]]
     held = np.stack([ridge_cv(designs["z"], floor_target[:, k], fold)
@@ -783,7 +804,7 @@ def allegiance_matrix(results: dict, pseudo: dict, path: Path) -> dict:
         for entry in results["landmarks"]["classes"].values()
         if "mid" in entry["pooled"].get(probe, {})]))
         for probe in ("z", "w", "lbaseline", "floor")}
-    cycle = results["cycle_row"]
+    cycle = results["cycle_row_q90"]
     matrix = {
         "S/G2M score (intrinsic)": {
             "z": cycle["z"], "w": cycle["w"], "floor": cycle["floor"],
@@ -874,7 +895,8 @@ def run_analyses(args: argparse.Namespace, run: str) -> dict:
     results: dict = {}
     if (out_dir / "validation.json").exists():
         results = json.loads((out_dir / "validation.json").read_text())
-    results.update({"run": run, "kappa": config.kappa, "seed": config.seed})
+    results.update({"run": run, "kappa": config.kappa, "seed": config.seed,
+                    "eval_mask": EM.record(data.type_names, data.t)})
 
     if "probe" in wanted:
         from discell.model import metrics as M
@@ -923,8 +945,8 @@ def run_analyses(args: argparse.Namespace, run: str) -> dict:
     if "matrix" in wanted:
         from discell.model.report import pseudotime_cross_check
 
-        results["cycle_row"] = cycle_row(data, latents, args.max_cells,
-                                         config.seed)
+        results["cycle_row_q90"] = cycle_row(data, latents, args.max_cells,
+                                             config.seed)
         rows = np.arange(data.graph.n_cells)
         pseudo = pseudotime_cross_check(
             latents["mu_z"], latents["mu_w"], data.graph.y, data.t,
@@ -961,16 +983,19 @@ def _program_loadings(args, run: str, shared: dict):
             np.asarray((data.x > 0).mean(axis=0)).ravel() >= 0.01)
         shared["hallmarks"] = read_hallmarks(
             set(shared["gene_names"][shared["expressed"]]))
+    from discell.model.atlas import programs_cache_valid, write_programs
+
     cache = run_dir / "atlas" / "programs.npy"
-    if cache.exists() and not args.force:
+    if programs_cache_valid(cache) and not args.force:
         loadings = np.load(cache)
         info = {"rank": int(loadings.shape[1])}
     else:
         latents = collect_latents(trainer, data)
+        targets = EM.metric_target_mask(data.t, data.type_names)
         _, loadings, info = centred_program_basis(
-            latents["mu_w"], data.t, b_matrix, shared["expressed"])
-        cache.parent.mkdir(parents=True, exist_ok=True)
-        np.save(cache, loadings.astype(np.float32))
+            latents["mu_w"][targets], data.t[targets], b_matrix,
+            shared["expressed"])
+        write_programs(cache, loadings, data.type_names, data.t)
     return {"run": run, "kappa": config.kappa, "seed": config.seed,
             "loadings": loadings, "b_matrix": b_matrix,
             "rank": int(info["rank"])}

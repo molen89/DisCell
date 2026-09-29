@@ -37,8 +37,14 @@ on the same functions in :mod:`discell.model.metrics`:
                    used for every method, so this is a like-for-like read of
                    how much neighbourhood the latent carries.
 ``cycle_z``        within-type, held-out ridge R^2 of the continuous S/G2M
-                   scores from the intrinsic latent (pooled over the cycling
-                   types), with the within-type permuted control.
+                   scores from the intrinsic latent, pooled over the cycling
+                   set -- the top decile of S + G2M among the slide's
+                   held-out non-Unassigned cells (``cycle_q90``; author's
+                   decision 2026-09-28), one set per slide for every method
+                   -- centred per label within it, with the within-type
+                   permuted control and the 50-PC linear reference on counts.
+                   ``cycle`` is the retired label-derived read (top-4 MKI67
+                   types), kept for the record.
 ``cycle_spatial``  the same from the tool's spatial / microenvironment latent:
                    it should sit at the floor, because cycle is intrinsic.
 ``mi_ratio``,      the degeneracy pair: a held-out probe lower bound on
@@ -57,6 +63,7 @@ from pathlib import Path
 
 import numpy as np
 
+from discell.model import eval_mask as EM
 from discell.model import metrics as M
 
 log = logging.getLogger("discell.baseline_battery")
@@ -70,24 +77,43 @@ MAX_RECON_CELLS = 40_000
 def battery(z: np.ndarray, t: np.ndarray, train: np.ndarray, test: np.ndarray,
             v_block: np.ndarray, vbar_t: np.ndarray, c: np.ndarray,
             spatial: np.ndarray | None = None, cycle: dict | None = None,
-            seed: int = 0, n_comp: int | None = None) -> dict:
+            seed: int = 0, n_comp: int | None = None,
+            type_names=None) -> dict:
     """Every read of the battery from plain arrays; no IO, no model state.
 
     All arrays are indexed by *the cells this method produced a latent for*;
     ``train`` / ``test`` are boolean masks over the same rows. *n_comp*, the
     width of v_block's composition block, adds the per-block probe
-    (``probe_blocks``, both graders, R20 + R22).
+    (``probe_blocks``, both graders, R20 + R22). With *type_names* (the
+    vocabulary ``t`` indexes) every read grades the metric targets only
+    (``discell.model.eval_mask``), identically for every method.
     """
     z = np.asarray(z, dtype=np.float64)
+    mask = None
+    if type_names is not None:
+        mask = EM.record(type_names, t)
+        on = EM.metric_target_mask(t, type_names)
+        if not on.all():
+            z, t, train, test = z[on], t[on], train[on], test[on]
+            v_block, c = v_block[on], np.asarray(c)[on]
+            spatial = None if spatial is None else np.asarray(spatial)[on]
+            if cycle is not None:     # every per-row entry of the targets
+                cycle = {**cycle, **{k: np.asarray(cycle[k])[on]
+                                     for k in ("scores", "cells", "x_pcs")
+                                     if cycle.get(k) is not None}}
+    z_n, t_n = (EM.nmi_inputs(z, t, type_names) if type_names is not None
+                else (z, t))
     out = {
         "n_cells": int(len(z)), "n_heldout": int(test.sum()),
         "d_intrinsic": int(z.shape[1]),
         "d_spatial": int(spatial.shape[1]) if spatial is not None else 0,
-        "nmi": M.z_type_nmi(z, t, seed=seed),
+        "nmi": M.z_type_nmi(z_n, t_n, seed=seed),
         "mirror": M.mirror_r2(z, np.asarray(c, dtype=np.float64), t, seed=seed),
         "probe": M.probe_delta_ce(z, t, v_block, vbar_t, train, test, seed=seed),
         "degeneracy": M.type_degeneracy(z, t, train, test, seed=seed),
     }
+    if mask is not None:
+        out["eval_mask"] = mask
     if n_comp is not None:
         out["probe_blocks"] = M.probe_blocks(z, t, v_block, vbar_t, train,
                                              test, n_comp=n_comp, seed=seed)
@@ -107,7 +133,28 @@ def battery(z: np.ndarray, t: np.ndarray, train: np.ndarray, test: np.ndarray,
             out["cycle"]["spatial"] = M.cycle_r2(
                 np.asarray(spatial, dtype=np.float64), t, scores, types,
                 train, test, seed=seed)
+        if cycle.get("cells") is not None:
+            out["cycle_q90"] = cycle_q90_column(z, spatial, t, train, test,
+                                                cycle, seed=seed)
     return out
+
+
+def cycle_q90_column(z: np.ndarray, spatial: np.ndarray | None, t: np.ndarray,
+                     train: np.ndarray, test: np.ndarray, cycle: dict,
+                     seed: int = 0) -> dict:
+    """The cycle reads on the top-decile set ``cycle["cells"]`` (the slide's
+    set restricted to this method's rows): the intrinsic latent, the second
+    latent and, when given, the 50-PC linear reference on counts."""
+    from discell.model.cell_cycle import cycle_q90_reads
+
+    designs = {"z": np.asarray(z, dtype=np.float64)}
+    if spatial is not None and spatial.shape[1] > 0:
+        designs["spatial"] = np.asarray(spatial, dtype=np.float64)
+    if cycle.get("x_pcs") is not None:
+        designs["linear_ref"] = cycle["x_pcs"]
+    return cycle_q90_reads(designs, t, np.asarray(cycle["scores"], np.float64),
+                           train, test, np.asarray(cycle["cells"], bool),
+                           seed=seed)
 
 
 def reconstruction(x, t: np.ndarray, train: np.ndarray, rows: np.ndarray,
@@ -155,15 +202,23 @@ def shared_side(dataset: str, config: dict):
     test = np.zeros(n, dtype=bool)
     for tile in data.val_tiles:
         test[tile] = True
-    cycle = None
-    if data.cycle is not None:
-        names = [str(x) for x in data.type_names]
-        types = np.array([g for g in data.cycle["cycling_types"]
-                          if "nassigned" not in names[g]][:4])
-        cycle = {"types": types,
-                 "scores": np.stack([data.cycle["s_score"],
-                                     data.cycle["g2m_score"]], axis=1)}
-    return data, ~test, test, cycle
+    return data, ~test, test, cycle_inputs(data)
+
+
+def cycle_inputs(data) -> dict | None:
+    """The cycle targets every column of a slide shares: the scores, the
+    top-decile cycling set (``cells``, node-indexed), the 50-PC linear
+    reference design, and the retired label-derived ``types``."""
+    from discell.model.cell_cycle import slide_cycling_set
+
+    if data.cycle is None:
+        return None
+    names = [str(x) for x in data.type_names]
+    return {"types": np.array([g for g in data.cycle["cycling_types"]
+                               if "nassigned" not in names[g]][:4]),
+            "scores": np.stack([data.cycle["s_score"],
+                                data.cycle["g2m_score"]], axis=1),
+            "cells": slide_cycling_set(data), "x_pcs": data.cycle["x_pcs"]}
 
 
 def context_path(dataset: str, run: str, tag: str) -> Path:
@@ -206,14 +261,7 @@ def discell_column(dataset: str, run: str, config_from: str | None,
         for tile in data.val_tiles:
             test[tile] = True
         train = ~test
-        names = [str(x) for x in data.type_names]
-        cycle = None
-        if data.cycle is not None:
-            types = np.array([g for g in data.cycle["cycling_types"]
-                              if "nassigned" not in names[g]][:4])
-            cycle = {"types": types,
-                     "scores": np.stack([data.cycle["s_score"],
-                                         data.cycle["g2m_score"]], axis=1)}
+        cycle = cycle_inputs(data)
     else:
         data, train, test, cycle = shared_side(dataset, run_config(source, run))
         names_a = [str(x) for x in data_a.type_names]
@@ -245,7 +293,7 @@ def discell_column(dataset: str, run: str, config_from: str | None,
 
     reads = battery(z, data.t, train, test, data.v_block, data.vbar_t, c,
                     spatial=w, cycle=cycle, seed=config.seed,
-                    n_comp=data.n_comp)
+                    n_comp=data.n_comp, type_names=data.type_names)
     reads["kl_z_mean"] = float(np.mean(swept["kl_z"]))
     reads["kl_w_mean"] = float(np.mean(swept["kl_w"].sum(axis=1)))
 
@@ -253,6 +301,8 @@ def discell_column(dataset: str, run: str, config_from: str | None,
     if len(rows) > MAX_RECON_CELLS:
         rows = np.sort(np.random.default_rng(0).choice(rows, MAX_RECON_CELLS,
                                                        replace=False))
+    # the metric targets among them (eval_mask), as for a baseline column
+    rows = rows[EM.metric_target_mask(data.t[rows], data.type_names)]
     val = trainer._sweep(trainer.val_batches, want_log_p=True)
     keep = np.isin(val["nodes"], rows)
     x_test = np.asarray(data.x[val["nodes"][keep]].todense(), dtype=np.float64)
@@ -280,6 +330,7 @@ LATENT_KEYS = {
     "resolvi": ("X_resolvi", "X_resolvi_mixture"),
     "simvi": ("X_simvi_intrinsic", "X_simvi_spatial"),
     "mintflow": ("X_mintflow_intrinsic", "X_mintflow_micro_in"),
+    "cellina": ("X_cellina_intrinsic", "X_cellina_spatial"),
 }
 
 
@@ -312,11 +363,14 @@ def baseline_column(dataset: str, method: str, latents: str, config: dict,
                          "export and the battery disagree about the split")
     sub_cycle = None
     if cycle is not None:
-        sub_cycle = {"types": cycle["types"], "scores": cycle["scores"][rows]}
+        # the slide's cycling set restricted to the cells this tool scored
+        sub_cycle = {"types": cycle["types"], "scores": cycle["scores"][rows],
+                     **{k: cycle[k][rows] for k in ("cells", "x_pcs")
+                        if cycle.get(k) is not None}}
     reads = battery(z, data.t[rows], train[rows], test[rows],
                     data.v_block[rows], data.vbar_t, c[rows],
                     spatial=spatial, cycle=sub_cycle, seed=seed,
-                    n_comp=data.n_comp)
+                    n_comp=data.n_comp, type_names=data.type_names)
 
     decoded = Path(latents).parent / "decoded_heldout.npz"
     rate, dec_rows = None, None
@@ -328,6 +382,11 @@ def baseline_column(dataset: str, method: str, latents: str, config: dict,
         if len(dec_rows) > MAX_RECON_CELLS:
             dec_rows = np.sort(np.random.default_rng(0).choice(
                 dec_rows, MAX_RECON_CELLS, replace=False))
+    # the decoded held-out cells that are metric targets (eval_mask)
+    on = EM.metric_target_mask(data.t[dec_rows], data.type_names)
+    if not on.all():
+        dec_rows = dec_rows[on]
+        rate = None if rate is None else np.asarray(rate)[on]
     reads["reconstruction"] = reconstruction(data.x, data.t, train, dec_rows,
                                              rate)
     reads["config"] = cfg
@@ -353,9 +412,20 @@ ROWS = [
      else "FAIL"),
     ("mirror R2", lambda r: f"{r['mirror']['r2']:.3f}"),
     ("mirror R2 (permuted)", lambda r: f"{r['mirror']['r2_permuted']:.3f}"),
-    ("cycle R2, intrinsic", lambda r: _cyc(r, "z", "r2_pooled")),
-    ("cycle R2, permuted", lambda r: _cyc(r, "z", "r2_permuted")),
-    ("cycle R2, spatial", lambda r: _cyc(r, "spatial", "r2_pooled")),
+    ("cycle R2, intrinsic (top-decile set)",
+     lambda r: _cyc(r, "z", "r2_pooled", "cycle_q90")),
+    ("cycle R2, permuted (top-decile set)",
+     lambda r: _cyc(r, "z", "r2_permuted", "cycle_q90")),
+    ("cycle R2, spatial (top-decile set)",
+     lambda r: _cyc(r, "spatial", "r2_pooled", "cycle_q90")),
+    ("cycle R2, linear reference on counts (top-decile set)",
+     lambda r: _cyc(r, "linear_ref", "r2_pooled", "cycle_q90")),
+    ("cycle R2, intrinsic (label-derived set, retired)",
+     lambda r: _cyc(r, "z", "r2_pooled")),
+    ("cycle R2, permuted (label-derived set, retired)",
+     lambda r: _cyc(r, "z", "r2_permuted")),
+    ("cycle R2, spatial (label-derived set, retired)",
+     lambda r: _cyc(r, "spatial", "r2_pooled")),
     ("I(z;t)/H(t)", lambda r: f"{r['degeneracy']['mi_ratio']:.3f}"),
     ("within-type var fraction",
      lambda r: f"{r['degeneracy']['within_var_fraction']:.3f}"),
@@ -379,8 +449,8 @@ def _gain(reads: dict, family: str, block: str) -> str:
             f"{b['gain']:+.4f} / {b['floor_mean']:+.4f} ± {b['floor_sd']:.4f})")
 
 
-def _cyc(reads: dict, which: str, field: str) -> str:
-    block = (reads.get("cycle") or {}).get(which)
+def _cyc(reads: dict, which: str, field: str, key: str = "cycle") -> str:
+    block = (reads.get(key) or {}).get(which)
     if not block or not np.isfinite(block.get(field, np.nan)):
         return "--"
     return f"{block[field]:.3f}"

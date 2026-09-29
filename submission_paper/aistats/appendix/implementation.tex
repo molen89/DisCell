@@ -28,24 +28,24 @@ Loadings $\vB$ & $\vw_i$ & linear $\dw \to G$, no bias \\
 Adversary heads & $\vmu_{z,i} \oplus \onehot(t_i)$ & two heads $64 \to 64 \to K$ (composition) and $\to \Ephi = K$ (image niche) \\
 Image niche $\ephi_i$ & $12$ principal components of $\vPhi$ & soft $k$-means memberships $\softmax(-d^2/T)$, $T$ the median nearest squared distance; the projection is fitted on a $50{,}000$-cell random subsample and applied to all cells, the $k$-means (four restarts) on all cells; fitted once and frozen \\
 Invariance block $\vv_i$ & & $[\vy_i^{(-K)},\ 12 \text{ principal components of } \vPhi_i]$ \\
-Held-out probes & $\vmu_{z,i} \oplus \onehot(t_i)$ & ridge regression ($\lambda = 10^{-3}$) with a within-type permutation floor; perceptron $64 \to 64$, $300$ Adam steps at $10^{-3}$ with batches of $2{,}048$; both fitted on at most $30{,}000$ training-tile cells \\
+Held-out probes & $\vmu_{z,i} \oplus \onehot(t_i)$ & ridge regression ($\lambda = 10^{-3}$) and perceptron $64 \to 64$ ($300$ Adam steps at $10^{-3}$, batches of $2{,}048$), each scored per block against its own within-type permutation floor; both fitted on at most $30{,}000$ training-tile cells \\
 \midrule
 Graph & & Delaunay adjacency; Voronoi faces measured within $30\um$ discs; prune at $40\um$ \\
 Kernel $\beta$ & & $f_{ij}\exp(-d_{ij}/\tau)$, $\tau = 20\um$, row-normalised over in-edges \\
 Prior scale $\sigma_w$ & & $1$ (fixed) \\
 \midrule
-Leak fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; the operating point is a grid point chosen on the primary section \\
+Leak fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; the operating point $0.1$ is a grid point chosen on the primary section (\cref{sec:setup}) \\
 $\omega$ & & $1$ \\
-$\alphaz$ & & $\tfrac12/\lbar$, half the bound-equivalent value (\cref{sec:objective}), set per section from its mean total count \\
-$\alphaw$ & & calibrated \\
-$\alphaa$ (adversary) & & calibrated; the number of head updates per model update and the head learning rate are set so that the independent probe, not the heads' own loss, certifies head strength \\
+$\alphaz$ & & $\tfrac12/\lbar$, half the bound-equivalent value, with $\lbar$ the section's count scale (\cref{sec:objective}) \\
+$\alphaw$ & & $0.1$, far above $1/\lbar$ (\cref{sec:objective}); ramped linearly from $0$ over the first $30$ epochs \\
+$\alphaa$ (adversary) & & $0.3$; six head updates per model update at learning rate $2 \times 10^{-3}$, set so that the independent probe, not the heads' own loss, certifies head strength; composition half weighted $\lambda_y = 3$ \\
 $\alphaa$ (closed form) & & calibrated by the same probe protocol \\
 Moving-average rate, shrinkage & & $0.05$, $0.05$; support floor $10\times$ joint dimension \\
 \midrule
 Tiles & & recursive median split into rectangles of $\leq 4{,}096$ cells; $15\%$ of tiles held out \\
 Optimiser & & Adam \citep{kingma2015adam}, learning rate $10^{-3}$, cosine annealing \citep{loshchilov2017} over the epoch budget, gradient-norm clip $10$ \\
 Evaluation & & every $5$ epochs on posterior means; checkpoint accepted if held-out reconstruction improves and $\vz$--type agreement $\geq 0.9\times$ its running maximum; patience in epochs set with the budget; $\alphaw$ ramped linearly from $0$ over the first $30$ epochs, during which no checkpoint is accepted and patience does not count \\
-Hardware & & one consumer GPU \\
+Hardware & & one NVIDIA GeForce RTX 4090 (24\,GB) per fit \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -74,7 +74,7 @@ Penalty, adversary and probe input & posterior means $\vmu_z$, not samples & enc
 Objective granularity & per-cell mean over the batch rather than a sum & invariant to tile size \\
 Evaluation draws & posterior means & the stopping signal should not ride reparameterisation noise \\
 Image embedding dimension & the full native embedding into $\vc_i$ rather than a $32$--$64$-dimensional projection & the deciding test is held-out reconstruction with and without the projection; the invariance block uses $12$ principal components regardless \\
-Probe target for the image & Gaussian cross-entropy on the continuous block rather than categorical cross-entropy against image-niche clusters & the closed-form penalty takes continuous components directly; a small nonlinear probe is fitted alongside as a cross-check \\
+Probe target for the image & Gaussian log-likelihood gain on the continuous components, per block, rather than categorical cross-entropy against image-niche clusters & the closed-form penalty takes continuous components directly; a small nonlinear probe is fitted alongside and is the probe the decision rule reads (\cref{sec:invariance}) \\
 Graph construction & the Voronoi tessellation is clipped to $30\um$ discs before faces are measured, then edges are pruned at $40\um$ & the clip removes faces only for pairs more than roughly $60\um$ apart, which the prune removes anyway, and bounds the length of faces at tissue borders and across gaps; the effect on $\beta$ for kept edges has not been quantified \todo{quantify} \\
 Invariance mechanism & the adversary is the operating configuration; the closed-form penalty is the cheaper first attempt & the escalation rule of \cref{sec:invariance} decides between them on each section \\
 \bottomrule
@@ -114,4 +114,49 @@ Not built & Dirichlet-multinomial likelihood; per-cell counterfactuals with abdu
 \caption{Tiles, the held-out split and the two-hop halo on the primary section. \textbf{a},~The section cut into contiguous tiles of at most $4{,}096$ cells by recursive median split. Hatched tiles are held out ($15\%$ of tiles, one split). The blue tile is shown in b, and the black square marks the window of b. \textbf{b},~Where that training tile meets a held-out tile (left) and another training tile (below). The tile's cells are the seeds, on which the loss is evaluated. Ring one, their graph neighbours, has its context, response and clean composition computed in the same pass. Those compositions enter the seeds' foreign influx under a stop-gradient, and ring one's types are attention sources for the seeds (solid edges). Ring two, the neighbours of ring one, contributes only its types, as attention sources for ring one (dashed edges). Both rings are read from the leakage kernel's own edge list. Hatched cells belong to the held-out tile: ring cells drawn from it enter training as inputs, with no loss and no gradient (\cref{sec:batching}).}
 \label{fig:batching}
 \end{figure}
+
+\subsection{The Held-Out Probe}
+\label{app:probe}
+
+\Cref{fig:probe} shows how the probe of \cref{sec:invariance} is fitted, scored and read.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_probe}
+\caption{How the held-out probe grades the invariance of $\vz$ (\cref{eq:probe}); schematic, with synthetic values chosen for legibility. \textbf{a},~The type-only baseline and the probe are fitted on the training tiles and scored on the held-out tiles (hatched). The baseline predicts each component of the invariance block by its mean over cells of the same type; the probe predicts it from $(\vmu_z, t)$ with a ridge regression or a small perceptron. \textbf{b},~One component for held-out cells of one type. The baseline's error is the spread around the type mean (dashed), the probe's the spread around its prediction (solid, the line of perfect prediction). $G_k$ is half the log ratio of the two mean squared errors, $e^{2G_k} - 1$ is the share of within-type variance the probe explains, and $G_b$ averages $G_k$ over the block. \textbf{c},~Reading $G_b$ for each block. The floor is its value with $\vmu_z$ permuted within type; the uncontrolled fit is the same model with $\alphaa = 0$. What is reported is this fit's excess over the floor (blue bar) and that excess as a fraction of the uncontrolled fit's (grey bracket), for each probe family. A block passes when that fraction is at most a quarter (dotted guard): here the composition block fails and the image block passes.}
+\label{fig:probe}
+\end{figure}
+
+\Cref{tab:probe} gives the probe on the final fits of every section.
+
+\begin{table}[t]
+\centering
+\caption{The held-out probe on the final fits, per section. For each block, the share of its within-type variance that the probe explains from $\vz$ beyond the permutation floor ($e^{2\,\mathrm{excess}} - 1$, in \%), for the model trained without the adversary ($\alphaa = 0$, two seeds) and with it (the final fits, three seeds), the largest share with the adversary that would pass (\emph{needed to pass}: a quarter of the excess without the adversary, as a share), and the quantity the guard reads, the \emph{fraction left}: the excess with the adversary as a fraction of the mean excess without it, $0$ when the adversary removes everything the probe can find and $1$ when it removes nothing. Ranges are over seeds. A seed passes when all four fractions (two blocks, two probes) are at most a quarter. The sections end at a similar absolute residual; the fraction left is larger where less leaked to begin with. Section B of the lung TMA is graded with the models fitted on section A. \pending{regenerate once Unassigned is excluded as a target in the re-read of the final fits}}
+\label{tab:probe}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+& Ovarian FFPE & Lung FFPE & Ovarian FF & Lung TMA A & Lung TMA B \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Composition, MLP probe}} \\
+\quad without the adversary (\%) & 19.5--20.8 & 11.8--12.4 & 36.3--37.4 & 5.5--7.0 & 6.8--7.0 \\
+\quad with the adversary (\%) & 4.4--5.7 & 3.9--4.7 & 4.4--4.9 & 3.1--4.4 & 3.9--4.6 \\
+\quad needed to pass (\%) & 4.7 & 2.9 & 8.2 & 1.5 & 1.7 \\
+\quad \textbf{fraction left} & \textbf{0.23--0.30} & \textbf{0.33--0.40} & \textbf{0.14--0.15} & \textbf{0.50--0.71} & \textbf{0.58--0.67} \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Image, MLP probe}} \\
+\quad without the adversary (\%) & 14.8--17.1 & 9.5--10.9 & 34.3--37.0 & 5.8--8.3 & 5.3--7.2 \\
+\quad with the adversary (\%) & 2.5--4.1 & 1.4--2.0 & 4.5--4.9 & 2.2--2.8 & 2.0--3.0 \\
+\quad needed to pass (\%) & 3.8 & 2.5 & 7.9 & 1.7 & 1.5 \\
+\quad \textbf{fraction left} & \textbf{0.17--0.27} & \textbf{0.14--0.20} & \textbf{0.14--0.16} & \textbf{0.32--0.40} & \textbf{0.32--0.49} \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Ridge probe, fraction left}} \\
+\quad composition & 0.16--0.23 & 0.15--0.19 & 0.07--0.08 & 0.19--0.22 & 0.32--0.45 \\
+\quad image & 0.08--0.16 & 0.05--0.16 & 0.10--0.13 & 0.19--0.21 & 0.17--0.39 \\
+\midrule
+Seeds passing & 1/3 & 0/3 & 3/3 & 0/3 & 0/3 \\
+\bottomrule
+\end{tabular}
+\end{table}
 

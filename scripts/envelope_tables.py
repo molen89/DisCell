@@ -43,6 +43,22 @@ the per-seed intervals -- lowest lower bound, highest upper bound over the
 seeds that carry one -- so it spans seed and tile variation at once. A ``†``
 marks a read whose recomputed point estimate did not reproduce the stored
 one within the bootstrap's tolerance on some seed.
+
+**The evaluation mask** (devlog 2026-09-28, "Unassigned is a training class
+and a neighbour, never a metric target"). By default every row grades metric
+targets only: the in-trainer rows come from the masked re-read of
+``best.pt`` (``degeneracy.json`` ``battery``; ``nmi_targets`` and
+``recon_val_targets`` for NMI and reconstruction), and every post-hoc file
+is the masked read. ``--eval-include-unassigned`` (or
+``DISCELL_EVAL_INCLUDE_UNASSIGNED=1``) renders the pre-rule reads instead --
+the history row at the accepted epoch and ``metrics.json best`` -- into
+``*_incl_unassigned`` files, for the one-time "both ways" report; run it
+while the post-hoc files on disk are still the unmasked reads.
+
+The headline transport row is the trusted tier under the cell-split
+ceiling (author's decision, 2026-09-28); the all-panel fraction and the two
+tile-split rows stay in the JSONs and come back with ``--show-tile-split``
+(both tile-split rows and the all-panel row).
 """
 
 from __future__ import annotations
@@ -56,7 +72,8 @@ import numpy as np
 
 from discell import paths
 from discell.experiments.at_best import (AT_CHOICES, HEADER, battery_at_best,
-                                        suffixed)
+                                        masked_battery, suffixed)
+from discell.model import eval_mask as EM
 
 DATASETS = ("xenium_prime_ovarian_cancer_ffpe",
             "xenium_prime_human_ovary_ff",
@@ -97,9 +114,14 @@ ROWS = (
     ("invariance guard, all four blocks ≤ 25 % of uncontrolled (fraction "
      "of seeds)", "invariance_pass", "{:.2f}"),
     ("mirror R²", "mirror_r2", "{:.4f}"),
-    ("cycle R² (z, pooled)", "cycle_z", "{:.4f}"),
-    ("cycle R² (w, pooled)", "cycle_w", "{:.4f}"),
-    ("cycle R² (linear reference)", "cycle_ref", "{:.4f}"),
+    ("cycle R² (z, top-decile set)", "cycle_z_q90", "{:.4f}"),
+    ("cycle R² (w, top-decile set)", "cycle_w_q90", "{:.4f}"),
+    ("cycle R² (linear reference, top-decile set)", "cycle_ref_q90",
+     "{:.4f}"),
+    ("cycle R² (z, pooled; label-derived set, retired)", "cycle_z", "{:.4f}"),
+    ("cycle R² (w, pooled; label-derived set, retired)", "cycle_w", "{:.4f}"),
+    ("cycle R² (linear reference; label-derived set, retired)", "cycle_ref",
+     "{:.4f}"),
     ("KL_w (sum over dims)", "kl_w", "{:.4f}"),
     ("I(z;t)/H(t)", "mi_ratio", "{:.4f}"),
     ("within-type variance fraction of z", "within_var_fraction", "{:.4f}"),
@@ -128,10 +150,20 @@ ROWS = (
     ("atlas cross-seed axis-1 cosine", "atlas_axis1_cosine", "{:.3f}"),
 )
 
+#: rows rendered only with --show-tile-split (author's decision 2026-09-28:
+#: the cell-split trusted tier is the headline; the keys stay in the JSONs)
+TILE_SPLIT_ROWS = {"transport_of_ceiling", "transport_of_ceiling_tiles_trusted",
+                   "transport_of_ceiling_tiles"}
+#: where the tile-split comparison lives once its rows leave the tables
+TILE_SPLIT_SUMMARY = ("scripts/logs/ceiling_tilesplit_2026-09-28/"
+                      "ceiling_tilesplit_summary.md")
+
 HELD_OUT_ROWS = {
     "recon": "recon", "nmi": "nmi", "probe_delta_ce": "probe_delta_ce",
     "probe_noise_floor": "probe_noise_floor", "mirror_r2": "mirror_r2",
     "cycle_z": "cycle_z", "cycle_w": "cycle_w", "cycle_ref": "cycle_ref",
+    "cycle_z_q90": "cycle_z_q90", "cycle_w_q90": "cycle_w_q90",
+    "cycle_ref_q90": "cycle_ref_q90",
     "kl_w": "kl_w",
     **{k: k for k in ("recon_intrinsic", "recon_context",
                       "recon_type_profile")},
@@ -148,7 +180,7 @@ def probe_blocks_row(path: Path) -> dict:
     fraction of the uncontrolled fit's, and the guard as 1/0 so that the
     envelope's mean is the fraction of seeds passing (absent until the
     uncontrolled reference exists)."""
-    blocks = _load(path)
+    blocks = _load_read(path)
     if not blocks:
         return {}
     out = {}
@@ -168,6 +200,17 @@ def _load(path: Path):
     return json.loads(path.read_text()) if path.exists() else None
 
 
+def _load_read(path: Path):
+    """A post-hoc read's file, only when it was made under the evaluation
+    mask in force (a file without an ``eval_mask`` predates the rule and
+    counts as nothing excluded); otherwise None, said once."""
+    data = _load(path)
+    if isinstance(data, dict) and not EM.same_mask(data.get("eval_mask")):
+        print(f"{path}: made under another evaluation mask -- not read")
+        return None
+    return data
+
+
 #: recon_modes.json mode -> envelope key
 RECON_MODES = {"full": "recon", "intrinsic": "recon_intrinsic",
                "context": "recon_context", "type_profile": "recon_type_profile"}
@@ -175,7 +218,7 @@ RECON_MODES = {"full": "recon", "intrinsic": "recon_intrinsic",
 
 def recon_modes_row(path: Path) -> tuple[dict, dict]:
     """The three decodes and the reference (values), and their tile CIs."""
-    modes = (_load(path) or {}).get("modes") or {}
+    modes = (_load_read(path) or {}).get("modes") or {}
     values, cis = {}, {}
     for mode, key in RECON_MODES.items():
         if mode in modes:
@@ -187,7 +230,7 @@ def recon_modes_row(path: Path) -> tuple[dict, dict]:
 
 def bootstrap_row(path: Path) -> dict:
     """``{key: {ci95, reproduces}}`` from ``bootstrap_ci.json``."""
-    reads = (_load(path) or {}).get("reads") or {}
+    reads = (_load_read(path) or {}).get("reads") or {}
     return {key: {"ci95": entry["ci95"],
                   "reproduces": entry.get("reproduces") is not False}
             for key, entry in reads.items()}
@@ -213,13 +256,22 @@ def evaluation_row(final: dict) -> dict:
                       else _cycle(cycle, "ceiling")),
         "kl_w": (float(np.sum(final["kl_w_per_dim"]))
                  if final.get("kl_w_per_dim") else None),
+        **q90_row(final),
     }
+
+
+def q90_row(block: dict) -> dict:
+    """The top-decile cycle reads (author's decision 2026-09-28) of one
+    evaluation block: ``Trainer.evaluate``'s flat keys."""
+    return {"cycle_z_q90": block.get("cycle_r2_z_q90"),
+            "cycle_w_q90": block.get("cycle_r2_w_q90"),
+            "cycle_ref_q90": block.get("cycle_linear_q90")}
 
 
 def transport_row(run_dir: Path) -> dict:
     """The three transport reads, from whichever files the run has."""
     out: dict = {}
-    mean = _load(run_dir / "transport" / "transport.json")
+    mean = _load_read(run_dir / "transport" / "transport.json")
     if mean:
         summary = mean.get("summary") or {}
         for key, tier in (("transport_of_ceiling_trusted",
@@ -236,7 +288,7 @@ def transport_row(run_dir: Path) -> dict:
             value = (summary.get(tier) or {}).get("fraction_of_ceiling_tiles")
             out[key] = (None if value is None or not np.isfinite(value)
                         else float(value))
-    dist = _load(run_dir / "transport" / "transport_distribution.json")
+    dist = _load_read(run_dir / "transport" / "transport_distribution.json")
     if dist:
         for key, block in (("readA_gap_group", "summary_model"),
                            ("readA_gap_own", "summary_model_own")):
@@ -245,7 +297,7 @@ def transport_row(run_dir: Path) -> dict:
         out["readA_type_mean_own"] = (
             (dist.get("summary_model_own") or {}).get("pairwise") or {}).get(
                 "median_gap_closed_type_mean")
-    twins = _load(run_dir / "transport" / "transport_twins.json")
+    twins = _load_read(run_dir / "transport" / "transport_twins.json")
     if twins:
         for key, block in (("twin_margin_group", "summary"),
                            ("twin_margin_own", "summary_own")):
@@ -255,7 +307,7 @@ def transport_row(run_dir: Path) -> dict:
 
 
 def atlas_row(run_dir: Path) -> dict:
-    atlas = _load(run_dir / "atlas" / "atlas.json")
+    atlas = _load_read(run_dir / "atlas" / "atlas.json")
     if not atlas:
         return {}
     had_none = False
@@ -275,19 +327,37 @@ def atlas_row(run_dir: Path) -> dict:
 
 def run_record(dataset: str, run: str, at: str = "final") -> dict | None:
     """Everything the tables read for one fit; *at* = "best" takes the
-    in-trainer block from the accepted checkpoint's history row."""
+    in-trainer block from the accepted checkpoint's history row. Under the
+    evaluation mask the in-trainer block is the masked re-read of best.pt."""
     run_dir = paths.dataset(dataset).root / "runs" / run
     metrics = _load(run_dir / "metrics.json")
     if metrics is None:
         return None
-    final = (battery_at_best(run_dir) if at == "best"
-             else metrics.get("final")) or {}
-    record = evaluation_row(final)
-    record["recon"] = metrics["best"]["recon_val"]     # the selected epoch
-    record["nmi"] = metrics["best"]["nmi"]
+    post_hoc = _load_read(run_dir / "degeneracy.json") or {}
+    if EM.exclusions():
+        # the masked re-read of best.pt, its recon / NMI the target reads;
+        # never the unmasked history in its place
+        final = masked_battery(run_dir) or {"at_best": False}
+        if not final["at_best"]:
+            print(f"{dataset}/{run}: no masked battery in degeneracy.json -- "
+                  "in-trainer rows left empty")
+        record = evaluation_row(final)
+        record["recon"], record["nmi"] = final.get("recon_val"), final.get("nmi")
+    else:
+        final = (battery_at_best(run_dir) if at == "best"
+                 else metrics.get("final")) or {}
+        record = evaluation_row(final)
+        # runs trained before the top-decile read carry it from the re-read
+        # of best.pt into metrics["final"] (discell/experiments/
+        # cycle_reread.py); for a run trained after the R26 fix final IS
+        # best.pt, so the history row that --at best reads may take it
+        if (record["cycle_z_q90"] is None
+                and metrics.get("final_epoch") == metrics["best"]["epoch"]):
+            record.update(q90_row(metrics.get("final") or {}))
+        record["recon"] = metrics["best"]["recon_val"]  # the selected epoch
+        record["nmi"] = metrics["best"]["nmi"]
     degeneracy = final.get("degeneracy")
     recon_gap = final.get("recon_gap")
-    post_hoc = _load(run_dir / "degeneracy.json") or {}
     degeneracy = degeneracy or post_hoc.get("degeneracy") or {}
     recon_gap = recon_gap or post_hoc.get("recon_gap") or {}
     record["mi_ratio"] = degeneracy.get("mi_ratio")
@@ -303,14 +373,21 @@ def run_record(dataset: str, run: str, at: str = "final") -> dict | None:
     record.update(transport_row(run_dir))
     record.update(atlas_row(run_dir))
     record["run"] = run
-    if at == "best":
-        record["at_best"] = final["at_best"]
+    if at == "best" or EM.exclusions():
+        record["at_best"] = final.get("at_best", False)
     eval_ds = CROSS_SLIDE.get(dataset)
     if eval_ds:
         cross = _load(run_dir / "crossslide" / f"{eval_ds}.json")
+        section = (cross or {}).get("held_out_section") or {}
+        if cross and not EM.same_mask(section.get("eval_mask")):
+            print(f"{dataset}/{run}: crossslide/{eval_ds}.json was made under "
+                  "another evaluation mask -- held-out column left empty")
+            cross = None
         if cross:
-            record["held_out"] = evaluation_row(
-                cross.get("held_out_section") or {})
+            record["held_out"] = evaluation_row(section)
+            if EM.exclusions():
+                record["held_out"]["recon"] = section.get("recon_val_targets")
+                record["held_out"]["nmi"] = section.get("nmi_targets")
             record["held_out"].update(probe_blocks_row(
                 run_dir / "crossslide" / f"probe_blocks_{eval_ds}.json"))
         held_modes, _ = recon_modes_row(run_dir / f"recon_modes_{eval_ds}.json")
@@ -342,7 +419,8 @@ def ci_cell(records: list[dict], key: str, fmt: str) -> str:
     return f"[{fmt.format(lo)}, {fmt.format(hi)}] ({len(bounds)}){mark}"
 
 
-def render(dataset: str, records: list[dict], ci: bool = False) -> str:
+def render(dataset: str, records: list[dict], ci: bool = False,
+           show_tile_split: bool = False) -> str:
     held = [r["held_out"] for r in records if r.get("held_out")]
     head = ["metric", "min", "mean", "max", "n"]
     if ci:
@@ -353,6 +431,8 @@ def render(dataset: str, records: list[dict], ci: bool = False) -> str:
     lines = ["| " + " | ".join(head) + " |",
              "|" + "---|" * len(head)]
     for label, key, fmt in ROWS:
+        if key in TILE_SPLIT_ROWS and not show_tile_split:
+            continue
         lo, mean, hi, n = envelope(records, key)
         cells = [label] + (["", "", "", "0"] if n == 0 else
                            [fmt.format(lo), fmt.format(mean),
@@ -372,15 +452,29 @@ def render(dataset: str, records: list[dict], ci: bool = False) -> str:
     if held:
         note += (f" The held-out column is the {CROSS_SLIDE[dataset]} "
                  f"section, evaluated with the weights fitted on this one.")
-    note += (" The tile-split ceiling rows divide by the split-half noise "
-             "ceiling over random halves of the prepare tiles (whole tiles in "
-             "one half) instead of random halves of the cells, so noise a "
-             "tile's cells share is not counted as signal; their \"trusted\" "
-             "is the same rule (ceiling ≥ 0.5 on ≥ 100 genes) applied to that "
-             "ceiling (devlog 2026-09-28 A; an added row, the cell-split rows "
-             "are unchanged).")
-    if ci:
-        note += (" The tile-split ceiling rows carry no interval.")
+    if show_tile_split:
+        note += (" The tile-split ceiling rows divide by the split-half noise "
+                 "ceiling over random halves of the prepare tiles (whole tiles "
+                 "in one half) instead of random halves of the cells, so noise "
+                 "a tile's cells share is not counted as signal; their "
+                 "\"trusted\" is the same rule (ceiling ≥ 0.5 on ≥ 100 genes) "
+                 "applied to that ceiling (devlog 2026-09-28 A; an added row, "
+                 "the cell-split rows are unchanged).")
+        if ci:
+            note += (" The tile-split ceiling rows carry no interval.")
+    else:
+        note += (f" Transport: the trusted tier under the cell-split ceiling; "
+                 f"the all-panel fraction and the tile-split ceiling are in "
+                 f"`{TILE_SPLIT_SUMMARY}`.")
+    note += (" Evaluation mask: " + (
+        "Unassigned INCLUDED -- the pre-rule reads (in-trainer rows from the "
+        "history at the accepted epoch; reconstruction and NMI from "
+        "metrics.json best), companion for this release only."
+        if not EM.exclusions() else
+        f"{', '.join(EM.exclusions())} excluded as a metric target of every "
+        "row (devlog 2026-09-28); in-trainer rows are the masked re-read of "
+        "best.pt, reconstruction and NMI over target held-out cells; KL_w "
+        "is over every held-out cell."))
     if ci:
         note += (" The CI column is the envelope of the per-seed 200 um "
                  "tile-bootstrap 95 % intervals (1000 draws; conditional on "
@@ -394,7 +488,9 @@ def render(dataset: str, records: list[dict], ci: bool = False) -> str:
                  "seed.")
     if any("at_best" in r for r in records):
         fell_back = [r["run"] for r in records if not r["at_best"]]
-        note += (f" In-trainer rows: {HEADER}; last-epoch fallbacks: "
+        note += (f" In-trainer rows: {HEADER}; "
+                 + ("runs without them: " if EM.exclusions()
+                    else "last-epoch fallbacks: ")
                  + (", ".join(f"`{r}`" for r in fell_back) if fell_back
                     else "none") + ".")
     none_runs = [r["run"] for r in records if r.get("atlas_none_entries")]
@@ -417,10 +513,21 @@ def main(argv=None) -> int:
                         help="add the tile-bootstrap CI column (from "
                              "bootstrap_ci.json / recon_modes.json); writes "
                              "*_ci files")
+    parser.add_argument("--eval-include-unassigned", action="store_true",
+                        help="the pre-rule reads (Unassigned a metric target) "
+                             "into *_incl_unassigned files; the same as "
+                             f"{EM.INCLUDE_ENV}=1")
+    parser.add_argument("--show-tile-split", action="store_true",
+                        help="also render the all-panel and tile-split "
+                             "fraction-of-ceiling rows")
     args = parser.parse_args(argv)
+    if args.eval_include_unassigned:
+        EM.set_include_unassigned(True)
+    incl = "_incl_unassigned" if EM.include_unassigned() else ""
 
     combined = ["# Envelope tables over the `best` seed triples"
-                + (f" -- {HEADER}" if args.at == "best" else ""),
+                + (f" -- {HEADER}" if args.at == "best" else "")
+                + (" -- incl. Unassigned (pre-rule reads)" if incl else ""),
                 "", "Generated by `scripts/envelope_tables.py`; every number "
                 "is read off disk.", ""]
     for dataset in args.datasets:
@@ -434,10 +541,11 @@ def main(argv=None) -> int:
         if not records:
             print(f"{dataset}: no runs found, no table written")
             continue
-        table = render(dataset, records, args.ci)
+        table = render(dataset, records, args.ci, args.show_tile_split)
         out = suffixed(paths.dataset(dataset).root / "experiments"
                        / ("envelope_table_ci.md" if args.ci
                           else "envelope_table.md"), args.at)
+        out = out.with_name(out.stem + incl + out.suffix)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(table)
         print(f"wrote {out}")
@@ -445,6 +553,7 @@ def main(argv=None) -> int:
     path = suffixed(args.combined, args.at)
     if args.ci:
         path = path.with_name(path.stem + "_ci" + path.suffix)
+    path = path.with_name(path.stem + incl + path.suffix)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(combined))
     print(f"wrote {path}")

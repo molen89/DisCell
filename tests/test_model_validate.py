@@ -220,3 +220,41 @@ def test_sweep_companion_plots_reads_without_a_landmark_analysis(
     rows = json.loads((out / "validation_sweepL.json").read_text())
     assert len(rows) == len(kappas) * len(seeds)
     assert (out / "validation_sweepL_kappa.png").stat().st_size > 0
+
+
+def test_cycle_row_reads_the_top_decile_set_and_ignores_unassigned():
+    """validate's cycle row pools over the battery's top-decile set: z that
+    carries the score reads high, w sits at the floor, and nothing about an
+    Unassigned cell (its score, its latents) or a cell outside the set moves
+    the read."""
+    from discell.model.cell_cycle import slide_cycling_set
+    from discell.model.validate import cycle_row
+
+    data, rng = _stub_data(10000)
+    n = data.graph.n_cells
+    data.t = rng.integers(0, 3, n)
+    data.type_names = np.array(["Alpha Cells", "Beta Cells", "Unassigned"])
+    data.n_cells = n
+    data.val_tiles = [np.flatnonzero(data.positions[:, 0] < 300)]
+    a = rng.gamma(1.0, 1.0, n)
+    data.cycle = {"s_score": a + 0.3 * rng.normal(size=n),
+                  "g2m_score": a + 0.3 * rng.normal(size=n),
+                  "x_pcs": np.hstack([a[:, None], rng.normal(size=(n, 4))])}
+    latents = {"mu_z": np.hstack([a[:, None], rng.normal(size=(n, 3))]),
+               "mu_w": rng.normal(size=(n, 2)),
+               "fold": (data.positions[:, 1] // 200).astype(int) % 5}
+    out = cycle_row(data, latents, max_cells=50000, seed=0)
+    assert out["z"] > 0.3
+    assert abs(out["w"]) < 0.02 and abs(out["floor"]) < 0.02
+
+    cells = slide_cycling_set(data)
+    outside = ~cells | (data.t == 2)
+    assert not cells[data.t == 2].any()
+    for key in ("s_score", "g2m_score"):
+        data.cycle[key] = np.where(data.t == 2, -9.0, data.cycle[key])
+    np.testing.assert_array_equal(slide_cycling_set(data), cells)
+    moved = {k: (v.copy() if k != "fold" else v) for k, v in latents.items()}
+    for k in ("mu_z", "mu_w"):
+        moved[k][outside] = 1e3 * rng.normal(size=moved[k][outside].shape)
+    again = cycle_row(data, moved, max_cells=50000, seed=0)
+    assert again == pytest.approx(out, abs=1e-12)

@@ -48,6 +48,7 @@ from typing import Sequence
 
 import numpy as np
 
+from discell.model import eval_mask as EM
 from discell.model import metrics as M
 
 log = logging.getLogger("discell.experiments.w_deviation")
@@ -169,19 +170,24 @@ def cycling_types(data) -> np.ndarray | None:
 def deviation_read(trainer) -> dict:
     """Every number of the read for one loaded model; no IO."""
     data, seed = trainer.data, trainer.config.seed
+    names = data.type_names
     train = collect(trainer, trainer.train_batches)
     val = collect(trainer, trainer.val_batches)
+    # the held-out reads grade metric targets only (eval_mask); KL_w, the
+    # check against the trainer's all-cell number, keeps every cell
+    vt = EM.metric_target_mask(data.t[val["nodes"]], names)
 
     # (iii) the held-out gain
-    recon_mu = float(val["ll_mu_w"].mean())
-    recon_prior = float(val["ll_prior_w"].mean())
-    per_cell_gain = val["ll_mu_w"] - val["ll_prior_w"]
+    recon_mu = float(val["ll_mu_w"][vt].mean())
+    recon_prior = float(val["ll_prior_w"][vt].mean())
+    per_cell_gain = (val["ll_mu_w"] - val["ll_prior_w"])[vt]
     recon = {"mu_w": recon_mu, "prior_w": recon_prior,
              "gain": recon_mu - recon_prior,
              "gain_median_cell": float(np.median(per_cell_gain)),
              "gain_frac_cells_positive": float((per_cell_gain > 0).mean()),
              # the model's own decode; equals mu_w on an unmodified model
-             "forward": float(val["ll_forward"].mean())}
+             # (and recon_val at best, the same target cells under the mask)
+             "forward": float(val["ll_forward"][vt].mean())}
 
     d_val = val["mu_w"] - val["prior_w"]
     t_val = data.t[val["nodes"]]
@@ -193,14 +199,15 @@ def deviation_read(trainer) -> dict:
     d_all = np.vstack([train["mu_w"] - train["prior_w"], d_val])
     w_all = np.vstack([train["mu_w"], val["mu_w"]])
 
-    total_var = float(val["mu_w"].var(axis=0).sum())
+    total_var = float(val["mu_w"][vt].var(axis=0).sum())
     deviation = {
         # (ii) neither identity nor cycle
-        "nmi_type": M.z_type_nmi(d_val, t_val, seed=seed),
+        "nmi_type": M.z_type_nmi(*EM.nmi_inputs(d_val, t_val, names),
+                                 seed=seed),
         "cycle": None, "cycle_w_check": None,
-        "mean_sq_norm": float((d_val ** 2).sum(axis=1).mean()),
+        "mean_sq_norm": float((d_val[vt] ** 2).sum(axis=1).mean()),
         # the share of mu_w's held-out variance that is deviation
-        "var_share_of_mu_w": float(d_val.var(axis=0).sum()
+        "var_share_of_mu_w": float(d_val[vt].var(axis=0).sum()
                                    / max(total_var, 1e-12)),
     }
     types = cycling_types(data)
@@ -220,7 +227,8 @@ def deviation_read(trainer) -> dict:
     neighbour_z = neighbour_mean(data.graph.in_edges,
                                  np.vstack([train["mu_z"], val["mu_z"]]),
                                  n_cells, rows_all)[rows_all]
-    connected = data.graph.degrees[rows_all] > 0
+    connected = ((data.graph.degrees[rows_all] > 0)
+                 & EM.metric_target_mask(t_all, names))
     mirror_train, mirror_test = train_mask & connected, ~train_mask & connected
     w_mirror = within_type_mirror(w_all, neighbour_z, t_all, mirror_train,
                                   mirror_test, seed=seed)
@@ -229,6 +237,7 @@ def deviation_read(trainer) -> dict:
 
     return {"n_val_cells": int(len(val["nodes"])),
             "n_train_cells": int(len(train["nodes"])),
+            "eval_mask": EM.record(names, t_all),
             "recon": recon,
             "kl_w_per_dim_recomputed": val["kl_w"].mean(axis=0).tolist(),
             "deviation": deviation,

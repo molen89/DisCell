@@ -34,6 +34,7 @@ from typing import Sequence
 import numpy as np
 
 from discell import paths
+from discell.model import eval_mask as EM
 from discell.model.degeneracy import W_GUARD_NICHES, w_channel_guard
 from discell.model.prepare import assemble
 from discell.model.train import TrainConfig, Trainer, config_from_record
@@ -131,14 +132,18 @@ def fit_grid(args: argparse.Namespace) -> None:
         Trainer(base_config(args, name, seed, value), data).fit()
 
 
-def metric_row(param: str, value, seed: int, metrics: dict) -> dict:
+def metric_row(param: str, value, seed: int, metrics: dict,
+               battery: dict | None = None) -> dict:
     """One row of the comparison table from a run's parsed ``metrics.json``.
 
     Everything past ``best`` is read with ``.get``: the battery grew over
     time and older runs wrote fewer keys, so a missing instrument is None,
-    never a crash.
+    never a crash. *battery*: the in-trainer battery of ``best.pt`` re-read
+    under the evaluation mask (``degeneracy.json``), which then replaces
+    ``final`` and the masked recon / NMI replace ``best``'s (kept beside as
+    the selection scores).
     """
-    final = metrics.get("final") or {}
+    final = (battery if battery is not None else metrics.get("final")) or {}
     cycle = final.get("cycle") or {}
 
     def _mt(latent):
@@ -150,9 +155,15 @@ def metric_row(param: str, value, seed: int, metrics: dict) -> dict:
     def _mean_types(latent):
         return (cycle.get(latent) or {}).get("r2_mean_types")
 
+    masked = battery is not None
     return {param: value, "value": value, "seed": seed,
-            "recon": metrics["best"]["recon_val"],
-            "nmi": metrics["best"]["nmi"],
+            "recon": (battery["recon_val_targets"] if masked
+                      else metrics["best"]["recon_val"]),
+            "nmi": (battery["nmi_targets"] if masked
+                    else metrics["best"]["nmi"]),
+            **({"recon_selection": metrics["best"]["recon_val"],
+                "nmi_selection": metrics["best"]["nmi"],
+                "eval_mask": battery.get("eval_mask")} if masked else {}),
             "epoch": metrics["best"]["epoch"],
             # the quality battery, from the final evaluation
             "cycle_r2_z": _mt("z"), "cycle_r2_w": _mt("w"),
@@ -162,6 +173,10 @@ def metric_row(param: str, value, seed: int, metrics: dict) -> dict:
                                     else _mt("ceiling")           # pre-rename key
                                     if _mt("ceiling") is not None
                                     else _mean_types("ceiling")), # oldest runs: mean-of-types only
+            # the top-decile cycling set (author's decision 2026-09-28)
+            "cycle_r2_z_q90": final.get("cycle_r2_z_q90"),
+            "cycle_r2_w_q90": final.get("cycle_r2_w_q90"),
+            "cycle_linear_q90": final.get("cycle_linear_q90"),
             "mirror_r2": (final.get("mirror") or {}).get("r2"),
             "probe_delta_ce": (final.get("probe") or {}).get("delta_ce"),
             # spec 7.10 degeneracy pair and the type-mean recon gap: carried
@@ -240,7 +255,17 @@ def report(args: argparse.Namespace) -> dict:
             metrics = json.loads((run_dir / "metrics.json").read_text())
             b_matrix = payload["model"]["B.weight"].numpy()      # (G, d_w)
             loaded[(value, seed)] = {"B": b_matrix, "payload": payload}
-            rows.append(metric_row(args.param, value, seed, metrics))
+            # under the evaluation mask: the masked re-read of best.pt
+            post_hoc = run_dir / "degeneracy.json"
+            post_hoc = (json.loads(post_hoc.read_text())
+                        if post_hoc.exists() else {})
+            battery = (post_hoc.get("battery")
+                       if EM.exclusions()
+                       and EM.same_mask(post_hoc.get("eval_mask")) else None)
+            if EM.exclusions() and battery is None:
+                log.warning("%s: no masked battery (degeneracy.json) -- its "
+                            "row is the unmasked metrics.json", run_dir.name)
+            rows.append(metric_row(args.param, value, seed, metrics, battery))
 
     stability = b_stability(loaded, args.values, args.seeds, args.param)
 
@@ -268,7 +293,7 @@ def report(args: argparse.Namespace) -> dict:
                         gat_sink=state["config"]["gat_sink"]).to(device)
         model.load_state_dict(state["model"])
         trainer = Trainer(config_from_record(state["config"]), data)
-        trainer.model = model.eval()
+        trainer.model = model.to(trainer.device).eval()   # the batches' device
         sweep_out = trainer._sweep(trainer.val_batches, want_log_p=True)
         val_rows = sweep_out["nodes"]
         x_val = np.vstack([data.x[b["nodes"][:b["n_seeds"]]].toarray()
@@ -277,8 +302,11 @@ def report(args: argparse.Namespace) -> dict:
         key = run_name(value, seed, "", args.param)
         if seed not in niche_cache:
             niche_cache[seed] = niche_labels(data, W_GUARD_NICHES, seed)
-        guard = w_channel_guard(sweep_out["mu_w"], niche_cache[seed][val_rows],
-                                data.t[val_rows], seed=seed)
+        # the held-out cells that are metric targets (eval_mask)
+        on = EM.metric_target_mask(data.t[val_rows], data.type_names)
+        guard = w_channel_guard(sweep_out["mu_w"][on],
+                                niche_cache[seed][val_rows][on],
+                                data.t[val_rows][on], seed=seed)
         w_guard[key] = guard
         row_by_key[(value, seed)].update(
             w_niche_mi=guard["w_niche_mi"],
@@ -293,20 +321,22 @@ def report(args: argparse.Namespace) -> dict:
         w_norm = np.linalg.norm(sweep_out["mu_w"], axis=1)
         per_type_w[key] = {
             str(data.type_names[g]): float(w_norm[data.t[val_rows] == g].mean())
-            for g in range(len(data.p_t)) if (data.t[val_rows] == g).any()}
+            for g in EM.exclude_types(range(len(data.p_t)), data.type_names)
+            if (data.t[val_rows] == g).any()}
         per_cell = (x_val * sweep_out["log_p"]).sum(1) / x_val.sum(1).clip(min=1)
         strata[key] = {
-            "recon_lost0": float(per_cell[lost[val_rows] == 0].mean()),
-            "recon_lost1plus": float(per_cell[lost[val_rows] >= 1].mean())
-            if (lost[val_rows] >= 1).any() else None,
+            "recon_lost0": float(per_cell[on & (lost[val_rows] == 0)].mean()),
+            "recon_lost1plus": float(per_cell[on & (lost[val_rows] >= 1)].mean())
+            if (on & (lost[val_rows] >= 1)).any() else None,
             "recon_degree_le2": float(
-                per_cell[data.graph.degrees[val_rows] <= 2].mean()),
+                per_cell[on & (data.graph.degrees[val_rows] <= 2)].mean()),
         }
         del model, trainer
         if device == "cuda":
             torch.cuda.empty_cache()
 
     summary = {"runs": rows, "B_stability": stability,
+               "eval_mask": EM.record(data.type_names, data.t),
                "per_type_w_norm": per_type_w, "recon_strata": strata,
                "w_channel_guard": w_guard,
                "config": {"param": args.param, "values": list(args.values),

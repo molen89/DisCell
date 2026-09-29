@@ -112,3 +112,35 @@ def test_markdown_table_has_one_column_per_method():
     assert "| read | DisCell/best | SIMVI |" in table
     assert "no decoder" in table                  # a tool without a decoder
     assert table.count("\n| NMI(z, type) |") == 1
+
+
+def test_top_decile_block_reads_the_shared_set_for_every_method():
+    """With the slide's cycling set in the cycle inputs the battery adds the
+    top-decile block (z, spatial, linear reference); a tool that scored a
+    subset of cells is read on the same set restricted to its rows."""
+    from discell.model.cell_cycle import cycling_set
+
+    w = _world(n=20000)                # a decile of the held-out cells >= 200
+    rng = np.random.default_rng(1)
+    cells = cycling_set(w["cycle"]["scores"], w["test"])
+    x_pcs = w["z"] + rng.standard_normal(w["z"].shape)
+    cycle = {**w["cycle"], "cells": cells, "x_pcs": x_pcs}
+    out = B.battery(w["z"], w["t"], w["train"], w["test"], w["v_block"],
+                    w["vbar_t"], w["c"], spatial=w["s"], cycle=cycle)
+    block = out["cycle_q90"]
+    assert block["n_heldout"] == round(0.1 * w["test"].sum())
+    assert block["z"]["r2_pooled"] > 0.5
+    assert abs(block["spatial"]["r2_pooled"]) < 0.1
+    assert "linear_ref" in block
+    assert "cycle" in out                     # the retired read, kept
+    # the subset tool: the shared set's restriction, not its own decile
+    rows = np.sort(rng.choice(len(w["t"]), 12000, replace=False))
+    sub = {"types": cycle["types"], "scores": cycle["scores"][rows],
+           "cells": cells[rows], "x_pcs": x_pcs[rows]}
+    part = B.battery(w["z"][rows], w["t"][rows], w["train"][rows],
+                     w["test"][rows], w["v_block"][rows], w["vbar_t"],
+                     w["c"][rows], cycle=sub)
+    assert part["cycle_q90"]["n_heldout"] == (cells[rows] & w["test"][rows]).sum()
+    md = B.markdown({"a": out}, "ds", "")
+    assert "cycle R2, intrinsic (top-decile set)" in md
+    assert "cycle R2, intrinsic (label-derived set, retired)" in md

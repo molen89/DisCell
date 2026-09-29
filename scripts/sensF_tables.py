@@ -160,6 +160,12 @@ CI_KEYS = ("recon", "nmi", "probe_ridge_comp_frac", "probe_mlp_comp_frac",
            "transport_of_ceiling_trusted", "readA_gap_own")
 CI_ROWS = [(label, key, fmt) for label, key, fmt in envelope_tables.ROWS
            if key in CI_KEYS]
+#: the all-panel fraction-of-ceiling reads: kept in the JSON, not rendered
+#: (author's decision 2026-09-28: the headline is the trusted tier under the
+#: cell-split ceiling, as in the envelope tables)
+ALL_PANEL_CEILING = {"transport_of_ceiling", "read_a_of_ceiling",
+                     "read_b_of_ceiling", "readA_of_ceiling",
+                     "readB_of_ceiling"}
 
 
 # -- reading ----------------------------------------------------------------------
@@ -369,6 +375,8 @@ def render_section(family: str, ds: str, sec: dict) -> list[str]:
     L += ["", "| read | control | " + " | ".join(f"{a} | Δ/sd" for a in names)
           + " |", "|---" * (2 + 2 * len(names)) + "|"]
     for key, label, fmt in spec["reads"]:
+        if key in ALL_PANEL_CEILING:
+            continue
         cells = [_cell(ctl["summary"].get(key), fmt, len(CONTROL_SEEDS))]
         for a in names:
             m = sec["moves"][a][key]
@@ -379,7 +387,7 @@ def render_section(family: str, ds: str, sec: dict) -> list[str]:
     L.append("")
     for a in names:
         moved = [label for key, label, _ in spec["reads"]
-                 if sec["moves"][a][key]["flag"]]
+                 if key not in ALL_PANEL_CEILING and sec["moves"][a][key]["flag"]]
         L.append(f"- Moved by more than one control seed-sd, **{a}**: "
                  + (", ".join(moved) if moved else "none") + ".")
     # tile-bootstrap intervals
@@ -392,6 +400,8 @@ def render_section(family: str, ds: str, sec: dict) -> list[str]:
           "| read | control | " + " | ".join(names) + " |",
           "|---" * (len(names) + 2) + "|"]
     for label, key, fmt in CI_ROWS:
+        if key in ALL_PANEL_CEILING:
+            continue
         cells = [envelope_tables.ci_cell(g["ci_records"], key, fmt) or "--"
                  for g in groups]
         L.append(f"| {label} | " + " | ".join(cells) + " |")
@@ -401,7 +411,7 @@ def render_section(family: str, ds: str, sec: dict) -> list[str]:
     if family == "adversary":
         L += render_rule_817(sec["rule_817"])
     # per seed
-    per = spec["per_seed"]
+    per = [k for k in spec["per_seed"] if k not in ALL_PANEL_CEILING]
     L += ["", "### Per seed", "",
           "| run | best epoch | " + " | ".join(per) + " |",
           "|---" * (len(per) + 2) + "|"]

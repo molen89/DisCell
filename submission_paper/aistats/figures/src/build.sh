@@ -12,6 +12,8 @@ python "$SRC/fig_batching.py"          # fig:batching (appendix)
 python "$SRC/fig_kappa_bound.py"       # fig:kappa-bound (appendix, schematic)
 python "$SRC/fig_mask_radius.py"       # fig:mask-radius (appendix)
 python "$SRC/fig_kronos_umap.py"       # fig:kronos-umap (appendix; UMAP layouts cached in data/)
+python "$SRC/fig_probe.py"             # fig:probe (appendix, schematic)
+python "$SRC/fig_sections.py"          # fig:sections (appendix)
 python "$SRC/fig_model_tissue.py"      # fig:overview a, b (main text)
 ( cd "$SRC" && pdflatex -interaction=nonstopmode fig_model_graph.tex > /dev/null \
   && cp fig_model_graph.pdf ../ )      # fig:overview c (TikZ)

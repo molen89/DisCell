@@ -302,15 +302,17 @@ FINAL_RUNS = {
     "xenium_prime_human_lung_cancer_ffpe": {},
     "xenium_prime_human_ovary_ff": {},
 }
-BUDGET = {"run_name": "finalL_s0", "epochs": 500, "patience": 40,
-          "figures_every": 100}
+#: the budget is the default now (author's decision 2026-09-28): only the
+#: name and the figure cadence remain
+BUDGET = {"run_name": "finalL_s0", "figures_every": 100}
 
 
 @pytest.mark.parametrize("dataset", sorted(FINAL_RUNS))
 def test_default_config_is_finalL_s0(dataset):
     """TrainConfig() with alpha_z and the label column resolved as a fit
     resolves them equals the dataset's finalL_s0 config.json in every field
-    but the name, the budget and (GSE) the data knobs."""
+    but the name, the figure cadence and (GSE) the data knobs -- the
+    500/40 budget included."""
     import dataclasses
 
     from discell import paths
