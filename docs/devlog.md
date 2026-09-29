@@ -6840,3 +6840,86 @@ A training tile's first halo ring can contain cells of a held-out tile, whose co
 ### Transport scored on held-out tiles only (sensitivity row; motivation, 2026-09-29; author chose option b)
 
 **Why.** The Cellina adapter work surfaced a problem with the transport reads. They cross-fit the readout over five spatial folds (group means on folds 1–4, scored on fold 0), but those folds are drawn from every tile. About 85 % of fold-0 cells lie in DisCell's training tiles. The readout is held out; the model is not, because it saw those cells' counts during training. The effect is expected to be small (niche × type means over thousands of cells), but a reviewer can call it in-sample. **Author's choice (b):** keep the published read and add a sensitivity row scored only on cells of the model's held-out tiles, with the model quantities still estimated from training-tile cells, under the Unassigned mask. Same panels, trusted tier, ceilings and half-tile CIs. **Rule set in advance:** if the fraction of ceiling on held-out tiles falls outside the published read's CI on any primary section, the author considers switching the headline read (option c) before the tables freeze. Otherwise the row is reported as a sensitivity row. CPU only. Runs after the freeze on finalL_s0–s2 of the four datasets. The Cellina counterfactual gets the same row, so the comparison stays like for like.
+
+### Per-cell KL and posterior-uncertainty maps; within-type Moran's I table (motivation, 2026-09-29; author, run by the writer)
+
+**Why.** The paper says the w-divergence KL(q(w)‖p(w|c,t)) "reads as how far this cell deviates from its expected response", and that whether it carries per-cell information at the operating point "is an empirical question" (§2.3). On average it is tiny (ovarian finalL_s0: KL_w = 0.020 nats per cell summed over the six dimensions), because α_w = 0.1 keeps the posterior near the prior. The average says nothing about the tail, though. The author's question is whether some cells deviate and which ones. KL and posterior uncertainty are different quantities: KL is the distance of the posterior from the prior, and the uncertainty is the posterior's own spread. Both are mapped for both latents.
+
+**How.** On finalL_s0–s2 of the four sections, at best.pt, with posterior means (no sampling), every cell is computed:
+- KL_z = KL(q(z)‖N(0,I)) and KL_w = KL(q(w)‖N(m_ψ, I)), summed and per dimension;
+- σ̄_z and ν̄_w, the mean posterior standard deviations;
+- log ℓ (depth) and whether the cell is on a training or held-out tile.
+
+Heatmaps of each quantity are drawn on the section in image orientation (s0 in the figure), with a histogram of each on a log axis per section.
+
+**Top decile (rules fixed now).**
+- **Target cells.** Unassigned is excluded as a target (the eval_mask rule) but still counts as a neighbour.
+- **Ranking.** If |Spearman(quantity, log ℓ)| ≥ 0.3, cells are ranked on the within-type residual of the quantity on log ℓ; otherwise on the raw value. The raw ranking is reported alongside either way. The top decile is the top 10% of cells, not of KL mass. The share of total KL held by those cells is reported as a concentration number, because a heavy tail is the interesting case.
+- **Comparisons with the other 90%:** cell type; the K = 10 niche (k-means on neighbour composition, the construction of validate.niche_labels); heterotypic-neighbour share (interface); degree and isolation; log ℓ; held-out tile.
+- **Statistics.** Odds ratios for categories and the standardised mean difference (SMD) for continuous features, each with a spatial block bootstrap over tiles (95%).
+- **Also reported:** each map's within-type Moran's I (validate.morans_i, row-normalised pruned graph, permutation null) and the per-cell Spearman correlation between seeds.
+
+**Pass rule.** An enrichment counts only if OR ≥ 1.5 (or ≤ 1/1.5), or |SMD| ≥ 0.3, with the CI excluding the null, in all three seeds. Everything else is reported as null. A flat, unstructured or seed-unstable KL_w map is a finding: at the operating point the per-cell channel carries nothing usable, and the text says so.
+
+**Moran's I table.** The existing within-type Moran's I of μ_z and μ_w in `runs/{finalL,uncontrolledL}_s*/validation/validation.json`, averaged over dimensions weighted by variance, is tabulated for the appendix. No new computation. The two uncontrolledL fits whose μ_w has almost no spatial structure (ovarian s0 0.002, FF s0 0.23) are flagged as a probable w collapse and not quoted without checking.
+
+**Compute.** A new script `discell/experiments/kl_maps.py`; one forward pass per run, detached, OMP threads capped, on the GPU with the most free memory, FF last. It runs alongside the coder's queues and does not touch their runs. Outputs: `data/datasets/<ds>/experiments/kl_maps_finalL_s{k}.npz` (per cell) and `kl_maps.json` (statistics).
+
+### Within-type Moran's I table (results, 2026-09-29; writer)
+
+From the existing `validation.json` files: 1,000 permutations, target cells, binary row-normalised pruned graph, per-type centring. Averaged over coordinates weighted by within-type variance; mean [min, max] over seeds.
+
+| | μ_z uncontrolledL (2) | μ_z finalL (3) | μ_w finalL (3) |
+|---|---|---|---|
+| ovarian | 0.188 [0.185, 0.191] | 0.108 [0.101, 0.113] | 0.621 [0.615, 0.629] |
+| lung | 0.093 [0.092, 0.093] | 0.054 [0.051, 0.056] | 0.483 [0.452, 0.511] |
+| FF | 0.471 [0.467, 0.474] | 0.351 [0.339, 0.358] | 0.733 [0.727, 0.737] |
+| GSE | 0.114 [0.113, 0.114] | 0.059 [0.059, 0.060] | 0.492 [0.476, 0.508] |
+
+The null's 97.5th percentile is ≤ 0.005 everywhere. The adversary lowers μ_z's I by 43/42/25/48% (ovarian/lung/FF/GSE); the ratios are 0.57/0.58/0.75/0.52. The largest single z dimension is 0.29 on ovarian and 0.55 on FF.
+
+**Finding: without the adversary, w collapses on the ovarian sections.** In uncontrolledL, μ_w's within-type variance is 0 to five decimals in every dimension on FF s0 and s1 and on ovarian s0, and 0.0002–0.010 on ovarian s1. On these fits μ_w's Moran's I is computed on numerical noise: the FF null bound reaches 0.70, and ovarian s0 has I = 0.002. With no adversary, z carries the niche and w has nothing left to explain. This affects any quote that uses uncontrolledL's w (none in the manifest, as far as I can see); the probe references use z only. The paper's appendix (app:moran, tab:moran) reports μ_w for the final fits only and states why.
+
+
+### Per-cell KL and posterior-uncertainty maps (results, 2026-09-29)
+
+Run as fixed in the motivation entry: `discell/experiments/kl_maps.py` (test `tests/test_experiments_kl_maps.py`), queue `scripts/queue_2026-09-29_kl_maps.sh`, logs `scripts/logs/kl_maps_2026-09-29_<ds>_<run>.log` and `scripts/logs/kl_maps_2026-09-29/`. All 12 finalL fits ran on GPU (no OOM, no CPU fallback); 77–221 s per run for GSE/lung/ovarian, 431–468 s for FF. Outputs per dataset: `experiments/kl_maps_finalL_s{0,1,2}.npz` (per cell, node order = h5ad row order: KLs per dim and summed, σ̄_z, ν̄_w, μ/logvar of both latents, m_ψ, log ℓ, held-out flag, model tile, type, x/y in pixels and µm, degree, heterotypic share, K = 10 niche, pruned edges), `kl_maps_finalL_s{k}.json` (statistics, histogram bins, sanity, timings) and `kl_maps_summary.json` (cross-seed ρ, top-decile Jaccard, passing enrichments with per-seed values and counts).
+
+**Checks.** Per-cell KL_z and KL_w equal `Trainer._sweep` on every run (max |Δ| ≤ 3e-4 for KL_z on FF, ≤ 3e-5 elsewhere, ≤ 2e-6 for KL_w per dim; float32 vs float64). The held-out mean KL_w equals `w_deviation.json`'s `kl_w_sum` on the same cells (all val-tile seeds, Unassigned included) to 5+ digits on GSE, ovarian and FF (ovarian s0 0.02023 vs 0.02023); lung has no `w_deviation.json`. `--stats-only` from the npz reproduces the statistics exactly. Niche ids are identical across seeds (k-means seed fixed at 0; the run seed would give unaligned ids).
+
+**Choices not fixed by the motivation entry.** Bootstrap blocks are the 200 µm squares of `bootstrap.tile_index` (the house CI convention), not the model's ~4096-cell training tiles; 500 draws, conditional on the top-decile call and the niche labels. ORs carry +0.5 in every cell. Held-out tile and isolated are read as ORs (categories); heterotypic share, degree and log ℓ as SMDs. Moran's I follows `analysis_morans` (graph induced on target cells), so Unassigned is not a neighbour in I; it is one in degree and heterotypic share. The top-decile rule and pass rule are as fixed; the pass also requires the same direction in all three seeds, each seed using its own primary ranking. Moran's I of log10(quantity) is recorded beside the raw I.
+
+**KL_w (the question).**
+- Mean over target cells 0.004–0.092 nats; seeds of one section differ by up to 10× (GSE 0.047 / 0.015 / 0.004; ovarian 0.021 / 0.044 / 0.092). Depth |ρ| mostly < 0.3 (raw ranking), except ovarian s0/s2 and FF s2 (residual). 
+- The tail is moderate, not heavy: the top decile holds 19–43 % of the total (GSE 0.19–0.36, lung 0.28–0.34, ovarian 0.33–0.43, FF 0.23–0.34).
+- The map is spatially structured within a fit: Moran's I 0.15–0.85, permutation null |I| < 0.006 on every run.
+- **It is not stable across seeds:** per-cell Spearman between seeds GSE 0.14 / −0.08 / 0.31, lung 0.10 / 0.20 / −0.18, ovarian 0.25 / 0.57 / 0.14, FF 0.42 / −0.43 / −0.11; top-decile Jaccard 0.003–0.21.
+- Passing enrichments (all three seeds): GSE — Chondrocytes up (OR 13.6 / 46.8 / 5.6) and niche8 up (14.3 / 50.5 / 5.9), niche5 up; AT1, AT2, airway smooth muscle, pericytes and niche9 down. Lung — Tumour down (0.03 / 0.07 / 0.25) and niche3 down. Ovarian — Fibroblasts up (1.9 / 6.1 / 1.9), niche4 up (2.4 / 2.6 / 1.6); Tumour, niche1 and niche6 down. FF — only isolated down (0 to 3 isolated cells in any top decile). No continuous feature (heterotypic share, degree, log ℓ) and no held-out-tile OR passes for KL_w on any section. On GSE, Plasma cells (1 cell) and B cells (25 cells, none in any top decile) pass only through the +0.5 correction and degenerate intervals; they are artefacts.
+- Read against the rule: the KL_w map has spatial structure and repeatable type/niche enrichment on GSE, lung and ovarian (GSE chondrocytes/niche8 up; lung tumour down; ovarian fibroblasts/niche4 up, tumour down), in magnitudes that vary several-fold between seeds, but the per-cell map is seed-unstable on all four sections and carries nothing on FF. Which cells deviate is not reproducible between fits.
+
+**KL_z.** Depth-dependent everywhere (ρ −0.39 to −0.77; residual ranking). Seed-stable (cross-seed ρ 0.78–0.93). Top-decile share 0.17–0.19. Moran's I 0.05–0.31. Passes on every section include types and niches, e.g. ovarian smooth muscle 3.2–3.6, endothelial 2.3–2.4, Tumour 0.14–0.18, heterotypic share SMD +0.43–0.45; lung neutrophils 5.4–5.9; isolated up on lung, ovarian and FF.
+
+**σ̄_z.** Seed-stable (0.53–0.57 GSE; 0.74–0.93 elsewhere), depth ρ +0.21 to +0.74, Moran's I 0.05–0.25. Few passes: lung neutrophils up (2.2–2.4); ovarian ciliated up and isolated down; FF niche6 up (3.3–5.8).
+
+**ν̄_w.** Strongly spatial (I 0.32–0.88) but seed-unstable: cross-seed ρ from −0.66 to 0.74, and the sign of the depth ρ flips between seeds on ovarian (−0.46 vs +0.70). Passing enrichments exist on each section (e.g. ovarian Fibroblasts and niche4 up, Tumour down; lung T/NK up 1.6–5.0), with per-seed magnitudes varying up to 40×.
+
+Not done here: the heatmap and histogram figures (the bins are stored).
+
+**Writer's checks and additions (2026-09-29).**
+- **Recomputation.** From the npz files, independently of the agent: ovarian KL_w mean 0.021/0.044/0.092; cross-seed ρ 0.25/0.57/0.14; top-decile share 0.34/0.33/0.46 on raw values; s1 fibroblast OR 6.11. All match.
+- **Depth sign.** It is the opposite of the writer's advance note to the author. Deeper cells have smaller KL_z and larger σ̄_z:
+  - KL_z: pooled ρ −0.39 to −0.77, within types (cell-weighted) −0.18 to −0.49;
+  - σ̄_z: pooled +0.21 to +0.73, within types +0.08 to +0.31, so mostly type mix;
+  - KL_w: within types |ρ| ≤ 0.13.
+  This is consistent with the per-cell 1/ℓ scaling of the reconstruction (no sharpening with depth). The sign itself is reported, not explained.
+- **Niches** in the KL_w passes, by neighbour composition:
+  - ovarian: n1 tumour 0.75 + macrophages 0.12; n4 fibroblasts 0.36 + Unassigned 0.20; n6 tumour 0.99;
+  - lung: n3 tumour 0.91;
+  - GSE: n5 vascular smooth muscle 0.39 + secretory 0.33; n8 chondrocytes 0.86; n9 AT2 0.47.
+  The niche passes largely repeat the type passes.
+- **Display filter, disclosed in the paper.** GSE plasma cells (1 cell) and B cells (25 cells) are left out of tab:kl-top because their intervals are degenerate. The devlog rule set no minimum count, so this is a post-hoc display choice and is stated as such.
+- **Not claimed.** Per-dimension KL_w differs between seeds (ovarian), but coordinates of w are identified only up to rotation (prop:symmetries), so dimensions are not compared across seeds.
+
+### Two test-only repairs (2026-09-29)
+
+`tests/test_model_eval_mask.py` failed on the synthetic slide for two reasons, and both are now fixed. (1) `bootstrap.run_bootstrap` crashed when the q90 cycling set had no held-out cell. It now skips that read, which never happens on a real slide. (2) `sweep.report` put the model on CUDA while the batches of a CPU-trained run stayed on the CPU. The model now follows the trainer's device. Production runs were trained on CUDA, so their reads are unchanged. The test passes (43 min under queue load).

@@ -624,3 +624,42 @@ Rounded to whole percent. No buffer; the text says why. These numbers depend on 
 
 **Checklist answers (author, 2026-09-29).** 1(c) optional code → [No]; 3(a) code/data/instructions → [No], since the author will not release code before acceptance; 3(c) error bars → [Yes], and the results must report as §3.1 defines. app:assets now reads "The code will be released on acceptance; no new data are released." (was "No new assets are released."), flagged to the author as a commitment. Still open: 1(b), [Yes] recommended vs [No], waiting on the author. Build: exit 0, no undefined references, 3 overfull boxes.
 - **1(b) → [Yes]** (author, same day): time and space are covered in §2.6 and app:timing, and sample size is explicitly stated as not analysed. Every checklist item is now answered; only the template's "answer at submission time" banner remains. Build: exit 0, no undefined references, 3 overfull boxes.
+
+**Moran's I table (app:moran, tab:moran, 2026-09-29).** A new subsection at the end of the experimental appendix. It gives within-type Moran's I of μ_z (without the adversary vs final) and of μ_w (final only), from the existing validation.json files, which are final and under the Unassigned mask. The text says:
+- w is spatial by construction;
+- the adversary lowers z's I by 42–48%, and by 25% on FF;
+- the residual is within-type variation shared by neighbours, which the invariance removes only where composition or image predict it;
+- without the adversary, w has almost no within-type variance on the two ovarian sections, so its uncontrolled I is not reported.
+Numbers are in the devlog, "Within-type Moran's I table (results)". Build: exit 0, no undefined references, 3 overfull boxes.
+
+**Reconstruction breakdown (app:recon-modes, tab:recon-modes, 2026-09-29).** A new subsection built from the existing `recon_modes*.json` files: final, under the Unassigned mask, finalL_s0–s2, with the TMA serial section from `recon_modes_gse315411_pdltma06_10_prime_dual.json`.
+- **Columns** (nats per count, mean with range over seeds): full; context over type profile; own z (intrinsic over context); own w (full over intrinsic).
+- **Text.** It explains why a single reconstruction number is autoencoding and not informative (R24). It gives three readings:
+  - own z carries most of the gain: 0.06–0.17;
+  - context adds 0.007–0.033, and nothing on lung, where the CI includes 0 on all three seeds (and on TMA seed 2);
+  - own w adds ≤ 0.001, the operating point's design.
+  The serial section reads like the core.
+- **CI claims were checked** per seed and difference. The Full column shows means only, to fit the width.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.
+
+**Per-cell KL and uncertainty maps (app:kl-maps, 2026-09-29).** A new appendix subsection with tab:kl-summary, tab:kl-top, fig:kl-maps, fig:kl-seeds and fig:kl-hist. The data are the kl_maps npz/json/summary files from the finalL_s0–s2 runs (`discell/experiments/kl_maps.py`; devlog motivation and results 2026-09-29). The figures come from `figures/src/fig_kl_maps.py`, added to build.sh:
+- percentile-within-section maps, pale for 0–90 and dark for the top decile;
+- a three-seed comparison for KL_w;
+- log histograms, with a linear axis for sd q(w).
+
+The text:
+- defines KL vs sd (the author's point that KL is not uncertainty);
+- gives the fixed top-decile rules, including the disclosed display filter;
+- **KL_w:** small (0.004–0.09), seed-dependent up to 10×, a moderate tail (19–43%), spatially organised within a fit (I 0.15–0.85) but not reproducible across seeds (ρ −0.43–0.57, Jaccard ≤ 0.21). The enrichments are coarse: tumour down on ovarian/lung, fibroblasts up on ovarian, chondrocytes up on TMA, nothing on FF, no continuous feature. So it is not a per-cell anomaly score at the operating point;
+- **KL_z / σ_z:** reproducible (0.78–0.93 / 0.53–0.93) and depth-dependent with the reverse sign (the 1/ℓ scaling). Type enrichments after depth removal (smooth muscle ovarian 3.2–3.6, neutrophils lung 5.4–5.9), isolated cells up on three sections, boundary cells on ovarian (SMD 0.43–0.45);
+- **sd q(w):** 0.98–1.01, the prior's scale.
+
+Two self-corrections before the build: the Jaccard index was not to be read as a share of cells, and cross-seed comparison of w dimensions was removed because of prop:symmetries. Build: exit 0, no undefined references, 3 overfull boxes.
+
+**KL appendix trimmed; §2.3 and §2.4 corrected (author: "makes sense to shorten it", 2026-09-29).**
+- **app:kl-maps now holds** the intro, one paragraph on the response (small, seed-variable magnitude, a moderate tail, spatially organised within a fit, not reproducible across seeds, coarse passes under the pre-set rule, so not an anomaly score; sd q(w) at the prior's 1), one paragraph on the intrinsic state, tab:kl-summary and fig:kl-seeds.
+- **Removed from the text:** fig:kl-maps, fig:kl-hist and tab:kl-top. The script still renders them (build.sh comment updated). The seed caption now describes its colour scale itself.
+- **§2.3.** "an anomaly score that the objective provides at no extra cost; whether it carries usable per-cell information … is an empirical question" → "could serve as an anomaly score at no extra cost; at the operating point it does not, since the cells it ranks highest differ between seeds (app:kl-maps)".
+- **§2.4 was wrong in direction.** The text said the per-cell scaling weights a low-count cell's divergences more heavily relative to its likelihood, pulling sparse cells toward the prior. In J, reconstruction is divided by ℓ_i while α_z is global, so relative to the cell's own bound the divergence weight is ∝ ℓ_i/ℓ̄: deep cells are held closer to the prior, and sparse cells less. The data agree, stably across seeds and within types: deeper cells have smaller KL_z and wider posteriors. The sentence was rewritten to match, with a pointer to app:kl-maps. The appendix adds the consequence: z is less regularised in low-count cells, and a deep cell's posterior width overstates its uncertainty.
+- **Not added:** the ovarian boundary enrichment of KL_z (SMD 0.43–0.45), a possible under-corrected-leakage lead on one section. It is offered to the author as a κ-sweep check.
+- **Build.** Exit 0, no undefined references, 3 overfull boxes.

@@ -954,6 +954,10 @@ INPUT ./figures/fig_sections.pdf
 INPUT figures/fig_sections.pdf
 INPUT ./figures/fig_sections.pdf
 INPUT ./figures/fig_sections.pdf
+INPUT ./figures/fig_kl_seeds.pdf
+INPUT figures/fig_kl_seeds.pdf
+INPUT ./figures/fig_kl_seeds.pdf
+INPUT ./figures/fig_kl_seeds.pdf
 INPUT main.aux
 INPUT ./main.out
 INPUT ./main.out
