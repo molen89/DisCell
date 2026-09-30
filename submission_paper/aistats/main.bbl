@@ -331,6 +331,19 @@ Tanevski, J., Ramirez~Flores, R.~O., Gabor, A., Schapiro, D., and
   from highly multiplexed data}.
 \newblock {\em Genome Biology}, 23:97.
 
+\bibitem[Tirosh et~al., 2016]{tirosh2016}
+Tirosh, I., Izar, B., Prakadan, S.~M., Wadsworth, M.~H., Treacy, D., Trombetta,
+  J.~J., Rotem, A., Rodman, C., Lian, C., Murphy, G., Fallahi-Sichani, M.,
+  Dutton-Regester, K., Lin, J.-R., Cohen, O., Shah, P., Lu, D., Genshaft,
+  A.~S., Hughes, T.~K., Ziegler, C. G.~K., Kazer, S.~W., Gaillard, A., Kolb,
+  K.~E., Villani, A.-C., Johannessen, C.~M., Andreev, A.~Y., Van~Allen, E.~M.,
+  Bertagnolli, M., Sorger, P.~K., Sullivan, R.~J., Flaherty, K.~T., Frederick,
+  D.~T., Jan{\'e}-Valbuena, J., Yoon, C.~H., Rozenblatt-Rosen, O., Shalek,
+  A.~K., Regev, A., and Garraway, L.~A. (2016).
+\newblock Dissecting the multicellular ecosystem of metastatic melanoma by
+  single-cell {RNA}-seq.
+\newblock {\em Science}, 352(6282):189--196.
+
 \bibitem[Tomczak and Welling, 2018]{tomczak2018}
 Tomczak, J.~M. and Welling, M. (2018).
 \newblock {VAE} with a {VampPrior}.

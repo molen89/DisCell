@@ -1,0 +1,73 @@
+% Generated table: tab:transport-heldout. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py
+% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json  (2026-09-30 03:43:35)  [after the freeze; see checks]
+%   scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.md  (2026-09-30 03:43:35)  [after the freeze; see checks]
+%
+% Reading convention:
+%   DisCell: [min, max] over finalL_s0-s2 of each read, published and held-out tiles; Cellina:
+%   the single counterfactual fit mirroring finalL_s0; Unassigned excluded as a target
+%
+% Provenance (row / column -> file : key):
+%   Ovarian FFPE / DisCell: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset xenium_prime_ovarian_cancer_ffpe, method DisCell (runs finalL_s0, finalL_s1, finalL_s2); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%   Ovarian FFPE / Cellina: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset xenium_prime_ovarian_cancer_ffpe, method Cellina (runs cf (mirrors finalL_s0)); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%   Lung FFPE / DisCell: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset xenium_prime_human_lung_cancer_ffpe, method DisCell (runs finalL_s0, finalL_s1, finalL_s2); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%   Lung FFPE / Cellina: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset xenium_prime_human_lung_cancer_ffpe, method Cellina (runs cf (mirrors finalL_s0)); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%   Ovarian FF / DisCell: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset xenium_prime_human_ovary_ff, method DisCell (runs finalL_s0, finalL_s1, finalL_s2); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%   Ovarian FF / Cellina: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset xenium_prime_human_ovary_ff, method Cellina (runs cf (mirrors finalL_s0)); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%   TMA core / DisCell: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset gse315411_pdltma06_11_prime_solo, method DisCell (runs finalL_s0, finalL_s1, finalL_s2); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%   TMA core / Cellina: scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.json : records with dataset gse315411_pdltma06_11_prime_solo, method Cellina (runs cf (mirrors finalL_s0)); published.* and heldout.* of transport_of_ceiling_trusted, transport_of_ceiling, readA_gap_own (value), twin_margin_own
+%
+% Checks and notes:
+%   - Flags recomputed here (held-out value outside the published half-tile 95 % interval) and
+%     checked equal to the 'flag' column of
+%     scripts/logs/transport_heldout_2026-09-29/transport_heldout_comparison.md.
+%   - Values missing or partial: TMA core / DisCell / transport_of_ceiling_trusted / published:
+%     2 of 3 seeds have a value; TMA core / DisCell / transport_of_ceiling_trusted / heldout: no
+%     value (no trusted panel); TMA core / DisCell / transport_of_ceiling / heldout: 2 of 3
+%     seeds have a value; TMA core / Cellina / transport_of_ceiling_trusted / heldout: no value
+%     (no trusted panel); TMA core / Cellina / transport_of_ceiling / heldout: no value (NaN in
+%     the file).
+%   - DISCELL counts: trusted {'up': 3, 'down': 4, 'inside': 2, 'n': 9}; all panels {'up': 8,
+%     'down': 2, 'inside': 1, 'n': 11}; Read A held-out lower on 11 of 12 fits; twin margin
+%     moves -0.024 to +0.005. NOTE: in the trusted tier the held-out read leaves the interval
+%     downward more often than upward; 'more often up' holds for all panels and for the two
+%     tiers pooled.
+%   - Written after the freeze (queue transport_heldout_2026-09-29, finished 2026-09-30 03:43);
+%     author's decision 2026-09-30: published read = headline, this = sensitivity row.
+%
+% Pending cells:
+%   none
+%
+\begin{table*}[t]
+\centering
+\caption{Transport scored on held-out tiles only, beside the published read. \emph{Published}: the read of \cref{tab:headline}, whose readout is cross-fitted over spatial folds drawn from every tile, so most scored cells lie in the model's training tiles. \emph{Held-out tiles}: only cells of the model's held-out tiles are scored, and every model quantity is estimated from its training tiles; same niches, panels, ceilings and Unassigned mask. Fraction of the noise ceiling recovered by the mean read, for panels in the trusted tier and for all panels; Read A, the median gap to the target closed, own target; the twin margin, own target. For DISCELL the range over three seeds; Cellina is its neighbour-rewiring counterfactual, fitted on the training tiles and read on the same panels as the first seed. The held-out pool is about three quarters of the published one, so fewer panels reach the trusted tier. Against the published $95\%$ interval, the held-out read moves in both directions: in the trusted tier it lies above on 3, below on 4 and inside on 2 of the 9 DISCELL fits with both reads; over all panels, above on 8, below on 2 and inside on 1 of 11. Read A is lower on held-out tiles on 11 of 12 fits; the twin margin moves by at most 0.024. Arrows give the preferred direction. --: no panel in the tier, or no value; $^{\dagger}$over the seeds with a value.}
+\label{tab:transport-heldout}
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+ & \multicolumn{2}{c}{Trusted tier $\uparrow$} & \multicolumn{2}{c}{All panels $\uparrow$} & \multicolumn{2}{c}{Read A $\uparrow$} & \multicolumn{2}{c}{Twin margin $\uparrow$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}\cmidrule(lr){8-9}
+Method & published & held-out & published & held-out & published & held-out & published & held-out \\
+\midrule
+\multicolumn{9}{@{}l}{\emph{Ovarian cancer (FFPE)}} \\
+\quad DISCELL & 0.631--0.665 & 0.572--0.633 & 0.824--0.905 & 0.923--1.039 & 0.753--0.789 & 0.704--0.766 & 0.388--0.406 & 0.382--0.398 \\
+\quad Cellina & 0.731 & 0.647 & 1.058 & 1.331 & 0.681 & 0.605 & 0.361 & 0.354 \\
+\addlinespace
+\multicolumn{9}{@{}l}{\emph{Lung cancer (FFPE)}} \\
+\quad DISCELL & 0.678--0.752 & 0.595--0.736 & 0.851--0.943 & 0.999--1.148 & 0.737--0.826 & 0.679--0.768 & 0.413--0.432 & 0.397--0.424 \\
+\quad Cellina & 0.703 & 0.486 & 1.040 & 1.192 & 0.757 & 0.718 & 0.435 & 0.441 \\
+\addlinespace
+\multicolumn{9}{@{}l}{\emph{Ovarian cancer (FF)}} \\
+\quad DISCELL & 0.651--0.677 & 0.703--0.716 & 0.647--0.673 & 0.674--0.688 & 0.782--0.823 & 0.777--0.785 & 0.436--0.455 & 0.431--0.447 \\
+\quad Cellina & 0.566 & 0.558 & 0.592 & 0.583 & 0.602 & 0.601 & 0.330 & 0.329 \\
+\addlinespace
+\multicolumn{9}{@{}l}{\emph{Lung TMA core}} \\
+\quad DISCELL & 0.711--0.755$^{\dagger}$ & -- & 0.943--1.327 & 1.087--1.226$^{\dagger}$ & 0.697--0.814 & 0.623--0.683 & 0.447--0.464 & 0.444--0.457 \\
+\quad Cellina & 0.899 & -- & 1.327 & -- & 0.801 & 0.863 & 0.284 & 0.271 \\
+\bottomrule
+\end{tabular}
+\end{table*}

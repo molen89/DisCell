@@ -35,8 +35,11 @@ def test_groups_write_draws_and_reproduce(synthetic_run):
                 boot_replayed=20)
     run_dir = paths.dataset(TE.DS).root / "runs" / TE.RUN
     # the synthetic slide has too few held-out cycling cells for the q90
-    # ridge and no trusted transport panel: those groups write nothing
-    assert out["cycle"] == {} and out["transport_mean"] == {}
+    # ridge: that group writes nothing. The transport members are scored on
+    # all panels (author 2026-09-29), so they exist and reproduce the read
+    assert out["cycle"] == {}
+    assert out["transport_mean"] and all(
+        m["reproduces"] for m in out["transport_mean"].values())
     assert not B.draws_path(run_dir, "cycle").exists()
     for group in ("w_mi", "transport_dist"):
         members = B.read_draws(B.draws_path(run_dir, group))

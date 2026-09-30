@@ -1,0 +1,105 @@
+% Generated table: tab:timing. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py
+% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage/config.json  (2026-09-28 11:59:58)
+%   /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage/config.json  (2026-09-28 13:27:56)
+%   /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage/config.json  (2026-09-28 12:56:54)
+%   /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage/config.json  (2026-09-28 13:15:25)
+%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 06:02:09)  [after the freeze; see checks]
+%   /home/rmolen/github/DisCell-baselines/results/mintflow/gse315411_pdltma06_11_prime_solo_lineage/config.json  (2026-09-28 17:14:51)
+%   /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_human_lung_cancer_ffpe_lineage/config.json  (2026-09-30 06:02:07)  [after the freeze; see checks]
+%   /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/gse315411_pdltma06_11_prime_solo/config.json  (2026-09-26 03:42:59)
+%   /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_lung_cancer_ffpe/config.json  (2026-09-26 04:52:50)
+%   /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_ovary_ff/config.json  (2026-09-26 07:28:18)
+%   /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_ovarian_cancer_ffpe/config.json  (2026-09-26 04:26:58)
+%   /home/rmolen/github/DisCell-baselines/results/simvi/gse315411_pdltma06_11_prime_solo_lineage/config.json  (2026-09-28 11:49:20)
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/timing_lineage.md  (2026-09-26 21:07:12)
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/timing_lineage/timing_phi.json  (2026-09-26 20:37:54)
+%   data/datasets/gse315411_pdltma06_11_prime_solo/runs/finalL_s0/metrics.json  (2026-09-25 22:15:22)
+%   data/datasets/gse315411_pdltma06_11_prime_solo/runs/finalL_s1/metrics.json  (2026-09-25 22:32:17)
+%   data/datasets/gse315411_pdltma06_11_prime_solo/runs/finalL_s2/metrics.json  (2026-09-25 22:44:29)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/timing_lineage.md  (2026-09-26 21:07:12)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/timing_lineage/timing_phi.json  (2026-09-26 20:41:42)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/runs/finalL_s0/metrics.json  (2026-09-25 21:30:32)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/runs/finalL_s1/metrics.json  (2026-09-25 22:24:59)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/runs/finalL_s2/metrics.json  (2026-09-25 22:46:10)
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/timing_lineage.md  (2026-09-26 21:07:12)
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/timing_lineage/timing_phi.json  (2026-09-26 20:55:24)
+%   data/datasets/xenium_prime_human_ovary_ff/runs/finalL_s0/metrics.json  (2026-09-25 19:39:30)
+%   data/datasets/xenium_prime_human_ovary_ff/runs/finalL_s1/metrics.json  (2026-09-25 19:53:21)
+%   data/datasets/xenium_prime_human_ovary_ff/runs/finalL_s2/metrics.json  (2026-09-25 21:05:32)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/timing_lineage.md  (2026-09-26 21:07:12)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/timing_lineage/timing_phi.json  (2026-09-26 20:46:43)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/runs/finalL_s0/metrics.json  (2026-09-25 21:58:20)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/runs/finalL_s1/metrics.json  (2026-09-25 23:33:00)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/runs/finalL_s2/metrics.json  (2026-09-26 00:02:22)
+%   scripts/logs/baselines_complete_2026-09-28/queue.log  (2026-09-30 06:04:07)  [after the freeze; see checks]
+%
+% Reading convention:
+%   DISCELL: the 20-epoch timing arm (s/epoch, peak, parameters) and the three final fits'
+%   wall clock (min-max); baselines: train_s of the lineage fit; whole-section attempts from
+%   feasibility.tsv, else the baselines_complete queue log
+%
+% Provenance (row / column -> file : key):
+%   DISCELL / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
+%   resolVI / Ovarian FFPE: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_ovarian_cancer_ffpe/config.json : train_s / 60
+%   Cellina / Ovarian FFPE: /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage/config.json : train_s / 60
+%   DISCELL / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
+%   resolVI / Lung FFPE: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_lung_cancer_ffpe/config.json : train_s / 60
+%   Cellina / Lung FFPE: /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage/config.json : train_s / 60
+%   MintFlow / Lung FFPE: /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_human_lung_cancer_ffpe_lineage/config.json : train_s / 60; feasibility.tsv: outcome ok, wall 14.81 h, peak GPU 8.85 GB, host 21.08 GB (whole section; train_s=52762.7; epochs 50/50)
+%   DISCELL / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
+%   resolVI / Ovarian FF: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_ovary_ff/config.json : train_s / 60
+%   Cellina / Ovarian FF: /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage/config.json : train_s / 60
+%   DISCELL / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
+%   resolVI / TMA core: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/gse315411_pdltma06_11_prime_solo/config.json : train_s / 60
+%   Cellina / TMA core: /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage/config.json : train_s / 60
+%   SIMVI / TMA core: /home/rmolen/github/DisCell-baselines/results/simvi/gse315411_pdltma06_11_prime_solo_lineage/config.json : train_s / 60
+%   MintFlow / TMA core: /home/rmolen/github/DisCell-baselines/results/mintflow/gse315411_pdltma06_11_prime_solo_lineage/config.json : train_s / 60
+%
+% Checks and notes:
+%   - Ovarian FFPE: fastest fit discell (bold).
+%   - Lung FFPE: fastest fit discell (bold).
+%   - Ovarian FF: fastest fit Cellina (bold).
+%   - TMA core: fastest fit discell (bold).
+%   - DISCELL times per epoch are the timing arm 'phi' (20 epochs, no evaluation, first epoch
+%     excluded; the final configuration of finalL_s0). The comparison methods' times are train_s
+%     of the fit compared in the paper (lineage labels): resolvi_lineage/<ds>,
+%     cellina/<ds>_lineage, simvi/<ds>_lineage, mintflow/<ds>_lineage. For the whole-section
+%     MintFlow fit on lung FFPE, feasibility.tsv's wall_h includes setup and prediction; the
+%     table shows train_s like every other method.
+%
+% Pending cells:
+%   - SIMVI / Ovarian FFPE: whole-section fit queued (queue baselines_complete_2026-09-28)
+%   - MintFlow / Ovarian FFPE: whole-section fit running (queue baselines_complete_2026-09-28)
+%   - SIMVI / Lung FFPE: whole-section fit queued (queue baselines_complete_2026-09-28)
+%   - SIMVI / Ovarian FF: whole-section fit queued (queue baselines_complete_2026-09-28)
+%   - MintFlow / Ovarian FF: whole-section fit queued (queue baselines_complete_2026-09-28)
+%
+\begin{table}[t]
+\centering
+\caption{Model size and training cost on one GPU. \emph{Peak memory}: largest allocation during training, with the section resident on the GPU. \emph{Run time}: one whole fit, for DISCELL including its evaluations every five epochs and the early stop, as the range over the three seeds of the final configuration; for the comparison methods, the training time of the fit compared in this paper, at lineage labels. Every method is fitted on whole sections only. Arrows give the preferred direction; bold marks the best value per section: the fastest finished fit, for DISCELL by its mean. Whole-section fits of SIMVI and MintFlow still queued or running are marked as pending.}
+\label{tab:timing}
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+& Ovarian (FFPE) & Lung (FFPE) & Ovarian (FF) & Lung TMA core \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{DISCELL, model and training details}} \\
+\quad parameters (M) & 4.19 & 4.12 & 4.11 & 4.13 \\
+\quad peak memory (GiB) & 6.3 & 4.3 & 15.1 & 1.4 \\
+\quad epochs to the stop & 105--115 & 80--100 & 175--230 & 85--90 \\
+\quad s per epoch, training only $\downarrow$ & 1.98 & 1.35 & 5.78 & 0.45 \\
+\addlinespace
+\multicolumn{5}{@{}l}{\emph{Run time of one fit (min)} $\downarrow$} \\
+\quad DISCELL & \textbf{8.7--9.3} & \textbf{3.2--7.4} & 31.2--43.4 & \textbf{1.3} \\
+\quad resolVI & 32.8 & 22.0 & 105.0 & 5.5 \\
+\quad Cellina & 11.6 & 9.9 & \textbf{29.1} & 3.4 \\
+\quad SIMVI & \multicolumn{3}{c}{{\scriptsize \pending{queued}}} & 192.6 \\
+\quad MintFlow, 50 epochs & {\scriptsize \pending{running}} & 879.4 & {\scriptsize \pending{queued}} & 544.0 \\
+\bottomrule
+\end{tabular}
+\end{table}

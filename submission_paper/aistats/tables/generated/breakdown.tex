@@ -1,0 +1,95 @@
+% Generated table: tab:breakdown. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py
+% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   scripts/logs/breakdown_2026-09-29/breakdown_all.json  (2026-09-30 08:31:13)  [after the freeze; see checks]
+%   scripts/logs/breakdown_2026-09-29/breakdown_all.md  (2026-09-30 08:31:13)  [after the freeze; see checks]
+%
+% Reading convention:
+%   kappa* per member and section from the lean 8.19 table; Bonferroni within each section
+%   (m_s); status and kappa* as stored
+%
+% Provenance (row / column -> file : key):
+%   Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.cycle_asym_q90 (status 'above the grid', kappa_star None, sign 1)
+%   Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.cycle_asym_q90 (status 'above the grid', kappa_star None, sign 1)
+%   Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.cycle_asym_q90 (status 'above the grid', kappa_star None, sign 1)
+%   Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.cycle_asym_q90 (status 'above the grid', kappa_star None, sign 1)
+%   Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ / TMA serial: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse_dual.members.cycle_asym_q90 (status 'above the grid', kappa_star None, sign 1)
+%   $\I(\text{niche}; \vw)$ $-$ its floor / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
+%   $\I(\text{niche}; \vw)$ $-$ its floor / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
+%   $\I(\text{niche}; \vw)$ $-$ its floor / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
+%   $\I(\text{niche}; \vw)$ $-$ its floor / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
+%   Signalling share, LR $-$ other / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.signalling_response_lr_vs_other (status 'above the grid', kappa_star None, sign 1)
+%   Signalling share, LR $-$ other / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.signalling_response_lr_vs_other (status 'above the grid', kappa_star None, sign 1)
+%   Signalling share, LR $-$ other / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.signalling_response_lr_vs_other (status 'breaks', kappa_star 0.2, sign 1)
+%   Signalling share, LR $-$ other / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.signalling_response_lr_vs_other (status 'above the grid', kappa_star None, sign 1)
+%   Marker pairs, exclusive $-$ control / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.marker_excl_minus_ctrl_dc (status 'above the grid', kappa_star None, sign 1)
+%   Marker pairs, exclusive $-$ control / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.marker_excl_minus_ctrl_dc (status 'above the grid', kappa_star None, sign -1)
+%   Marker pairs, exclusive $-$ control / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.marker_excl_minus_ctrl_dc (status 'above the grid', kappa_star None, sign -1)
+%   Marker pairs, exclusive $-$ control / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.marker_excl_minus_ctrl_dc (status 'above the grid', kappa_star None, sign -1)
+%   Tumour axis, true $-$ false / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.axis_tau_true_minus_false (status 'above the grid', kappa_star None, sign 1)
+%
+% Checks and notes:
+%   - Statuses checked equal to the rendered scripts/logs/breakdown_2026-09-29/breakdown_all.md.
+%     family_complete: ovarian False, lung False, ff False, gse False, gse_dual True.
+%   - Written after the freeze by the breakdown queue
+%     (scripts/logs/breakdown_2026-09-29/queue.log); the transport members fill in when the
+%     queue's final tables step rewrites breakdown_all.json; regenerate then.
+%
+% Pending cells:
+%   - Read A $-$ type-mean reference / Ovarian FFPE: transport member being computed on the
+%     published read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Read A $-$ type-mean reference / Lung FFPE: transport member being computed on the
+%     published read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Read A $-$ type-mean reference / Ovarian FF: transport member being computed on the
+%     published read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Read A $-$ type-mean reference / TMA core: transport member being computed on the
+%     published read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Twin margin / Ovarian FFPE: transport member being computed on the published read
+%     (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Twin margin / Lung FFPE: transport member being computed on the published read (breakdown
+%     queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Twin margin / Ovarian FF: transport member being computed on the published read (breakdown
+%     queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Twin margin / TMA core: transport member being computed on the published read (breakdown
+%     queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ programme part / Ovarian FFPE: transport member being computed on the
+%     published read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ programme part / Lung FFPE: transport member being computed on the published
+%     read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ programme part / Ovarian FF: transport member being computed on the
+%     published read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ programme part / TMA core: transport member being computed on the published
+%     read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ leakage part / Ovarian FFPE: transport member being computed on the
+%     published read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ leakage part / Lung FFPE: transport member being computed on the published
+%     read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ leakage part / Ovarian FF: transport member being computed on the published
+%     read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%   - Transport $-$ leakage part / TMA core: transport member being computed on the published
+%     read (breakdown queue relaunched with GATE_OVERRIDE=1, devlog 2026-09-30)
+%
+\begin{table*}[t]
+\centering
+\caption{Breakdown points $\kappa^*$ of the contrasts the results claim, per section, on the leakage sweep ($\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$, three seeds each). A contrast holds at a grid point if every seed has the sign it has at $\kappa = 0$ and the interval of the mean over seeds (spatial block bootstrap over tiles, two-sided, Bonferroni-adjusted over the $m$ contrasts of the section) excludes $0$. $\kappa^*$ is the first grid point where it fails; \emph{above the grid}: it holds at every grid point; \emph{no finding}: it fails already at $\kappa = 0$; $^{a}$the interval contains $0$. $^{(-)}$The contrast is negative at $\kappa = 0$. Signalling share: the response's share of ligand-receptor (LR) genes against other genes; tumour axis: Kendall's $\tau$ of the response-predicted shift with the true against a false axis. On the serial section only the cycle asymmetry is read, through the core's fits. The tumour axis exists on the ovarian FFPE section only. --: not in that section's set.}
+\label{tab:breakdown}
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Contrast & \shortstack{Ovarian FFPE\\($m = 9$)} & \shortstack{Lung FFPE\\($m = 8$)} & \shortstack{Ovarian FF\\($m = 8$)} & \shortstack{TMA core\\($m = 8$)} & \shortstack{TMA serial\\($m = 1$)} \\
+\midrule
+Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ & above the grid & above the grid & above the grid & above the grid & above the grid \\
+$\I(\text{niche}; \vw)$ $-$ its floor & above the grid & above the grid & above the grid & above the grid & -- \\
+Read A $-$ type-mean reference & \multicolumn{4}{c}{\pending{computing}} & -- \\
+Twin margin & \multicolumn{4}{c}{\pending{computing}} & -- \\
+Transport $-$ programme part & \multicolumn{4}{c}{\pending{computing}} & -- \\
+Transport $-$ leakage part & \multicolumn{4}{c}{\pending{computing}} & -- \\
+Signalling share, LR $-$ other & above the grid & above the grid & 0.2$^{a}$ & above the grid & -- \\
+Marker pairs, exclusive $-$ control & above the grid & above the grid$^{(-)}$ & above the grid$^{(-)}$ & above the grid$^{(-)}$ & -- \\
+Tumour axis, true $-$ false & above the grid & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table*}

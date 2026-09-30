@@ -629,25 +629,33 @@ def axis_test(args: argparse.Namespace) -> dict:
             if len(keep_band) < 4:
                 rows = {}
                 break
-            order = np.array(keep_band, float)
-            keep_gene = np.all(np.exp(np.array(raw)) > MIN_RATE, axis=0)
             rows[axis] = {
+                "order": np.array(keep_band, float),
+                "arrays": (prog, raw, zrow, lrow),
+                "keep": np.all(np.exp(np.array(raw)) > MIN_RATE, axis=0),
+                "n_bands_used": len(keep_band)}
+        if "true" not in rows or "false" not in rows:
+            continue
+        # one gene set for both axes, so tau_true[i] and tau_false[i] are the
+        # same gene (2026-09-30 fix: per-axis masks were truncated by position)
+        keep_gene = rows["true"]["keep"] & rows["false"]["keep"]
+        for axis in ("true", "false"):
+            a = rows[axis]
+            order = a.pop("order")
+            a.pop("keep")
+            prog, raw, zrow, lrow = a.pop("arrays")
+            a.update({
                 "w_predicted": kendall_tau_rows(np.array(prog)[:, keep_gene], order),
                 "raw_observed": kendall_tau_rows(np.array(raw)[:, keep_gene], order),
                 "z_row": kendall_tau_rows(np.array(zrow)[:, keep_gene], order),
                 "l_row": kendall_tau_rows(np.array(lrow)[:, keep_gene], order),
-                "n_bands_used": len(keep_band), "n_genes": int(keep_gene.sum())}
-        if "true" not in rows or "false" not in rows:
-            continue
+                "n_genes": int(keep_gene.sum())})
         n_common = min(rows["true"]["n_genes"], rows["false"]["n_genes"])
         entry = {"n_bands_true": rows["true"]["n_bands_used"],
                  "n_bands_false": rows["false"]["n_bands_used"],
                  "n_genes": n_common, "rows": {}}
         for row in ("w_predicted", "raw_observed", "z_row", "l_row"):
             tt, tf = rows["true"][row], rows["false"][row]
-            if len(tt) != len(tf):            # different gene masks per axis
-                m = min(len(tt), len(tf))
-                tt, tf = tt[:m], tf[:m]
             entry["rows"][row] = {
                 "counts": axis_counts(tt, tf),
                 "mean_abs_tau_true": float(np.abs(tt).mean()),

@@ -91,3 +91,60 @@ def composite(img, lo, hi):
     tint = np.array([[int(h[i:i + 2], 16) / 255.0 for i in (1, 3, 5)] for _, h in STAINS])
     return np.clip(np.einsum("hwc,ck->hwk", chan, tint), 0, 1)
 
+
+
+# ---- shared by the data figures (fig_kappa_sweep ... fig_synthetic_misspec)
+BLUE_BAND = "#cde2fb"          # BLUE_RAMP[0]: a seed-range band under a BLUE line
+
+
+def paper_tables():
+    """scripts/paper_tables.py as a module: the loaders, section names and paths
+    the generated tables use, so a figure reads exactly what its table reads."""
+    import importlib.util
+    from pathlib import Path
+    repo = Path(__file__).resolve().parents[4]
+    spec = importlib.util.spec_from_file_location("paper_tables", repo / "scripts" / "paper_tables.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def save(fig, out):
+    """Vector PDF for the paper and a PNG preview, side by side."""
+    fig.savefig(out.with_suffix(".pdf"))
+    fig.savefig(out.with_suffix(".png"), dpi=250)
+    print("wrote", out.with_suffix(".pdf"))
+
+
+def light_grid(ax, axis="both"):
+    ax.grid(axis=axis, color=GHOST, lw=0.5, zorder=0)
+    ax.set_axisbelow(True)
+
+
+#: method identity in the comparison figures, as in fig_tradeoff.py: DISCELL blue,
+#: the Cellina variants orange, the other methods grey; shape tells methods apart
+METHOD_STYLE = {
+    "DISCELL": dict(marker="o", color=BLUE, fill=True, size=34),
+    "DISCELL, no adversary": dict(marker="o", color=BLUE, fill=False, size=30),
+    "resolVI": dict(marker="s", color=INK2, fill=True, size=24),
+    "SIMVI": dict(marker="v", color=INK2, fill=True, size=28),
+    "MintFlow": dict(marker="D", color=INK2, fill=False, size=22),
+    "Cellina": dict(marker="^", color=ORANGE, fill=True, size=30),
+    "Cellina, niche domain": dict(marker="^", color=ORANGE, fill=False, size=30),
+    "Cellina, own graph": dict(marker="P", color=ORANGE, fill=True, size=30),
+}
+
+
+def method_handles(names, scale=0.95):
+    from matplotlib.lines import Line2D
+    return [Line2D([], [], ls="none", marker=METHOD_STYLE[n]["marker"],
+                   markersize=np.sqrt(METHOD_STYLE[n]["size"]) * scale,
+                   markerfacecolor=METHOD_STYLE[n]["color"] if METHOD_STYLE[n]["fill"] else "white",
+                   markeredgecolor=METHOD_STYLE[n]["color"], markeredgewidth=1.0, label=n)
+            for n in names]
+
+
+def method_point(ax, x, y, name, scale=1.0, z=4):
+    st = METHOD_STYLE[name]
+    ax.scatter([x], [y], s=st["size"] * scale, marker=st["marker"], linewidths=0.9, zorder=z,
+               facecolor=st["color"] if st["fill"] else "white", edgecolor=st["color"])

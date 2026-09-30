@@ -4,7 +4,7 @@
 tiles and scored on held-out tiles. (b) One component of one block for held-out
 cells of one type: the baseline predicts the type mean, the probe predicts from
 (mu_z, t); G_k is half the log ratio of their mean squared errors, and
-exp(2 G_k) - 1 the share of within-type variance the probe explains. (c) Reading
+1 - exp(-2 G_k) the share of within-type variance the probe explains. (c) Reading
 G_b per block: its excess over the within-type permutation floor, and that excess
 as a fraction of the uncontrolled (alpha_a = 0) fit's. All values are synthetic and
 chosen for legibility. Outputs ../fig_probe.pdf (+ .png). Run from the repository root.
@@ -19,6 +19,7 @@ from matplotlib.patches import FancyArrowPatch, Rectangle
 sys.path.insert(0, str(Path(__file__).parent))
 import style as S  # noqa: E402
 
+PT = S.paper_tables()
 OUT = Path(__file__).resolve().parent.parent / "fig_probe"
 S.apply()
 fig = plt.figure(figsize=(S.TEXTWIDTH, 2.45))
@@ -67,7 +68,7 @@ axb.text(0.378, 0.372, r"probe $\hat v_k$", fontsize=6.5, color=S.INK, ha="right
          bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.85), zorder=5)
 axb.text(0.222, v.max() + 0.165,
          rf"$G_k = \tfrac12 \log \frac{{\mathrm{{MSE}}_{{\mathrm{{type}}}}}}{{\mathrm{{MSE}}_{{\mathrm{{probe}}}}}} = {g:.2f}$ nats"
-         + "\n" + rf"$e^{{2G_k}} - 1 = {100 * (np.exp(2 * g) - 1):.0f}\,\%$ of within-type variance"
+         + "\n" + rf"$1 - e^{{-2G_k}} = {PT.probe_share(g):.0f}\,\%$ of within-type variance"
          + "\n" + r"illustrative values",
          fontsize=6.5, color=S.INK, ha="left", va="top", linespacing=1.3)
 S.panel_label(axb, "b", x=-0.08, y=1.02)
@@ -99,4 +100,4 @@ S.panel_label(axc, "c", x=-0.04, y=1.02)
 
 fig.savefig(OUT.with_suffix(".pdf"))
 fig.savefig(OUT.with_suffix(".png"), dpi=250)
-print("wrote", OUT.with_suffix(".pdf"), f"| G_k {g:.3f}, share {np.exp(2 * g) - 1:.2f}")
+print("wrote", OUT.with_suffix(".pdf"), f"| G_k {g:.3f}, share {PT.probe_share(g) / 100:.2f}")

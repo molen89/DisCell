@@ -418,6 +418,8 @@ def group_axis(dataset, run, config, data, trainer, b_matrix, n, seed):
                          "genes": np.all(np.exp(np.array(raw)) > T.MIN_RATE,
                                          axis=0)}
         if "true" in per and "false" in per:
+            common = per["true"]["genes"] & per["false"]["genes"]  # same genes
+            per["true"]["genes"] = per["false"]["genes"] = common  # both axes
             specs.append(per)
     universe = np.unique(np.concatenate([r for s in specs for a in s.values()
                                          for r in a["rows"]]))

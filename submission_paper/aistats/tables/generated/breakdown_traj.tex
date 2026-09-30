@@ -1,0 +1,116 @@
+% Generated table: tab:breakdown-traj. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py
+% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json  (2026-09-30 08:31:13)  [after the freeze; see checks]
+%
+% Reading convention:
+%   3-seed mean and [min, max] per kappa as stored in the trajectory table
+%
+% Provenance (row / column -> file : key):
+%   Ovarian FFPE / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.transport_of_ceiling_trusted (mean; min, max per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling
+%   Ovarian FFPE / Within-type share of $\vw$ variance: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.w_within_type_var_fraction (mean; min, max per kappa); underlying read: degeneracy.json w_channel.w_var_fraction_across_cells (tr Cov(w|t) / tr Cov(w))
+%   Ovarian FFPE / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.moran_mu_z (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   Ovarian FFPE / Moran's $I$ of $\vmu_w$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.moran_mu_w (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_w, variance-weighted
+%   Ovarian FFPE / Atlas effective rank: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.atlas_effective_rank (mean; min, max per kappa); underlying read: atlas/programs.npy columns
+%   Ovarian FFPE / Programme overlap with the reference: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.kappa_survival_overlap (mean; min, max per kappa); underlying read: experiments/atlas_kappa_survival.json, shift overlap vs finalL_s0 (mean of both directions)
+%   Lung FFPE / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.transport_of_ceiling_trusted (mean; min, max per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling
+%   Lung FFPE / Within-type share of $\vw$ variance: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.w_within_type_var_fraction (mean; min, max per kappa); underlying read: degeneracy.json w_channel.w_var_fraction_across_cells (tr Cov(w|t) / tr Cov(w))
+%   Lung FFPE / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.moran_mu_z (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   Lung FFPE / Moran's $I$ of $\vmu_w$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.moran_mu_w (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_w, variance-weighted
+%   Lung FFPE / Atlas effective rank: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.atlas_effective_rank (mean; min, max per kappa); underlying read: atlas/programs.npy columns
+%   Lung FFPE / Programme overlap with the reference: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.kappa_survival_overlap (mean; min, max per kappa); underlying read: experiments/atlas_kappa_survival.json, shift overlap vs finalL_s0 (mean of both directions)
+%   Ovarian FF / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.transport_of_ceiling_trusted (mean; min, max per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling
+%   Ovarian FF / Within-type share of $\vw$ variance: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.w_within_type_var_fraction (mean; min, max per kappa); underlying read: degeneracy.json w_channel.w_var_fraction_across_cells (tr Cov(w|t) / tr Cov(w))
+%   Ovarian FF / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.moran_mu_z (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   Ovarian FF / Moran's $I$ of $\vmu_w$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.moran_mu_w (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_w, variance-weighted
+%   Ovarian FF / Atlas effective rank: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.atlas_effective_rank (mean; min, max per kappa); underlying read: atlas/programs.npy columns
+%   Ovarian FF / Programme overlap with the reference: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.kappa_survival_overlap (mean; min, max per kappa); underlying read: experiments/atlas_kappa_survival.json, shift overlap vs finalL_s0 (mean of both directions)
+%   TMA core / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.transport_of_ceiling_trusted (mean; min, max per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling
+%   TMA core / Within-type share of $\vw$ variance: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.w_within_type_var_fraction (mean; min, max per kappa); underlying read: degeneracy.json w_channel.w_var_fraction_across_cells (tr Cov(w|t) / tr Cov(w))
+%   TMA core / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.moran_mu_z (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   TMA core / Moran's $I$ of $\vmu_w$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.moran_mu_w (mean; min, max per kappa); underlying read: validation/validation.json morans.mu_w, variance-weighted
+%   TMA core / Atlas effective rank: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.atlas_effective_rank (mean; min, max per kappa); underlying read: atlas/programs.npy columns
+%   TMA core / Programme overlap with the reference: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.kappa_survival_overlap (mean; min, max per kappa); underlying read: experiments/atlas_kappa_survival.json, shift overlap vs finalL_s0 (mean of both directions)
+%
+% Checks and notes:
+%   - Left out: the all-panel transport fraction (off the tables, manifest), and
+%     w_within_type_var (unnormalised; its share is shown). The serial section has no trajectory
+%     reads. Fewer seeds: TMA core transport_of_ceiling_trusted kappa 0: n = 2; TMA core
+%     transport_of_ceiling_trusted kappa 0.05: n = 2; TMA core transport_of_ceiling_trusted
+%     kappa 0.1: n = 2; TMA core transport_of_ceiling_trusted kappa 0.2: n = 2; TMA core
+%     transport_of_ceiling_trusted kappa 0.3: n = 2; TMA core transport_of_ceiling_trusted kappa
+%     0.4: n = 2
+%
+% Pending cells:
+%   none
+%
+\begin{table}[t]
+\centering
+\caption{Readouts reported as trajectories across the leakage sweep, without a breakdown point: the mean over three seeds with the range. These are magnitudes, positive under any fit, or descriptions of what the invariance leaves, so no null applies. \emph{Transport}: the fraction of the noise ceiling recovered by the mean transport read, trusted tier; $^{\dagger}$over the seeds with a trusted panel. \emph{Within-type share of $\vw$ variance}: the share of $\vw$'s total variance that lies within types. Moran's $I$ is within type, variance-weighted over coordinates. \emph{Atlas effective rank}: the number of programme axes kept. \emph{Programme overlap}: the overlap of each fit's programme shift space with that of the first seed at $\kappa = 0.1$, which is therefore $1$ for that fit. The operating point $\kappa = 0.1$ is in bold. The arrow gives the preferred direction; the other readouts have none.}
+\label{tab:breakdown-traj}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Readout & $\kappa = 0$ & $\kappa = 0.05$ & $\bm{\kappa = 0.1}$ & $\kappa = 0.2$ & $\kappa = 0.3$ & $\kappa = 0.4$ \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Ovarian cancer (FFPE)}} \\
+\quad Transport, fraction of ceiling $\uparrow$ & 0.56 & 0.63 & 0.65 & 0.62 & 0.47 & 0.35 \\
+\quad\quad range & 0.51--0.60 & 0.60--0.66 & 0.63--0.67 & 0.58--0.66 & 0.40--0.55 & 0.31--0.40 \\
+\quad Within-type share of $\vw$ variance & 0.31 & 0.31 & 0.31 & 0.31 & 0.30 & 0.26 \\
+\quad\quad range & 0.26--0.33 & 0.25--0.36 & 0.27--0.36 & 0.28--0.34 & 0.25--0.34 & 0.17--0.33 \\
+\quad Moran's $I$ of $\vmu_z$ & 0.118 & 0.112 & 0.108 & 0.096 & 0.083 & 0.072 \\
+\quad\quad range & 0.114--0.120 & 0.105--0.118 & 0.101--0.113 & 0.093--0.099 & 0.081--0.086 & 0.067--0.077 \\
+\quad Moran's $I$ of $\vmu_w$ & 0.618 & 0.617 & 0.621 & 0.620 & 0.615 & 0.601 \\
+\quad\quad range & 0.609--0.630 & 0.613--0.624 & 0.615--0.629 & 0.612--0.626 & 0.604--0.622 & 0.556--0.623 \\
+\quad Atlas effective rank & 2.3 & 2.7 & 2.7 & 2.7 & 2.3 & 2.7 \\
+\quad\quad range & 2--3 & 2--3 & 2--3 & 2--3 & 2--3 & 2--3 \\
+\quad Programme overlap with the reference & 0.92 & 0.92 & 0.91 & 0.91 & 0.91 & 0.88 \\
+\quad\quad range & 0.83--0.97 & 0.84--0.98 & 0.82--1.00 & 0.86--0.97 & 0.84--0.97 & 0.80--0.95 \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Lung cancer (FFPE)}} \\
+\quad Transport, fraction of ceiling $\uparrow$ & 0.58 & 0.69 & 0.72 & 0.74 & 0.66 & 0.61 \\
+\quad\quad range & 0.53--0.61 & 0.66--0.72 & 0.68--0.75 & 0.72--0.77 & 0.57--0.72 & 0.53--0.65 \\
+\quad Within-type share of $\vw$ variance & 0.44 & 0.43 & 0.43 & 0.41 & 0.40 & 0.43 \\
+\quad\quad range & 0.43--0.45 & 0.41--0.46 & 0.40--0.45 & 0.37--0.45 & 0.38--0.43 & 0.40--0.48 \\
+\quad Moran's $I$ of $\vmu_z$ & 0.064 & 0.059 & 0.054 & 0.048 & 0.043 & 0.038 \\
+\quad\quad range & 0.062--0.067 & 0.057--0.061 & 0.051--0.056 & 0.045--0.049 & 0.042--0.044 & 0.035--0.041 \\
+\quad Moran's $I$ of $\vmu_w$ & 0.497 & 0.488 & 0.483 & 0.447 & 0.460 & 0.477 \\
+\quad\quad range & 0.472--0.512 & 0.474--0.500 & 0.452--0.511 & 0.413--0.476 & 0.447--0.467 & 0.465--0.495 \\
+\quad Atlas effective rank & 2.7 & 2.7 & 2.0 & 1.7 & 2.0 & 2.0 \\
+\quad\quad range & 2--3 & 2--3 & 2 & 1--2 & 2 & 2 \\
+\quad Programme overlap with the reference & 0.87 & 0.86 & 0.84 & 0.85 & 0.83 & 0.76 \\
+\quad\quad range & 0.80--0.92 & 0.77--0.93 & 0.72--1.00 & 0.75--0.95 & 0.76--0.90 & 0.68--0.85 \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Ovarian cancer (FF)}} \\
+\quad Transport, fraction of ceiling $\uparrow$ & 0.58 & 0.64 & 0.67 & 0.70 & 0.67 & 0.62 \\
+\quad\quad range & 0.56--0.60 & 0.63--0.65 & 0.65--0.68 & 0.67--0.72 & 0.66--0.68 & 0.61--0.64 \\
+\quad Within-type share of $\vw$ variance & 0.54 & 0.55 & 0.53 & 0.54 & 0.56 & 0.55 \\
+\quad\quad range & 0.53--0.54 & 0.54--0.55 & 0.53 & 0.54 & 0.53--0.58 & 0.48--0.58 \\
+\quad Moran's $I$ of $\vmu_z$ & 0.360 & 0.358 & 0.351 & 0.341 & 0.312 & 0.302 \\
+\quad\quad range & 0.356--0.363 & 0.350--0.364 & 0.339--0.358 & 0.337--0.348 & 0.312 & 0.295--0.315 \\
+\quad Moran's $I$ of $\vmu_w$ & 0.714 & 0.735 & 0.733 & 0.743 & 0.762 & 0.759 \\
+\quad\quad range & 0.710--0.718 & 0.728--0.747 & 0.727--0.737 & 0.739--0.751 & 0.755--0.771 & 0.734--0.774 \\
+\quad Atlas effective rank & 5.3 & 5.0 & 4.7 & 4.7 & 4.3 & 4.7 \\
+\quad\quad range & 5--6 & 5 & 4--5 & 4--5 & 4--5 & 4--5 \\
+\quad Programme overlap with the reference & 0.86 & 0.83 & 0.89 & 0.81 & 0.82 & 0.79 \\
+\quad\quad range & 0.75--0.93 & 0.77--0.91 & 0.84--1.00 & 0.67--0.94 & 0.74--0.92 & 0.69--0.91 \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Lung TMA core}} \\
+\quad Transport, fraction of ceiling $\uparrow$ & 0.58$^{\dagger}$ & 0.73$^{\dagger}$ & 0.73$^{\dagger}$ & 0.73$^{\dagger}$ & 0.70$^{\dagger}$ & 0.67$^{\dagger}$ \\
+\quad\quad range & 0.52--0.65 & 0.69--0.76 & 0.71--0.75 & 0.68--0.78 & 0.64--0.77 & 0.56--0.78 \\
+\quad Within-type share of $\vw$ variance & 0.55 & 0.54 & 0.53 & 0.54 & 0.49 & 0.49 \\
+\quad\quad range & 0.48--0.60 & 0.51--0.56 & 0.48--0.57 & 0.52--0.55 & 0.46--0.54 & 0.47--0.52 \\
+\quad Moran's $I$ of $\vmu_z$ & 0.076 & 0.066 & 0.059 & 0.052 & 0.040 & 0.038 \\
+\quad\quad range & 0.069--0.082 & 0.062--0.069 & 0.059--0.060 & 0.051--0.053 & 0.039--0.041 & 0.037--0.040 \\
+\quad Moran's $I$ of $\vmu_w$ & 0.478 & 0.504 & 0.492 & 0.501 & 0.482 & 0.486 \\
+\quad\quad range & 0.460--0.489 & 0.489--0.512 & 0.476--0.508 & 0.484--0.513 & 0.464--0.499 & 0.473--0.511 \\
+\quad Atlas effective rank & 2.0 & 2.0 & 2.0 & 2.3 & 2.0 & 2.0 \\
+\quad\quad range & 2 & 2 & 2 & 2--3 & 2 & 1--3 \\
+\quad Programme overlap with the reference & 0.83 & 0.84 & 0.85 & 0.83 & 0.80 & 0.79 \\
+\quad\quad range & 0.74--0.93 & 0.76--0.93 & 0.72--1.00 & 0.75--0.91 & 0.69--0.91 & 0.68--0.88 \\
+\bottomrule
+\end{tabular}
+\end{table}

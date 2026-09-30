@@ -1,6 +1,6 @@
 % Generated table: tab:kappa-sweep. DO NOT EDIT BY HAND; regenerate instead.
-% Command: python scripts/paper_tables.py --only kappa_sweep
-% Generated: 2026-09-30 08:26:05 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Command: python scripts/paper_tables.py
+% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/kappa_sweep_sweepL.json  (2026-09-29 16:29:31)  [after the freeze; see checks]
@@ -109,13 +109,13 @@
 %
 \begin{table}[t]
 \centering
-\caption{The leakage sweep: every setting refitted at each rate $\kappa$ with three seeds, as the range over seeds; the final configuration is $\kappa = 0.1$ (bold), whose fits are those of \cref{tab:headline}. Held-out reconstruction in nats per count; NMI of $\vz$ with the type; mirror $R^2$; cycle $R^2$ on the top-decile cycling set; $\I(\text{niche}; \vw)$, the response's information about the niche as its excess over a within-type permutation floor, in nats. Unassigned cells are not targets.}
+\caption{The leakage sweep: every setting refitted at each rate $\kappa$ with three seeds, as the range over seeds; the final configuration is $\kappa = 0.1$ (bold), whose fits are those of \cref{tab:headline}. Held-out reconstruction in nats per count; NMI of $\vz$ with the type; mirror $R^2$; cycle $R^2$ on the top-decile cycling set; $\I(\text{niche}; \vw)$, the response's information about the niche as its excess over a within-type permutation floor, in nats. Arrows give the preferred direction; $\approx 0$: expected to be near zero. Unassigned cells are not targets.}
 \label{tab:kappa-sweep}
 \small
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{@{}llcccccc@{}}
 \toprule
-Section & $\kappa$ & Recon. & NMI & Mirror $R^2$ & Cycle $R^2$, $\vz$ & Cycle $R^2$, $\vw$ & $\I(\text{niche}; \vw)$ \\
+Section & $\kappa$ & Recon. $\uparrow$ & NMI $\uparrow$ & Mirror $R^2$ $\downarrow$ & Cycle $R^2$, $\vz$ $\uparrow$ & Cycle $R^2$, $\vw$ ($\approx 0$) & $\I(\text{niche}; \vw)$ $\uparrow$ \\
 \midrule
 \multirow{6}{*}{Ovarian FFPE} & 0 & $-7.222$ to $-7.149$ & 0.708--0.728 & 0.051--0.052 & 0.523--0.536 & 0.002--0.010 & 0.49--0.53 \\
  & 0.05 & $-7.221$ to $-7.152$ & 0.697--0.724 & 0.048--0.052 & 0.515--0.533 & 0.002--0.010 & 0.45--0.50 \\

@@ -1,0 +1,142 @@
+% Generated table: tab:context. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py
+% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 06:02:09)  [after the freeze; see checks]
+%   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json  (2026-09-29 16:43:05)  [after the freeze; see checks]
+%   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json  (2026-09-30 10:42:32)  [after the freeze; see checks]
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json  (2026-09-29 16:42:22)  [after the freeze; see checks]
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json  (2026-09-30 10:39:22)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-30 06:02:43)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json  (2026-09-30 10:58:01)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json  (2026-09-29 17:13:13)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json  (2026-09-30 11:31:58)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-29 23:31:14)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json  (2026-09-30 10:50:22)  [after the freeze; see checks]
+%   scripts/logs/baselines_complete_2026-09-28/queue.log  (2026-09-30 06:04:07)  [after the freeze; see checks]
+%
+% Reading convention:
+%   lineage labels; accepted checkpoint; one Unassigned mask for every method; DisCell mean
+%   and [min, max] over finalL_s0-s2, baselines single fit; context latent graded on the probe
+%   regrade's cells
+%
+% Provenance (row / column -> file : key):
+%   Ovarian FFPE / DISCELL: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
+%   Ovarian FFPE / resolVI: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : resolVI.absent (no context latent)
+%   Ovarian FFPE / SIMVI: not graded (whole-section fit: queued)
+%   Ovarian FFPE / MintFlow: not graded (whole-section fit: running)
+%   Ovarian FFPE / Cellina: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   Ovarian FFPE / Cellina, niche domain: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   Lung FFPE / DISCELL: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
+%   Lung FFPE / resolVI: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : resolVI.absent (no context latent)
+%   Lung FFPE / SIMVI: not graded (whole-section fit: queued)
+%   Lung FFPE / MintFlow: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : 'MintFlow' (X_mintflow_micro_in of /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_human_lung_cancer_ffpe_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   Lung FFPE / Cellina: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   Lung FFPE / Cellina, niche domain: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   Ovarian FF / DISCELL: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
+%   Ovarian FF / resolVI: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : resolVI.absent (no context latent)
+%   Ovarian FF / SIMVI: not graded (whole-section fit: queued)
+%   Ovarian FF / MintFlow: not graded (whole-section fit: queued)
+%   Ovarian FF / Cellina: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   Ovarian FF / Cellina, niche domain: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA core / DISCELL: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
+%   TMA core / resolVI: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : resolVI.absent (no context latent)
+%   TMA core / SIMVI: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : 'SIMVI' (X_simvi_spatial of /home/rmolen/github/DisCell-baselines/results/simvi/gse315411_pdltma06_11_prime_solo_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA core / MintFlow: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : 'MintFlow' (X_mintflow_micro_in of /home/rmolen/github/DisCell-baselines/results/mintflow/gse315411_pdltma06_11_prime_solo_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA core / Cellina: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA core / Cellina, niche domain: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA core / Cellina, own graph: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : 'Cellina, own graph' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage_owngraph/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA serial / DISCELL: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
+%   TMA serial / resolVI: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json : resolVI.absent (no context latent)
+%   TMA serial / SIMVI: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json : 'SIMVI' (X_simvi_spatial of /home/rmolen/github/DisCell-baselines/results/simvi/gse315411_pdltma06_10_prime_dual_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA serial / MintFlow: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json : 'MintFlow' (X_mintflow_micro_in of /home/rmolen/github/DisCell-baselines/results/mintflow/gse315411_pdltma06_10_prime_dual_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA serial / Cellina: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_10_prime_dual_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA serial / Cellina, niche domain: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_10_prime_dual_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%   TMA serial / Cellina, own graph: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json : 'Cellina, own graph' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_10_prime_dual_lineage_owngraph/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
+%
+% Checks and notes:
+%   - Ovarian FFPE: DISCELL's I(niche; mu_w) excess equals each run's degeneracy.json w-channel
+%     guard (differences finalL_s0: -3.5e-05, finalL_s1: -1.3e-05, finalL_s2: +1.6e-05;
+%     tolerance 0.0005).
+%   - Lung FFPE: DISCELL's I(niche; mu_w) excess equals each run's degeneracy.json w-channel
+%     guard (differences finalL_s0: -2.6e-06, finalL_s1: +6.8e-06, finalL_s2: +8.1e-06;
+%     tolerance 0.0005).
+%   - Ovarian FF: DISCELL's I(niche; mu_w) excess equals each run's degeneracy.json w-channel
+%     guard (differences finalL_s0: -6.0e-06, finalL_s1: -5.4e-06, finalL_s2: +5.4e-06;
+%     tolerance 0.0005).
+%   - TMA core: DISCELL's I(niche; mu_w) excess equals each run's degeneracy.json w-channel
+%     guard (differences finalL_s0: +4.5e-06, finalL_s1: +2.4e-05, finalL_s2: -9.3e-06;
+%     tolerance 0.0005).
+%   - Bold: the highest share per probe column and section (context latents are graded in the
+%     positive direction: the context channel should carry the niche). I(niche; .) carries no
+%     arrow and no bold: not comparable across widths: the kNN estimate depends on the latent's
+%     width (devlog 2026-09-30, rule set in advance). The NMI with type has no preferred
+%     direction here and is descriptive.
+%   - Reads: discell/experiments/context_grade.py on the probe regrade's cells and targets
+%     (DISCELL: each finalL fit's own split; comparison methods: finalL_s0's split, as their
+%     probe records).
+%
+% Pending cells:
+%   - Ovarian FFPE / SIMVI: whole-section fit queued
+%   - Ovarian FFPE / MintFlow: whole-section fit running
+%   - Lung FFPE / SIMVI: whole-section fit queued
+%   - Ovarian FF / SIMVI: whole-section fit queued
+%   - Ovarian FF / MintFlow: whole-section fit queued
+%
+\begin{table*}[t]
+\centering
+\caption{What each method's context latent carries, on the held-out cells of each section, with Unassigned cells not targets. The context latent is DISCELL's response posterior mean $\vmu_w$, SIMVI's spatial latent, MintFlow's microenvironment latent and Cellina's microenvironment latent $s$; resolVI has a single cell latent and no context latent. \emph{Composition}, \emph{Image}: the share of the within-type variance of neighbour composition and of the image block that the held-out MLP and ridge probes recover from the context latent (with the type) beyond the within-type permutation floor, in \% ($1 - e^{-2\,\mathrm{excess}}$, as in \cref{tab:probe}). $\I(\text{niche}; \cdot)$: the mutual information of the latent with ten composition niches beyond the within-type floor, in nats; its estimate depends on the latent's width $d$, so it is not compared across methods of different width. \emph{NMI}: $k$-means on the context latent against the cell type. For DISCELL, the mean over three seeds and the range. Arrows give the preferred direction; bold marks the highest recovery per section and probe column. On the serial section the Cellina rows and MintFlow are the core's models transferred, SIMVI is fitted on the section. Cellina's $s$ is inferred from the mean expression of the cell's neighbours. --: not applicable.}
+\label{tab:context}
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}llccccccc@{}}
+\toprule
+ & & & \multicolumn{2}{c}{Composition (\%)} & \multicolumn{2}{c}{Image (\%)} & & \\
+\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Section & Method & $d$ & MLP $\uparrow$ & Ridge $\uparrow$ & MLP $\uparrow$ & Ridge $\uparrow$ & $\I(\text{niche}; \cdot)$ & NMI \\
+\midrule
+\multirow{7}{*}{Ovarian FFPE} & DISCELL & 6 & 23.3 & 15.6 & \textbf{39.9} & \textbf{31.2} & 0.47 & 0.42 \\
+ & \quad range &  & 21.1--25.1 & 14.9--17.0 & 36.5--43.5 & 29.7--33.3 & 0.45--0.50 & 0.37--0.45 \\
+ & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
+ & SIMVI & -- & \multicolumn{6}{c}{\pending{queued}} \\
+ & MintFlow & -- & \multicolumn{6}{c}{\pending{running}} \\
+ & Cellina & 64 & 40.2 & 24.9 & 26.9 & 22.2 & 0.58 & 0.27 \\
+ & Cellina, niche domain & 64 & \textbf{51.5} & \textbf{37.0} & 28.4 & 25.2 & 0.74 & 0.32 \\
+\midrule
+\multirow{7}{*}{Lung FFPE} & DISCELL & 6 & 15.6 & 12.2 & \textbf{40.1} & \textbf{35.1} & 0.59 & 0.27 \\
+ & \quad range &  & 13.1--17.3 & 10.8--13.2 & 35.5--45.9 & 30.2--41.8 & 0.58--0.62 & 0.24--0.29 \\
+ & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
+ & SIMVI & -- & \multicolumn{6}{c}{\pending{queued}} \\
+ & MintFlow & 100 & \textbf{93.2} & \textbf{95.0} & 13.8 & 11.4 & 1.46 & 0.34 \\
+ & Cellina & 64 & 32.7 & 19.5 & 20.8 & 15.9 & 0.72 & 0.28 \\
+ & Cellina, niche domain & 64 & 42.8 & 26.9 & 22.6 & 18.4 & 0.83 & 0.31 \\
+\midrule
+\multirow{7}{*}{Ovarian FF} & DISCELL & 6 & 33.7 & 30.1 & 37.6 & 28.1 & 0.60 & 0.33 \\
+ & \quad range &  & 32.8--35.3 & 29.0--32.1 & 35.1--42.0 & 25.9--31.8 & 0.58--0.62 & 0.33--0.34 \\
+ & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
+ & SIMVI & -- & \multicolumn{6}{c}{\pending{queued}} \\
+ & MintFlow & -- & \multicolumn{6}{c}{\pending{queued}} \\
+ & Cellina & 64 & 45.1 & 29.6 & \textbf{42.9} & \textbf{34.6} & 0.71 & 0.19 \\
+ & Cellina, niche domain & 64 & \textbf{50.7} & \textbf{34.2} & 42.8 & 34.3 & 0.74 & 0.20 \\
+\midrule
+\multirow{8}{*}{TMA core} & DISCELL & 6 & 12.7 & 8.6 & 26.1 & \textbf{23.9} & 0.48 & 0.29 \\
+ & \quad range &  & 9.9--14.8 & 7.6--10.3 & 15.6--41.4 & 17.9--34.4 & 0.42--0.52 & 0.26--0.31 \\
+ & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
+ & SIMVI & 6 & 11.2 & 4.5 & 12.6 & 4.2 & 0.52 & 0.34 \\
+ & MintFlow & 100 & \textbf{76.2} & \textbf{85.5} & 8.7 & 6.4 & 1.45 & 0.29 \\
+ & Cellina & 64 & 13.7 & 7.7 & 14.4 & 9.8 & 0.54 & 0.26 \\
+ & Cellina, niche domain & 64 & 17.6 & 11.4 & 16.1 & 11.1 & 0.58 & 0.28 \\
+ & Cellina, own graph & 64 & 5.0 & 5.7 & \textbf{30.3} & 20.8 & 0.61 & 0.20 \\
+\midrule
+\multirow{8}{*}{TMA serial} & DISCELL & 6 & 15.8 & 9.5 & 23.3 & \textbf{21.8} & 0.48 & 0.29 \\
+ & \quad range &  & 13.6--17.3 & 8.7--11.2 & 13.6--35.6 & 18.0--28.4 & 0.45--0.49 & 0.27--0.30 \\
+ & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
+ & SIMVI & 6 & 13.6 & 5.2 & 11.9 & 4.5 & 0.46 & 0.35 \\
+ & MintFlow & 100 & \textbf{79.2} & \textbf{86.8} & 7.0 & 5.0 & 1.50 & 0.29 \\
+ & Cellina & 64 & 16.0 & 8.1 & 13.1 & 9.2 & 0.52 & 0.24 \\
+ & Cellina, niche domain & 64 & 20.7 & 12.1 & 14.0 & 10.1 & 0.58 & 0.27 \\
+ & Cellina, own graph & 64 & 6.2 & 5.2 & \textbf{25.2} & 20.9 & 0.55 & 0.18 \\
+\bottomrule
+\end{tabular}
+\end{table*}

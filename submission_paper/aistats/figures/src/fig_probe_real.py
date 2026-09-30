@@ -24,6 +24,8 @@ from matplotlib.patches import Rectangle
 sys.path.insert(0, str(Path(__file__).parent))
 import style as S  # noqa: E402
 
+PT = S.paper_tables()
+
 DS, RUN = "xenium_prime_ovarian_cancer_ffpe", "finalL_s0"
 ROOT = Path(f"data/datasets/{DS}")
 TARGET_NEIGHBOUR, SHOWN_TYPE = "Tumour", "Fibroblasts"
@@ -114,7 +116,7 @@ axb.set_xticks([0.05, 0.10, 0.15])
 axb.text(hi, base_k[shown][0] + 0.06, r"baseline", fontsize=6.5, color=S.INK2, ha="right", va="bottom",
          bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.85), zorder=5)
 axb.text(lo + 0.002, 1.18, rf"held-out {SHOWN_TYPE.lower()}" + "\n"
-         + rf"$G_k = {g_k:.4f}$ nats ({100 * (np.exp(2 * g_k) - 1):.1f}\,\%)",
+         + rf"$G_k = {g_k:.4f}$ nats ({PT.probe_share(g_k):.1f}\,\%)",
          fontsize=6.5, color=S.INK, ha="left", va="top", linespacing=1.3)
 S.panel_label(axb, "b", x=-0.1, y=1.02)
 
