@@ -61,8 +61,11 @@ Usage::
     python -m discell.experiments.bootstrap --dataset <id> --run <run>
     python -m discell.experiments.bootstrap --dataset <id> --run <run> \\
         --reads probe,cycle,nmi,w_mi --n 1000
+    python -m discell.experiments.bootstrap --dataset <id> --run <run> \\
+        --reads transport_mean,transport_dist --scored-cells heldout-tiles
 
-Writes ``runs/<run>/bootstrap_ci.json``.
+Writes ``runs/<run>/bootstrap_ci.json`` (the held-out-tiles transport
+variant: ``runs/<run>/heldout_tiles/bootstrap_ci.json``).
 """
 
 from __future__ import annotations
@@ -524,20 +527,22 @@ def w_mi_statistic(cells: dict, weights: np.ndarray) -> float:
 
 
 def transport_mean_panels(trainer, data, config, b_matrix, labels, fold,
-                          device: str) -> list[dict]:
+                          device: str, scored_cells: str = "fold0"
+                          ) -> list[dict]:
     """The mean read's panels, replayed (``transport.transport_check``'s
     loop and random stream, minus figures and the Phi-fixed channels): per
     panel the counterfactual prediction on the kept genes, the held-out rows
-    of both niches, and the point R^2 and noise ceiling."""
+    of both niches, and the point R^2 and noise ceiling. *scored_cells* as
+    ``transport.split_cells``."""
     from discell.model import transport as T
 
     connected = data.graph.degrees > 0
     rng = np.random.default_rng(config.seed)
-    held_out = fold == 0
+    held_out, model_side = T.split_cells(data, fold, scored_cells)
     n_types = len(data.p_t)
     n_niches = int(labels.max()) + 1
     n_groups = n_niches * n_types
-    model_rows = connected & ~held_out & (labels >= 0)
+    model_rows = connected & model_side & (labels >= 0)
     group = np.full(data.graph.n_cells, -1, dtype=np.int64)
     group[model_rows] = labels[model_rows] * n_types + data.t[model_rows]
     channels = T.collect_channels(trainer, group, n_groups)
@@ -548,7 +553,7 @@ def transport_mean_panels(trainer, data, config, b_matrix, labels, fold,
         for g in range(len(names)):
             members, ok = {}, True
             for niche, side in ((niche_a, "A"), (niche_b, "B")):
-                train_rows = np.flatnonzero(connected & ~held_out
+                train_rows = np.flatnonzero(connected & model_side
                                             & (data.t == g) & (labels == niche))
                 test_rows = np.flatnonzero(connected & held_out
                                            & (data.t == g) & (labels == niche))
@@ -830,7 +835,9 @@ def _mmd_draws(p_trans, p_unt, p_target, rows, rng, device: str,
 
 def transport_dist_panels(trainer, data, config, labels, fold, device: str,
                           boot_replayed: int, n: int = N_BOOT,
-                          tile_um: float = TILE_UM, seed: int = 0) -> dict:
+                          tile_um: float = TILE_UM, seed: int = 0,
+                          scored_cells: str = "fold0",
+                          twin_cells: bool = False) -> dict:
     """Read A's pairwise panels, replayed, with their tile draws.
 
     ``distribution_check``'s shared random stream is advanced exactly as the
@@ -841,6 +848,13 @@ def transport_dist_panels(trainer, data, config, labels, fold, device: str,
     own fresh generators, which pins subsample, bandwidth and floor. The tile
     universe is every source row any panel draws from; one draw per replicate
     is shared by all panels.
+
+    *twin_cells* (opt-in, the 8.19 breakdown layer; off by default, when
+    nothing here changes): each panel also carries ``twins_own``, the
+    per-target-cell Hellinger distances behind Read B's own-target twin
+    margin (``transport.twin_scores`` on the own-posterior target, its
+    random twins drawn from its own generator ``seed + 103`` exactly as
+    ``own_target_pass`` draws them): ``{"tgt", "d_tr", "d_rd"}``.
     """
     from discell.model import transport as T
     from discell.model.validate import collect_latents
@@ -848,18 +862,18 @@ def transport_dist_panels(trainer, data, config, labels, fold, device: str,
     mu_z = collect_latents(trainer, data)["mu_z"]
     connected = data.graph.degrees > 0
     rng = np.random.default_rng(config.seed)
-    held_out = fold == 0
+    held_out, model_side = T.split_cells(data, fold, scored_cells)
     n_types = len(data.p_t)
     n_niches = int(labels.max()) + 1
     n_groups = n_niches * n_types
-    model_rows = connected & ~held_out & (labels >= 0)
+    model_rows = connected & model_side & (labels >= 0)
     group = np.full(data.graph.n_cells, -1, dtype=np.int64)
     group[model_rows] = labels[model_rows] * n_types + data.t[model_rows]
     channels = T.collect_channels(trainer, group, n_groups)
     train_rows, test_rows = {}, {}
     for k in range(n_niches):
         for g in range(n_types):
-            tr = np.flatnonzero(connected & ~held_out & (data.t == g) & (labels == k))
+            tr = np.flatnonzero(connected & model_side & (data.t == g) & (labels == k))
             te = np.flatnonzero(connected & held_out & (data.t == g) & (labels == k))
             if len(tr) >= T.MIN_CELLS and len(te) >= T.MIN_CELLS // 5:
                 train_rows[(k, g)], test_rows[(k, g)] = tr, te
@@ -933,8 +947,33 @@ def transport_dist_panels(trainer, data, config, labels, fold, device: str,
                                ("own", p_tgt_own, config.seed + 101)):
             entry[name] = _mmd_draws(p_trans, p_unt, p_tgt, rows,
                                      np.random.default_rng(s), device, weights_of)
+        if twin_cells:
+            entry["twins_own"] = _twin_cells(p_trans, p_tgt_own, mu_z[rows],
+                                             mu_z[tgt], tgt,
+                                             np.random.default_rng(
+                                                 config.seed + 103))
         panels.append(entry)
     return {"panels": panels, "n_tiles": n_tiles, "n_cells": int(len(universe))}
+
+
+def _twin_cells(p_trans, p_target, z_src, z_tgt, tgt, rng) -> dict:
+    """Per target cell, the Hellinger distance of its z-nearest source twin
+    transported (``d_tr``) and of a random transported source cell
+    (``d_rd``) to its own decode: ``transport.twin_scores``' arrays, its
+    random twins the first draw of *rng* as there."""
+    from discell.model import transport as T
+
+    n_t, n_s = len(z_tgt), len(z_src)
+    if n_t < 20 or n_s < 20:
+        return {"insufficient": True}
+    d = np.linalg.norm(np.asarray(z_tgt, dtype=np.float64)[:, None, :]
+                       - np.asarray(z_src, dtype=np.float64)[None, :, :],
+                       axis=-1)
+    twin = np.argmin(d, axis=1)
+    rand = rng.integers(0, n_s, n_t)
+    return {"insufficient": False, "tgt": np.asarray(tgt),
+            "d_tr": T._hellinger_rows(p_trans[twin], p_target),
+            "d_rd": T._hellinger_rows(p_trans[rand], p_target)}
 
 
 def transport_dist_summary(panels: list[dict], alpha: float = ALPHA) -> dict:
@@ -990,16 +1029,27 @@ def _check(stored, estimate, tol: float = 1e-4) -> dict:
 
 def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
                   n: int = N_BOOT, tile_um: float = TILE_UM, seed: int = 0,
-                  device: str = "cuda", boot_replayed: int = 200) -> dict:
+                  device: str = "cuda", boot_replayed: int = 200,
+                  scored_cells: str = "fold0") -> dict:
     """Every requested read of one run, with its tile CI and its check
     against the stored number; writes ``runs/<run>/bootstrap_ci.json``
-    (merging into an existing file, so reads can be added one at a time)."""
+    (merging into an existing file, so reads can be added one at a time).
+
+    *scored_cells* ``heldout-tiles`` (``transport.split_cells``; transport
+    reads only) replays the held-out-tiles variant against its own files
+    and writes ``runs/<run>/heldout_tiles/bootstrap_ci.json``."""
     import torch
 
     from discell.model import metrics as M
+    from discell.model import transport as T
     from discell.model.validate import load_run, niche_labels
 
+    if scored_cells != "fold0" and set(reads) - {"transport_mean",
+                                                 "transport_dist"}:
+        raise ValueError("--scored-cells applies to the transport reads only")
     config, data, trainer, run_dir, b_matrix = load_run(dataset, run, device)
+    # the published read's files, or the variant's own root
+    root = T.out_root(run_dir, scored_cells)
     dev = str(next(trainer.model.parameters()).device)
     metrics = _load(run_dir / "metrics.json") or {}
     final = metrics.get("final") or {}
@@ -1008,8 +1058,10 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
     post_hoc = _load(run_dir / "degeneracy.json") or {}
     masked = bool(EM.exclusions()) and EM.same_mask(post_hoc.get("eval_mask"))
     names = data.type_names
-    target = run_dir / "bootstrap_ci.json"
+    target = root / "bootstrap_ci.json"
     record = _load(target) or {"run": run, "dataset": dataset, "reads": {}}
+    if scored_cells != "fold0":
+        record["scored_cells"] = scored_cells
     record.update({"n_boot": n, "tile_um": tile_um, "seed": seed,
                    "eval_mask": EM.record(names, data.t),
                    "conditional_on": "the fitted probes, clustering, cycle "
@@ -1137,10 +1189,10 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
         fold = collect_latents(trainer, data)["fold"]
 
     if "transport_mean" in reads:
-        stored = _load(run_dir / "transport" / "transport.json")
+        stored = _load(root / "transport" / "transport.json")
         t0 = time.time()
         panels = transport_mean_panels(trainer, data, config, b_matrix, labels,
-                                       fold, dev)
+                                       fold, dev, scored_cells)
         replay = {"n_panels": len(panels)}
         if stored:
             by = {(tuple(p["pair"]), p["type"]): p for p in stored["panels"]}
@@ -1167,10 +1219,11 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
         torch.cuda.empty_cache()
 
     if "transport_dist" in reads:
-        stored = _load(run_dir / "transport" / "transport_distribution.json")
+        stored = _load(root / "transport" / "transport_distribution.json")
         t0 = time.time()
         result = transport_dist_panels(trainer, data, config, labels, fold, dev,
-                                       boot_replayed, n, tile_um, seed)
+                                       boot_replayed, n, tile_um, seed,
+                                       scored_cells)
         panels = result["panels"]
         replay = {"n_panels": len(panels)}
         if stored:
@@ -1204,6 +1257,7 @@ def run_bootstrap(dataset: str, run: str, reads: Sequence[str] = READS,
                 {"n_panels": entry["n_panels"], "panel_replay": replay})
         log.info("transport distribution read done (%.0f s)", time.time() - t0)
 
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(record, indent=2, default=float))
     log.info("wrote %s", target)
     return record
@@ -1222,6 +1276,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="--boot of the transport run being replayed "
                              "(distribution read's shared stream)")
     parser.add_argument("--device", default="cuda")
+    parser.add_argument("--scored-cells", default="fold0",
+                        choices=("fold0", "heldout-tiles"),
+                        help="transport reads only: heldout-tiles replays "
+                             "the held-out-tiles variant (transport.py "
+                             "--scored-cells) into runs/<run>/heldout_tiles/")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s",
@@ -1230,8 +1289,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     unknown = set(reads) - set(READS)
     if unknown:
         parser.error(f"unknown reads {sorted(unknown)}")
+    if args.scored_cells != "fold0" and set(reads) - {"transport_mean",
+                                                      "transport_dist"}:
+        parser.error("--scored-cells heldout-tiles needs --reads "
+                     "transport_mean,transport_dist")
     run_bootstrap(args.dataset, args.run, reads, args.n, args.tile_um,
-                  args.seed, args.device, args.boot_replayed)
+                  args.seed, args.device, args.boot_replayed,
+                  args.scored_cells)
     return 0
 
 

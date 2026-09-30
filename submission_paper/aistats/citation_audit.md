@@ -559,3 +559,8 @@ not in either bib. The full citation is given for those.
   The "Cross-Platform Comparison: FF Human Ovarian Cancer" page (200,900 cells) is a different dataset. **Open:** the release year and the licence for all three.
 - **2026-09-29.** 10x "Date Published" (author's page panels): FF 2024-09-04, lung 2024-11-06, ovarian FFPE 2024-12-17 (the ovarian page also notes a December 2024 relabel; the panel date is the one cited). Years filled; the licence is still unknown.
 - **2026-09-29.** 10x datasets: CC BY 4.0 (author's page read). The notes follow 10x's citation guidelines (support/software/cell-ranger/latest/miscellaneous/cr-citations). Janesick et al. 2023 is 10x's requested citation for Xenium Onboard Analysis and is already in §3.1. The datasets entry is closed.
+- **2026-09-29, app:inputs sources (verified on PubMed).**
+  - `deoliveira2025visiumhd` (PMID 40473992; 13 authors including the "Visium HD Development Team" consortium): lateral movement during capture is the risk on arrays, and on Visium HD 98.3–99% of transcripts stay in their source masks. Cited for "small on one array".
+  - `ren2025benchmark` (PMID 41107232, Nat Commun 16:9232): transcript diffusion is substantially greater on Stereo-seq v1.3 than on Visium HD FFPE. Cited for "larger on another".
+  - `bai2021redsea` (REDSEA, PMID 34295327): spillover between segmented neighbours, from imperfect segmentation and interleaved membranes; CD4/CD8 double positives up to 10%.
+  - **Claim narrowed.** The first draft said "mainly by diffusion … possibly over more than one hop", which no source supports; the Visium HD paper contradicts it. bin2cell was checked and does not discuss diffusion, so it is not cited.

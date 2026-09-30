@@ -15,6 +15,7 @@ python "$SRC/fig_kronos_umap.py"       # fig:kronos-umap (appendix; UMAP layouts
 python "$SRC/fig_probe.py"             # fig:probe (appendix, schematic)
 python "$SRC/fig_sections.py"          # fig:sections (appendix)
 python "$SRC/fig_kl_maps.py"           # fig:kl-seeds (appendix); also fig_kl_maps, fig_kl_hist, not in the text since the 2026-09-29 trim
+python "$SRC/fig_latents.py"           # fig:latents-umap (appendix; embeddings cached in data/)
 python "$SRC/fig_model_tissue.py"      # fig:overview a, b (main text)
 ( cd "$SRC" && pdflatex -interaction=nonstopmode fig_model_graph.tex > /dev/null \
   && cp fig_model_graph.pdf ../ )      # fig:overview c (TikZ)

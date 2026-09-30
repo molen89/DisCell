@@ -41,6 +41,14 @@ Arnol, D., Schapiro, D., Bodenmiller, B., Saez-Rodriguez, J., and Stegle, O.
   Spatial Variance Component Analysis}.
 \newblock {\em Cell Reports}, 29(1):202--211.e6.
 
+\bibitem[Bai et~al., 2021]{bai2021redsea}
+Bai, Y., Zhu, B., Rovira-Clave, X., Chen, H., Markovic, M., Chan, C.~N., Su,
+  T.-H., McIlwain, D.~R., Estes, J.~D., Keren, L., Nolan, G.~P., and Jiang, S.
+  (2021).
+\newblock Adjacent cell marker lateral spillover compensation and reinforcement
+  for multiplexed images.
+\newblock {\em Frontiers in Immunology}, 12:652631.
+
 \bibitem[Bengio et~al., 2013]{bengio2013}
 Bengio, Y., L{\'e}onard, N., and Courville, A. (2013).
 \newblock Estimating or propagating gradients through stochastic neurons for
@@ -239,6 +247,14 @@ Ni, Z., Prasad, A., Chen, S., Halberg, R.~B., Arkin, L.~M., Drolet, B.~A.,
   data}.
 \newblock {\em Nature Communications}, 13:2971.
 
+\bibitem[Oliveira et~al., 2025]{deoliveira2025visiumhd}
+Oliveira, M.~F., Romero, J.~P., Chung, M., Williams, S.~R., Gottscho, A.~D.,
+  Gupta, A., Pilipauskas, S.~E., Mohabbat, S., Raman, N., Sukovich, D.~J.,
+  Patterson, D.~M., {Visium HD Development Team}, and Taylor, S. E.~B. (2025).
+\newblock High-definition spatial transcriptomic profiling of immune cell
+  populations in colorectal cancer.
+\newblock {\em Nature Genetics}, 57(6):1512--1523.
+
 \bibitem[Petukhov et~al., 2022]{petukhov2022baysor}
 Petukhov, V., Xu, R.~J., Soldatov, R.~A., Cadinu, P., Khodosevich, K., Moffitt,
   J.~R., and Kharchenko, P.~V. (2022).
@@ -250,6 +266,14 @@ Pogodin, R., Deka, N., Li, Y., Sutherland, D.~J., Veitch, V., and Gretton, A.
   (2023).
 \newblock Efficient conditionally invariant representation learning.
 \newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Ren et~al., 2025]{ren2025benchmark}
+Ren, P., Zhang, R., Wang, Y., Zhang, P., Luo, C., Wang, S., Li, X., Zhang, Z.,
+  Zhao, Y., He, Y., Zhang, H., Li, Y., Gao, Z., Zhang, X., Zhao, Y., Liu, Z.,
+  Meng, Y., Zhang, Z., and Zeng, Z. (2025).
+\newblock Systematic benchmarking of high-throughput subcellular spatial
+  transcriptomics platforms across human tumors.
+\newblock {\em Nature Communications}, 16:9232.
 
 \bibitem[Rezende et~al., 2014]{rezende2014}
 Rezende, D.~J., Mohamed, S., and Wierstra, D. (2014).

@@ -73,21 +73,17 @@ axb.text(0.222, v.max() + 0.165,
 S.panel_label(axb, "b", x=-0.08, y=1.02)
 
 # ---- (c) reading G_b: floor, this fit, uncontrolled fit
-GUARD = 0.25                                   # the pass rule: excess at most this fraction of uncontrolled
 blocks = [("composition", 0.004, 0.012, 0.030), ("image", 0.002, 0.005, 0.021)]
 for r, (name, floor, fit, unc) in enumerate(blocks):
     y = 1 - r
     axc.plot([0, 0.034], [y, y], color=S.CELL_EDGE, lw=0.6, zorder=1)
     axc.plot([floor, fit], [y, y], color=S.BLUE, lw=3.0, solid_capstyle="butt", zorder=2, alpha=0.35)
     axc.plot([floor, unc], [y - 0.14, y - 0.14], color=S.INK2, lw=0.8, zorder=2)
-    guard = floor + GUARD * (unc - floor)
-    axc.plot([guard, guard], [y - 0.12, y + 0.12], color=S.INK, lw=1.0, ls=(0, (1.5, 1)), zorder=4)
     for x, mk, fc, ec in ((floor, "o", "white", S.INK2), (fit, "o", S.BLUE, S.BLUE), (unc, "s", S.INK2, S.INK2)):
         axc.scatter([x], [y], s=22, marker=mk, facecolor=fc, edgecolor=ec, lw=0.9, zorder=3)
     frac = (fit - floor) / (unc - floor)
-    verdict = r"passes" if frac <= GUARD else r"fails"
     axc.text(0.0, y + 0.2, name, fontsize=7, color=S.INK, ha="left", va="bottom")
-    axc.text(0.0, y - 0.3, rf"fraction of uncontrolled $= {frac:.2f}$: {verdict}", fontsize=6.5,
+    axc.text(0.0, y - 0.3, rf"fraction of uncontrolled $= {frac:.2f}$", fontsize=6.5,
              color=S.INK2, ha="left", va="center")
 axc.set_xlim(-0.001, 0.034); axc.set_ylim(-0.5, 1.65)
 axc.set_yticks([]); axc.set_xticks([])
@@ -99,8 +95,6 @@ for dx, mk, fc, ec, text in ((0.0, "o", "white", S.INK2, r"floor"), (0.0070, "o"
                              (0.0155, "s", S.INK2, S.INK2, r"uncontrolled")):
     axc.scatter([kx + dx], [ky], s=18, marker=mk, facecolor=fc, edgecolor=ec, lw=0.9, clip_on=False)
     axc.text(kx + dx + 0.0012, ky, text, fontsize=6.5, color=S.INK, va="center")
-axc.plot([0.0004, 0.0004], [ky - 0.2, ky - 0.08], color=S.INK, lw=1.0, ls=(0, (1.5, 1)), clip_on=False)
-axc.text(0.0012, ky - 0.14, r"guard: $\tfrac14$ of uncontrolled", fontsize=6.5, color=S.INK, va="center")
 S.panel_label(axc, "c", x=-0.04, y=1.02)
 
 fig.savefig(OUT.with_suffix(".pdf"))

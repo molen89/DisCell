@@ -1,0 +1,215 @@
+% Generated table: tab:probe. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py --only probe battery sensitivity
+% Generated: 2026-09-29 16:44:33 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:56)
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:52)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:54)
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:55)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:53)
+%   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_11_prime_solo/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_lung_cancer_ffpe/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_ovary_ff/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%
+% Reading convention:
+%   range [min-max] over seeds (finalL_s0-s2; uncontrolledL_s0-s1) of the per-block probe
+%   excess expressed as exp(2 excess) - 1 in %, and of the excess as a fraction of the
+%   seed-mean uncontrolled excess; comparison methods single fit; accepted checkpoint;
+%   Unassigned excluded as a target
+%
+% Provenance (row / column -> file : key):
+%   Composition, MLP probe / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_comp.var_fraction (x100, min-max); finalL .mlp_comp.fraction_of_uncontrolled (min-max)
+%   Composition, MLP probe / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_comp.var_fraction (x100, min-max); finalL .mlp_comp.fraction_of_uncontrolled (min-max)
+%   Composition, MLP probe / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_comp.var_fraction (x100, min-max); finalL .mlp_comp.fraction_of_uncontrolled (min-max)
+%   Composition, MLP probe / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_comp.var_fraction (x100, min-max); finalL .mlp_comp.fraction_of_uncontrolled (min-max)
+%   Composition, MLP probe / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_comp.var_fraction (x100, min-max); finalL .mlp_comp.fraction_of_uncontrolled (min-max)
+%   Composition, MLP probe / resolVI / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / Cellina / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / resolVI / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / Cellina / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / resolVI / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / Cellina / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / resolVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / Cellina / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / resolVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / Cellina / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / MintFlow / Ovarian FFPE: not run (whole-section fit queued)
+%   Composition, MLP probe / SIMVI / Ovarian FFPE: not run (whole-section fit queued)
+%   Composition, MLP probe / MintFlow / Lung FFPE: not run (whole-section fit queued)
+%   Composition, MLP probe / SIMVI / Lung FFPE: not run (whole-section fit queued)
+%   Composition, MLP probe / MintFlow / Ovarian FF: not run (whole-section fit queued)
+%   Composition, MLP probe / SIMVI / Ovarian FF: not run (whole-section fit queued)
+%   Composition, MLP probe / MintFlow / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / SIMVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / MintFlow / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage, transfer)'.mlp_comp.var_fraction x100
+%   Composition, MLP probe / SIMVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage, fit on this section)'.mlp_comp.var_fraction x100
+%   Image, MLP probe / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_img.var_fraction (x100, min-max); finalL .mlp_img.fraction_of_uncontrolled (min-max)
+%   Image, MLP probe / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_img.var_fraction (x100, min-max); finalL .mlp_img.fraction_of_uncontrolled (min-max)
+%   Image, MLP probe / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_img.var_fraction (x100, min-max); finalL .mlp_img.fraction_of_uncontrolled (min-max)
+%   Image, MLP probe / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_img.var_fraction (x100, min-max); finalL .mlp_img.fraction_of_uncontrolled (min-max)
+%   Image, MLP probe / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .mlp_img.var_fraction (x100, min-max); finalL .mlp_img.fraction_of_uncontrolled (min-max)
+%   Image, MLP probe / resolVI / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_img.var_fraction x100
+%   Image, MLP probe / Cellina / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_img.var_fraction x100
+%   Image, MLP probe / resolVI / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_img.var_fraction x100
+%   Image, MLP probe / Cellina / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_img.var_fraction x100
+%   Image, MLP probe / resolVI / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_img.var_fraction x100
+%   Image, MLP probe / Cellina / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_img.var_fraction x100
+%   Image, MLP probe / resolVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_img.var_fraction x100
+%   Image, MLP probe / Cellina / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_img.var_fraction x100
+%   Image, MLP probe / resolVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_img.var_fraction x100
+%   Image, MLP probe / Cellina / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_img.var_fraction x100
+%   Image, MLP probe / MintFlow / Ovarian FFPE: not run (whole-section fit queued)
+%   Image, MLP probe / SIMVI / Ovarian FFPE: not run (whole-section fit queued)
+%   Image, MLP probe / MintFlow / Lung FFPE: not run (whole-section fit queued)
+%   Image, MLP probe / SIMVI / Lung FFPE: not run (whole-section fit queued)
+%   Image, MLP probe / MintFlow / Ovarian FF: not run (whole-section fit queued)
+%   Image, MLP probe / SIMVI / Ovarian FF: not run (whole-section fit queued)
+%   Image, MLP probe / MintFlow / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.mlp_img.var_fraction x100
+%   Image, MLP probe / SIMVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage)'.mlp_img.var_fraction x100
+%   Image, MLP probe / MintFlow / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage, transfer)'.mlp_img.var_fraction x100
+%   Image, MLP probe / SIMVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage, fit on this section)'.mlp_img.var_fraction x100
+%   Composition, ridge probe / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_comp.var_fraction (x100, min-max); finalL .ridge_comp.fraction_of_uncontrolled (min-max)
+%   Composition, ridge probe / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_comp.var_fraction (x100, min-max); finalL .ridge_comp.fraction_of_uncontrolled (min-max)
+%   Composition, ridge probe / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_comp.var_fraction (x100, min-max); finalL .ridge_comp.fraction_of_uncontrolled (min-max)
+%   Composition, ridge probe / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_comp.var_fraction (x100, min-max); finalL .ridge_comp.fraction_of_uncontrolled (min-max)
+%   Composition, ridge probe / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_comp.var_fraction (x100, min-max); finalL .ridge_comp.fraction_of_uncontrolled (min-max)
+%   Composition, ridge probe / resolVI / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / Cellina / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / resolVI / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / Cellina / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / resolVI / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / Cellina / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / resolVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / Cellina / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / resolVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / Cellina / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / MintFlow / Ovarian FFPE: not run (whole-section fit queued)
+%   Composition, ridge probe / SIMVI / Ovarian FFPE: not run (whole-section fit queued)
+%   Composition, ridge probe / MintFlow / Lung FFPE: not run (whole-section fit queued)
+%   Composition, ridge probe / SIMVI / Lung FFPE: not run (whole-section fit queued)
+%   Composition, ridge probe / MintFlow / Ovarian FF: not run (whole-section fit queued)
+%   Composition, ridge probe / SIMVI / Ovarian FF: not run (whole-section fit queued)
+%   Composition, ridge probe / MintFlow / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / SIMVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / MintFlow / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage, transfer)'.ridge_comp.var_fraction x100
+%   Composition, ridge probe / SIMVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage, fit on this section)'.ridge_comp.var_fraction x100
+%   Image, ridge probe / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_img.var_fraction (x100, min-max); finalL .ridge_img.fraction_of_uncontrolled (min-max)
+%   Image, ridge probe / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_img.var_fraction (x100, min-max); finalL .ridge_img.fraction_of_uncontrolled (min-max)
+%   Image, ridge probe / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_img.var_fraction (x100, min-max); finalL .ridge_img.fraction_of_uncontrolled (min-max)
+%   Image, ridge probe / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_img.var_fraction (x100, min-max); finalL .ridge_img.fraction_of_uncontrolled (min-max)
+%   Image, ridge probe / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : uncontrolledL_s{0,1} and finalL_s{0,1,2} .ridge_img.var_fraction (x100, min-max); finalL .ridge_img.fraction_of_uncontrolled (min-max)
+%   Image, ridge probe / resolVI / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_img.var_fraction x100
+%   Image, ridge probe / Cellina / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_img.var_fraction x100
+%   Image, ridge probe / resolVI / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_img.var_fraction x100
+%   Image, ridge probe / Cellina / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_img.var_fraction x100
+%   Image, ridge probe / resolVI / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_img.var_fraction x100
+%   Image, ridge probe / Cellina / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_img.var_fraction x100
+%   Image, ridge probe / resolVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_img.var_fraction x100
+%   Image, ridge probe / Cellina / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_img.var_fraction x100
+%   Image, ridge probe / resolVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_img.var_fraction x100
+%   Image, ridge probe / Cellina / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_img.var_fraction x100
+%   Image, ridge probe / MintFlow / Ovarian FFPE: not run (whole-section fit queued)
+%   Image, ridge probe / SIMVI / Ovarian FFPE: not run (whole-section fit queued)
+%   Image, ridge probe / MintFlow / Lung FFPE: not run (whole-section fit queued)
+%   Image, ridge probe / SIMVI / Lung FFPE: not run (whole-section fit queued)
+%   Image, ridge probe / MintFlow / Ovarian FF: not run (whole-section fit queued)
+%   Image, ridge probe / SIMVI / Ovarian FF: not run (whole-section fit queued)
+%   Image, ridge probe / MintFlow / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.ridge_img.var_fraction x100
+%   Image, ridge probe / SIMVI / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage)'.ridge_img.var_fraction x100
+%   Image, ridge probe / MintFlow / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage, transfer)'.ridge_img.var_fraction x100
+%   Image, ridge probe / SIMVI / TMA serial: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage, fit on this section)'.ridge_img.var_fraction x100
+%
+% Checks and notes:
+%   - Ovarian FFPE:
+%     data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage)):
+%     identical.
+%   - Lung FFPE:
+%     data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_lung_cancer_ffpe/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage)):
+%     identical.
+%   - Ovarian FF:
+%     data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json was
+%     compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_ovary_ff/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage)):
+%     identical.
+%   - TMA core:
+%     data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_11_prime_solo/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage), MintFlow
+%     (lineage), SIMVI (lineage)): identical.
+%   - TMA serial:
+%     data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage), MintFlow
+%     (lineage, transfer), SIMVI (lineage, fit on this section)): identical.
+%   - TMA serial: the probe entry 'Cellina (lineage, transfer)' has fraction 1.3187 is not its
+%     excess over the file's uncontrolled seed mean (1.2001); the entry 'Cellina (lineage)'
+%     (same transferred model, same excess, consistent fraction) is used.
+%   - The fraction left is the file's fraction_of_uncontrolled (each seed's excess over the
+%     seed-mean excess of the two fits without the adversary), checked against the excesses in
+%     the same file. Percentages are var_fraction = exp(2 excess) - 1, checked. No pass/fail
+%     verdicts are shown (author, 2026-09-29: the probe is reported descriptively; the
+%     development threshold is disclosed once in the method). Bold on the MLP 'fraction left'
+%     rows follows the hand-built table this replaces; it marks no verdict.
+%   - MintFlow and SIMVI on ovarian FFPE, lung FFPE and ovarian FF: '--' (whole-section fits
+%     queued, baselines_complete); fill from the probe files when they land.
+%
+% Pending cells:
+%   none
+%
+\begin{table*}[t]
+\centering
+\caption{The held-out probe on the final fits, per section. For each block and probe, the share of the block's within-type variance that the probe explains from the intrinsic latent beyond the permutation floor ($e^{2\,\mathrm{excess}} - 1$, in \%): for the model trained without the adversary ($\alphaa = 0$, two seeds), with it (the final fits, three seeds), and for the comparison methods on the same section. The \emph{fraction left} is the excess with the adversary as a fraction of the mean excess without it: $0$ when the adversary removes everything the probe can find, $1$ when it removes nothing. Ranges are over seeds; Unassigned cells are not targets. The serial section of the TMA core is graded with our models fitted on the core; there, Cellina and MintFlow are the core's models transferred, and resolVI and SIMVI are fitted on the serial section itself. MintFlow and SIMVI have so far been run on the TMA core only (--: not yet run).}
+\label{tab:probe}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+& Ovarian FFPE & Lung FFPE & Ovarian FF & TMA core & TMA serial \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Composition, MLP probe}} \\
+\quad without the adversary (\%) & 19.2--19.4 & 12.0--13.0 & 38.2--39.0 & 6.9--7.4 & 7.1--7.4 \\
+\quad with the adversary (\%) & 4.1--5.8 & 4.4--5.2 & 4.6--5.3 & 3.7--5.0 & 4.2--5.0 \\
+\quad \textbf{fraction left} & \textbf{0.23--0.32} & \textbf{0.36--0.43} & \textbf{0.14--0.16} & \textbf{0.52--0.71} & \textbf{0.59--0.70} \\
+\quad resolVI, Cellina (\%) & 21.1, 16.1 & 12.6, 8.5 & 30.9, 29.7 & 5.7, 3.6 & 7.8, 8.2 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.3, 5.1 & 1.0, 7.3 \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Image, MLP probe}} \\
+\quad without the adversary (\%) & 14.4--18.8 & 9.7--10.9 & 37.2--40.3 & 6.3--9.2 & 5.9--7.7 \\
+\quad with the adversary (\%) & 2.3--4.1 & 1.4--2.1 & 4.9--5.5 & 2.4--3.4 & 2.5--3.1 \\
+\quad \textbf{fraction left} & \textbf{0.15--0.26} & \textbf{0.14--0.21} & \textbf{0.15--0.16} & \textbf{0.31--0.45} & \textbf{0.38--0.46} \\
+\quad resolVI, Cellina (\%) & 15.1, 10.4 & 11.2, 4.4 & 30.6, 14.8 & 7.8, 4.1 & 7.7, 2.9 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.8, 9.0 & 0.6, 8.6 \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Composition, ridge probe}} \\
+\quad without the adversary (\%) & 5.9--7.1 & 3.8--4.1 & 19.9--20.2 & 2.5--2.6 & 2.5--2.6 \\
+\quad with the adversary (\%) & 1.0--1.1 & 0.6--0.8 & 1.3--1.6 & 0.4--0.5 & 0.8--1.1 \\
+\quad fraction left & 0.15--0.18 & 0.15--0.20 & 0.07--0.09 & 0.16--0.20 & 0.31--0.42 \\
+\quad resolVI, Cellina (\%) & 8.0, 8.9 & 4.7, 4.4 & 13.8, 22.3 & 2.5, 2.1 & 2.7, 3.1 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.9, 3.1 & 1.1, 3.1 \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Image, ridge probe}} \\
+\quad without the adversary (\%) & 6.2--8.6 & 3.5--3.7 & 21.1--23.6 & 2.8--3.3 & 1.9--2.7 \\
+\quad with the adversary (\%) & 0.6--1.4 & 0.2--0.5 & 2.2--2.6 & 0.5--0.7 & 0.5--0.8 \\
+\quad fraction left & 0.08--0.19 & 0.06--0.15 & 0.11--0.13 & 0.18--0.23 & 0.22--0.36 \\
+\quad resolVI, Cellina (\%) & 6.8, 7.2 & 4.0, 2.4 & 14.3, 11.6 & 2.6, 2.1 & 2.6, 1.9 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.8, 3.9 & 0.7, 3.4 \\
+\bottomrule
+\end{tabular}
+\end{table*}

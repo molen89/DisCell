@@ -134,10 +134,43 @@ Cellina & cellina 1.1.1 (scvi-tools 1.2.0) & ours & lineage & package default; b
 
 The ovarian FFPE, lung FFPE and fresh-frozen ovarian sections are public datasets of 10x Genomics \citep{tenx_ovarian_ffpe,tenx_lung_ffpe,tenx_ovary_ff}, released under the Creative Commons Attribution 4.0 International licence (CC BY 4.0). The TMA core and its serial section are two samples of GEO series GSE315411 \citep{williamskatek2026fishing}; NCBI places no restriction on the use or distribution of GEO data, while noting that submitters may claim rights in the data they submit \todo{verify the wording on the GEO disclaimer page}. The image model KRONOS and its successor KRONOS2 \citep{kronos2025} are released under CC BY-NC-ND~4.0, for non-commercial academic research and after registration; we use them for that purpose and redistribute neither. The comparison methods are released under the BSD 3-Clause licence: scvi-tools, which contains resolVI, SIMVI, MintFlow and Cellina. The code will be released on acceptance; no new data are released.
 
+\subsection{What the Model Needs}
+\label{app:inputs}
+
+Every fit in this paper is to a section profiled with Xenium Prime 5K. From its output the model uses five inputs (\cref{tab:inputs}). The graph needs positions only. It is the Delaunay adjacency of the cell positions, and the kernel's two ingredients, the length of the shared Voronoi face and the distance between positions, come from the positions too (\cref{app:graph}). The segmented polygons are therefore not required. Our runs take each cell's position as the centroid of its segmented polygon; the centroid the platform reports would serve equally in form. The polygons were used for three things outside the model: choosing the radius of the disc that removes the cell from the image field, which a new tissue or platform would need to recheck from its cell sizes (\cref{app:image}), and the graph and mask comparisons of \cref{app:graph,app:image}. The transcript coordinates, the nucleus boundaries and the H\&E image taken after the run are not used. Cell-cycle genes enter a diagnostic only (\cref{sec:selection}).
+
+\begin{table}[t]
+\centering
+\caption{The inputs of a fit, and where they come from in a Xenium Prime 5K output.}
+\label{tab:inputs}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}@{}}
+\toprule
+Input & Used for & Xenium Prime 5K source \\
+\midrule
+Counts per cell & the likelihood and the intrinsic encoder & the cell-by-gene count matrix \\
+One position per cell & the graph, the kernel, the tiles and the image fields & the centroid of the segmented cell \\
+Pixel size & every length in micrometres & the run's metadata \\
+A type label per cell & the prior on the response, the adversary and the context's query & a curated annotation, or clusters of the counts mapped to lineages (\cref{app:lineage}) \\
+Morphology image & the image descriptor $\vPhi_i$ & the four-channel morphology image \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Implicit requirements.} Counts must be assigned to segmented cells at single-cell resolution: the leakage term models transcripts misassigned between neighbouring cells, and has no meaning for a unit that holds several cells. One fit is to one contiguous section. Counts are modelled as a multinomial given each cell's total, suited to the hundreds to about a thousand counts per cell of in situ data (\cref{sec:generative}), and a type label must be derivable for every cell. Nothing else is assumed about the gene panel.
+
+\paragraph{Other assays (untested).} None of the following has been run. Each paragraph states what the model's assumptions would require, not what it would deliver.
+
+\emph{Imaging platforms with other panels.} Other imaging-based assays, including smaller Xenium panels, provide segmented counts, positions and fluorescence stains, the inputs of \cref{tab:inputs}. The model applies in form. What changes is the depth and number of genes, and the stains, whose mapping onto the image model's marker vocabulary would have to be redone (\cref{app:image}).
+
+\emph{Sequencing-based arrays.} On a high-resolution array whose bins are assigned to segmented cells, counts per cell and positions are available, but two things differ. The image is H\&E rather than multiplexed fluorescence, so the image descriptor would need an H\&E encoder. And transcripts are also mislocated by lateral movement during capture, a mechanism separate from segmentation whose extent differs between platforms: small on one high-resolution array \citep{deoliveira2025visiumhd}, larger on another \citep{ren2025benchmark}. The form of the leakage kernel would have to be re-examined before the sweep could be read the same way. Arrays whose spots hold several cells pose a deconvolution problem rather than a leakage problem and are outside the model's setting.
+
+\emph{Protein imaging.} Multiplexed protein imaging measures intensities per marker rather than counts, so the multinomial likelihood would have to be replaced. The leakage mechanism carries over, since signal from a neighbour's membrane spills over into the cell, through imperfect segmentation and through the interleaving of adjacent membranes \citep{bai2021redsea}, and the image model was built for such images \citep{kronos2025}, so the image descriptor would be native to the assay.
+
 \subsection{Training Cost}
 \label{app:timing}
 
-\Cref{tab:timing} gives the cost of a fit. DISCELL's time per epoch is pure training, measured over twenty epochs with no evaluation. Its wall-clock time covers the three final fits, including evaluations every five epochs and the early stop. The comparison methods' times are whole fits, as recorded when they were run.
+\Cref{tab:timing} gives the cost of a fit. DISCELL's time per epoch is pure training, measured over twenty epochs with no evaluation. Its wall-clock time covers the three final fits, including evaluations every five epochs and the early stop. The comparison methods' times are the training time of the fits compared in this paper, at lineage labels, as recorded when they were run.
 
 In symbols, a training step on a tile of $n$ seeds with $n_1$ cells in ring one costs $O((n + n_1)\,G h)$ in the encoders and decoder, for hidden width $h$, and $O(|E_n|\,G)$ in the foreign influx, for the $|E_n|$ edges into the seeds (\cref{sec:batching}). The six adversary head updates add $O\big(6\,(n + n_1)\,h_a(\dz + K)\big)$ with $h_a = 64$, small beside the gene-sized terms because $\dz$ and $K$ are far below $G$. An epoch visits every training tile once, so its cost is linear in the number of cells; the held-out probes are fitted on at most $30{,}000$ cells whatever the section's size. Peak memory is the section's count matrix, held resident, plus the gathered edge-by-gene rows of the influx, $O(|E_n|\,G)$ per step, which the tile size bounds. The leakage sweep multiplies the cost of a fit by its six grid points and three seeds, eighteen fits per section. Sample size is not analysed: how many cells a section needs for the readouts to stabilise is not studied beyond the range of sizes in \cref{tab:sections}.
 
@@ -160,12 +193,13 @@ In symbols, a training step on a tile of $n$ seeds with $n_1$ cells in ring one 
 \multicolumn{5}{@{}l}{\emph{Run time of one fit (min)}} \\
 \quad DISCELL & 8.7--9.3 & 3.2--7.4 & 31.2--43.4 & 1.3 \\
 \quad resolVI & 32.8 & 22.0 & 105.0 & 5.5 \\
-\quad SIMVI & not attempted$^{a}$ & not attempted$^{a}$ & failed$^{b}$ & 107.2 \\
-\quad MintFlow, 50 epochs & not attempted$^{c}$ & not attempted$^{c}$ & failed$^{d}$ & 680.1 \\
+\quad Cellina & 11.6 & 9.9 & 29.1 & 3.4 \\
+\quad SIMVI & not attempted$^{a}$ & not attempted$^{a}$ & failed$^{b}$ & 192.6 \\
+\quad MintFlow, 50 epochs & not attempted$^{c}$ & not attempted$^{c}$ & failed$^{d}$ & 544.0 \\
 \bottomrule
 \end{tabular}
 \par\smallskip
-\parbox{0.9\textwidth}{\footnotesize $^{a}$ Run only on the TMA core, where it fits whole; not attempted on the two FFPE sections. $^{b}$ SIMVI passes the whole graph through the network at every step, and the whole fresh-frozen section does not fit in GPU memory. We report only methods run on whole sections, so an earlier run on a window of the section is not used. $^{c}$ Run only on the TMA core, where one fit took about eleven hours for $70{,}000$ cells; not attempted on the larger FFPE sections. $^{d}$ Ran out of host memory while building its inputs, before training started.}
+\parbox{0.9\textwidth}{\footnotesize $^{a}$ Run only on the TMA core, where it fits whole; not attempted on the two FFPE sections. $^{b}$ SIMVI passes the whole graph through the network at every step, and the whole fresh-frozen section does not fit in GPU memory. We report only methods run on whole sections, so an earlier run on a window of the section is not used. $^{c}$ Run only on the TMA core, where one fit took about nine hours for $70{,}000$ cells; not attempted on the larger FFPE sections. $^{d}$ Ran out of host memory while building its inputs, before training started.}
 \end{table}
 
 \subsection{Planted Worlds}
@@ -319,3 +353,23 @@ sd of $q(\vw)$ & Ovarian FFPE & 0.994--0.996 & 0.10 & 0.42--0.71 & $-0.66$--0.74
 \caption{The response divergence in the three seeds of the final configuration, on the ovarian FFPE section and the TMA core. Each cell is coloured by the percentile of its divergence among the section's target cells, pale up to the 90th percentile and dark in the top decile; Unassigned cells are grey. Each seed's map is spatially organised, but the regions differ between seeds.}
 \label{fig:kl-seeds}
 \end{figure}
+
+\subsection{The Latents}
+\label{app:latents}
+
+\Cref{fig:latents-umap} shows the posterior means of one seed of the final configuration on each section, as UMAP. The intrinsic state separates the lineages (a). The response is organised by the cell's neighbours rather than by its own type alone (b). Within one type, the intrinsic state shows little grouping by the neighbours' lineage (c), while the response of the same cells does (d), which is what the conditional invariance asks for; the probe measures the same thing quantitatively (\cref{tab:probe}). The type of panels c and d is chosen by a rule, not by eye: among types with at least $3{,}000$ cells, the one whose neighbourhoods are most mixed. UMAP distorts distances and can exaggerate separation, so the figure illustrates what the probe and the agreement with type of \cref{sec:selection} measure, and replaces neither.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/fig_latents_umap}
+\caption{UMAP of the posterior means, one seed of the final configuration. Columns: the four sections. \textbf{a},~$\vmu_z$ of $30{,}000$ random cells, coloured by the cell's own lineage family. \textbf{b},~$\vmu_w$ of the same cells, coloured by the family that dominates its graph neighbours (Unassigned neighbours ignored; grey if a cell has none). \textbf{c},~$\vmu_z$ of up to $10{,}000$ cells of one type (named above the panel), coloured as in b. \textbf{d},~$\vmu_w$ of the same cells. Families are the display grouping of \cref{fig:sections}.}
+\label{fig:latents-umap}
+\end{figure}
+
+\subsection{The Leakage Sweep in Full}
+\label{app:sweep}
+
+\Cref{tab:kappa-sweep} gives the diagnostics of every fit of the sweep. \pending{text with the breakdown table}
+
+\input{tables/generated/kappa_sweep}
+

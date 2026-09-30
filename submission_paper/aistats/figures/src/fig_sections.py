@@ -71,49 +71,54 @@ def morphology(sample_dir, box_px):
     return S.composite(img, *S.stain_range(img))
 
 
-S.apply()
-data = []
-for ds, var, title in SECTIONS:
-    a = ad.read_h5ad(f"data/datasets/{ds}/bundle/{var}.h5ad", backed="r")
-    xy = np.asarray(a.obsm["spatial"], dtype=np.float64)
-    fam = np.array([family(x) for x in a.obs["lineage"].astype(str)])
-    data.append((title, xy, fam, float(a.uns["microns_per_pixel"]), a.uns["xenium_dir"]))
+def main():
+    S.apply()
+    data = []
+    for ds, var, title in SECTIONS:
+        a = ad.read_h5ad(f"data/datasets/{ds}/bundle/{var}.h5ad", backed="r")
+        xy = np.asarray(a.obsm["spatial"], dtype=np.float64)
+        fam = np.array([family(x) for x in a.obs["lineage"].astype(str)])
+        data.append((title, xy, fam, float(a.uns["microns_per_pixel"]), a.uns["xenium_dir"]))
 
-# one panel height for all, each panel as wide as its section's aspect demands
-H, GAP, LEFT = 1.40, 0.09, 0.14                      # inches
-aspect = [np.ptp(xy[:, 0]) / np.ptp(xy[:, 1]) for _, xy, *_ in data]
-FIGH = 0.22 + 2 * H + 0.12 + 0.28 + 0.34             # title, rows, gap, bars, legend
-fig = plt.figure(figsize=(S.TEXTWIDTH, FIGH))
-spare = S.TEXTWIDTH - LEFT - sum(aspect) * H - GAP * (len(data) - 1)
-x = LEFT + spare / 2
-for c, (title, xy, fam, mpp, xdir) in enumerate(data):
-    w = aspect[c] * H
-    x0, y0 = xy.min(0); x1, y1 = xy.max(0)
-    top = fig.add_axes([x / S.TEXTWIDTH, (FIGH - 0.22 - H) / FIGH, w / S.TEXTWIDTH, H / FIGH])
-    bot = fig.add_axes([x / S.TEXTWIDTH, (FIGH - 0.22 - 2 * H - 0.12) / FIGH, w / S.TEXTWIDTH, H / FIGH])
-    order = np.random.default_rng(0).permutation(len(xy))
-    col = np.array([COLOURS[f] if f >= 0 else UNASSIGNED for f in fam])
-    size = 0.012 if len(xy) > 500_000 else 0.03 if len(xy) > 150_000 else 0.12
-    top.scatter(xy[order, 0], xy[order, 1], s=size, c=col[order], lw=0, rasterized=True)
-    top.set_xlim(x0, x1); top.set_ylim(y0, y1); S.tissue_axes(top)
-    top.set_title(title, fontsize=7.5, color=S.INK, pad=3)
-    bot.imshow(morphology(xdir, (x0, y0, x1, y1)), extent=(x0, x1, y1, y0), interpolation="lanczos")
-    bot.set_xlim(x0, x1); bot.set_ylim(y1, y0); S.tissue_axes(bot)
-    # 1 mm bar under the image, outside the tissue
-    L = 1000 / mpp
-    bot.plot([x0, x0 + L], [y1 + 0.06 * (y1 - y0)] * 2, color=S.INK, lw=1.2, solid_capstyle="butt", clip_on=False)
-    bot.text(x0 + L + 0.03 * (x1 - x0), y1 + 0.06 * (y1 - y0), r"1\,mm", fontsize=6.5, color=S.INK,
-             ha="left", va="center", clip_on=False)
-    if c == 0:
-        S.panel_label(top, "a", x=-0.01, y=1.0)
-        S.panel_label(bot, "b", x=-0.01, y=1.0)
-    x += w + GAP
-lin = [Line2D([], [], marker="o", ls="", ms=3.5, color=col, label=name) for (name, _), col in zip(FAMILIES, COLOURS)]
-lin.append(Line2D([], [], marker="o", ls="", ms=3.5, color=UNASSIGNED, label="Unassigned"))
-stain = [Line2D([], [], marker="s", ls="", ms=3.5, color=h, label=n) for n, h in S.STAINS]
-kw = dict(frameon=False, fontsize=6.5, handletextpad=0.2, columnspacing=1.0, loc="lower center")
-fig.legend(handles=lin, ncol=len(lin), bbox_to_anchor=(0.5, 0.155 / FIGH), title=None, **kw)
-fig.legend(handles=stain, ncol=len(stain), bbox_to_anchor=(0.5, -0.01), **kw)
-fig.savefig(OUT.with_suffix(".pdf"))
-fig.savefig(OUT.with_suffix(".png"), dpi=250)
-print("wrote", OUT.with_suffix(".pdf"))
+    # one panel height for all, each panel as wide as its section's aspect demands
+    H, GAP, LEFT = 1.40, 0.09, 0.14                      # inches
+    aspect = [np.ptp(xy[:, 0]) / np.ptp(xy[:, 1]) for _, xy, *_ in data]
+    FIGH = 0.22 + 2 * H + 0.12 + 0.28 + 0.34             # title, rows, gap, bars, legend
+    fig = plt.figure(figsize=(S.TEXTWIDTH, FIGH))
+    spare = S.TEXTWIDTH - LEFT - sum(aspect) * H - GAP * (len(data) - 1)
+    x = LEFT + spare / 2
+    for c, (title, xy, fam, mpp, xdir) in enumerate(data):
+        w = aspect[c] * H
+        x0, y0 = xy.min(0); x1, y1 = xy.max(0)
+        top = fig.add_axes([x / S.TEXTWIDTH, (FIGH - 0.22 - H) / FIGH, w / S.TEXTWIDTH, H / FIGH])
+        bot = fig.add_axes([x / S.TEXTWIDTH, (FIGH - 0.22 - 2 * H - 0.12) / FIGH, w / S.TEXTWIDTH, H / FIGH])
+        order = np.random.default_rng(0).permutation(len(xy))
+        col = np.array([COLOURS[f] if f >= 0 else UNASSIGNED for f in fam])
+        size = 0.012 if len(xy) > 500_000 else 0.03 if len(xy) > 150_000 else 0.12
+        top.scatter(xy[order, 0], xy[order, 1], s=size, c=col[order], lw=0, rasterized=True)
+        top.set_xlim(x0, x1); top.set_ylim(y0, y1); S.tissue_axes(top)
+        top.set_title(title, fontsize=7.5, color=S.INK, pad=3)
+        bot.imshow(morphology(xdir, (x0, y0, x1, y1)), extent=(x0, x1, y1, y0), interpolation="lanczos")
+        bot.set_xlim(x0, x1); bot.set_ylim(y1, y0); S.tissue_axes(bot)
+        # 1 mm bar under the image, outside the tissue
+        L = 1000 / mpp
+        bot.plot([x0, x0 + L], [y1 + 0.06 * (y1 - y0)] * 2, color=S.INK, lw=1.2, solid_capstyle="butt", clip_on=False)
+        bot.text(x0 + L + 0.03 * (x1 - x0), y1 + 0.06 * (y1 - y0), r"1\,mm", fontsize=6.5, color=S.INK,
+                 ha="left", va="center", clip_on=False)
+        if c == 0:
+            S.panel_label(top, "a", x=-0.01, y=1.0)
+            S.panel_label(bot, "b", x=-0.01, y=1.0)
+        x += w + GAP
+    lin = [Line2D([], [], marker="o", ls="", ms=3.5, color=col, label=name) for (name, _), col in zip(FAMILIES, COLOURS)]
+    lin.append(Line2D([], [], marker="o", ls="", ms=3.5, color=UNASSIGNED, label="Unassigned"))
+    stain = [Line2D([], [], marker="s", ls="", ms=3.5, color=h, label=n) for n, h in S.STAINS]
+    kw = dict(frameon=False, fontsize=6.5, handletextpad=0.2, columnspacing=1.0, loc="lower center")
+    fig.legend(handles=lin, ncol=len(lin), bbox_to_anchor=(0.5, 0.155 / FIGH), title=None, **kw)
+    fig.legend(handles=stain, ncol=len(stain), bbox_to_anchor=(0.5, -0.01), **kw)
+    fig.savefig(OUT.with_suffix(".pdf"))
+    fig.savefig(OUT.with_suffix(".png"), dpi=250)
+    print("wrote", OUT.with_suffix(".pdf"))
+
+
+if __name__ == "__main__":
+    main()

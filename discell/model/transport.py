@@ -48,6 +48,19 @@ Usage::
         --read distribution
     python -m discell.model.transport --dataset <id> --sweep-tag sweep3 \
         --seeds 0 --sweep-out transport_kappa_sensitivity_v2.json
+    python -m discell.model.transport --dataset <id> --run <run> \
+        --read both --hvg 1000 --scored-cells heldout-tiles
+
+``--scored-cells`` (devlog "Transport scored on held-out tiles only",
+2026-09-29) says which cells a read scores. ``fold0`` (the default, the
+published read): fold 0 of the prepare tiles is scored and folds 1-4 give
+the model quantities -- a readout cross-fit, but ~85 % of fold 0 lies in
+the model's training tiles. ``heldout-tiles`` (a sensitivity row): only
+cells of the model's held-out tiles (``data.val_tiles``) are scored, and
+every model quantity (group means, predicted shifts, the HVG set) comes
+from its training tiles (``data.train_tiles``). Everything else is the
+same. The variant writes under ``runs/<run>/heldout_tiles/`` (a run-shaped
+root: ``transport/`` inside), never over the published files.
 """
 
 from __future__ import annotations
@@ -78,6 +91,59 @@ EPS = 1e-8
 #: the model-vs-model read's variants: group-mean-w target, own-posterior-w
 #: target ("_own", the honest target of devlog 2026-09-21), each also on HVGs
 MODEL_SUFFIXES = ("", "_hvg", "_own", "_own_hvg")
+#: which cells a read scores (module docstring): the published read first
+SCORED_CELLS = ("fold0", "heldout-tiles")
+#: the variant's output root under the run directory
+SCORED_DIRS = {"heldout-tiles": "heldout_tiles"}
+
+
+def split_cells(data, fold: np.ndarray, scored_cells: str = "fold0"):
+    """``(scored, model)``: boolean masks over cells -- the cells a read
+    scores, and the cells its model quantities are estimated from.
+
+    ``fold0``: fold 0 scored, folds 1-4 for the model (``model`` is exactly
+    ``~scored``, the published read). ``heldout-tiles``: the model's
+    held-out tiles scored, its training tiles for the model."""
+    if scored_cells == "fold0":
+        held_out = fold == 0
+        return held_out, ~held_out
+    if scored_cells != "heldout-tiles":
+        raise ValueError(f"scored_cells must be one of {SCORED_CELLS}, "
+                         f"not {scored_cells!r}")
+    if not data.val_tiles:
+        raise ValueError("the run has no held-out tiles to score")
+    n = data.graph.n_cells
+    scored = np.zeros(n, dtype=bool)
+    model = np.zeros(n, dtype=bool)
+    scored[np.concatenate(data.val_tiles)] = True
+    model[np.concatenate(data.train_tiles)] = True
+    return scored, model
+
+
+def out_root(run_dir, scored_cells: str = "fold0"):
+    """Where a read's files go: the run directory for the published read,
+    ``<run>/heldout_tiles`` for the variant (``transport/`` and
+    ``bootstrap_ci.json`` inside, as in a run directory)."""
+    return (run_dir if scored_cells == "fold0"
+            else run_dir / SCORED_DIRS[scored_cells])
+
+
+def scored_record(data, scored: np.ndarray, model: np.ndarray,
+                  scored_cells: str) -> dict:
+    """What a variant read says about its split (never written by the
+    published read, whose files stay as they were)."""
+    val = np.zeros(data.graph.n_cells, dtype=bool)
+    val[np.concatenate(data.val_tiles)] = True
+    return {"scored_cells": scored_cells,
+            "rule": "devlog 2026-09-29: scored on the model's held-out tiles "
+                    "(val_tiles); model quantities from its training tiles "
+                    "(train_tiles)",
+            "n_scored_pool": int(scored.sum()),
+            "n_model_pool": int(model.sum()),
+            "scored_in_val_tiles": float(val[scored].mean())
+            if scored.any() else float("nan"),
+            "model_in_val_tiles": float(val[model].mean())
+            if model.any() else float("nan")}
 
 
 def collect_channels(trainer, group: np.ndarray, n_groups: int,
@@ -530,7 +596,10 @@ def transport_check(args: argparse.Namespace) -> dict:
     labels = (tumour_band_labels(data) if source == "tumour-band"
               else niche_labels(data, args.niches, config.seed))
     rng = np.random.default_rng(config.seed)
-    held_out = latents["fold"] == 0            # spatial-block held-out tiles
+    # spatial-block held-out tiles (fold 0), or the model's own held-out
+    # tiles under --scored-cells heldout-tiles; model_side = the rest
+    scored_cells = getattr(args, "scored_cells", "fold0")
+    held_out, model_side = split_cells(data, latents["fold"], scored_cells)
     kappa = config.kappa
     # the tile-split ceiling's own stream (the cell split's stays as it was)
     # and the prepare tiles every fold is a union of (collect_latents)
@@ -544,7 +613,7 @@ def transport_check(args: argparse.Namespace) -> dict:
     n_types = len(data.p_t)
     n_niches = int(labels.max()) + 1
     n_groups = n_niches * n_types
-    model_rows = connected & ~held_out & (labels >= 0)
+    model_rows = connected & model_side & (labels >= 0)
     group = np.full(data.graph.n_cells, -1, dtype=np.int64)
     group[model_rows] = labels[model_rows] * n_types + data.t[model_rows]
     channels = collect_channels(trainer, group, n_groups)
@@ -563,9 +632,12 @@ def transport_check(args: argparse.Namespace) -> dict:
     names = [str(n) for n in data.type_names]
     results: dict = {"run": args.run, "kappa": kappa,
                      "niche_source": source, "panels": []}
+    if scored_cells != "fold0":
+        results["scored_cells"] = scored_record(data, held_out, model_side,
+                                                scored_cells)
     curves: dict = {}          # per panel: (counterfactual, observed) per gene
-    out_dir = run_dir / "transport"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = out_root(run_dir, scored_cells) / "transport"
+    out_dir.mkdir(parents=True, exist_ok=True)
     stem = "transport" if source == "kmeans" else f"transport_{source}"
 
     for niche_a, niche_b in pairs:
@@ -573,7 +645,7 @@ def transport_check(args: argparse.Namespace) -> dict:
             members = {}
             ok = True
             for niche, side in ((niche_a, "A"), (niche_b, "B")):
-                train_rows = np.flatnonzero(connected & ~held_out
+                train_rows = np.flatnonzero(connected & model_side
                                             & (data.t == g)
                                             & (labels == niche))
                 test_rows = np.flatnonzero(connected & held_out
@@ -1227,13 +1299,14 @@ def distribution_check(args: argparse.Namespace,
     labels = (tumour_band_labels(data) if source_kind == "tumour-band"
               else niche_labels(data, args.niches, config.seed))
     rng = np.random.default_rng(config.seed)
-    held_out = latents["fold"] == 0
+    scored_cells = getattr(args, "scored_cells", "fold0")
+    held_out, model_side = split_cells(data, latents["fold"], scored_cells)
     kappa = config.kappa
     n_types = len(data.p_t)
     n_niches = int(labels.max()) + 1
     n_groups = n_niches * n_types
 
-    model_rows = connected & ~held_out & (labels >= 0)
+    model_rows = connected & model_side & (labels >= 0)
     group = np.full(data.graph.n_cells, -1, dtype=np.int64)
     group[model_rows] = labels[model_rows] * n_types + data.t[model_rows]
     channels = collect_channels(trainer, group, n_groups)
@@ -1243,7 +1316,7 @@ def distribution_check(args: argparse.Namespace,
     names = [str(n) for n in data.type_names]
     device = str(next(trainer.model.parameters()).device)
     n_hvg = int(getattr(args, "hvg", 0) or 0)
-    hvg = (hvg_mask(data, np.flatnonzero(connected & ~held_out),
+    hvg = (hvg_mask(data, np.flatnonzero(connected & model_side),
                     n_hvg, seed=config.seed) if n_hvg else None)
 
     def on_hvg(a):
@@ -1254,7 +1327,7 @@ def distribution_check(args: argparse.Namespace,
     test_rows: dict = {}
     for k in range(n_niches):
         for g in range(n_types):
-            tr = np.flatnonzero(connected & ~held_out & (data.t == g)
+            tr = np.flatnonzero(connected & model_side & (data.t == g)
                                 & (labels == k))
             te = np.flatnonzero(connected & held_out & (data.t == g)
                                 & (labels == k))
@@ -1337,6 +1410,9 @@ def distribution_check(args: argparse.Namespace,
     results: dict = {"run": args.run, "kappa": kappa,
                      "niche_source": source_kind,
                      "pairwise": [], "leave_one_out": []}
+    if scored_cells != "fold0":
+        results["scored_cells"] = scored_record(data, held_out, model_side,
+                                                scored_cells)
 
     pairs = pick_pairs(labels, data.graph.y, connected)
     for niche_a, niche_b in pairs:
@@ -1461,7 +1537,8 @@ def distribution_check(args: argparse.Namespace,
 
     # bar (4): do the two instruments call the same panels good?
     stem = "transport" if source_kind == "kmeans" else f"transport_{source_kind}"
-    mean_path = run_dir / "transport" / f"{stem}.json"
+    out_dir = out_root(run_dir, scored_cells) / "transport"
+    mean_path = out_dir / f"{stem}.json"
 
     def agreement(key: str) -> dict:
         if not mean_path.exists():
@@ -1489,14 +1566,15 @@ def distribution_check(args: argparse.Namespace,
             results[f"agreement_with_mean_read_model{suffix}"] = agreement(
                 f"scores_model{suffix}")
 
-    out_dir = run_dir / "transport"
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     if twins:
         twin_res = {"run": args.run, "kappa": kappa,
                     "niche_source": source_kind,
                     "eval_mask": results["eval_mask"],
                     "n_hvg": int(hvg.sum()) if hvg is not None else 0,
                     "pairwise": [], "leave_one_out": []}
+        if scored_cells != "fold0":
+            twin_res["scored_cells"] = results["scored_cells"]
         for version in ("pairwise", "leave_one_out"):
             for p in results[version]:
                 row = {k: v for k, v in p.items()
@@ -1875,12 +1953,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                              "seurat HVGs (0 disables)")
     parser.add_argument("--boot", type=int, default=N_BOOT,
                         help="paired bootstrap draws (distribution read)")
+    parser.add_argument("--scored-cells", default="fold0",
+                        choices=SCORED_CELLS,
+                        help="fold0: the published read (fold 0 scored, "
+                             "folds 1-4 for the model); heldout-tiles: only "
+                             "the model's held-out tiles scored, model "
+                             "quantities from its training tiles, written "
+                             "under runs/<run>/heldout_tiles/")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
     logging.basicConfig(
         level=logging.WARNING if args.quiet else logging.INFO,
         format="%(asctime)s %(levelname)s %(message)s", datefmt="%H:%M:%S")
+    if args.sweep_tag and args.scored_cells != "fold0":
+        # the sweep table under experiments/ has no variant path
+        parser.error("--scored-cells applies to --run only")
     if args.sweep_tag:
         sweep_sensitivity(args)
     elif args.run:

@@ -50,6 +50,13 @@ Read by read (DisCell -> Cellina):
 
 Writes ``<dir>/transport/transport{,_distribution,_twins}.json``,
 ``<dir>/bootstrap_ci.json`` and ``<dir>/transport_side_by_side.md``.
+
+``--scored-cells heldout-tiles`` (devlog 2026-09-29, "Transport scored on
+held-out tiles only") mirrors DisCell's sensitivity row: only cells of the
+held-out tiles are scored, every model quantity (own means, donors, the HVG
+set) comes from the training tiles -- the tiles stage A fitted on, so
+neither model saw a scored cell. It mirrors ``<run>/heldout_tiles/`` and
+writes the same files under ``<dir>/heldout_tiles/``.
 """
 
 from __future__ import annotations
@@ -131,8 +138,13 @@ def _draw(rng, pool, n):
 
 
 def _members(sl, k, g):
+    """(model-side rows, scored rows) of niche *k*, type *g*: the complement
+    of the held-out cells unless the slide carries its own ``model`` mask
+    (``slide``, ``transport.split_cells``)."""
     base = sl["connected"] & (sl["t"] == g) & (sl["labels"] == k)
-    return (np.flatnonzero(base & ~sl["held_out"]),
+    model = sl.get("model")
+    model = ~sl["held_out"] if model is None else model
+    return (np.flatnonzero(base & model),
             np.flatnonzero(base & sl["held_out"]))
 
 
@@ -361,12 +373,15 @@ def distribution_read(sl: dict, z, s, dec: Decoder, seed: int, boot: int,
     return res, twins, ci
 
 
-def slide(data, labels, fold, hvg=None) -> dict:
-    """The per-cell arrays both reads use, from an assembled dataset."""
+def slide(data, labels, fold, hvg=None, scored_cells: str = "fold0") -> dict:
+    """The per-cell arrays both reads use, from an assembled dataset;
+    *scored_cells* as ``transport.split_cells``."""
     tile_of = np.full(data.graph.n_cells, -1, dtype=np.int64)
     for k, tile in enumerate(data.train_tiles + data.val_tiles):
         tile_of[tile] = k
-    return {"labels": labels, "held_out": fold == 0, "t": np.asarray(data.t),
+    held_out, model = T.split_cells(data, fold, scored_cells)
+    return {"labels": labels, "held_out": held_out, "model": model,
+            "t": np.asarray(data.t),
             "connected": data.graph.degrees > 0, "y": data.graph.y,
             "x_rate": data.x.multiply(1.0 / data.totals.clip(min=1.0)[:, None]).tocsr(),
             "tile_of": tile_of, "positions": np.asarray(data.positions, np.float64),
@@ -414,6 +429,10 @@ def main(argv=None) -> int:
     p.add_argument("--boot", type=int, default=T.N_BOOT)
     p.add_argument("--n", type=int, default=BS.N_BOOT, help="CI draws")
     p.add_argument("--device", default="cuda")
+    p.add_argument("--scored-cells", default="fold0", choices=T.SCORED_CELLS,
+                   help="heldout-tiles: score only the held-out tiles, model "
+                        "quantities from the training tiles; mirrors "
+                        "<run>/heldout_tiles/ into <dir>/heldout_tiles/")
     p.add_argument("--min-cells", type=int, default=None,
                    help="SMOKE ONLY: lower transport.MIN_CELLS (a window has "
                         "too few cells per panel); recorded in the output")
@@ -425,7 +444,8 @@ def main(argv=None) -> int:
     device = args.device if torch.cuda.is_available() else "cpu"
     t0 = time.time()
     cdir = Path(args.cellina_dir)
-    out = cdir / "transport"
+    root = T.out_root(cdir, args.scored_cells)      # cdir: the published read
+    out = root / "transport"
     out.mkdir(parents=True, exist_ok=True)
     config = run_config(args.dataset, args.run)
     seed = int(config["seed"])
@@ -436,9 +456,10 @@ def main(argv=None) -> int:
         fold[tile] = k % N_FOLDS
     labels = niche_labels(data, args.niches, seed)
     connected = data.graph.degrees > 0
-    hvg = (T.hvg_mask(data, np.flatnonzero(connected & (fold != 0)), args.hvg, seed=seed)
+    held_out, model = T.split_cells(data, fold, args.scored_cells)
+    hvg = (T.hvg_mask(data, np.flatnonzero(connected & model), args.hvg, seed=seed)
            if args.hvg else None)
-    sl = slide(data, labels, fold, hvg)
+    sl = slide(data, labels, fold, hvg, args.scored_cells)
 
     enc = np.load(cdir / "encoded.npz")
     ids = enc["cell_id"]
@@ -463,7 +484,9 @@ def main(argv=None) -> int:
     if not np.allclose(mine, chk["px_scale"], rtol=1e-4, atol=1e-7):
         raise RuntimeError(f"decoder does not reproduce Cellina's: {decoder_check}")
     cellina_cfg = json.loads((cdir / "config.json").read_text())
-    theirs = paths.dataset(args.dataset).root / "runs" / args.run / "transport"
+    run_root = T.out_root(paths.dataset(args.dataset).root / "runs" / args.run,
+                          args.scored_cells)
+    theirs = run_root / "transport"
 
     def load(name):
         f = theirs / name
@@ -480,6 +503,8 @@ def main(argv=None) -> int:
                 "fit_cells", "n_fit", "epochs_completed", "best_checkpoint", "train_s")},
             "fold0_in_fit_tiles": float(np.isin(np.flatnonzero(fold == 0), np.concatenate(
                 data.train_tiles)).mean())}
+    if args.scored_cells != "fold0":
+        head["scored_cells"] = T.scored_record(data, held_out, model, args.scored_cells)
     mean, mean_boot = mean_read(sl, z, s, dec, seed)
     mean = {**head, **mean, "replay": replay(mean, load("transport.json"))}
     (out / "transport.json").write_text(json.dumps(mean, indent=2, default=float))
@@ -503,18 +528,21 @@ def main(argv=None) -> int:
                           "n_cells": mb["n_cells"], "method": mb["method"],
                           "m_tiles": mb["m_tiles"]}
     reads.update(dist_ci)
-    (cdir / "bootstrap_ci.json").write_text(json.dumps(
+    (root / "bootstrap_ci.json").write_text(json.dumps(
         {"tool": "Cellina", "mirrors": head["mirrors"], "n_boot": args.n,
          "tile_um": BS.TILE_UM, "seed": 0, "eval_mask": mean["eval_mask"],
          "reads": reads}, indent=2, default=float))
-    side_by_side(cdir, paths.dataset(args.dataset).root / "runs" / args.run, args.dataset)
+    side_by_side(root, run_root, args.dataset,
+                 None if args.scored_cells == "fold0" else f"{args.run}/heldout_tiles")
     log.info("wrote %s (%.0f s)", out, time.time() - t0)
     return 0
 
 
-def side_by_side(cdir: Path, run_dir: Path, dataset: str) -> None:
+def side_by_side(cdir: Path, run_dir: Path, dataset: str,
+                 label: str | None = None) -> None:
     """The table keys (``scripts/envelope_tables.transport_row``) for DisCell
-    and Cellina, with the tile CIs where both have them."""
+    and Cellina, with the tile CIs where both have them. *label* names the
+    DisCell read in the title (default: the run directory's name)."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -533,7 +561,7 @@ def side_by_side(cdir: Path, run_dir: Path, dataset: str) -> None:
             return "--"
         return f"{v:.3f}" + (f" [{c[0]:.3f}, {c[1]:.3f}]" if c else "")
     keys = sorted(set(rows["DisCell"]) | set(rows["Cellina"]))
-    lines = [f"# Transport reads, DisCell {run_dir.name} vs Cellina -- {dataset}", "",
+    lines = [f"# Transport reads, DisCell {label or run_dir.name} vs Cellina -- {dataset}", "",
              "Same panels, niches, held-out tiles, ceilings and draws; Cellina's "
              "counterfactual is its neighbour rewiring (cellina_counterfactual.py). "
              "Tile 95 % CIs in brackets.", "", "| read | DisCell | Cellina |", "|---|---|---|"]

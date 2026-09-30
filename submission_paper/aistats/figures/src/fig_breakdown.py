@@ -2,8 +2,8 @@
 
 Four illustrative readouts over the kappa grid, each with an interval at every
 grid point and a null value r0: (a) a signed contrast that survives the grid;
-(b) a magnitude that shrinks with kappa by construction but stays above its
-permutation null; (c) a contrast that breaks down inside the grid; (d) one that
+(b) a contrast that shrinks with kappa, as readouts do by construction, but
+stays clear of zero; (c) a contrast that breaks down inside the grid; (d) one that
 breaks down at the first grid point above zero. The curves are fixed synthetic
 functions, not fitted values; only the grid is the model's. Filled markers:
 interval clear of the null with the sign it has at kappa = 0; hollow: from the
@@ -26,7 +26,7 @@ OUT = Path(__file__).resolve().parent.parent / "fig_breakdown"
 # (title, mean(kappa), interval half-width, null value)
 READOUTS = [
     (r"real at every leak fraction", lambda k: 0.62 - 0.35 * k, 0.12, 0.0),
-    (r"shrinks, but stays real", lambda k: 0.95 - 1.2 * k, 0.08, 0.25),
+    (r"shrinks, but stays real", lambda k: 0.72 - 1.35 * k, 0.08, 0.0),
     (r"explained away at $\kappa = 0.2$", lambda k: 0.50 - 1.9 * k, 0.20, 0.0),
     (r"explained away at $\kappa = 0.05$", lambda k: 0.30 - 1.5 * k, 0.24, 0.0),
 ]

@@ -5,30 +5,84 @@
 \label{sec:setup}
 
 \paragraph{Sections.}
-We fit DISCELL to four sections profiled with the same imaging-based assay and gene panel of about five thousand genes \citep{janesick2023}: an ovarian cancer section preserved by formalin fixation and paraffin embedding (FFPE), our primary section \citep{tenx_ovarian_ffpe}; a lung cancer section, also FFPE \citep{tenx_lung_ffpe}; a fresh-frozen ovarian cancer section, sequenced about eight times deeper \citep{tenx_ovary_ff}; and a core of a paediatric lung tissue microarray (TMA) from GEO series GSE315411 \citep{williamskatek2026fishing}. A serial section of the same TMA core on a second slide is the held-out section: no model is fitted to it, and it is read only through the model fitted on its neighbour. The sections range from about seventy thousand to over a million cells (\cref{tab:sections}).
+We fit DISCELL to four sections profiled with the same imaging-based assay and gene panel of about five thousand genes \citep{janesick2023}: an ovarian cancer section preserved by formalin fixation and paraffin embedding (FFPE), our primary section \citep{tenx_ovarian_ffpe}; a lung cancer section, also FFPE \citep{tenx_lung_ffpe}; a fresh-frozen ovarian cancer section, with about eight times the median count per cell \citep{tenx_ovary_ff}; and a core of a paediatric lung tissue microarray (TMA) from GEO series GSE315411 \citep{williamskatek2026fishing}. A serial section of the same TMA core on a second slide is the held-out section: no model is fitted to it, and it is read only through the model fitted on its neighbour. The sections range from about seventy thousand to over a million cells (\cref{tab:sections}).
 
 \paragraph{Labels.}
-Every section carries lineage-level labels, in which states and locations are merged into their lineage (\cref{sec:setting}). On the ovarian FFPE section and the TMA they are derived from curated annotations, and on the other two from marker-annotated clusters; the mappings were fixed before any fit. Cells without a label form one class, which enters training like any other and is never a target of evaluation.
+Every section carries lineage-level labels, in which states and locations are merged into their lineage (\cref{sec:setting}). On the ovarian FFPE section and the TMA they are derived from curated annotations, and on the other two from marker-annotated clusters; the mappings were fixed before any fit at lineage labels. Cells without a usable lineage label form one class, which enters training like any other and is never a target of evaluation.
 
 \paragraph{Graph, kernel and image.}
 The graph is Delaunay adjacency pruned at $40\um$, the leakage kernel is $\beta$ with $\tau = 20\um$, and the image descriptor is the KRONOS embedding of the four-channel $128\um$ field with the $25\um$ disc over the cell set to zero, on every section (\cref{sec:setting}, \cref{app:graph,app:image}).
 
 \paragraph{Configuration.}
-One configuration is used on every section (\cref{tab:architecture}): a KL warm-up of the response over its first thirty epochs, the adversary with its composition term weighted three times its image term, in the heads' loss and in the encoder's, $\kappa = 0.1$ as the operating point, and a budget of $500$ epochs with patience $40$. Only $\alphaz$ changes between sections, because it is set to $\tfrac12 \cdot 1/\lbar$ with $\lbar$ the section's count scale: its median total count, with the primary section's value fixed during development. The operating point $\kappa = 0.1$ is where the analyses that need a single fit are read, not an estimate of the leak fraction. It was taken before the full sweep, inside the published range of misassignment for the platform \needsource, and kept after it, because on the primary section it lies at the end of the plateau of held-out reconstruction, where the loadings agree best across seeds and the mirror diagnostic (\cref{sec:selection}) is already below its level at $\kappa = 0$. Held-out reconstruction scores the fit as an autoencoder and favours small $\kappa$, so it describes the point rather than selecting it, and no claim rests on the choice: every readout is reported across the sweep (\cref{sec:sweep}).
+One configuration is used on every section (\cref{tab:architecture}): a KL warm-up of the response over its first thirty epochs, the adversary with its composition term weighted three times its image term, in the heads' loss and in the encoder's, $\kappa = 0.1$ as the operating point, and a budget of $500$ epochs with patience $40$. Only $\alphaz$ changes between sections, apart from smaller tiles on the TMA core (below), because it is set to $\tfrac12 \cdot 1/\lbar$ with $\lbar$ the section's count scale: its median total count, with the primary section's value fixed during development. The operating point $\kappa = 0.1$ is where the analyses that need a single fit are read, not an estimate of the leak fraction. It was taken before the full sweep, inside the published range of misassignment for the platform \needsource, and kept after it, because on the primary section it lies at the end of the plateau of held-out reconstruction, where the loadings agree best across seeds and the mirror diagnostic (\cref{sec:selection}) is already below its level at $\kappa = 0$. Held-out reconstruction scores the fit as an autoencoder and favours small $\kappa$, so it describes the point rather than selecting it, and no claim rests on the choice: every claimed contrast is reported across the sweep with its breakdown point (\cref{sec:sweep}).
 
 \paragraph{Splits, seeds and read-outs.}
-Each section is cut into contiguous tiles of at most $4{,}096$ cells ($2{,}048$ on the TMA core), and $15\%$ of the tiles are held out (\cref{app:tiles}). Every configuration is fitted from three random seeds, and every fit is read at its accepted checkpoint. A readout is reported as the mean over seeds with its range, and, where a sampling interval is needed, with a spatial block bootstrap over tiles (\cref{def:breakdown}). The leakage sweep refits the same configuration at every $\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$ with three seeds each.
+Each section is cut into contiguous tiles of at most $4{,}096$ cells ($2{,}048$ on the TMA core), and $15\%$ of the tiles are held out (\cref{app:tiles}). Every final configuration is fitted from three random seeds, each of which also redraws the held-out split, and every fit is read at its accepted checkpoint. A readout is reported as the mean over seeds with its range, and, where a sampling interval is needed, with a spatial block bootstrap over tiles (\cref{sec:sweep}). The leakage sweep refits the same configuration at every $\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$ with three seeds each.
 
 \paragraph{Baselines.}
-We compare with resolVI \citep{ergen2025}, SIMVI \citep{dong2025simvi}, MintFlow \citep{akbarnejad2025mintflow} and Cellina \citep{moeed2026cellina}, each at its published defaults and on our graph wherever the method accepts an external one (\cref{tab:baselines}). All methods see the same cells, split and labels, and are scored by the same read-outs on their intrinsic latent.
+We compare with resolVI \citep{ergen2025}, SIMVI \citep{dong2025simvi}, MintFlow \citep{akbarnejad2025mintflow} and Cellina \citep{moeed2026cellina}, each at its published defaults and on our graph wherever the method accepts an external one (\cref{tab:baselines}). Each comparison method is fitted as its software is designed, on every cell of the section with at least five counts, held-out tiles included; all methods are then scored by the same read-outs on their intrinsic latent, on our held-out cells and labels.
 
 \subsection{Model Quality Across Four Tissues}
 \label{sec:results-quality}
 % manifest row 1: envelope table (recon, NMI, mirror, cycle_z/cycle_w, I(niche;w), transport, atlas)
 
+\Cref{tab:headline} gives the model on every section. The intrinsic state keeps the cell type, with a normalised mutual information of $0.62$ to $0.74$ with the lineage labels, and it carries the cell cycle while the response does not: on the most strongly cycling tenth of cells, $\vz$ explains $19$ to $76\%$ of the variance of the cycle scores and $\vw$ at most $1\%$ in any seed, with intervals that contain zero on every fitted section. The response carries the niche, with $0.47$ to $0.60$ nats of information about it beyond a within-type permutation floor, and the context does not mirror the intrinsic state (mirror $R^2$ of $0.03$ to $0.09$; \cref{sec:selection}). The first response programme is reproduced across seeds with a cosine of $0.82$ to $0.97$. The model fitted to the TMA core reads its serial section, which it never saw, as it reads the core: the agreement with type is $0.61$ against $0.62$ and the cycle $R^2$ of $\vz$ $0.50$ on both. \pending{transport, after the held-out-tile check}
+
+\input{tables/generated/headline}
+
 \subsection{What the Intrinsic State Carries}
 \label{sec:results-z}
 % manifest rows 2-3 (invariance, tab:probe), 12 (cycle 2x2; cycling-set decision pending), 13 (subtype recovery)
+
+The adversary leaves a small residual of niche information in the intrinsic state, less than competing models leave on most sections (\cref{tab:probe}). With it, a nonlinear probe recovers $3.7$ to $5.8\%$ of the within-type variance of neighbour composition from $\vz$, on every section, and a linear probe at most $1.6\%$; without it, the nonlinear probe recovers $7$ to $39\%$, and from resolVI's intrinsic latent $5.7$ to $31\%$. The residual is similar in absolute terms on every section, so the share the adversary removes is largest where most leaked: more than four fifths on the fresh-frozen section, and $29$ to $48\%$ on the TMA core, where the uncontrolled model leaves only $7\%$. On the TMA core, Cellina leaves $3.6\%$ to the nonlinear probe and MintFlow $0.3\%$, but MintFlow leaves $0.9\%$ to the linear probe against our $0.4$ to $0.5\%$, and on the serial section $1.0\%$ to the nonlinear one; SIMVI leaves $5.2$ to $9.0\%$. Without the adversary, the response carries almost no within-type variation on the two ovarian sections: the intrinsic state takes up the niche instead (\cref{tab:moran}).
+
+\begin{table*}[t]
+\centering
+\caption{The held-out probe on the final fits, per section. For each block and probe, the share of the block's within-type variance that the probe explains from $\vz$ beyond the permutation floor ($e^{2\,\mathrm{excess}} - 1$, in \%): for the model trained without the adversary ($\alphaa = 0$, two seeds), with it (the final fits, three seeds), and for the comparison methods on the same held-out cells. MintFlow and SIMVI have so far been run on the TMA core only (--: not yet run); on the serial section, MintFlow is the core's model transferred and SIMVI is fitted on the serial section itself. The \emph{fraction left} is the excess with the adversary as a fraction of the mean excess without it: $0$ when the adversary removes everything the probe can find, $1$ when it removes nothing. Ranges are over seeds; Unassigned cells are not targets. The serial section of the TMA core is graded with the models fitted on the core.}
+\label{tab:probe}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+& Ovarian FFPE & Lung FFPE & Ovarian FF & TMA core & TMA serial \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Composition, MLP probe}} \\
+\quad without the adversary (\%) & 19.2--19.4 & 12.0--13.0 & 38.2--39.0 & 6.9--7.4 & 7.1--7.4 \\
+\quad with the adversary (\%) & 4.1--5.8 & 4.3--5.2 & 4.6--5.3 & 3.7--5.0 & 4.2--5.0 \\
+\quad \textbf{fraction left} & \textbf{0.23--0.32} & \textbf{0.36--0.43} & \textbf{0.14--0.16} & \textbf{0.52--0.71} & \textbf{0.59--0.70} \\
+\quad resolVI, Cellina (\%) & 21.1, 16.1 & 12.6, 8.5 & 30.9, 29.7 & 5.7, 3.6 & 7.9, 8.2 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.3, 5.2 & 1.0, 7.3 \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Image, MLP probe}} \\
+\quad without the adversary (\%) & 14.4--18.8 & 9.7--10.8 & 37.2--40.3 & 6.3--9.2 & 5.9--7.7 \\
+\quad with the adversary (\%) & 2.3--4.1 & 1.4--2.1 & 4.9--5.5 & 2.4--3.4 & 2.5--3.1 \\
+\quad \textbf{fraction left} & \textbf{0.15--0.26} & \textbf{0.14--0.21} & \textbf{0.15--0.16} & \textbf{0.31--0.45} & \textbf{0.38--0.46} \\
+\quad resolVI, Cellina (\%) & 15.1, 10.4 & 11.2, 4.4 & 30.6, 14.8 & 7.8, 4.1 & 7.8, 2.9 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.8, 9.0 & 0.6, 8.6 \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Composition, ridge probe}} \\
+\quad with the adversary (\%) & 1.0--1.1 & 0.6--0.8 & 1.3--1.6 & 0.4--0.5 & 0.8--1.1 \\
+\quad fraction left & 0.15--0.18 & 0.15--0.20 & 0.07--0.09 & 0.16--0.20 & 0.31--0.42 \\
+\quad resolVI, Cellina (\%) & 8.0, 8.9 & 4.7, 4.4 & 13.8, 22.3 & 2.5, 2.1 & 2.7, 3.1 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.9, 3.1 & 1.1, 3.1 \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Image, ridge probe}} \\
+\quad with the adversary (\%) & 0.6--1.4 & 0.2--0.5 & 2.2--2.6 & 0.5--0.7 & 0.5--0.8 \\
+\quad fraction left & 0.08--0.19 & 0.06--0.15 & 0.11--0.13 & 0.18--0.23 & 0.22--0.36 \\
+\quad resolVI, Cellina (\%) & 6.8, 7.2 & 4.0, 2.4 & 14.3, 11.6 & 2.6, 2.1 & 2.6, 2.0 \\
+\quad MintFlow, SIMVI (\%) & -- & -- & -- & 0.8, 3.9 & 0.7, 3.5 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\Cref{fig:latents-main} shows the two latents on the primary section. The intrinsic state separates the lineages, and within one type it shows little grouping by the cell's neighbours, whereas the response of the same cells does; \cref{fig:latents-umap} shows all four sections.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/fig_latents_main}
+\caption{UMAP of the posterior means on the primary section, one seed of the final configuration. \textbf{a},~$\vmu_z$ of $30{,}000$ random cells, coloured by the cell's own lineage family. \textbf{b},~$\vmu_w$ of the same cells, coloured by the family that dominates its neighbours. \textbf{c},~$\vmu_z$ of T/NK cells, the large type with the most mixed neighbourhoods, coloured by the family that dominates their neighbours. \textbf{d},~$\vmu_w$ of the same cells. UMAP can exaggerate separation; the probe of \cref{tab:probe} measures what c and d show.}
+\label{fig:latents-main}
+\end{figure}
 
 \subsection{What the Response Carries}
 \label{sec:results-w}

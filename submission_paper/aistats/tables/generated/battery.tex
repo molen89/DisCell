@@ -1,0 +1,324 @@
+% Generated table: tab:battery. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py --only probe battery sensitivity
+% Generated: 2026-09-29 16:44:33 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json  (2026-09-29 16:43:05)  [after the freeze; see checks]
+%   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:56)
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json  (2026-09-29 16:42:22)  [after the freeze; see checks]
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:52)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-29 09:38:22)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:54)
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json  (2026-09-29 09:42:36)
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:55)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-29 09:46:14)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-29 09:46:53)
+%   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/baseline_battery_lineage.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_11_prime_solo/baseline_battery_lineage.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_11_prime_solo/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_lung_cancer_ffpe/baseline_battery_lineage.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_lung_cancer_ffpe/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_ovary_ff/baseline_battery_lineage.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_ovary_ff/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/baseline_battery_lineage.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%   scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
+%
+% Reading convention:
+%   lineage labels; accepted checkpoint; one Unassigned mask for every method; DisCell mean
+%   and [min, max] over finalL_s0-s2, baselines single fit; cycle on the label-free top-decile
+%   set; probe fractions against the seed-mean excess of uncontrolledL_s0-s1
+%
+% Provenance (row / column -> file : key):
+%   Ovarian FFPE / DisCell / NMI: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.nmi (mean; min, max)
+%   Ovarian FFPE / DisCell / Comp., ridge: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.ridge_comp.fraction_of_uncontrolled (mean; min, max)
+%   Ovarian FFPE / DisCell / Comp., MLP: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.mlp_comp.fraction_of_uncontrolled (mean; min, max)
+%   Ovarian FFPE / DisCell / Mirror $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.mirror.r2 (mean; min, max)
+%   Ovarian FFPE / DisCell / Cycle $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.cycle_q90.z.r2_pooled (mean; min, max)
+%   Ovarian FFPE / DisCell / Recon.: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.reconstruction.recon (mean; min, max)
+%   Ovarian FFPE / resolVI / NMI: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.nmi
+%   Ovarian FFPE / resolVI / Comp., ridge: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.fraction_of_uncontrolled
+%   Ovarian FFPE / resolVI / Comp., MLP: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.fraction_of_uncontrolled
+%   Ovarian FFPE / resolVI / Mirror $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
+%   Ovarian FFPE / resolVI / Cycle $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
+%   Ovarian FFPE / resolVI / Recon.: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   Ovarian FFPE / Cellina / NMI: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.nmi
+%   Ovarian FFPE / Cellina / Comp., ridge: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   Ovarian FFPE / Cellina / Comp., MLP: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   Ovarian FFPE / Cellina / Mirror $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.mirror.r2
+%   Ovarian FFPE / Cellina / Cycle $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.cycle_q90.z.r2_pooled
+%   Ovarian FFPE / Cellina / Recon.: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.reconstruction.recon
+%   Lung FFPE / DisCell / NMI: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.nmi (mean; min, max)
+%   Lung FFPE / DisCell / Comp., ridge: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.ridge_comp.fraction_of_uncontrolled (mean; min, max)
+%   Lung FFPE / DisCell / Comp., MLP: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.mlp_comp.fraction_of_uncontrolled (mean; min, max)
+%   Lung FFPE / DisCell / Mirror $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.mirror.r2 (mean; min, max)
+%   Lung FFPE / DisCell / Cycle $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.cycle_q90.z.r2_pooled (mean; min, max)
+%   Lung FFPE / DisCell / Recon.: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.reconstruction.recon (mean; min, max)
+%   Lung FFPE / resolVI / NMI: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.nmi
+%   Lung FFPE / resolVI / Comp., ridge: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.fraction_of_uncontrolled
+%   Lung FFPE / resolVI / Comp., MLP: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.fraction_of_uncontrolled
+%   Lung FFPE / resolVI / Mirror $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
+%   Lung FFPE / resolVI / Cycle $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
+%   Lung FFPE / resolVI / Recon.: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   Lung FFPE / Cellina / NMI: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.nmi
+%   Lung FFPE / Cellina / Comp., ridge: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   Lung FFPE / Cellina / Comp., MLP: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   Lung FFPE / Cellina / Mirror $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.mirror.r2
+%   Lung FFPE / Cellina / Cycle $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.cycle_q90.z.r2_pooled
+%   Lung FFPE / Cellina / Recon.: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.reconstruction.recon
+%   Ovarian FF / DisCell / NMI: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.nmi (mean; min, max)
+%   Ovarian FF / DisCell / Comp., ridge: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.ridge_comp.fraction_of_uncontrolled (mean; min, max)
+%   Ovarian FF / DisCell / Comp., MLP: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.mlp_comp.fraction_of_uncontrolled (mean; min, max)
+%   Ovarian FF / DisCell / Mirror $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.mirror.r2 (mean; min, max)
+%   Ovarian FF / DisCell / Cycle $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.cycle_q90.z.r2_pooled (mean; min, max)
+%   Ovarian FF / DisCell / Recon.: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.reconstruction.recon (mean; min, max)
+%   Ovarian FF / resolVI / NMI: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'resolVI'.nmi
+%   Ovarian FF / resolVI / Comp., ridge: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.fraction_of_uncontrolled
+%   Ovarian FF / resolVI / Comp., MLP: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.fraction_of_uncontrolled
+%   Ovarian FF / resolVI / Mirror $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
+%   Ovarian FF / resolVI / Cycle $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
+%   Ovarian FF / resolVI / Recon.: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   Ovarian FF / Cellina / NMI: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.nmi
+%   Ovarian FF / Cellina / Comp., ridge: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   Ovarian FF / Cellina / Comp., MLP: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   Ovarian FF / Cellina / Mirror $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.mirror.r2
+%   Ovarian FF / Cellina / Cycle $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.cycle_q90.z.r2_pooled
+%   Ovarian FF / Cellina / Recon.: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.reconstruction.recon
+%   TMA core / DisCell / NMI: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.nmi (mean; min, max)
+%   TMA core / DisCell / Comp., ridge: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.ridge_comp.fraction_of_uncontrolled (mean; min, max)
+%   TMA core / DisCell / Comp., MLP: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.mlp_comp.fraction_of_uncontrolled (mean; min, max)
+%   TMA core / DisCell / Mirror $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.mirror.r2 (mean; min, max)
+%   TMA core / DisCell / Cycle $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.cycle_q90.z.r2_pooled (mean; min, max)
+%   TMA core / DisCell / Recon.: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.reconstruction.recon (mean; min, max)
+%   TMA core / resolVI / NMI: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'resolVI'.nmi
+%   TMA core / resolVI / Comp., ridge: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.fraction_of_uncontrolled
+%   TMA core / resolVI / Comp., MLP: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.fraction_of_uncontrolled
+%   TMA core / resolVI / Mirror $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
+%   TMA core / resolVI / Cycle $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
+%   TMA core / resolVI / Recon.: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   TMA core / SIMVI / NMI: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'SIMVI (lineage)'.nmi
+%   TMA core / SIMVI / Comp., ridge: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   TMA core / SIMVI / Comp., MLP: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   TMA core / SIMVI / Mirror $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'SIMVI (lineage)'.mirror.r2
+%   TMA core / SIMVI / Cycle $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'SIMVI (lineage)'.cycle_q90.z.r2_pooled
+%   TMA core / SIMVI / Recon.: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : SIMVI (lineage).reconstruction.recon absent (no decoder)
+%   TMA core / MintFlow / NMI: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.nmi
+%   TMA core / MintFlow / Comp., ridge: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   TMA core / MintFlow / Comp., MLP: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   TMA core / MintFlow / Mirror $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.mirror.r2
+%   TMA core / MintFlow / Cycle $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.cycle_q90.z.r2_pooled
+%   TMA core / MintFlow / Recon.: not reported (issue B-mf1, manifest 'What must NOT be quoted')
+%   TMA core / Cellina / NMI: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.nmi
+%   TMA core / Cellina / Comp., ridge: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   TMA core / Cellina / Comp., MLP: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   TMA core / Cellina / Mirror $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.mirror.r2
+%   TMA core / Cellina / Cycle $R^2$: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.cycle_q90.z.r2_pooled
+%   TMA core / Cellina / Recon.: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.reconstruction.recon
+%   TMA serial / DisCell / NMI: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.nmi (mean; min, max)
+%   TMA serial / DisCell / Comp., ridge: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.ridge_comp.fraction_of_uncontrolled (mean; min, max)
+%   TMA serial / DisCell / Comp., MLP: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : DisCell/finalL_s{0,1,2}.mlp_comp.fraction_of_uncontrolled (mean; min, max)
+%   TMA serial / DisCell / Mirror $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.mirror.r2 (mean; min, max)
+%   TMA serial / DisCell / Cycle $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.cycle_q90.z.r2_pooled (mean; min, max)
+%   TMA serial / DisCell / Recon.: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : DisCell/finalL_s{0,1,2}.reconstruction.recon (mean; min, max)
+%   TMA serial / resolVI / NMI: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'resolVI'.nmi
+%   TMA serial / resolVI / Comp., ridge: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'resolVI'.ridge_comp.fraction_of_uncontrolled
+%   TMA serial / resolVI / Comp., MLP: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'resolVI'.mlp_comp.fraction_of_uncontrolled
+%   TMA serial / resolVI / Mirror $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
+%   TMA serial / resolVI / Cycle $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
+%   TMA serial / resolVI / Recon.: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   TMA serial / SIMVI / NMI: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'SIMVI (lineage, fit on this section)'.nmi
+%   TMA serial / SIMVI / Comp., ridge: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage, fit on this section)'.ridge_comp.fraction_of_uncontrolled
+%   TMA serial / SIMVI / Comp., MLP: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'SIMVI (lineage, fit on this section)'.mlp_comp.fraction_of_uncontrolled
+%   TMA serial / SIMVI / Mirror $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'SIMVI (lineage, fit on this section)'.mirror.r2
+%   TMA serial / SIMVI / Cycle $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'SIMVI (lineage, fit on this section)'.cycle_q90.z.r2_pooled
+%   TMA serial / SIMVI / Recon.: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : SIMVI (lineage, fit on this section).reconstruction.recon absent (no decoder)
+%   TMA serial / MintFlow / NMI: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'MintFlow (lineage, transfer)'.nmi
+%   TMA serial / MintFlow / Comp., ridge: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage, transfer)'.ridge_comp.fraction_of_uncontrolled
+%   TMA serial / MintFlow / Comp., MLP: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage, transfer)'.mlp_comp.fraction_of_uncontrolled
+%   TMA serial / MintFlow / Mirror $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'MintFlow (lineage, transfer)'.mirror.r2
+%   TMA serial / MintFlow / Cycle $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'MintFlow (lineage, transfer)'.cycle_q90.z.r2_pooled
+%   TMA serial / MintFlow / Recon.: not reported (issue B-mf1, manifest 'What must NOT be quoted')
+%   TMA serial / Cellina / NMI: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'Cellina (lineage, transfer)'.nmi
+%   TMA serial / Cellina / Comp., ridge: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   TMA serial / Cellina / Comp., MLP: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   TMA serial / Cellina / Mirror $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'Cellina (lineage, transfer)'.mirror.r2
+%   TMA serial / Cellina / Cycle $R^2$: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'Cellina (lineage, transfer)'.cycle_q90.z.r2_pooled
+%   TMA serial / Cellina / Recon.: data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json : 'Cellina (lineage, transfer)'.reconstruction.recon
+%
+% Checks and notes:
+%   - Ovarian FFPE:
+%     data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/baseline_battery_lineage.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2, resolVI,
+%     Cellina (lineage)): identical.
+%   - Ovarian FFPE:
+%     data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage)):
+%     identical.
+%   - Lung FFPE:
+%     data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_lung_cancer_ffpe/baseline_battery_lineage.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2, resolVI,
+%     Cellina (lineage)): identical.
+%   - Lung FFPE:
+%     data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_lung_cancer_ffpe/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage)):
+%     identical.
+%   - Ovarian FF:
+%     data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json was
+%     compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_ovary_ff/baseline_battery_lineage.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2, resolVI,
+%     Cellina (lineage)): identical.
+%   - Ovarian FF:
+%     data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json was
+%     compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_ovary_ff/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage)):
+%     identical.
+%   - TMA core:
+%     data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_11_prime_solo/baseline_battery_lineage.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2, resolVI,
+%     SIMVI (lineage), MintFlow (lineage), Cellina (lineage)): identical.
+%   - TMA core:
+%     data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_11_prime_solo/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, SIMVI (lineage), MintFlow
+%     (lineage), Cellina (lineage)): identical.
+%   - TMA serial:
+%     data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/baseline_battery_lineage.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2, resolVI,
+%     SIMVI (lineage, fit on this section), MintFlow (lineage, transfer), Cellina (lineage,
+%     transfer)): identical.
+%   - TMA serial:
+%     data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json
+%     was compared with the frozen snapshot
+%     scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/probe_regrade_lineage_final.json
+%     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, SIMVI (lineage, fit on this
+%     section), MintFlow (lineage, transfer), Cellina (lineage)): identical.
+%   - TMA serial, probe entry 'Cellina (lineage, transfer)', ridge_comp: fraction 1.3187 is not
+%     its excess over the file's uncontrolled seed mean (1.2001). Its excess equals that of the
+%     entry 'Cellina (lineage)' (same fitted model, transferred), whose fraction is consistent,
+%     so that entry is used.
+%   - TMA serial, probe entry 'Cellina (lineage, transfer)', mlp_comp: fraction 1.1793 is not
+%     its excess over the file's uncontrolled seed mean (1.1262). Its excess equals that of the
+%     entry 'Cellina (lineage)' (same fitted model, transferred), whose fraction is consistent,
+%     so that entry is used.
+%   - Cellina's niche-adversary and own-graph rows (manifest rows 34-35, queue cellina_extra)
+%     are not included; the live GSE battery files already carry a 'cellina_nicheadv' column
+%     written after the freeze, which this table ignores.
+%   - NMI and reconstruction here are the battery's own reads, computed the same way for every
+%     method; for DISCELL they differ slightly from the headline table's (the trainer's reads),
+%     so the two tables' DISCELL rows are not interchangeable.
+%   - Ovarian FFPE: target cells scored per entry (reconstruction.n_cells):
+%     {'DisCell/finalL_s0': 36114, 'DisCell/finalL_s1': 35877, 'DisCell/finalL_s2': 34548,
+%     'resolVI': 36233, 'Cellina (lineage)': 36233}. The scored sets differ slightly between
+%     entries (each DISCELL seed has its own split).
+%   - Lung FFPE: target cells scored per entry (reconstruction.n_cells): {'DisCell/finalL_s0':
+%     39969, 'DisCell/finalL_s1': 39973, 'DisCell/finalL_s2': 39966, 'resolVI': 40000, 'Cellina
+%     (lineage)': 40000}. The scored sets differ slightly between entries (each DISCELL seed has
+%     its own split).
+%   - Ovarian FF: target cells scored per entry (reconstruction.n_cells): {'DisCell/finalL_s0':
+%     38887, 'DisCell/finalL_s1': 38156, 'DisCell/finalL_s2': 38741, 'resolVI': 38910, 'Cellina
+%     (lineage)': 38910}. The scored sets differ slightly between entries (each DISCELL seed has
+%     its own split).
+%   - TMA core: target cells scored per entry (reconstruction.n_cells): {'DisCell/finalL_s0':
+%     10434, 'DisCell/finalL_s1': 10312, 'DisCell/finalL_s2': 10518, 'resolVI': 10434, 'SIMVI
+%     (lineage)': 10434, 'MintFlow (lineage)': 10434, 'Cellina (lineage)': 10434}. The scored
+%     sets differ slightly between entries (each DISCELL seed has its own split).
+%   - TMA serial: target cells scored per entry (reconstruction.n_cells): {'DisCell/finalL_s0':
+%     10528, 'DisCell/finalL_s1': 10523, 'DisCell/finalL_s2': 10668, 'resolVI': 10528, 'SIMVI
+%     (lineage, fit on this section)': 10528, 'MintFlow (lineage, transfer)': 10528, 'Cellina
+%     (lineage, transfer)': 10528}. The scored sets differ slightly between entries (each
+%     DISCELL seed has its own split).
+%   - Caption claims verified 2026-09-29 against DisCell-baselines: common.py filter_cells (>= 5
+%     counts, the only filter); every result's config.json n_cells equals the export's cells
+%     with >= 5 counts (e.g. TMA core 69,206 of 69,422, the export's held-out split included);
+%     resolVI trains with train_size 1.0 (scvi-tools RESOLVI requires it); MintFlow has no
+%     split; Cellina (config train_size 0.9) and SIMVI (SimVI.train default train_size 0.9) hold
+%     out a random 10 % for early stopping. Serial section: resolvi_lineage config transfer_mode
+%     = fit_on_target (the transfer failed and it was refitted on the section); SIMVI lineage
+%     dual config h5ad = the dual export (fit on the section); Cellina transfer_mode = transfer;
+%     MintFlow transfer = true, fitted_on = the core export.
+%   - On the serial section resolVI and SIMVI are fitted on the serial section itself; MintFlow
+%     and Cellina are the core's models transferred.
+%
+% Pending cells:
+%   - Ovarian FFPE / SIMVI / all columns: whole-section fit queued (baselines_complete, GPU 1,
+%     ~5 days from the freeze); the paper will state the measured reason if it cannot run
+%   - Ovarian FFPE / MintFlow / all columns: whole-section fit queued (baselines_complete, GPU
+%     1, ~5 days from the freeze); the paper will state the measured reason if it cannot run
+%   - Lung FFPE / SIMVI / all columns: whole-section fit queued (baselines_complete, GPU 1, ~5
+%     days from the freeze); the paper will state the measured reason if it cannot run
+%   - Lung FFPE / MintFlow / all columns: whole-section fit queued (baselines_complete, GPU 1,
+%     ~5 days from the freeze); the paper will state the measured reason if it cannot run
+%   - Ovarian FF / SIMVI / all columns: whole-section fit queued (baselines_complete, GPU 1, ~5
+%     days from the freeze); the paper will state the measured reason if it cannot run
+%   - Ovarian FF / MintFlow / all columns: whole-section fit queued (baselines_complete, GPU 1,
+%     ~5 days from the freeze); the paper will state the measured reason if it cannot run
+%
+\begin{table*}[t]
+\centering
+\caption{One battery for every method, at lineage labels, on the held-out cells of each section, with Unassigned cells not targets. NMI of the intrinsic latent with the type; \emph{Comp.}: the held-out excess of the ridge and MLP probes of neighbour composition as a fraction of that of DISCELL without the adversary (the fraction left of \cref{tab:probe}); mirror $R^2$; cycle $R^2$ of the intrinsic latent on the top-decile cycling set; held-out reconstruction in nats per count. For DISCELL, the mean over three seeds and the range. DISCELL's held-out tiles are excluded from its training loss. The comparison methods are fitted as their software is designed, on every cell of the section with at least five counts, held-out tiles included, and are scored on our held-out cells: resolVI and MintFlow train on all of them, and Cellina and SIMVI on a random nine tenths of the cells (the rest serve their own early stopping), so their reads, reconstruction above all, are not held-out reads. On the serial section, resolVI and SIMVI are fitted on that section itself, so theirs are not held-out reads either; Cellina, MintFlow and DISCELL are the core's models transferred. $^{a}$Whole-section fits of SIMVI and MintFlow on the three Xenium sections are queued; if a method cannot be run on the resources available, the table will say so with the measured reason. $^{b}$Not reported: MintFlow's reconstruction is under inspection. $^{c}$SIMVI has no count decoder. --: not applicable.}
+\label{tab:battery}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llcccccc@{}}
+\toprule
+ & & & \multicolumn{2}{c}{Probe fraction} & & & \\
+\cmidrule(lr){4-5}
+Section & Method & NMI & Comp., ridge & Comp., MLP & Mirror $R^2$ & Cycle $R^2$ & Recon. \\
+\midrule
+\multirow{6}{*}{Ovarian FFPE} & DISCELL & 0.708 & 0.16 & 0.27 & 0.049 & 0.519 & $-7.192$ \\
+ & \quad range & 0.694--0.720 & 0.15--0.18 & 0.23--0.32 & 0.044--0.051 & 0.504--0.548 & $-7.231$ to $-7.148$ \\
+ & resolVI & 0.711 & 1.22 & 1.09 & 0.293 & 0.559 & $-7.231$ \\
+ & SIMVI & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & MintFlow & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & Cellina & 0.850 & 1.35 & 0.85 & 0.103 & 0.566 & $-7.231$ \\
+\midrule
+\multirow{6}{*}{Lung FFPE} & DISCELL & 0.733 & 0.17 & 0.39 & 0.026 & 0.186 & $-7.254$ \\
+ & \quad range & 0.728--0.741 & 0.15--0.20 & 0.36--0.43 & 0.025--0.027 & 0.177--0.195 & $-7.267$ to $-7.243$ \\
+ & resolVI & 0.845 & 1.18 & 1.01 & 0.153 & 0.147 & $-7.282$ \\
+ & SIMVI & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & MintFlow & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & Cellina & 0.937 & 1.10 & 0.70 & 0.047 & 0.311 & $-7.276$ \\
+\midrule
+\multirow{6}{*}{Ovarian FF} & DISCELL & 0.688 & 0.08 & 0.15 & 0.091 & 0.757 & $-7.320$ \\
+ & \quad range & 0.667--0.722 & 0.07--0.09 & 0.14--0.16 & 0.086--0.094 & 0.744--0.768 & $-7.329$ to $-7.312$ \\
+ & resolVI & 0.687 & 0.71 & 0.83 & 0.400 & 0.489 & $-7.319$ \\
+ & SIMVI & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & MintFlow & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & Cellina & 0.823 & 1.10 & 0.80 & 0.142 & 0.675 & $-7.309$ \\
+\midrule
+\multirow{6}{*}{TMA core} & DISCELL & 0.618 & 0.18 & 0.60 & 0.028 & 0.497 & $-7.219$ \\
+ & \quad range & 0.611--0.627 & 0.16--0.20 & 0.52--0.71 & 0.028--0.028 & 0.476--0.509 & $-7.223$ to $-7.213$ \\
+ & resolVI & 0.721 & 0.98 & 0.80 & 0.177 & 0.336 & $-7.214$ \\
+ & SIMVI & 0.504 & 1.21 & 0.73 & 0.084 & 0.567 & n/a$^{c}$ \\
+ & MintFlow & 0.895 & 0.35 & 0.04 & 0.031 & 0.054 & n/r$^{b}$ \\
+ & Cellina & 0.841 & 0.83 & 0.51 & 0.046 & 0.285 & $-7.218$ \\
+\midrule
+\multirow{6}{*}{TMA serial} & DISCELL & 0.607 & 0.37 & 0.64 & 0.039 & 0.495 & $-7.237$ \\
+ & \quad range & 0.601--0.616 & 0.31--0.42 & 0.59--0.70 & 0.039--0.040 & 0.494--0.496 & $-7.244$ to $-7.232$ \\
+ & resolVI & 0.728 & 1.04 & 1.08 & 0.173 & 0.344 & $-7.223$ \\
+ & SIMVI & 0.486 & 1.21 & 1.01 & 0.081 & 0.631 & n/a$^{c}$ \\
+ & MintFlow & 0.911 & 0.45 & 0.14 & 0.035 & 0.056 & n/r$^{b}$ \\
+ & Cellina & 0.644 & 1.20 & 1.13 & 0.058 & 0.240 & $-7.274$ \\
+\bottomrule
+\end{tabular}
+\end{table*}

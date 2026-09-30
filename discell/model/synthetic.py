@@ -48,7 +48,8 @@ class Simulation:
 def simulate(n_cells: int = 6000, n_genes: int = 60, n_types: int = 4,
              d_z: int = 4, d_w: int = 2, d_phi: int = 8,
              kappa: float = 0.2, mean_counts: float = 150.0,
-             box_um: float = 1000.0, seed: int = 0) -> Simulation:
+             box_um: float = 1000.0, seed: int = 0,
+             w_shift: np.ndarray | None = None) -> Simulation:
     """Simulate one tissue. Defaults match Xenium's ~13 um cell spacing.
 
     The pieces, in the generative order of the spec:
@@ -63,6 +64,12 @@ def simulate(n_cells: int = 6000, n_genes: int = 60, n_types: int = 4,
     * ``log rho = z A + w B``, ``p = (1-kappa) rho + kappa rho_bar``,
       ``x ~ Multinomial(l, p)``;
     * ``phi = P y + noise`` -- the image knows the niche, imperfectly.
+
+    *w_shift* (N, d_w), optional: a per-cell response beyond the niche,
+    added to ``w`` in the log-rate only (``log rho = z A + (w + shift) B``);
+    ``w_true`` stays the planted niche response and no random draw moves.
+    None = every call before it, bit for bit (planted per-cell arm,
+    devlog 2026-09-29).
     """
     rng = np.random.default_rng(seed)
     positions = rng.uniform(0, box_um, size=(n_cells, 2))
@@ -91,7 +98,8 @@ def simulate(n_cells: int = 6000, n_genes: int = 60, n_types: int = 4,
 
     a_load = rng.normal(0.0, 1.0, size=(d_z, n_genes))
     b_load = rng.normal(0.0, 1.0, size=(d_w, n_genes))
-    logits_rho = z @ a_load + w @ b_load
+    w_rate = w if w_shift is None else w + w_shift
+    logits_rho = z @ a_load + w_rate @ b_load
     rho = np.exp(logits_rho - logits_rho.max(axis=1, keepdims=True))
     rho /= rho.sum(axis=1, keepdims=True)
 

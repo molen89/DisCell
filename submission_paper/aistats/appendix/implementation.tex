@@ -4,7 +4,7 @@
 \subsection{Architecture and Hyperparameters}
 \label{app:architecture}
 
-\cref{tab:architecture} lists every network and every fixed quantity as implemented; the weights marked calibrated are set per section by the protocol of \cref{sec:invariance} and are not quoted here. All multilayer perceptrons use rectified-linear hidden units.
+\cref{tab:architecture} lists every network and every fixed quantity as implemented; the weights are set once, on the primary section, by the protocol of \cref{sec:invariance}, and used on every section. All multilayer perceptrons use rectified-linear hidden units.
 
 \begin{table}[t]
 \centering
@@ -34,7 +34,7 @@ Graph & & Delaunay adjacency; Voronoi faces measured within $30\um$ discs; prune
 Kernel $\beta$ & & $f_{ij}\exp(-d_{ij}/\tau)$, $\tau = 20\um$, row-normalised over in-edges \\
 Prior scale $\sigma_w$ & & $1$ (fixed) \\
 \midrule
-Leak fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; the operating point $0.1$ is a grid point chosen on the primary section (\cref{sec:setup}) \\
+Leak fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; the operating point $0.1$ is a working point (\cref{sec:setup}) \\
 $\omega$ & & $1$ \\
 $\alphaz$ & & $\tfrac12/\lbar$, half the bound-equivalent value, with $\lbar$ the section's count scale (\cref{sec:objective}) \\
 $\alphaw$ & & $0.1$, far above $1/\lbar$ (\cref{sec:objective}); ramped linearly from $0$ over the first $30$ epochs \\
@@ -42,7 +42,7 @@ $\alphaa$ (adversary) & & $0.3$; six head updates per model update at learning r
 $\alphaa$ (closed form) & & calibrated by the same probe protocol \\
 Moving-average rate, shrinkage & & $0.05$, $0.05$; support floor $10\times$ joint dimension \\
 \midrule
-Tiles & & recursive median split into rectangles of $\leq 4{,}096$ cells; $15\%$ of tiles held out \\
+Tiles & & recursive median split into rectangles of $\leq 4{,}096$ cells ($2{,}048$ on the TMA core); $15\%$ of tiles held out \\
 Optimiser & & Adam \citep{kingma2015adam}, learning rate $10^{-3}$, cosine annealing \citep{loshchilov2017} over the epoch budget, gradient-norm clip $10$ \\
 Evaluation & & every $5$ epochs on posterior means; checkpoint accepted if held-out reconstruction improves and $\vz$--type agreement $\geq 0.9\times$ its running maximum; patience in epochs set with the budget; $\alphaw$ ramped linearly from $0$ over the first $30$ epochs, during which no checkpoint is accepted and patience does not count \\
 Hardware & & one NVIDIA GeForce RTX 4090 (24\,GB) per fit \\
@@ -91,8 +91,8 @@ Invariance mechanism & the adversary is the operating configuration; the closed-
 Where & Decision & Reason \\
 \midrule
 Attention sources & neighbour types only; an earlier version also passed the neighbour's posterior mean under a stop-gradient & the case is empirical, not mechanistic: a seed-matched ablation improved held-out reconstruction, the $\vz$--type agreement, the mirror check and the cycle readout of $\vw$ while leaving $\vw$'s spatial readouts unchanged. The mechanism originally proposed for it, the prior reconstructing a cell from its neighbours' codes, was tested with two purpose-built detectors and not confirmed; the sources are types because the ablation is better, not because that mechanism was demonstrated \\
-Training budget & two budgets: a short one for sweep points, a long one for reference fits (\cref{sec:selection}) & sweep points must be comparable to one another; reference fits must be individually good, and the better optimisation basin is not reached at the short budget \\
-Choosing among seeds & several seeds per reference configuration, one selected on the full diagnostic battery, the rest reported as the envelope & selection on held-out reconstruction alone admits a fit that buys likelihood at the cost of the intrinsic-state readouts \\
+Training budget & one budget, $500$ epochs with patience $40$, for the final fits and the sweep (\cref{sec:selection}) & a sweep point is then directly comparable with the final fit at the same $\kappa$; an earlier short budget for sweep points did not reach the better optimisation basin \\
+Choosing among seeds & no seed is selected: figures use one seed fixed in advance, tables the mean with the range over seeds & selecting a seed after seeing its readouts would bias every readout read on it \\
 Halo overhead & ring one is fully encoded; ring two contributes a type lookup only & the attention sources are types, so ring two needs no encoder pass and none is run; the node overhead falls with tile size, and tiles are sized above the knee \\
 Resident count storage & the count matrix is held on the accelerator as $16$-bit integers and cast per tile & counts are small non-negative integers, so the narrow type is exact and is asserted to be; the wide type does not fit on one consumer card for the largest section, and tile size does not help, since every tile is resident \\
 \midrule
@@ -123,40 +123,9 @@ Not built & Dirichlet-multinomial likelihood; per-cell counterfactuals with abdu
 \begin{figure}[t]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_probe}
-\caption{How the held-out probe grades the invariance of $\vz$ (\cref{eq:probe}); schematic, with synthetic values chosen for legibility. \textbf{a},~The type-only baseline and the probe are fitted on the training tiles and scored on the held-out tiles (hatched). The baseline predicts each component of the invariance block by its mean over cells of the same type; the probe predicts it from $(\vmu_z, t)$ with a ridge regression or a small perceptron. \textbf{b},~One component for held-out cells of one type. The baseline's error is the spread around the type mean (dashed), the probe's the spread around its prediction (solid, the line of perfect prediction). $G_k$ is half the log ratio of the two mean squared errors, $e^{2G_k} - 1$ is the share of within-type variance the probe explains, and $G_b$ averages $G_k$ over the block. \textbf{c},~Reading $G_b$ for each block. The floor is its value with $\vmu_z$ permuted within type; the uncontrolled fit is the same model with $\alphaa = 0$. What is reported is this fit's excess over the floor (blue bar) and that excess as a fraction of the uncontrolled fit's (grey bracket), for each probe family. A block passes when that fraction is at most a quarter (dotted guard): here the composition block fails and the image block passes.}
+\caption{How the held-out probe grades the invariance of $\vz$ (\cref{eq:probe}); schematic, with synthetic values chosen for legibility. \textbf{a},~The type-only baseline and the probe are fitted on the training tiles and scored on the held-out tiles (hatched). The baseline predicts each component of the invariance block by its mean over cells of the same type; the probe predicts it from $(\vmu_z, t)$ with a ridge regression or a small perceptron. \textbf{b},~One component for held-out cells of one type. The baseline's error is the spread around the type mean (dashed), the probe's the spread around its prediction (solid, the line of perfect prediction). $G_k$ is half the log ratio of the two mean squared errors, $e^{2G_k} - 1$ is the share of within-type variance the probe explains, and $G_b$ averages $G_k$ over the block. \textbf{c},~Reading $G_b$ for each block. The floor is its value with $\vmu_z$ permuted within type; the uncontrolled fit is the same model with $\alphaa = 0$. What is reported is this fit's excess over the floor (blue bar) and that excess as a fraction of the uncontrolled fit's (grey bracket), for each probe family.}
 \label{fig:probe}
 \end{figure}
 
-\Cref{tab:probe} gives the probe on the final fits of every section.
-
-\begin{table}[t]
-\centering
-\caption{The held-out probe on the final fits, per section. For each block, the share of its within-type variance that the probe explains from $\vz$ beyond the permutation floor ($e^{2\,\mathrm{excess}} - 1$, in \%), for the model trained without the adversary ($\alphaa = 0$, two seeds) and with it (the final fits, three seeds), the largest share with the adversary that would pass (\emph{needed to pass}: a quarter of the excess without the adversary, as a share), and the quantity the guard reads, the \emph{fraction left}: the excess with the adversary as a fraction of the mean excess without it, $0$ when the adversary removes everything the probe can find and $1$ when it removes nothing. Ranges are over seeds. A seed passes when all four fractions (two blocks, two probes) are at most a quarter. The sections end at a similar absolute residual; the fraction left is larger where less leaked to begin with. Section B of the lung TMA is graded with the models fitted on section A. \pending{regenerate once Unassigned is excluded as a target in the re-read of the final fits}}
-\label{tab:probe}
-\small
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{@{}lccccc@{}}
-\toprule
-& Ovarian FFPE & Lung FFPE & Ovarian FF & Lung TMA A & Lung TMA B \\
-\midrule
-\multicolumn{6}{@{}l}{\emph{Composition, MLP probe}} \\
-\quad without the adversary (\%) & 19.5--20.8 & 11.8--12.4 & 36.3--37.4 & 5.5--7.0 & 6.8--7.0 \\
-\quad with the adversary (\%) & 4.4--5.7 & 3.9--4.7 & 4.4--4.9 & 3.1--4.4 & 3.9--4.6 \\
-\quad needed to pass (\%) & 4.7 & 2.9 & 8.2 & 1.5 & 1.7 \\
-\quad \textbf{fraction left} & \textbf{0.23--0.30} & \textbf{0.33--0.40} & \textbf{0.14--0.15} & \textbf{0.50--0.71} & \textbf{0.58--0.67} \\
-\addlinespace
-\multicolumn{6}{@{}l}{\emph{Image, MLP probe}} \\
-\quad without the adversary (\%) & 14.8--17.1 & 9.5--10.9 & 34.3--37.0 & 5.8--8.3 & 5.3--7.2 \\
-\quad with the adversary (\%) & 2.5--4.1 & 1.4--2.0 & 4.5--4.9 & 2.2--2.8 & 2.0--3.0 \\
-\quad needed to pass (\%) & 3.8 & 2.5 & 7.9 & 1.7 & 1.5 \\
-\quad \textbf{fraction left} & \textbf{0.17--0.27} & \textbf{0.14--0.20} & \textbf{0.14--0.16} & \textbf{0.32--0.40} & \textbf{0.32--0.49} \\
-\addlinespace
-\multicolumn{6}{@{}l}{\emph{Ridge probe, fraction left}} \\
-\quad composition & 0.16--0.23 & 0.15--0.19 & 0.07--0.08 & 0.19--0.22 & 0.32--0.45 \\
-\quad image & 0.08--0.16 & 0.05--0.16 & 0.10--0.13 & 0.19--0.21 & 0.17--0.39 \\
-\midrule
-Seeds passing & 1/3 & 0/3 & 3/3 & 0/3 & 0/3 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\Cref{tab:probe} (\cref{sec:results-z}) gives the probe on the final fits of every section.
 

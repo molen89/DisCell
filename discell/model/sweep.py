@@ -279,7 +279,13 @@ def report(args: argparse.Namespace) -> dict:
     row_by_key = {(r["value"], r["seed"]): r for r in rows}
     device = "cuda" if torch.cuda.is_available() else "cpu"
     lost = data.graph.pruned_per_cell
+    data_seed = 0
     for (value, seed), entry in loaded.items():
+        if data_seed != seed:           # each seed's fit drew its own split
+            data_seed = seed
+            data = assemble(args.dataset, args.variant, args.embeddings,
+                            tile_cells=args.tile_cells, seed=seed,
+                            label_key=args.label_key)
         state = entry["payload"]
         model = DisCell(n_genes=data.x.shape[1], n_types=len(data.p_t),
                         phi_dim=data.phi.shape[1],
