@@ -9,6 +9,7 @@ and are skipped without them.
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import json
 import math
@@ -25,6 +26,20 @@ LUNG = "xenium_prime_human_lung_cancer_ffpe"
 FF = "xenium_prime_human_ovary_ff"
 GSE = "gse315411_pdltma06_11_prime_solo"
 DUAL = "gse315411_pdltma06_10_prime_dual"
+
+
+@functools.lru_cache(maxsize=None)
+def _load():
+    spec = importlib.util.spec_from_file_location("paper_tables", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _pin(p: Path) -> Path:
+    """The file the tables read for *p*: its pre-refit MintFlow backup while
+    the generator pins the MintFlow fits (MF_PIN), else *p*."""
+    return _load().mf_pinned(p)
 
 
 @pytest.fixture(scope="module")
@@ -87,7 +102,7 @@ def method_row(path: Path, ds: str, method: str) -> list[str] | None:
 
 
 def battery_json(ds: str) -> dict:
-    return json.loads((DATA / ds / "experiments"
+    return json.loads(_pin(DATA / ds / "experiments"
                        / "baseline_battery_lineage.json").read_text())
 
 
@@ -101,12 +116,12 @@ def mf_probe_excess(ds: str, block: str = "mlp_comp") -> float | None:
     """MintFlow's probe excess on a section as the table reads it: the final
     probe table's entry, else its own probe record; None if neither."""
     name = MF_ENTRY[ds]
-    d = json.loads((DATA / ds / "experiments"
+    d = json.loads(_pin(DATA / ds / "experiments"
                     / "probe_regrade_lineage_final.json").read_text())
     if name in d:
         return d[name][block]["excess"]
-    rec = (DATA / ds / "experiments" / "probe_regrade_lineage"
-           / (re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") + ".json"))
+    rec = _pin(DATA / ds / "experiments" / "probe_regrade_lineage"
+               / (re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") + ".json"))
     if not rec.exists():
         return None
     fam, blk = block.split("_")
@@ -118,7 +133,7 @@ def mf_config(ds: str) -> Path:
     the refit's once it exists, else the original fit's (in place or
     archived)."""
     new = BASE / "mintflow_refit_lineage" / ds / "config.json"
-    if new.exists() and json.loads(new.read_text()).get("decoded_rate"):
+    if not _load().MF_PIN and new.exists() and json.loads(new.read_text()).get("decoded_rate"):
         return new
     old = BASE / "mintflow" / f"{ds}_lineage" / "config.json"
     return old if old.exists() else (BASE / "_archive_mintflow_export_bug"
@@ -186,7 +201,7 @@ def test_no_table_prints_the_error_ratio_minus_one(built):
 
 def test_sensitivity_mlp_column_is_the_share(built):
     out, _ = built
-    d = json.loads((DATA / OV / "experiments" / "sensF_adversary.json")
+    d = json.loads(_pin(DATA / OV / "experiments" / "sensF_adversary.json")
                    .read_text())
     ctrl = d["sections"][OV]["control"]["names"]
     arm = d["sections"][OV]["arms"]["comp5"]["names"]
@@ -198,8 +213,8 @@ def test_sensitivity_mlp_column_is_the_share(built):
     mc = sum(c) / len(c)
     sd = math.sqrt(sum((x - mc) ** 2 for x in c) / (len(c) - 1))
     cells = row(out / "sensitivity.tex", "\\quad\\quad composition weight 5")
-    assert cells[6] == f"{r(a, 1)} ({r((a - mc) / sd, 1)})"
-    assert row(out / "sensitivity.tex", "\\quad final configuration")[6] \
+    assert cells[5] == f"{r(a, 1)} ({r((a - mc) / sd, 1)})"
+    assert row(out / "sensitivity.tex", "\\quad final configuration")[5] \
         == r(mc, 1)
 
 
@@ -221,10 +236,13 @@ def test_every_file_has_the_traceability_header_and_one_label(built):
                         ("timing", "tab:timing"),
                         ("breakdown", "tab:breakdown"),
                         ("breakdown_traj", "tab:breakdown-traj"),
+                        ("breakdown_traj_main", "tab:breakdown-traj"),
                         ("transport_heldout", "tab:transport-heldout"),
                         ("cellina_cf", "tab:cellina-cf"),
                         ("synthetic", "tab:synthetic"),
                         ("planted_percell", "tab:planted-percell"),
+                        ("planted_spillover", "tab:S-planted-spillover"),
+                        ("reloc_clean", "tab:S-reloc-clean"),
                         ("headline_main", "tab:headline-main"),
                         ("breakdown_main", "tab:kappa-star")]:
         text = (out / f"{name}.tex").read_text()
@@ -285,7 +303,7 @@ def _envelope_row(ds: str, label: str) -> list[str]:
 
 def _battery_at_best(ds: str, key: str) -> list[float]:
     """A read of the masked re-read of best.pt, per seed (raw)."""
-    return [json.loads((DATA / ds / "runs" / f"finalL_s{s}"
+    return [json.loads(_pin(DATA / ds / "runs" / f"finalL_s{s}"
                         / "degeneracy.json").read_text())["battery"][key]
             for s in range(3)]
 
@@ -295,7 +313,7 @@ def _raw_transport(ds: str) -> list:
     the seed has no trusted panel)."""
     out = []
     for s in range(3):
-        t = json.loads((DATA / ds / "runs" / f"finalL_s{s}" / "transport"
+        t = json.loads(_pin(DATA / ds / "runs" / f"finalL_s{s}" / "transport"
                         / "transport.json").read_text())
         v = (t["summary"].get("extrapolation_trusted") or {}).get(
             "counterfactual_of_ceiling")
@@ -321,14 +339,16 @@ def test_headline_round_trip(built):
         if is_slim:
             assert slim(nmi[1]) == (r(sum(vals) / 3, 3), want)
         else:
-            assert row(f, "\\quad range over seeds", 1)[1] == want  # NMI block
+            assert row(f, "\\quad range &", 1)[1] == want  # NMI block
         vals = _battery_at_best(LUNG, "cycle_r2_z_q90")
-        assert mean_of(row(f, "Cycle $R^2$ of $\\vz$")[2]) == r(sum(vals) / 3, 3)
+        cz, mi = (("Cycle $R^2$ of $\\vz$", "$\\I(\\text{niche}; \\vw)$ excess")
+                  if is_slim else ("Cycle $R^2$, $\\vz$", "$\\I(\\text{niche}; \\vw)$"))
+        assert mean_of(row(f, cz)[2]) == r(sum(vals) / 3, 3)
         env = _envelope_row(GSE, "I(niche; w) excess over within-type floor (nats)")
-        assert mean_of(row(f, "$\\I(\\text{niche}; \\vw)$ excess")[4]) \
+        assert mean_of(row(f, mi)[4]) \
             == r(float(env[2]), 2)
         # the held-out section, from the three cross-slide files
-        vals = [json.loads((DATA / GSE / "runs" / f"finalL_s{s}" / "crossslide"
+        vals = [json.loads(_pin(DATA / GSE / "runs" / f"finalL_s{s}" / "crossslide"
                             / f"{DUAL}.json").read_text())
                 ["held_out_section"]["nmi_targets"] for s in range(3)]
         assert mean_of(nmi[5]) == r(sum(vals) / 3, 3)
@@ -337,7 +357,7 @@ def test_headline_round_trip(built):
 def test_probe_round_trip(built):
     out, _ = built
     f = out / "probe.tex"
-    d = json.loads((DATA / LUNG / "experiments"
+    d = json.loads(_pin(DATA / LUNG / "experiments"
                     / "probe_regrade_lineage_final.json").read_text())
     us = [d[f"DisCell/finalL_s{s}"]["mlp_comp"]["fraction_of_uncontrolled"]
           for s in range(3)]
@@ -347,7 +367,7 @@ def test_probe_round_trip(built):
           for s in range(3)]
     assert unbold(row(f, "\\quad with the adversary")[2]) == \
         f"{r(min(vf), 1)}--{r(max(vf), 1)}"
-    g = json.loads((DATA / GSE / "experiments"
+    g = json.loads(_pin(DATA / GSE / "experiments"
                     / "probe_regrade_lineage_final.json").read_text())
     mint = r(share(g["MintFlow (lineage)"]["mlp_comp"]["excess"]), 1)
     simvi = r(share(g["SIMVI (lineage)"]["mlp_comp"]["excess"]), 1)
@@ -376,7 +396,7 @@ def test_battery_round_trip(built):
         cells = method_row(f, ds, "MintFlow")
         e = battery_json(ds).get(MF_ENTRY[ds])
         if len(cells) == 3:                     # not run / pending: one span
-            assert "could not be run" in cells[2] or "\\pending" in cells[2]
+            assert "not run$^{e}$" in cells[2] or "\\pending" in cells[2]
         elif mf_refit(e):
             assert unbold(cells[7]) == r(e["reconstruction"]["recon"], 3), ds
         else:
@@ -387,18 +407,21 @@ def test_battery_round_trip(built):
 
 def test_sensitivity_round_trip(built):
     out, _ = built
-    d = json.loads((DATA / OV / "experiments" / "sensF_adversary.json")
+    d = json.loads(_pin(DATA / OV / "experiments" / "sensF_adversary.json")
                    .read_text())
     arm = d["sections"][OV]["arms"]["comp5"]
     nmi = sum(x["nmi"] for x in arm["records"]) / len(arm["records"])
     sd = d["sections"][OV]["moves"]["comp5"]["nmi"]["in_sd"]
     cells = row(out / "sensitivity.tex", "\\quad\\quad composition weight 5")
-    assert cells[3] == f"{r(nmi, 3)} ({r(sd, 1)})"
+    assert cells[2] == f"{r(nmi, 3)} ({r(sd, 1)})"
+    assert len(cells) == 7                      # no Seeds column
+    assert "Adversary capacity and weight} (2)" in \
+        (out / "sensitivity.tex").read_text()
 
 
 def test_kappa_sweep_round_trip(built):
     out, _ = built
-    d = json.loads((DATA / FF / "experiments" / "kappa_sweep_sweepL.json")
+    d = json.loads(_pin(DATA / FF / "experiments" / "kappa_sweep_sweepL.json")
                    .read_text())
     vals = [x["nmi"] for x in d["runs"] if x["kappa"] == 0.2]
     lines = [ln for ln in rendered(out / "kappa_sweep.tex")
@@ -410,12 +433,12 @@ def test_kappa_sweep_round_trip(built):
 
 def test_sensitivity_transport_round_trip(built):
     out, _ = built
-    d = json.loads((DATA / OV / "experiments" / "sensF_adversary.json")
+    d = json.loads(_pin(DATA / OV / "experiments" / "sensF_adversary.json")
                    .read_text())
     sec = d["sections"][OV]
 
     def tt(run):
-        t = json.loads((DATA / OV / "runs" / run / "transport"
+        t = json.loads(_pin(DATA / OV / "runs" / run / "transport"
                         / "transport.json").read_text())
         return t["summary"]["extrapolation_trusted"]["counterfactual_of_ceiling"]
 
@@ -440,39 +463,39 @@ def test_battery_new_rows(built):
                          ["r2_pooled"], 3)
     assert cells[7] == (r(b["MintFlow (lineage)"]["reconstruction"]["recon"], 3)
                         if mf_refit(b["MintFlow (lineage)"]) else "n/r$^{b}$")
-    pm = json.loads((DATA / LUNG / "experiments" / "probe_regrade_lineage"
+    pm = json.loads(_pin(DATA / LUNG / "experiments" / "probe_regrade_lineage"
                      / "MintFlow_lineage.json").read_text())
     assert cells[4] == r(pm["mlp"]["comp"]["fraction_of_uncontrolled"], 2)
     # the niche-domain row on every section, the own-graph row on two
     niche = [ln for ln in rendered(f) if "& Cellina, niche$^{d}$ &" in ln]
     own = [ln for ln in rendered(f) if "& Cellina, own graph &" in ln]
     assert len(niche) == 5 and len(own) == 2
-    g = json.loads((DATA / GSE / "experiments"
+    g = json.loads(_pin(DATA / GSE / "experiments"
                     / "baseline_battery_lineage.json").read_text())
     cells = [unbold(c.strip()) for c in niche[3].rstrip("\\ ").split(" & ")]
     assert cells[2] == r(g["cellina_nicheadv"]["nmi"], 3)
     assert "best case on the probe, not its published setting" in \
         f.read_text()
     # SIMVI: numbers with no reconstruction (n/a) where fitted, else pending
-    # or "could not be run" -- never a number for a whole section not fitted
+    # or "not run" -- never a number for a whole section not fitted
     for ln in rendered(f):
         if "& SIMVI &" in ln and "\\pending" not in ln:
-            assert "n/a" in ln or "could not be run" in ln, ln
+            assert "n/a" in ln or "not run$^{e}$" in ln, ln
 
 
 def test_probe_new_rows(built):
     out, _ = built
     f = out / "probe.tex"
-    pm = json.loads((DATA / LUNG / "experiments" / "probe_regrade_lineage"
+    pm = json.loads(_pin(DATA / LUNG / "experiments" / "probe_regrade_lineage"
                      / "MintFlow_lineage.json").read_text())
     cells = row(f, "\\quad MintFlow, SIMVI")
     mint, simvi = cells[2].split(", ")
     assert unbold(mint) == r(share(pm['mlp']['comp']['excess']), 1)
     assert simvi == "--"
-    d = json.loads((DATA / FF / "experiments"
+    d = json.loads(_pin(DATA / FF / "experiments"
                     / "probe_regrade_lineage_final.json").read_text())
-    cells = row(f, "\\quad Cellina, niche domain")
-    assert unbold(cells[3]) == r(share(d["cellina_nicheadv"]["mlp_comp"]
+    cells = row(f, "\\quad Cellina niche domain, own graph")
+    assert unbold(cells[3].split(", ")[0]) == r(share(d["cellina_nicheadv"]["mlp_comp"]
                                        ["excess"]), 1)
 
 
@@ -481,11 +504,11 @@ def test_probe_new_rows(built):
 def test_timing_round_trip(built):
     out, _ = built
     f = out / "timing.tex"
-    t = json.loads((DATA / FF / "experiments" / "timing_lineage"
+    t = json.loads(_pin(DATA / FF / "experiments" / "timing_lineage"
                     / "timing_phi.json").read_text())
     assert row(f, "\\quad s per epoch")[3] == r(t["s_per_epoch"], 2)
     assert row(f, "\\quad peak memory")[3] == r(t["peak_train_mib"] / 1024, 1)
-    mins = [json.loads((DATA / OV / "runs" / f"finalL_s{s}" / "metrics.json")
+    mins = [json.loads(_pin(DATA / OV / "runs" / f"finalL_s{s}" / "metrics.json")
                        .read_text())["minutes"] for s in range(3)]
     assert unbold(row(f, "\\quad DISCELL")[1]) == \
         f"{r(min(mins), 1)}--{r(max(mins), 1)}"
@@ -516,7 +539,7 @@ def test_breakdown_round_trip(built):
     assert all(c.startswith("above the grid") for c in cyc[1:]) == all(
         d[s]["members"]["cycle_asym_q90"]["status"] == "above the grid"
         for s in ("ovarian", "lung", "ff", "gse", "gse_dual"))
-    readA = row(f, "Read A $-$")
+    readA = row(f, "\\TermReloc{} $>$ type mean")
     if "readA_minus_typemean" not in d["ovarian"]["members"]:
         assert "\\pending" in readA[1]
     # the serial section's family: the cycle asymmetry only before the
@@ -564,6 +587,54 @@ def test_breakdown_traj_round_trip(built):
             e["mean"], 2)
 
 
+def test_breakdown_traj_main_round_trip(pt, built):
+    """The RECOMB supplement's compact trajectory table: the means of the
+    trajectory file, and the probe row as the seed mean of the sweep
+    re-grade's composition share (kappa = 0.1 are the final fits)."""
+    out, _ = built
+    f = out / "breakdown_traj_main.tex"
+    text = f.read_text()
+    assert "longtable" not in text and "\\begin{table}[!htbp]" in text
+    d = json.loads((REPO / "scripts" / "logs" / "breakdown_2026-09-29"
+                    / "breakdown_all_trajectory.json").read_text())
+    lines = [ln for ln in rendered(f)
+             if ln.strip().startswith("\\quad Moran's $I$ of $\\vmu_z$")]
+    assert len(lines) == 4
+    cells = [c.strip() for c in lines[1].rstrip("\\ ").split(" & ")]  # lung
+    assert cells[4] == r(d["lung"]["readouts"]["moran_mu_z"]["0.2"]["mean"], 3)
+    # the TMA relocation row carries the fewer-seeds mark
+    lines = [ln for ln in rendered(f)
+             if ln.strip().startswith("\\quad \\TermReloc{}, fraction")]
+    assert [("dagger" in ln) for ln in lines] == [False, False, False, True]
+    # probe: kappa = 0.1 on the primary section from the final fits
+    rec = json.loads(_pin(DATA / OV / "experiments"
+                      / "probe_regrade_lineage_sweep.json").read_text())
+    vals = [pt.probe_share(v["mlp_comp"]["excess"]) for k, v in rec.items()
+            if k.startswith("DisCell/finalL_s")]
+    assert len(vals) == 3
+    lines = [ln for ln in rendered(f)
+             if ln.strip().startswith("\\quad Probe, composition")]
+    assert len(lines) == 4
+    cells = [c.strip() for c in lines[0].rstrip("\\ ").split(" & ")]
+    assert cells[3] == pt.pct(sum(vals) / 3)
+
+
+def test_breakdown_traj_builds_its_companion(pt, tmp_path):
+    if not (DATA / OV / "experiments" / "envelope_table_ci_at_best.md").exists():
+        pytest.skip("frozen result files are not on disk")
+    pt.build(["breakdown_traj"], tmp_path, "pytest")
+    assert (tmp_path / "breakdown_traj.tex").exists()
+    assert (tmp_path / "breakdown_traj_main.tex").exists()
+
+
+def test_kappa_star_caption_points_to_the_supplement_floats(built):
+    out, _ = built
+    text = "\n".join(rendered(out / "breakdown_main.tex"))
+    assert "\\cref{tab:breakdown}" not in text
+    assert "\\cref{tab:S-contrasts}" in text
+    assert "\\cref{fig:breakdown-data}" in text
+
+
 def _heldout():
     return json.loads((REPO / "scripts" / "logs" / "transport_heldout_2026-09-29"
                        / "transport_heldout_comparison.json").read_text())
@@ -575,17 +646,16 @@ def test_transport_heldout_round_trip(built):
     ff = [x for x in recs if x["dataset"] == FF and x["method"] == "DisCell"]
     pub = [x["published"]["transport_of_ceiling_trusted"]["value"] for x in ff]
     ho = [x["heldout"]["transport_of_ceiling_trusted"]["value"] for x in ff]
-    lines = [ln for ln in rendered(out / "transport_heldout.tex")
-             if ln.strip().startswith("\\quad DISCELL &")]
-    cells = [c.strip() for c in lines[2].rstrip("\\ ").split(" & ")]   # FF
-    assert cells[1] == f"{r(min(pub), 3)}--{r(max(pub), 3)}"
-    assert cells[2] == f"{r(min(ho), 3)}--{r(max(ho), 3)}"
+    cells = row(out / "transport_heldout.tex", "\\multirow{2}{*}{Ovarian FF}")
+    assert cells[1] == "DISCELL" and len(cells) == 10
+    assert cells[2] == f"{r(min(pub), 2)}--{r(max(pub), 2)}"
+    assert cells[3] == f"{r(min(ho), 2)}--{r(max(ho), 2)}"
     cl = [ln for ln in rendered(out / "transport_heldout.tex")
-          if ln.strip().startswith("\\quad Cellina &")][1]           # lung
+          if ln.strip().startswith("& Cellina &")][1]                 # lung
     c = next(x for x in recs if x["dataset"] == LUNG and x["method"] == "Cellina")
-    assert r(c["heldout"]["transport_of_ceiling_trusted"]["value"], 3) in cl
+    assert r(c["heldout"]["transport_of_ceiling_trusted"]["value"], 2) in cl
     text = (out / "transport_heldout.tex").read_text()
-    assert "both directions" in text and "Read A is lower" in text
+    assert "single-cell read is lower" in text
 
 
 def test_cellina_cf_round_trip(built):
@@ -595,43 +665,102 @@ def test_cellina_cf_round_trip(built):
     d0 = next(x for x in recs if x["dataset"] == FF and x["run"] == "finalL_s0")
     cf = next(x for x in recs if x["dataset"] == FF and x["method"] == "Cellina")
     first = [unbold(c) for c in row(f, "\\quad estimate")]   # fraction block
-    assert first[5] == r(d0["published"]["transport_of_ceiling_trusted"]["value"], 3)
-    assert first[6] == r(cf["published"]["transport_of_ceiling_trusted"]["value"], 3)
+    assert first[5] == r(d0["published"]["transport_of_ceiling_trusted"]["value"], 2)
+    assert first[6] == r(cf["published"]["transport_of_ceiling_trusted"]["value"], 2)
     twin = [unbold(c) for c in row(f, "\\quad estimate", 2)]
-    assert twin[6] == r(cf["published"]["twin_margin_own"], 3)
+    assert twin[6] == r(cf["published"]["twin_margin_own"], 2)
     prog = row(f, "\\quad programmes")
-    t = json.loads((DATA / FF / "runs" / "finalL_s0" / "transport"
+    t = json.loads(_pin(DATA / FF / "runs" / "finalL_s0" / "transport"
                     / "transport.json").read_text())["summary"]["extrapolation_trusted"]
-    assert prog[5] == r(t["program_only"] / t["noise_ceiling"], 3)
-    assert prog[6] == "not mapped$^{a}$"
+    assert prog[5] == r(t["program_only"] / t["noise_ceiling"], 2)
+    assert prog[6] == "--$^{a}$"
 
 
 def test_synthetic_round_trip(built):
     out, _ = built
-    d = json.loads((DATA / "synthetic_smoke" / "experiments"
+    d = json.loads(_pin(DATA / "synthetic_smoke" / "experiments"
                     / "synthetic_recovery.json").read_text())
     g = next(x for x in d["groups"] if x["arm"] == "uncontrolled"
              and x["planted_kappa"] == 0.2)
-    lines = [ln for ln in rendered(out / "synthetic.tex")
-             if ln.strip().startswith("\\quad without the adversary")]
-    cells = [c.strip() for c in lines[1].rstrip("\\ ").split(" & ")]
+    cells = row(out / "synthetic.tex",
+                "\\quad without the adversary, $\\kappa = 0.2$")
+    assert len(cells) == 5
     vals = [x["w_cca"] for x in g["fits"]]
-    assert cells[5] == f"{r(min(vals), 2)}--{r(max(vals), 2)}"
+    assert cells[2] == f"{r(min(vals), 2)}--{r(max(vals), 2)}"
+    assert f"the range over the {len(g['fits'])} fits" in \
+        (out / "synthetic.tex").read_text()
 
 
 def test_planted_percell_round_trip(built):
     out, _ = built
-    d = json.loads((DATA / "synthetic_smoke" / "experiments"
+    d = json.loads(_pin(DATA / "synthetic_smoke" / "experiments"
                     / "planted_percell.json").read_text())
     g = next(x for x in d["groups"] if x["world_seed"] == 0 and x["s"] == 1.0)
     lines = [ln for ln in rendered(out / "planted_percell.tex")
-             if ln.strip().startswith("\\quad 1 &")]
+             if ln.strip().startswith("\\quad 1")]
     cells = [c.strip() for c in lines[0].rstrip("\\ ").split(" & ")]
     auc = [x["kl_auc"] for x in g["per_seed"]]
     assert cells[2] == f"{r(min(auc), 2)}--{r(max(auc), 2)}"
     rho = [x["spearman"] for x in g["cross_seed"]]
     assert cells[6] == f"{r(min(rho), 2)}--{r(max(rho), 2)}"
-    assert cells[8] == ("yes" if g["detected"] else "no")
+    assert len(cells) == 8                      # no 'Detected' column
+    assert cells[0].endswith("$^{*}$") == bool(g["detected"])
+
+
+def test_planted_spillover_round_trip(built):
+    """tab:S-planted-spillover: corrected kappa* from the null diagnostic,
+    the first definition and the genuine response from the control."""
+    out, _ = built
+    syn = DATA / "synthetic_smoke" / "experiments"
+    first = json.loads((syn / "planted_spillover.json").read_text())
+    corr = json.loads((syn / "null_diagnostic.json").read_text())
+    lines = [ln for ln in rendered(out / "planted_spillover.tex")
+             if re.match(r"0(\.\d+)? & ", ln)]
+    assert len(lines) == len(first["worlds"]) == 3
+    by_kt = {c[0]: c for c in ([x.strip() for x in ln.rstrip("\\ ")
+                                .split(" & ")] for ln in lines)}
+    # null world: the corrected contrast is no finding, the first one breaks
+    assert corr["worlds"]["0"]["corrected"]["status"] == "no finding"
+    assert by_kt["0"][1:3] == ["no finding", "no finding"]
+    assert by_kt["0"][3].startswith(
+        f"{first['worlds']['0']['table']['members']['spill_cf_minus_leak']['kappa_star']:g}")
+    for w in ("0.1", "0.2"):
+        c = corr["worlds"][w]["corrected"]
+        m = first["worlds"][w]["table"]["members"]
+        assert by_kt[w][1] == w                    # predicted: kappa_true
+        assert by_kt[w][2].startswith(f"{c['kappa_star']:g}$")
+        assert by_kt[w][4].startswith(
+            f"{m['response_cf_minus_leak']['kappa_star']:g}$")
+    assert by_kt["0"][4] == f"$>${max(first['grid']):g}"
+
+
+def test_reloc_clean_round_trip(built):
+    """tab:S-reloc-clean: each cell is the seed mean of the stored mean R^2,
+    rounded half-up (independently recomputed)."""
+    out, _ = built
+    d = json.loads((DATA / "synthetic_smoke" / "experiments"
+                    / "relocation_clean_truth.json").read_text())
+    order = ["discell_programme", "discell_cf", "regression_log",
+             "regression_rate"]
+    lines = [ln for ln in rendered(out / "reloc_clean.tex")
+             if re.match(r"0(\.\d+)? & 0(\.\d+)? & ", ln)]
+    assert len(lines) == 5
+    for ln in lines:
+        cells = [c.strip() for c in ln.rstrip("\\ ").split(" & ")]
+        kt, ka = float(cells[0]), float(cells[1])
+        fs = [f for f in d["fits"]
+              if f["kappa_true"] == kt and f["assumed"] == ka]
+        assert len(fs) == 3
+        want = [r(sum(f["summary"]["all"][t][m]["mean_r2"] for f in fs) / 3, 2)
+                for t in ("clean", "observed") for m in order]
+        assert cells[2:] == want, (kt, ka)
+    # the headline of the paper's claim: the programmes are flat against the
+    # clean truth at the planted fraction, the log regression degrades
+    rows = {(c[0], c[1]): c for c in ([x.strip() for x in
+            ln.rstrip("\\ ").split(" & ")] for ln in lines)}
+    assert rows[("0", "0")][2] == rows[("0.1", "0.1")][2] == \
+        rows[("0.2", "0.2")][2] == "0.76"
+    assert rows[("0", "0")][4] == "0.40" and rows[("0.2", "0.2")][4] == "0.14"
 
 
 # ------------------------------------------- audit corrections, 2026-09-30
@@ -644,11 +773,11 @@ def test_headline_transport_rounded_once_from_raw(built):
     f = out / "headline_full.tex"
     tma = [v for v in _raw_transport(GSE) if v is not None]
     assert slim(row(out / "headline.tex", "\\TermReloc{}")[4])[1] == "0.71--0.75"
-    rng = [ln for ln in rendered(f) if ln.startswith("\\quad range over seeds")]
-    ci = [ln for ln in rendered(f) if ln.startswith("\\quad $95\\%$ interval")]
+    rng = [ln for ln in rendered(f) if ln.startswith("\\quad range &")]
+    ci = [ln for ln in rendered(f) if ln.startswith("\\quad $95\\%$ CI")]
     t_rng = [c.strip() for c in rng[-2].rstrip("\\ ").split("&")]
     assert t_rng[4] == f"{r(min(tma), 2)}--{r(max(tma), 2)}" == "0.71--0.75"
-    lo = min(json.loads((DATA / GSE / "runs" / f"finalL_s{s}"
+    lo = min(json.loads(_pin(DATA / GSE / "runs" / f"finalL_s{s}"
                          / "bootstrap_ci.json").read_text())
              ["reads"]["transport_of_ceiling_trusted"]["ci95"][0]
              for s in (0, 2))
@@ -665,7 +794,7 @@ def test_tma_cycle_w_agrees_between_headline_and_sweep(built):
     want = r(min(vals), 3) + " to " + r(max(vals), 3)
     assert slim(row(out / "headline.tex", "Cycle $R^2$ of $\\vw$")[4])[1] == want
     f = out / "headline_full.tex"
-    rng = [ln for ln in rendered(f) if ln.startswith("\\quad range over seeds")]
+    rng = [ln for ln in rendered(f) if ln.startswith("\\quad range &")]
     cyc_w = [c.strip() for c in rng[4].rstrip("\\ ").split(" & ")]
     assert cyc_w[4] == want == "$-0.000$ to 0.002"
     sweep = [ln for ln in rendered(out / "kappa_sweep.tex")
@@ -678,9 +807,9 @@ def test_battery_caption_explains_the_discell_rows(built):
     """Audit item 16."""
     out, _ = built
     text = " ".join(rendered(out / "battery.tex"))
-    assert ("DISCELL's rows are the battery's own reads, on the cell set "
-            "shared with the comparison methods, and so differ slightly "
-            "from \\cref{tab:headline}") in text
+    assert ("its rows are the battery's own reads, on the cell set "
+            "shared with the comparison methods, so they differ slightly "
+            "from \\cref{tab:headline-full}") in text
 
 
 def test_battery_footnote_follows_the_whole_section_state(pt, built):
@@ -711,7 +840,7 @@ def test_battery_footnote_follows_the_whole_section_state(pt, built):
             if outcome in ("ok", "truncated"):
                 assert len(cells) == 8, (tool, ds, cells)
             else:
-                assert "could not be run" in cells[2], (tool, ds, cells)
+                assert "not run$^{e}$" in cells[2], (tool, ds, cells)
 
 
 # ------------------------------- directions and bold, 2026-09-30 (polish)
@@ -778,7 +907,7 @@ def test_cellina_cf_and_timing_bold_the_better_value(pt, built):
     runs = [_expand(row(t, f"\\quad {m}")[1:]) for m in
             ("DISCELL", "resolVI", "Cellina", "SIMVI", "MintFlow")]
     for j, ds in enumerate((OV, LUNG, FF, GSE)):
-        mins = [json.loads((DATA / ds / "runs" / f"finalL_s{s}"
+        mins = [json.loads(_pin(DATA / ds / "runs" / f"finalL_s{s}"
                             / "metrics.json").read_text())["minutes"]
                 for s in range(3)]
         col = [r[j] for r in runs]
@@ -821,7 +950,7 @@ def test_probe_bold_marks_the_lowest_method(built):
         assert rows[0][0].startswith("\\quad without")
         assert not any(is_bold(c) for c in rows[0])
         for j, ds in enumerate((OV, LUNG, FF, GSE, DUAL)):
-            d = json.loads((DATA / ds / "experiments"
+            d = json.loads(_pin(DATA / ds / "experiments"
                             / "probe_regrade_lineage_final.json").read_text())
             mean = sum(share(d[f"DisCell/finalL_s{s}"][block]["excess"])
                        for s in range(3)) / 3
@@ -848,6 +977,8 @@ def test_arrows_follow_the_direction_map(pt, built):
     for name in ("headline", "headline_full"):
         f = out / f"{name}.tex"
         for label, *_, rd in pt.HEADLINE_ROWS:
+            if name == "headline_full":
+                label = pt.FULL_LABEL.get(label, label)
             assert row(f, pt.tex_label(label))[0] == (
                 pt.tex_label(label) + pt.arrow(rd)), (name, label)
         assert "Arrows give the preferred direction" in f.read_text()
@@ -868,7 +999,7 @@ def test_headline_slim_and_full(built):
     assert "range over seeds &" not in text and "interval &" not in text
     assert "\\cref{tab:headline-full}" in text
     assert "tile-bootstrap" not in text and "half-tile" not in text
-    assert "$95\\%$ interval &" in full and "half-tile subsampling" in full
+    assert "$95\\%$ CI &" in full and "half-tile subsampling" in full
     assert "$^{\\dagger}$seeds with a trusted panel" in text
     for ln in rendered(out / "headline.tex"):     # every number cell parses
         if " & " in ln and not ln.startswith("Read &"):
@@ -883,7 +1014,7 @@ def test_context_round_trip_and_bold(pt, built):
 
     out, _ = built
     f = out / "context.tex"
-    lung = json.loads((DATA / LUNG / "experiments"
+    lung = json.loads(_pin(DATA / LUNG / "experiments"
                        / "context_grade.json").read_text())["methods"]
     lines = rendered(f)
     mf = method_row(f, LUNG, "MintFlow")
@@ -892,7 +1023,7 @@ def test_context_round_trip_and_bold(pt, built):
                                     ["excess"]), 1)
     assert mf[7] == r(lung["MintFlow"]["niche_mi"]["w_niche_mi_excess"], 2)
     for ds in (OV, GSE, DUAL):          # every other section that has it
-        ctx = json.loads((DATA / ds / "experiments"
+        ctx = json.loads(_pin(DATA / ds / "experiments"
                           / "context_grade.json").read_text())["methods"]
         mf = method_row(f, ds, "MintFlow")
         if "MintFlow" in ctx and len(mf) > 3:
@@ -926,6 +1057,7 @@ def test_mintflow_refit_switch(pt, tmp_path, monkeypatch):
     refit entry wins over the original; a refit that did not finish leaves
     the original fit's feasibility state."""
     monkeypatch.setattr(pt, "MF_REFIT", tmp_path)
+    monkeypatch.setattr(pt, "MF_PIN", False)
     cfg = tmp_path / LUNG / "config.json"
     assert pt.mf_config(LUNG) != cfg                       # no refit yet
     cfg.parent.mkdir()
@@ -961,16 +1093,32 @@ def test_headline_main_round_trip(pt, built):
     f = out / "headline_main.tex"
     text = f.read_text()
     assert "\\begin{table}[t]" in text and "table*" not in text
-    assert "{\\scriptsize" not in text and "\\textbf" not in text
+    body = "\n".join(ln for ln in rendered(f) if not ln.startswith("\\caption"))
+    assert "{\\scriptsize" not in text
+    assert "\\textbf" not in body.replace(pt.BD_PENDING_MARK, "")
     vals = _battery_at_best(OV, "nmi_targets")
     assert row(f, "NMI of")[1] == r(sum(vals) / 3, 2)
     vals = _battery_at_best(LUNG, "cycle_r2_z_q90")
     assert row(f, "Cycle $R^2$ of $\\vz$")[2] == r(sum(vals) / 3, 2)
     env = _envelope_row(GSE, "I(niche; w) excess over within-type floor (nats)")
     assert row(f, "$\\I(\\text{niche}; \\vw)$")[4] == r(float(env[2]), 2)
-    assert row(f, "$\\I(\\text{niche}; \\vw)$")[5] == "--"
+    # the serial section's I(niche; w): the breakdown gaps queue's read at
+    # the final kappa once its record holds it, else tab:kappa-star's mark
+    bd = json.loads((REPO / "scripts" / "logs" / "breakdown_2026-09-29"
+                     / "breakdown_all.json").read_text())
+    serial = row(f, "$\\I(\\text{niche}; \\vw)$")[5]
+    m = bd["gse_dual"]["members"].get("w_niche_mi_excess")
+    if m is None:
+        assert serial == pt.BD_PENDING_MARK
+        assert (f"{pt.BD_PENDING_MARK}: \\pending{{breakdown gaps queue}}"
+                in text) and "--: not read" not in text
+    else:
+        assert serial == r(m["trajectory"]["0.1"]["estimate"], 2)
+    # that point is the final fits' read: so on the core
+    core = bd["gse"]["members"]["w_niche_mi_excess"]["trajectory"]["0.1"]
+    assert r(core["estimate"], 2) == row(f, "$\\I(\\text{niche}; \\vw)$")[4]
     for j, ds in enumerate((OV, LUNG, FF, GSE, DUAL)):
-        d = json.loads((DATA / ds / "experiments"
+        d = json.loads(_pin(DATA / ds / "experiments"
                         / "probe_regrade_lineage_final.json").read_text())
         v = [share(d[f"DisCell/finalL_s{s}"]["mlp_comp"]["excess"])
              for s in range(3)]
@@ -1039,6 +1187,52 @@ def test_vocabulary_is_neutral(built):
                     if ln.startswith("%")]
         assert not any("\\termSpill" in ln or "\\TermReloc" in ln
                        for ln in comments), name
-    assert any("Transport $-$ leakage part" in ln for ln in
+    assert any("Relocation $>$ spill-over part" in ln for ln in
                (out / "breakdown.tex").read_text().splitlines()
                if ln.startswith("%"))
+
+
+def test_internal_read_names_stay_out_of_the_rendered_tables(built):
+    """'Read A', 'twin margin' and 'published read' are internal names: the
+    rendered tables say single-cell read, twin read and cross-fitted read
+    (comments may keep them)."""
+    out, _ = built
+    bad = re.compile(r"Read A|[Tt]win margin|[Pp]ublished read|"
+                     r"& published &")
+    for f in sorted(out.glob("*.tex")):
+        for ln in rendered(f):
+            assert not bad.search(ln), (f.name, ln)
+    th = " ".join(rendered(out / "transport_heldout.tex"))
+    assert "Single-cell read" in th and "Twin read" in th
+    assert "cross-fitted & held-out" in th
+
+
+def test_mintflow_pinned_to_the_fits_the_tables_were_rendered_with(pt, built):
+    """While MF_PIN holds (refit queue still running, 2026-10-01), every
+    table reads MintFlow from the queue's pre-refit backup: the battery's
+    MintFlow rows keep the original fits' values and n/r reconstruction."""
+    if not pt.MF_PIN:
+        pytest.skip("MintFlow refits released")
+    out, _ = built
+    f = out / "battery.tex"
+    for ds in (GSE, DUAL):
+        live = DATA / ds / "experiments" / "baseline_battery_lineage.json"
+        src = pt.mf_pinned(live)
+        if src == live:
+            continue                         # no refit on this section yet
+        assert src.is_relative_to(pt.MF_BACKUP)
+        e = json.loads(src.read_text())[MF_ENTRY[ds]]
+        assert not mf_refit(e)
+        cells = [unbold(c) for c in method_row(f, ds, "MintFlow")]
+        assert cells[2] == r(e["nmi"], 3) and cells[7] == "n/r$^{b}$"
+
+
+def test_battery_fits_its_page(built):
+    """Layout: eight columns, a short not-run cell, a caption that points to
+    the measured reasons instead of repeating them."""
+    out, _ = built
+    text = (out / "battery.tex").read_text()
+    assert "\\begin{tabular}{@{}llcccccc@{}}" in text
+    assert "could not be run" not in " ".join(rendered(out / "battery.tex"))
+    assert "(measured reasons: \\cref{tab:timing})" in text
+    assert "\\renewcommand{\\arraystretch}{0.9}" in text

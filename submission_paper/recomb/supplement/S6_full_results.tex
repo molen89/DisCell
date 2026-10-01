@@ -1,141 +1,73 @@
 % S6: copied from ../aistats/appendix (see SETUP_REPORT.md for provenance); edit here, not there.
-\section{Full Results}
+% Trimmed 2026-10-01 (agent C): cut fig:transport-heldout (same data as tab:transport-heldout), tab:moran (final values
+% in main fig:programmes d; the without-adversary values kept in the text), tab:kl-summary and fig:kl-seeds (one
+% paragraph keeps the negative result), and the Cellina comparison paragraph that repeats main §3.6.
+\section{Results on Tissue in Full}
 \label{app:full-results}
-% from experimental.tex: The Response in Detail, Spatial Autocorrelation, The Counterfactual Compared with Cellina,
-% The Latents, Per-Cell Divergence and Posterior Uncertainty, Training Cost
-\subsection{The Response in Detail}
+
+\subsection{What the Latents Carry and the Response Programmes}
 \label{app:response}
 
-\paragraph{Relocation on held-out tiles.} \Cref{fig:transport-heldout,tab:transport-heldout} set the published relocation read beside the same read scored on the cells of the model's held-out tiles only. The published read is cross-fitted over spatial folds, but its folds are drawn from every tile, so most of its scored cells lie in the model's training tiles, whose counts the model saw. On held-out tiles every model quantity is still estimated from training tiles, and the panels, ceilings and mask are the same. The rule set before the read was to reconsider the headline read if the held-out fraction fell outside the published interval on any section; it did, in both directions, and the published read was kept, because an in-sample advantage would lower the held-out read throughout, and the fraction of the ceiling does not move that way. Read A does move that way, on $11$ of $12$ fits. The held-out pool is about three quarters of the published one, so fewer panels reach the trusted tier and several all-panel fractions exceed one; on the TMA core no panel is trusted on held-out tiles.
+\paragraph{Niche information of both latents.} With the $k$-means niches, the response carries $0.41$ to $0.63$ nats of information about the niche beyond its floor and the intrinsic state $0.06$ to $0.11$, by the nearest-neighbour estimator, over three seeds of all four sections; of the floor-corrected total, $85$ to $90\%$ lies in the response. The neural estimator agrees. These estimates use a different cell sample and floor from \cref{tab:headline-full}.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{fig_transport_heldout}
-\caption{The relocation read scored on held-out tiles only, beside the published read, per section. Top: fraction of the noise ceiling over all panels; bottom: over the trusted tier. Each line joins one fit's published read to its held-out read, each with its $95\%$ tile-bootstrap interval: DISCELL, one line per seed; Cellina's neighbour-rewiring counterfactual, fitted on the training tiles and read on the panels of DISCELL's first seed. A read is absent where its tier has no panel or it has no value; on the TMA core no trusted panel remains on held-out tiles. Arrows point toward the better direction. The values are in \cref{tab:transport-heldout}.}
-\label{fig:transport-heldout}
-\end{figure*}
-
-\input{\tablesdir/transport_heldout}
-
-\paragraph{Localisation of the programmes.} The first response programme leans toward extracellular products on the ovarian FFPE section (rank-biserial effect $0.20$ to $0.22$), the lung section ($0.08$ to $0.16$) and the TMA core ($0.14$ to $0.20$), and away from nuclear ones ($-0.12$ to $-0.19$), in every seed; toward plasma-membrane products in eight of these nine fits ($0.10$ to $0.19$, and $0.03$, not significant, in the ninth). On the fresh-frozen section the extracellular effect is $0.17$, $0.06$ and $0.00$ in the three seeds: it fades to null rather than replicating. Since a gene-specific spill-over of transcripts near the membrane would produce the same lean, and $\kappa$ carries no gene index (\cref{sec:generative}), the lean describes the programmes and does not by itself distinguish a response from spill-over.
-
-\paragraph{Hallmark labels of every programme.} \Cref{fig:hallmarks} shows the enrichment of all $50$ hallmark sets on all $34$ programmes of the twelve fits; $39$ sets are significant on at least one. EMT is significant on $30$ of the $34$ programmes, followed by oestrogen response early ($19$), KRAS signalling up ($17$), TNF$\alpha$/NF-$\kappa$B signalling and oestrogen response late ($15$ each) and coagulation ($14$), while $14$ of the $39$ sets are significant on at most two programmes.
+\paragraph{Hallmark labels.} \Cref{fig:hallmarks} shows the enrichment of all $50$ hallmark sets on all $34$ programmes of the twelve fits; $39$ sets are significant on at least one. EMT is significant on $30$ of the $34$ programmes, followed by oestrogen response early ($19$), KRAS signalling up ($17$), TNF$\alpha$/NF-$\kappa$B signalling and oestrogen response late ($15$ each) and coagulation ($14$); $14$ of the $39$ sets are significant on at most two programmes.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{recomb_fig_hallmarks}
-\caption{Hallmark labels of every response programme, by section, seed and programme (within a fit in order of variance; its share of $\vw$'s within-type variance, in $\%$, above). All $50$ sets were tested on every programme and Benjamini--Hochberg correction is applied within each programme. Rows: the sets significant on at least one programme, with the number of such programmes in parentheses. Cells: the AUC of the Mann--Whitney test of the set's absolute loadings against the rest of the expressed panel ($0.5$ is the null); dot, $q \leq 0.05$ with AUC above $0.5$. Programmes are identified only up to rotation, so columns are compared within a section by the recurrence of their labels, not as matched axes.}
+\caption{Hallmark labels of every response programme, by section, seed and programme (within a fit in order of variance; its share of $\vw$'s within-type variance, in $\%$, above). Rows: the sets significant on at least one programme (number of such programmes in parentheses). Cells: AUC of the Mann--Whitney test of the set's absolute loadings against the rest of the expressed panel ($0.5$ is the null); dot, $q \leq 0.05$ (Benjamini--Hochberg within each programme) with AUC above $0.5$. Programmes are identified only up to rotation, so columns are compared within a section by the recurrence of their labels, not as matched axes.}
 \label{fig:hallmarks}
 \end{figure*}
 
-\paragraph{Signalling genes.} In the spill-over channel, ligand and receptor genes take a larger share of the between-niche shift than other genes on every section and seed (rank-biserial effect $0.18$ to $0.28$, $p < 10^{-13}$). In the response channel they do on the ovarian FFPE section ($0.12$ to $0.17$), the lung section ($0.16$ to $0.18$) and the TMA core ($0.13$ to $0.16$), all with $p < 10^{-5}$, but not on the fresh-frozen section ($0.01$ to $0.03$, $p = 0.18$ to $0.61$). MintFlow's criterion is therefore met by the spill-over channel alone on every section. The response channel's lean holds across the spill-over grid on three sections and breaks down at $\kappa = 0.2$ on the fresh-frozen section (\cref{tab:breakdown}).
+\paragraph{Localisation.} The first programme leans toward extracellular products (rank-biserial effect $0.08$ to $0.22$) and away from nuclear ones in every seed of the ovarian FFPE, lung and TMA sections; on the fresh-frozen section the extracellular effect is $0.17$, $0.06$ and $0.00$ in the three seeds, fading to null. A gene-specific spill-over of transcripts near the membrane would produce the same lean, and $\kappa$ carries no gene index (\cref{sec:generative}), so the lean does not distinguish a response from spill-over.
 
-\paragraph{Niche information of both latents.} With the $k$-means niches, the response carries $0.41$ to $0.63$ nats of information about the niche beyond its floor and the intrinsic state $0.06$ to $0.11$, by the nearest-neighbour estimator, over the three seeds of all four sections; of the floor-corrected total, $85$ to $90\%$ lies in the response. The neural estimator gives the same picture. These estimates are on a different cell sample and floor from the guard of \cref{tab:headline}.
+\paragraph{Signalling genes.} In the spill-over channel, ligand and receptor genes take a larger share of the between-niche shift than other genes on every section and seed (rank-biserial $0.18$ to $0.28$, $p < 10^{-13}$); in the response channel on the ovarian FFPE, lung and TMA sections ($0.12$ to $0.18$, $p < 10^{-5}$), but not on the fresh-frozen section ($0.01$ to $0.03$, $p = 0.18$ to $0.61$). MintFlow's criterion is therefore met by the spill-over channel alone on every section. The response's lean breaks down at $\kappa = 0.2$ on the fresh-frozen section (\cref{tab:kappa-star}).
 
-\paragraph{True and false axis.} On the primary section, the response-predicted shifts follow the tumour bands with a mean $|\tau|$ of $0.78$ to $0.81$ and the false axis with $0.51$ to $0.56$; at $|\tau| \geq 0.9$ that is $5{,}843$ to $6{,}314$ gene--type pairs on the true axis against $191$ to $1{,}100$ on the false one. By type, the contrast holds in tumour cells ($0.90$ to $0.93$ against $0.50$ to $0.63$) and in macrophages ($0.80$ to $0.81$ against $0.26$ to $0.34$) and is reversed in the merged fibroblast class ($0.63$ to $0.71$ against $0.71$ to $0.75$), whose stromal half lies in deep stroma at one end of the section, so that its false coordinate follows the bands. The references follow the bands less closely but show a contrast of similar size: shifts predicted from the intrinsic state reach $0.59$ to $0.65$ against $0.39$ to $0.47$, from depth $0.57$ to $0.68$ against $0.36$ to $0.42$, and the observed shift $0.47$ against $0.33$ to $0.36$. The response is thus the closest to the bands of all rows, but the band ordering is not specific to it.
+\paragraph{True and false tumour axis.} On the primary section the response-predicted shifts follow the tumour bands with a mean $|\tau|$ of $0.78$ to $0.81$ and the false axis with $0.51$ to $0.56$. The contrast holds in tumour cells and macrophages and is reversed in the merged fibroblast class ($0.63$ to $0.71$ against $0.71$ to $0.75$), whose stromal half lies in deep stroma where the false coordinate follows the bands. Shifts predicted from the intrinsic state ($0.59$ to $0.65$ against $0.39$ to $0.47$), from depth ($0.57$ to $0.68$ against $0.36$ to $0.42$) and the observed shift ($0.47$ against $0.33$ to $0.36$) show contrasts of similar size: the response is closest to the bands, but the band ordering is not specific to it.
 
-\paragraph{Marker pairs.} On raw counts, exclusive double positives are $0.3$ to $2.2\%$ of held-out cells and control double positives $1.6$ to $11.8\%$. Decoding alone, at $\kappa = 0$, lowers the exclusive rate on every section, while the control rate rises on the lung ($4.4$ to $5.3\%$), fresh-frozen ($11.8$ to $14.1\%$) and TMA ($3.1$ to $4.6\%$) sections and falls on the ovarian FFPE section ($1.6$ to $1.0\%$), by more than the exclusive rate there ($0.5$ to $0.2\%$). This sets the sign of the contrast in \cref{tab:breakdown-traj}: negative on three sections, positive on the primary one. On those three sections the corrected decode lowers the exclusive rate and raises the control rate above its raw-count value at every grid value, except at the largest spill-over fractions on the lung ($\kappa = 0.3$ and $0.4$) and fresh-frozen ($\kappa = 0.4$) sections, where the control rate falls, by less than the exclusive rate. The spill-over correction adds a further fall at $\kappa > 0$: at $\kappa = 0.1$, the corrected decode lowers the exclusive rate below the uncorrected decode's by $0.10$ to $0.50$ percentage points and the control rate by $0.18$ to $1.13$, at least as much on every section, while the ratio of exclusive to control double positives falls on every section (for instance from $0.087$ to $0.028$ on the lung section). The correction therefore lowers double positives of both kinds, and exclusive ones relative to control ones, but the data do not show a removal specific to exclusive pairs. The corrected-decode rate falls steadily with $\kappa$, with no plateau, so it does not identify the spill-over fraction.
+\paragraph{Marker pairs.} Exclusive double positives are $0.3$ to $2.2\%$ of held-out cells on raw counts and control double positives $1.6$ to $11.8\%$. Decoding alone lowers the exclusive rate on every section and raises the control rate on three (lowers it on the primary section), which sets the sign of this trajectory (\cref{app:sweep}). At $\kappa = 0.1$ the spill-over correction lowers both rates further (exclusive by $0.10$ to $0.50$ points, control by $0.18$ to $1.13$) and their ratio on every section, but the data show no removal specific to exclusive pairs, and the rate falls steadily with $\kappa$ with no plateau, so it does not identify the spill-over fraction.
 
-\subsection{Spatial Autocorrelation Within Types}
+\subsection{Without the Adversary}
 \label{app:moran}
 
-\Cref{tab:moran} gives Moran's I of the posterior means within types. Each coordinate of $\vmu_z$ and $\vmu_w$ is centred on its type's mean, I is computed on the model's graph restricted to target cells with binary row-normalised weights, and the coordinates are averaged with weights equal to their within-type variance. The null permutes the centred values over cells; its $97.5$th percentile is at most $0.005$ on every section, so every entry is far above it. The response is spatially organised by construction, since it is largely a function of the context (\cref{app:pathb}). For the intrinsic state the table shows what the adversary removes and what it leaves. Without the adversary, I of $\vmu_z$ is $0.09$ to $0.47$; with it, $0.05$ to $0.35$, lower by $42$ to $48\%$ on three sections and by $25\%$ on the fresh-frozen one. What remains is within-type variation shared by neighbouring cells, which conditional invariance removes only to the extent that neighbour composition and the masked image predict it (\cref{app:conditional}). Without the adversary the response's posterior mean has almost no within-type variance: summed over its coordinates, below $10^{-9}$ in both fits of the fresh-frozen section, $10^{-5}$ and $0.02$ in the two of the ovarian FFPE section, and $0.03$ to $0.12$ on the lung and TMA sections, against $3.0$ to $39$ in the final fits. The intrinsic state carries the niche instead, and I of $\vmu_w$, which would be computed on what little variance is left, is reported for the final fits only.
+Within-type Moran's I of the posterior means (each coordinate centred on its type's mean, on the model's graph restricted to target cells, averaged with weights equal to the coordinates' within-type variance; permutation null at most $0.005$) shows what the adversary removes. Without it ($\alphaa = 0$, two seeds), I of $\vmu_z$ is $0.09$ to $0.47$; with it, $0.05$ to $0.35$ (\cref{fig:programmes}d), lower by $42$ to $48\%$ on three sections and by $25\%$ on the fresh-frozen one. What remains is within-type variation shared by neighbours that composition and the masked image do not predict (\cref{app:conditional}). Without the adversary the response's posterior mean has almost no within-type variance: summed over coordinates, below $10^{-9}$ in both fresh-frozen fits, $10^{-5}$ and $0.02$ on the ovarian FFPE section and $0.03$ to $0.12$ on the lung and TMA sections, against $3.0$ to $39$ in the final fits. The intrinsic state carries the niche instead.
 % source (audit item 14): validation/validation.json morans.mu_w.var_per_dim, summed, of uncontrolledL_s0-s1 and finalL_s0-s2 (target cells, Unassigned mask); devlog 2026-09-29 "Within-type Moran's I table (results; writer)".
 
-\begin{table}[t]
-\centering
-\caption{Within-type Moran's I of the posterior means, averaged over coordinates weighted by their within-type variance: mean over seeds, with the range. Without the adversary: $\alphaa = 0$, two seeds; final: the final configuration, three seeds. Target cells only.}
-\label{tab:moran}
-\small
-\begin{tabular}{@{}lccc@{}}
-\toprule
- & \multicolumn{2}{c}{$\vmu_z$} & $\vmu_w$ \\
-\cmidrule(lr){2-3}\cmidrule(l){4-4}
-Section & without adversary & final & final \\
-\midrule
-Ovarian cancer (FFPE) & 0.188 (0.185--0.191) & 0.108 (0.101--0.113) & 0.621 (0.615--0.629) \\
-Lung cancer (FFPE) & 0.093 (0.092--0.093) & 0.054 (0.051--0.056) & 0.483 (0.452--0.511) \\
-Ovarian cancer (FF) & 0.471 (0.467--0.474) & 0.351 (0.339--0.358) & 0.733 (0.727--0.737) \\
-Lung TMA core & 0.114 (0.113--0.114) & 0.059 (0.059--0.060) & 0.492 (0.476--0.508) \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{The Response at the Type Level}
+\label{app:kl-maps}
 
-\subsection{The Counterfactual Compared with Cellina}
+The per-cell divergence of the response from its prior is small, $0.004$ to $0.09$ nats per cell, and differs up to ten-fold between seeds. Within one fit it is spatially organised (Moran's I $0.15$ to $0.85$), but which cells deviate does not reproduce between seeds (per-cell rank correlation $-0.43$ to $0.57$). Under a rule fixed in advance (odds ratio at least $1.5$ or standardised difference at least $0.3$, interval clear of the null, in all three seeds), the top decile differs from the other cells only coarsely: it avoids tumour on the two FFPE sections and lies among fibroblasts (ovarian) and chondrocytes (TMA core); nothing passes on the fresh-frozen section and no continuous feature passes anywhere. The divergence is therefore not a per-cell anomaly score at the operating point, and a planted per-cell response is not detected at this weight either (\cref{app:planted-percell}). The posterior standard deviation of $\vw$ is $0.98$ to $1.01$: the response posterior is its prior in spread as well as in location. The intrinsic state's divergence and standard deviation do reproduce between seeds (rank correlations $0.78$ to $0.93$ and $0.53$ to $0.93$); deeper cells have smaller divergences and wider posteriors (pooled $\rho = -0.77$ to $-0.39$ and $0.21$ to $0.73$), the per-cell scaling of \cref{app:pathb}. The intrinsic state is thus regularised less in low-count cells, and a deep cell's posterior width overstates its uncertainty, one more reason the reported uncertainty comes from the sweep and the seeds rather than from $q$.
+
+\subsection{Relocation in Full}
 \label{app:cellina-cf}
 
-Cellina predicts a cell's expression under a rewired neighbourhood \citep{moeed2026cellina}, the counterfactual claim closest to our relocation read. For the comparison it is refitted on the training tiles only, the cells DISCELL is trained on, and decoded at its posterior mean; as for DISCELL, most of the cells the published read scores lie in its training tiles. Its prediction is then scored by our relocation reads on the panels, niches, ceilings and bootstrap draws of DISCELL's first seed (\cref{tab:cellina-cf}), so both are read as a cell type moved from one niche to another. Cellina has no spill-over channel, so its prediction cannot be split into programme and spill-over parts. The comparison is of one Cellina fit with one DISCELL seed; DISCELL's range over seeds, and both models scored on held-out tiles only, are in \cref{tab:transport-heldout}.
+\paragraph{Against Cellina.} Cellina's neighbour-rewiring counterfactual \citep{moeed2026cellina} is refitted on the training tiles only, decoded at its posterior mean, and scored by our relocation reads on the panels, niches, ceilings and bootstrap draws of DISCELL's first seed (\cref{tab:cellina-cf}). It has no spill-over channel, so its prediction cannot be split into programme and spill-over parts. The comparison is of one Cellina fit with one DISCELL seed; main \cref{tab:relocation} reads it.
 
 \input{\tablesdir/cellina_cf}
 
-By the fraction of the noise ceiling, Cellina is ahead on the ovarian FFPE section ($0.73$ against $0.65$, intervals disjoint) and on the TMA core ($0.90$ against $0.71$, on a single trusted panel), and DISCELL is ahead on the fresh-frozen section ($0.68$ against $0.57$) and, with overlapping intervals, on the lung section ($0.74$ against $0.70$). DISCELL is ahead on Read A on all four sections, with overlapping intervals on the TMA core, and on the twin margin on three, by $0.04$ to $0.18$; on the lung section Cellina's is marginally larger ($0.435$ against $0.432$). Scored on held-out tiles only, Cellina's fraction of the ceiling stays above DISCELL's range on the ovarian FFPE section and falls below it on the lung section (\cref{tab:transport-heldout}).
+\paragraph{On held-out tiles.} The relocation read is cross-fitted over spatial folds drawn from every tile, so most of its scored cells lie in the model's training tiles. \Cref{tab:transport-heldout} scores the same read on held-out tiles only, with every model quantity still estimated from training tiles and the same panels, ceilings and mask. The rule set before the read was to reconsider the cross-fitted read if the held-out fraction of the ceiling fell outside its interval on any section; it did, in both directions, and the cross-fitted read was kept, because an in-sample advantage would lower the held-out read throughout and the fraction of the ceiling does not move that way. The single-cell read does, on $11$ of $12$ fits. The held-out pool is about three quarters of the cross-fitted one, so fewer panels reach the trusted tier and several all-panel fractions exceed one; on the TMA core no panel is trusted on held-out tiles. On held-out tiles Cellina's fraction of the ceiling stays above DISCELL's range on the ovarian FFPE section and falls below it on the lung section.
 
-\subsection{The Latents}
+\input{\tablesdir/transport_heldout}
+
+\paragraph{Against a plain regression.} On the panels of each seed's relocation read, a ridge regression of the type's expression on its neighbour composition is fitted to the raw counts of the cells that supply the model quantities, and its predicted shift between the two niches is scored by the same fraction of the ceiling. Fitted on $\log(1+x)$ at the median depth, as first specified, it recovers $0.06$ to $0.22$ of the ceiling in the trusted tier; fitted on depth-normalised rates, the scale of the read, it recovers $0.81$ to $0.89$ on the three whole-slide sections (DISCELL $0.65$ to $0.72$) and $0.77$ on the TMA core (DISCELL $0.73$, two seeds with a trusted panel). Over all panels DISCELL is higher on the TMA core and the two FFPE sections, and lower on the FF section ($0.66$ against $0.79$). The single-cell read cannot score the regression against DISCELL's decode of the target cells, so both are scored against the raw target cells: the gap closed is $0.48$ to $0.62$ for the regression and $0.25$ to $0.63$ for DISCELL. Because the observed shifts contain the spill-over, none of these reads can favour a model for separating it (\cref{sec:relocation}); in simulation, scored against the spill-free shift, they can (\cref{app:S-reloc-clean}).
+% Source: scripts/logs/recomb_additions_2026-10-01/READOUT.md (3-seed means over finalL_s0-s2; per seed in
+%   data/datasets/<ds>/experiments/transport_regression_reference.md). Deviation 2 and 3 of the devlog launch entry.
+
+\subsection{The Latents on Every Section}
 \label{app:latents}
 
-The main text's \cref{fig:latents-main} shows the two latents on the primary section, and \cref{fig:latents-umap} the posterior means of one seed of the final configuration on each section, as UMAP. The intrinsic state separates the lineages (a). The response is organised by the cell's neighbours rather than by its own type alone (b). Within one type, the intrinsic state shows little grouping by the neighbours' lineage (c), while the response of the same cells does (d), which is what the conditional invariance asks for; the probe measures the same thing quantitatively (\cref{tab:probe}). The type of panels c and d is chosen by a rule, not by eye: among types with at least $3{,}000$ cells, the one whose neighbourhoods are most mixed. UMAP distorts distances and can exaggerate separation, so the figure illustrates what the probe and the agreement with type of \cref{sec:selection} measure, and replaces neither.
+\Cref{fig:latents-umap} extends main \cref{fig:latents-main} to all four sections. The type of panels c and d is chosen by a rule: among types with at least $3{,}000$ cells, the one whose neighbourhoods are most mixed. UMAP distorts distances, so the figure illustrates what the probe (\cref{tab:probe}) measures and replaces it nowhere.
 
 \begin{figure}[tp]
 \centering
-\includegraphics[width=\textwidth]{fig_latents_umap}
-\caption{UMAP of the posterior means, one seed of the final configuration. Columns: the four sections. \textbf{a},~$\vmu_z$ of $30{,}000$ random cells, coloured by the cell's own lineage family. \textbf{b},~$\vmu_w$ of the same cells, coloured by the family that dominates its graph neighbours (Unassigned neighbours ignored; grey if a cell has none). \textbf{c},~$\vmu_z$ of up to $10{,}000$ cells of one type (named above the panel), coloured as in b. \textbf{d},~$\vmu_w$ of the same cells. Families are the display grouping of \cref{fig:sections}.}
+\includegraphics[width=0.8\textwidth]{fig_latents_umap}
+\caption{UMAP of the posterior means, one seed of the final configuration; columns: the four sections. \textbf{a},~$\vmu_z$ of $30{,}000$ random cells, coloured by the cell's lineage family. \textbf{b},~$\vmu_w$ of the same cells, coloured by the family dominating its graph neighbours (grey if none). \textbf{c},~$\vmu_z$ of up to $10{,}000$ cells of one type (named above), coloured as in b. \textbf{d},~$\vmu_w$ of the same cells. Families as in \cref{fig:sections}.}
 \label{fig:latents-umap}
-\end{figure}
-
-\subsection{Per-Cell Divergence and Posterior Uncertainty}
-\label{app:kl-maps}
-
-For every cell of the final fits we computed the divergence of each posterior from its prior, $\KL(q(\vz_i)\,\|\,\N(\mathbf{0},\vI))$ and $\KL(q(\vw_i)\,\|\,p(\vw_i \mid \vc_i, t_i))$, and the mean posterior standard deviation of each (\cref{tab:kl-summary}). A divergence is the distance of the posterior from its prior, a standard deviation the posterior's own spread.
-
-\paragraph{The response.} Its divergence is small, $0.004$ to $0.09$ nats per cell, and differs up to ten-fold between seeds of one section; its top decile holds $19$ to $43\%$ of the total. Within one fit it is spatially organised (Moran's I $0.15$ to $0.85$), but which cells deviate does not reproduce between seeds: the per-cell rank correlation between seeds is $-0.43$ to $0.57$ (\cref{fig:kl-seeds}). The top decile was compared with the other cells on cell type, niche, the share of neighbours of another type, degree, depth and held-out tile, under a rule fixed in advance: an odds ratio of at least $1.5$ or a standardised difference of at least $0.3$, with the interval clear of the null, in all three seeds. What passes is coarse: deviating cells avoid tumour on the two FFPE sections and lie among fibroblasts on the ovarian section and among chondrocytes on the TMA core; nothing passes on the fresh-frozen section, and no continuous feature passes anywhere. At the operating point the divergence is therefore not a per-cell anomaly score. Whether that reflects the tissue or the weight cannot be decided on tissue; on simulated sections, a planted per-cell response is not detected at this weight either, and goes partly to $\vz$ (\cref{app:planted-percell}). The posterior standard deviation of $\vw$ is $0.98$ to $1.01$, the prior's own scale: the response posterior is its prior in spread as well as in location.
-
-\paragraph{The intrinsic state.} Its divergence and posterior standard deviation reproduce between seeds (rank correlations $0.78$ to $0.93$ and $0.53$ to $0.93$). Both depend on depth, deeper cells having smaller divergences and wider posteriors (pooled $\rho = -0.77$ to $-0.39$ and $0.21$ to $0.73$; weaker but of the same sign within types). This is the per-cell scaling of \cref{app:pathb}: relative to its own bound, a cell's divergence is weighted in proportion to its depth, so a deep cell is held closer to the prior and a sparse cell less. The intrinsic state is thus regularised less in low-count cells, and a deep cell's posterior width overstates its uncertainty, one more reason the reported uncertainty comes from the sweep and the seeds rather than from $q$.
-
-\begin{table}[t]
-\centering
-\caption{Per-cell divergences and posterior standard deviations over target cells, as the range over three seeds. \emph{Share}: the fraction of the quantity's total held by the top decile. \emph{Moran's I}: within-type, on the model's graph (null below $0.006$ everywhere). \emph{Seed $\rho$}: per-cell Spearman correlation between pairs of seeds.}
-\label{tab:kl-summary}
-\small
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{@{}llcccc@{}}
-\toprule
-Quantity & Section & Mean & Share & Moran's I & Seed $\rho$ \\
-\midrule
-KL of $\vz$ (nats) & Ovarian FFPE & 16.2--18.1 & 0.18 & 0.11--0.12 & 0.93 \\
- & Lung FFPE & 25.1--29.7 & 0.19 & 0.06 & 0.83--0.84 \\
- & Ovarian FF & 30.9--33.7 & 0.17--0.18 & 0.24--0.31 & 0.85--0.87 \\
- & Lung TMA core & 27.0--28.6 & 0.17--0.18 & 0.05 & 0.78--0.80 \\
-\midrule
-KL of $\vw$ (nats) & Ovarian FFPE & 0.021--0.092 & 0.33--0.43 & 0.22--0.61 & 0.14--0.57 \\
- & Lung FFPE & 0.007--0.018 & 0.27--0.34 & 0.26--0.35 & $-0.18$--0.20 \\
- & Ovarian FF & 0.018--0.030 & 0.23--0.34 & 0.52--0.85 & $-0.43$--0.42 \\
- & Lung TMA core & 0.004--0.047 & 0.19--0.36 & 0.15--0.34 & $-0.08$--0.31 \\
-\midrule
-sd of $q(\vz)$ & Ovarian FFPE & 0.45--0.49 & 0.11 & 0.14--0.15 & 0.92--0.93 \\
- & Lung FFPE & 0.28--0.36 & 0.11 & 0.05--0.06 & 0.74--0.75 \\
- & Ovarian FF & 0.35--0.39 & 0.11 & 0.19--0.25 & 0.89--0.90 \\
- & Lung TMA core & 0.28--0.31 & 0.11--0.12 & 0.05--0.06 & 0.53--0.57 \\
-\midrule
-sd of $q(\vw)$ & Ovarian FFPE & 0.994--0.996 & 0.10 & 0.42--0.71 & $-0.66$--0.74 \\
- & Lung FFPE & 0.996--0.998 & 0.10 & 0.42--0.59 & $-0.01$--0.62 \\
- & Ovarian FF & 0.996--1.000 & 0.10 & 0.75--0.88 & $-0.12$--0.72 \\
- & Lung TMA core & 0.993--0.996 & 0.10 & 0.32--0.53 & $-0.12$--0.19 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{fig_kl_seeds}
-\caption{The response divergence in the three seeds of the final configuration, on the ovarian FFPE section and the TMA core. Each cell is coloured by the percentile of its divergence among the section's target cells, pale up to the 90th percentile and dark in the top decile; Unassigned cells are grey. Each seed's map is spatially organised, but the regions differ between seeds.}
-\label{fig:kl-seeds}
 \end{figure}
 
 \subsection{Training Cost}
 \label{app:timing}
 
-\Cref{tab:timing} gives the cost of a fit. DISCELL's time per epoch is pure training, measured over twenty epochs with no evaluation. Its wall-clock time covers the three final fits, including evaluations every five epochs and the early stop. The comparison methods' times are the training time of the fits compared in this paper, at lineage labels, as recorded when they were run. MintFlow's whole-section fit of the lung FFPE section trained for $879$ minutes, $14.8$ hours of wall-clock time with its set-up and prediction, against $3.2$ to $7.4$ minutes for a whole DISCELL fit of the same section. Its fit of the ovarian FFPE section trained for $939$ minutes, $15.8$ hours of wall-clock time, with a peak of $9.5$ GB of GPU and $23.6$ GB of host memory. The other whole-section fits of SIMVI and MintFlow could not be run on the resources currently available; the measured reasons are in \cref{tab:baselines,tab:timing}.
-
-In symbols, a training step on a tile of $n$ seeds with $n_1$ cells in ring one costs $O((n + n_1)\,G h)$ in the encoders and decoder, for hidden width $h$, and $O(|E_n|\,G)$ in the spill-over influx, for the $|E_n|$ edges into the seeds (\cref{app:tiles}). The six adversary head updates add $O\big(6\,(n + n_1)\,h_a(\dz + K)\big)$ with $h_a = 64$, small beside the gene-sized terms because $\dz$ and $K$ are far below $G$. An epoch visits every training tile once, so its cost is linear in the number of cells; the held-out probes are fitted on at most $30{,}000$ cells whatever the section's size. Peak memory is the section's count matrix, held resident, plus the gathered edge-by-gene rows of the influx, $O(|E_n|\,G)$ per step, which the tile size bounds. The spill-over sweep multiplies the cost of a fit by its six grid points and three seeds, eighteen fits per section. Sample size is not analysed: how many cells a section needs for the readouts to stabilise is not studied beyond the range of sizes in \cref{tab:sections}.
+\Cref{tab:timing} gives the cost of a fit. DISCELL's time per epoch is pure training; its wall-clock time covers the three final fits including evaluations every five epochs and the early stop, whereas the comparison methods' times are training only, as recorded for the fits compared here. MintFlow's whole-section fits took $14.8$ (lung FFPE) and $15.8$ hours (ovarian FFPE) of wall-clock time, against $3.2$ to $7.4$ minutes for a whole DISCELL fit of the lung section; the other whole-section SIMVI and MintFlow fits could not be run (reasons in \cref{tab:baselines,tab:timing}). The cost of an epoch is linear in the number of cells, and peak memory is the resident count matrix plus the spill-over influx over the edges of a tile, which the tile size bounds (\cref{app:tiles}). The sweep costs eighteen fits per section. Sample size is not analysed beyond the range of sizes in \cref{tab:sections}.
 
 \input{\tablesdir/timing}

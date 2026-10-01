@@ -1,6 +1,6 @@
 % Generated table: tab:headline-full. DO NOT EDIT BY HAND; regenerate instead.
 % Command: python scripts/paper_tables.py
-% Generated: 2026-10-01 13:48:00 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Generated: 2026-10-01 17:35:54 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/envelope_table_ci_at_best.md  (2026-09-29 09:46:56)
@@ -147,43 +147,43 @@
 %
 \begin{table*}[t]
 \centering
-\caption{The reads of \cref{tab:headline} with their intervals, on the four sections and the held-out serial section of the TMA core: mean over three seeds, the range over seeds and, where available, the $200\um$ tile-bootstrap $95\%$ interval (lowest lower and highest upper bound over the seeds). Reconstruction is the held-out log-likelihood in nats per count. \TermReloc{} is the fraction of the noise ceiling (cell-split reliability) recovered by the mean \termReloc{} read, over the panels in the trusted tier ($^{\dagger}$seeds with a trusted panel: TMA core, 2 of 3); its interval is from half-tile subsampling. The same read scored on held-out tiles only is a sensitivity row (\cref{tab:transport-heldout}). Cycle $R^2$ is read on the top decile of the S and G2M score among held-out cells. $\I(\text{niche}; \vw)$ is the excess over a within-type permutation floor, in nats. The atlas cosine compares the first programme axis between seeds. The serial section is read through the models fitted on the core (--: not read there). Arrows give the preferred direction; $\approx 0$: expected to be near zero. Unassigned cells are not targets of any read.}
+\caption{Model quality on the four sections and the serial section, which is read through the core's fits (--: not read there): mean over three seeds, range over seeds and, where available, the $200\um$ tile-bootstrap $95\%$ CI (lowest lower and highest upper bound over the seeds). Reconstruction: held-out log-likelihood, nats per count. \TermReloc{}: fraction of the noise ceiling (cell-split reliability) recovered by the mean \termReloc{} read, trusted tier ($^{\dagger}$seeds with a trusted panel: TMA core, 2 of 3); its CI is from half-tile subsampling; on held-out tiles only: \cref{tab:transport-heldout}. Cycle $R^2$: top decile of the S and G2M score among held-out cells. $\I(\text{niche}; \vw)$: excess over a within-type permutation floor, in nats. Atlas cosine: the first programme axis, between seeds. Arrows give the preferred direction; $\approx 0$: expected to be near zero. Unassigned cells are not targets.}
 \label{tab:headline-full}
 \small
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{2pt}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
 Read & Ovarian FFPE & Lung FFPE & Ovarian FF & TMA core & TMA serial \\
 \midrule
 Reconstruction $\uparrow$ & $-7.193$ & $-7.254$ & $-7.320$ & $-7.219$ & $-7.237$ \\
-\quad range over seeds & $-7.232$ to $-7.148$ & $-7.267$ to $-7.243$ & $-7.329$ to $-7.312$ & $-7.223$ to $-7.213$ & $-7.244$ to $-7.232$ \\
-\quad $95\%$ interval & [$-7.246$, $-7.125$] & [$-7.280$, $-7.230$] & [$-7.334$, $-7.307$] & [$-7.240$, $-7.200$] & -- \\
+\quad range & $-7.232$ to $-7.148$ & $-7.267$ to $-7.243$ & $-7.329$ to $-7.312$ & $-7.223$ to $-7.213$ & $-7.244$ to $-7.232$ \\
+\quad $95\%$ CI & [$-7.246$, $-7.125$] & [$-7.280$, $-7.230$] & [$-7.334$, $-7.307$] & [$-7.240$, $-7.200$] & -- \\
 \addlinespace
-NMI of $\vz$ with the type $\uparrow$ & 0.713 & 0.736 & 0.697 & 0.621 & 0.611 \\
-\quad range over seeds & 0.701--0.723 & 0.733--0.739 & 0.673--0.719 & 0.617--0.627 & 0.606--0.614 \\
-\quad $95\%$ interval & [0.695, 0.729] & [0.728, 0.746] & [0.668, 0.725] & [0.610, 0.637] & -- \\
+NMI of $\vz$, type $\uparrow$ & 0.713 & 0.736 & 0.697 & 0.621 & 0.611 \\
+\quad range & 0.701--0.723 & 0.733--0.739 & 0.673--0.719 & 0.617--0.627 & 0.606--0.614 \\
+\quad $95\%$ CI & [0.695, 0.729] & [0.728, 0.746] & [0.668, 0.725] & [0.610, 0.637] & -- \\
 \addlinespace
 Mirror $R^2$ $\downarrow$ & 0.048 & 0.026 & 0.091 & 0.028 & 0.039 \\
-\quad range over seeds & 0.044--0.051 & 0.025--0.027 & 0.084--0.094 & 0.028--0.028 & 0.039--0.039 \\
+\quad range & 0.044--0.051 & 0.025--0.027 & 0.084--0.094 & 0.028--0.028 & 0.039--0.039 \\
 \addlinespace
-Cycle $R^2$ of $\vz$ $\uparrow$ & 0.519 & 0.186 & 0.757 & 0.497 & 0.495 \\
-\quad range over seeds & 0.504--0.548 & 0.177--0.195 & 0.744--0.768 & 0.476--0.509 & 0.494--0.496 \\
-\quad $95\%$ interval & [0.482, 0.568] & [0.155, 0.217] & [0.736, 0.774] & [0.444, 0.541] & -- \\
+Cycle $R^2$, $\vz$ $\uparrow$ & 0.519 & 0.186 & 0.757 & 0.497 & 0.495 \\
+\quad range & 0.504--0.548 & 0.177--0.195 & 0.744--0.768 & 0.476--0.509 & 0.494--0.496 \\
+\quad $95\%$ CI & [0.482, 0.568] & [0.155, 0.217] & [0.736, 0.774] & [0.444, 0.541] & -- \\
 \addlinespace
-Cycle $R^2$ of $\vw$ ($\approx 0$) & 0.006 & 0.003 & 0.001 & 0.000 & $-0.001$ \\
-\quad range over seeds & 0.003--0.009 & 0.001--0.006 & 0.000--0.002 & $-0.000$ to 0.002 & $-0.004$ to 0.002 \\
-\quad $95\%$ interval & [$-0.003$, 0.016] & [$-0.001$, 0.010] & [$-0.001$, 0.004] & [$-0.011$, 0.010] & -- \\
+Cycle $R^2$, $\vw$ ($\approx 0$) & 0.006 & 0.003 & 0.001 & 0.000 & $-0.001$ \\
+\quad range & 0.003--0.009 & 0.001--0.006 & 0.000--0.002 & $-0.000$ to 0.002 & $-0.004$ to 0.002 \\
+\quad $95\%$ CI & [$-0.003$, 0.016] & [$-0.001$, 0.010] & [$-0.001$, 0.004] & [$-0.011$, 0.010] & -- \\
 \addlinespace
-$\I(\text{niche}; \vw)$ excess $\uparrow$ & 0.47 & 0.59 & 0.60 & 0.48 & -- \\
-\quad range over seeds & 0.45--0.50 & 0.58--0.62 & 0.58--0.62 & 0.42--0.52 &  \\
-\quad $95\%$ interval & [0.42, 0.53] & [0.55, 0.66] & [0.55, 0.65] & [0.38, 0.57] &  \\
+$\I(\text{niche}; \vw)$ $\uparrow$ & 0.47 & 0.59 & 0.60 & 0.48 & -- \\
+\quad range & 0.45--0.50 & 0.58--0.62 & 0.58--0.62 & 0.42--0.52 &  \\
+\quad $95\%$ CI & [0.42, 0.53] & [0.55, 0.66] & [0.55, 0.65] & [0.38, 0.57] &  \\
 \addlinespace
 \TermReloc{} $\uparrow$ & 0.65 & 0.72 & 0.67 & 0.73$^{\dagger}$ & -- \\
-\quad range over seeds & 0.63--0.67 & 0.68--0.75 & 0.65--0.68 & 0.71--0.75 &  \\
-\quad $95\%$ interval & [0.60, 0.69] & [0.65, 0.78] & [0.64, 0.69] & [0.63, 0.85] &  \\
+\quad range & 0.63--0.67 & 0.68--0.75 & 0.65--0.68 & 0.71--0.75 &  \\
+\quad $95\%$ CI & [0.60, 0.69] & [0.65, 0.78] & [0.64, 0.69] & [0.63, 0.85] &  \\
 \addlinespace
-Atlas cross-seed cosine $\uparrow$ & 0.97 & 0.84 & 0.82 & 0.91 & -- \\
-\quad range over seeds & 0.97--0.98 & 0.80--0.90 & 0.76--0.90 & 0.89--0.92 &  \\
+Atlas cosine $\uparrow$ & 0.97 & 0.84 & 0.82 & 0.91 & -- \\
+\quad range & 0.97--0.98 & 0.80--0.90 & 0.76--0.90 & 0.89--0.92 &  \\
 \bottomrule
 \end{tabular}
 \end{table*}

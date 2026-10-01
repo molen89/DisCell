@@ -101,50 +101,7 @@ For additional information on amsmath, use the `?' option.
 (/usr/share/texlive/texmf-dist/tex/latex/pdfpages/pppdftex.def))
 (/usr/share/texlive/texmf-dist/tex/latex/cleveref/cleveref.sty) (./macros.tex)
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
-(./main.aux
-
-Package natbib Warning: Citation `janesick2023' multiply defined.
-
-
-Package natbib Warning: Citation `yang2025mistic' multiply defined.
-
-
-Package natbib Warning: Citation `fischer2023' multiply defined.
-
-
-Package natbib Warning: Citation `dong2025simvi' multiply defined.
-
-
-Package natbib Warning: Citation `akbarnejad2025mintflow' multiply defined.
-
-
-Package natbib Warning: Citation `moeed2026cellina' multiply defined.
-
-
-Package natbib Warning: Citation `brody2022' multiply defined.
-
-
-Package natbib Warning: Citation `kronos2025' multiply defined.
-
-
-Package natbib Warning: Citation `slavutsky2025' multiply defined.
-
-
-Package natbib Warning: Citation `elazar2018' multiply defined.
-
-
-Package natbib Warning: Citation `tenx_ovarian_ffpe' multiply defined.
-
-
-Package natbib Warning: Citation `tenx_lung_ffpe' multiply defined.
-
-
-Package natbib Warning: Citation `tenx_ovary_ff' multiply defined.
-
-
-Package natbib Warning: Citation `williamskatek2026fishing' multiply defined.
-
-)
+(./main.aux)
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
@@ -167,10 +124,7 @@ Package natbib Warning: Citation `williamskatek2026fishing' multiply defined.
 ap}] (./sections/01_introduction.tex
 Underfull \hbox (badness 1377) in paragraph at lines 40--41
 []\OT1/cmr/bx/n/10 (+20) Conditional in-vari-ance with a held-out
-[1]
-Underfull \hbox (badness 1895) in paragraph at lines 41--42
-\OT1/cmr/m/n/10 (+20) trans-fer-able to any model with a spill-over
-) (./sections/02_model.tex [2]
+[1]) (./sections/02_model.tex [2]
 Underfull \vbox (badness 4792) has occurred while \output is active [3 <../aist
 ats/figures//recomb_fig1_overview.pdf>]
 Underfull \hbox (badness 1052) in paragraph at lines 98--99
@@ -179,20 +133,22 @@ Underfull \hbox (badness 1052) in paragraph at lines 98--99
 ) (./sections/03_1_setup.tex [4]) (./sections/03_2_simulation.tex)
 (./sections/03_3_intrinsic_and_response.tex
 (../aistats/tables/generated/headline_main.tex) [5 <../aistats/figures//fig_lat
-ents_main.pdf>]) (./sections/03_4_programmes.tex [6])
+ents_main.pdf>]) (./sections/03_4_programmes.tex [6]
+Underfull \vbox (badness 10000) has occurred while \output is active)
 (./sections/03_5_comparison.tex [7 <../aistats/figures//recomb_fig_programmes.p
-df>]
+df>]) (./sections/03_6_relocation.tex [8]) (./sections/03_7_robustness.tex
 Underfull \vbox (badness 10000) has occurred while \output is active
-Underfull \vbox (badness 10000) has occurred while \output is active [8 <../ais
-tats/figures//recomb_tradeoff.pdf>]) (./sections/03_6_relocation.tex)
-(./sections/03_7_robustness.tex (../aistats/tables/generated/breakdown_main.tex
-) [9]) (./sections/04_discussion.tex) (./main.bbl [10]
+(../aistats/tables/generated/breakdown_main.tex
+Underfull \vbox (badness 10000) has occurred while \output is active [9 <../ais
+tats/figures//recomb_tradeoff.pdf>])) (./sections/04_discussion.tex)
+(./main.bbl
+Underfull \vbox (badness 2334) has occurred while \output is active [10]
 Underfull \hbox (badness 4726) in paragraph at lines 60--67
 \OT1/cmr/m/n/10 (+20) Cell type-specific in-fer-ence of dif-fer-en-tial
 
 Underfull \hbox (badness 10000) in paragraph at lines 60--67
 \OT1/cmr/m/n/10 (+20) 10 . 1038 / s41592 -[] 022 -[] 01575 -[] 3$.  Preprint:
-
+[11]
 Underfull \hbox (badness 10000) in paragraph at lines 150--158
 []\OT1/cmr/m/n/10 (+20) Sebastian Birk, Irene Bonafonte-Pard^^Ras,
 
@@ -201,7 +157,7 @@ Underfull \hbox (badness 1521) in paragraph at lines 150--158
 
 Underfull \hbox (badness 2269) in paragraph at lines 150--158
 \OT1/cmr/m/n/10 (+20) of cell niches in spa-tially re-solved omics
-[11]
+
 Underfull \hbox (badness 1910) in paragraph at lines 173--177
 []\OT1/cmr/m/n/10 (+20) Yuli Slavut-sky, Ozgur Beker, David Blei,
 
@@ -259,18 +215,7 @@ f>] [17 <./supplement.pdf>] [18 <./supplement.pdf>] [19 <./supplement.pdf>]
 [41 <./supplement.pdf>] [42 <./supplement.pdf>] [43 <./supplement.pdf>]
 [44 <./supplement.pdf>] [45 <./supplement.pdf>] [46 <./supplement.pdf>]
 [47 <./supplement.pdf>] [48 <./supplement.pdf>] [49 <./supplement.pdf>]
-[50 <./supplement.pdf>] [51 <./supplement.pdf>] [52 <./supplement.pdf>]
-[53 <./supplement.pdf>] [54 <./supplement.pdf>] [55 <./supplement.pdf>]
-[56 <./supplement.pdf>] [57 <./supplement.pdf>] [58 <./supplement.pdf>]
-[59 <./supplement.pdf>] [60 <./supplement.pdf>] [61 <./supplement.pdf>]
-[62 <./supplement.pdf>] [63 <./supplement.pdf>] [64 <./supplement.pdf>]
-[65 <./supplement.pdf>] [66 <./supplement.pdf>] [67 <./supplement.pdf>]
-[68 <./supplement.pdf>] [69 <./supplement.pdf>] [70 <./supplement.pdf>]
-[71 <./supplement.pdf>] [72 <./supplement.pdf>]
-
-Package natbib Warning: There were multiply defined citations.
-
-(./main.aux) )
+[50 <./supplement.pdf>] (./main.aux) )
 (see the transcript file for additional information){/usr/share/texmf/fonts/enc
 /dvips/cm-super/cm-super-ts1.enc}</usr/share/texlive/texmf-dist/fonts/type1/pub
 lic/amsfonts/cmextra/cmbsy9.pfb></usr/share/texlive/texmf-dist/fonts/type1/publ
@@ -281,38 +226,38 @@ cm/cmbx6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx
 /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx9.pfb></usr/sh
 are/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/te
 xlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmex7.pfb></usr/share/texl
-ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/te
-xmf-dist/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-di
-st/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/font
-s/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public
-/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfon
-ts/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/c
-mmib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/c
-mmib5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cm
-mib7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmm
-ib8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmi
-b9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb>
-</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/s
-hare/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/te
-xlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texlive/te
-xmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist
-/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/t
-ype1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
-lic/amsfonts/cm/cmr9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsf
-onts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/c
-m/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7
-.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></
-usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/share/tex
-live/texmf-dist/fonts/type1/public/amsfonts/cm/cmti7.pfb></usr/share/texlive/te
-xmf-dist/fonts/type1/public/amsfonts/cm/cmti8.pfb></usr/share/texlive/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmti9.pfb></usr/share/texlive/texmf-dist/fonts
-/type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1
-/public/amsfonts/symbols/msam10.pfb></usr/share/texlive/texmf-dist/fonts/type1/
-public/amsfonts/symbols/msbm10.pfb></usr/share/texmf/fonts/type1/public/cm-supe
-r/sfrm1000.pfb>
-Output written on main.pdf (73 pages, 39293921 bytes).
+ive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmex9.pfb></usr/share/texliv
+e/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/
+fonts/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fonts/t
+ype1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/pu
+blic/amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/am
+sfonts/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmmib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmext
+ra/cmmib5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextr
+a/cmmib7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra
+/cmmib8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/
+cmmib9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.
+pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></u
+sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/shar
+e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texliv
+e/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-
+dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fon
+ts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1
+/public/amsfonts/cm/cmr9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/
+amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfon
+ts/cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/c
+msy7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pf
+b></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr
+/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/share
+/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti7.pfb></usr/share/texliv
+e/texmf-dist/fonts/type1/public/amsfonts/cm/cmti8.pfb></usr/share/texlive/texmf
+-dist/fonts/type1/public/amsfonts/cm/cmti9.pfb></usr/share/texlive/texmf-dist/f
+onts/type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/t
+ype1/public/amsfonts/symbols/msam10.pfb></usr/share/texlive/texmf-dist/fonts/ty
+pe1/public/amsfonts/symbols/msbm10.pfb></usr/share/texmf/fonts/type1/public/cm-
+super/sfrm1000.pfb>
+Output written on main.pdf (51 pages, 21091554 bytes).
 Transcript written on main.log.
 Latexmk: Found input bbl file 'main.bbl'
 Latexmk: Log file says output to 'main.pdf'

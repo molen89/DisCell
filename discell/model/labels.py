@@ -20,7 +20,7 @@ import re
 _TUMOUR_RE = re.compile(r"tumou?r|malignant|carcinoma", re.IGNORECASE)
 _TUMOUR_EXCLUDE_RE = re.compile(r"mesothelial|unassigned|lining|associated|fibroblast|endothel|macrophage|stroma|immune|\bt[\s/-]?cells?\b", re.IGNORECASE)
 _SMOOTH_MUSCLE_RE = re.compile(r"smooth muscle", re.IGNORECASE)
-_ENDOTHELIAL_RE = re.compile(r"endothelial", re.IGNORECASE)
+_ENDOTHELIAL_RE = re.compile(r"endothelial|(?-i:\bEC\b)", re.IGNORECASE)
 
 
 def is_tumour(name: str) -> bool:
@@ -38,5 +38,7 @@ def is_smooth_muscle(name: str) -> bool:
 
 
 def is_endothelial(name: str) -> bool:
-    """True if ``name`` denotes an endothelial cell type (case-insensitive)."""
+    """True if ``name`` denotes an endothelial cell type: "endothelial"
+    (case-insensitive) or the lung vocabulary's whole-word "EC" token
+    (case-sensitive; "EC venous", "Lymphatic EC", ...)."""
     return bool(_ENDOTHELIAL_RE.search(name))

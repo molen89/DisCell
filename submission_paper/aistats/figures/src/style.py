@@ -117,7 +117,8 @@ import re as _re
 RECOMB = _os.environ.get("DISCELL_VOCAB", "") == "recomb"
 _VOCAB = [(r"real at every leak fraction", r"real at every $\\kappa$"), (r"leak fraction", "spill-over fraction"), (r"composition(\s)leakage", r"niche\1signal"),
           (r"leakage", "spill-over"), (r"no-leak", "no-spill-over"), (r"leak", "spill-over"),
-          (r"Transport", "Relocation"), (r"transport", "relocation")]
+          (r"Transport", "Relocation"), (r"transport", "relocation"),
+          (r"Read A", "single-cell read"), (r"twin margin", "twin read")]  # RECOMB vocabulary (critic fix 4, 2026-10-01)
 
 
 def out_path(path):

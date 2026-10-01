@@ -1,6 +1,6 @@
 % Generated table: tab:cellina-cf. DO NOT EDIT BY HAND; regenerate instead.
 % Command: python scripts/paper_tables.py
-% Generated: 2026-10-01 13:48:01 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Generated: 2026-10-01 17:35:54 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage_cf/bootstrap_ci.json  (2026-09-29 16:49:16)  [after the freeze; see checks]
@@ -51,7 +51,7 @@
 %
 \begin{table*}[t]
 \centering
-\caption{The counterfactual claim head to head: DISCELL's \termReloc{} prediction against Cellina's neighbour-rewiring counterfactual, scored with the same \termReloc{} reads (published read, as in \cref{tab:headline}). Cellina is refitted on the training tiles only, decoded at its posterior mean, and read on the panels, niches, ceilings and bootstrap draws of DISCELL's first seed, which is shown beside it with the $95\%$ intervals (half-tile subsampling for the fraction, tile bootstrap for Read A; to two decimals); DISCELL's range over three seeds is in \cref{tab:transport-heldout}. \emph{Panels}: panels in the trusted tier. Read A: the median gap to the target closed; twin margin: how much closer a cell's prediction is to its own target than to a random cell's. \emph{Parts of the prediction}: DISCELL's prediction from the response programmes alone and from the \termSpill{} alone (the parts are not additive). $^{a}$Not mapped: Cellina has no \termSpill{} channel, so its counterfactual cannot be split into these parts. Arrows give the preferred direction (the parts have none); bold marks the best value per section, of the two estimates. Unassigned cells are not targets.}
+\caption{DISCELL's \termReloc{} prediction against Cellina's neighbour-rewiring counterfactual, scored with the same cross-fitted \termReloc{} reads (\cref{tab:headline-full}). Cellina is refitted on the training tiles only, decoded at its posterior mean, and read on the panels, niches, ceilings and bootstrap draws of DISCELL's first seed, shown beside it (DISCELL's range over seeds: \cref{tab:transport-heldout}). $95\%$ CI: half-tile subsampling for the fraction, tile bootstrap for the single-cell read. \emph{Panels}: panels in the trusted tier. \emph{Single-cell read}: the median gap to the cell's own target closed; \emph{twin read}: how much closer a cell's prediction is to its own target than to a random cell's. \emph{Parts}: DISCELL's prediction from the response programmes alone and from the \termSpill{} alone (not additive). $^{a}$Not mapped: Cellina has no \termSpill{} channel. Arrows give the preferred direction (the parts have none); bold marks the best value per section, of the two estimates. Unassigned cells are not targets.}
 \label{tab:cellina-cf}
 \footnotesize
 \setlength{\tabcolsep}{2.5pt}
@@ -62,20 +62,20 @@
  & DISCELL & Cellina & DISCELL & Cellina & DISCELL & Cellina & DISCELL & Cellina \\
 \midrule
 \multicolumn{9}{@{}l}{\emph{Fraction of the noise ceiling, trusted tier} $\uparrow$} \\
-\quad estimate & 0.650 & \textbf{0.731} & \textbf{0.743} & 0.703 & \textbf{0.677} & 0.566 & 0.711 & \textbf{0.899} \\
-\quad $95\%$ int. & [0.62, 0.68] & [0.71, 0.75] & [0.71, 0.78] & [0.67, 0.73] & [0.66, 0.69] & [0.55, 0.58] & [0.63, 0.80] & [0.82, 1.00] \\
+\quad estimate & 0.65 & \textbf{0.73} & \textbf{0.74} & 0.70 & \textbf{0.68} & 0.57 & 0.71 & \textbf{0.90} \\
+\quad $95\%$ CI & [0.62, 0.68] & [0.71, 0.75] & [0.71, 0.78] & [0.67, 0.73] & [0.66, 0.69] & [0.55, 0.58] & [0.63, 0.80] & [0.82, 1.00] \\
 \quad panels & 12 & 12 & 10 & 10 & 169 & 169 & 1 & 1 \\
 \addlinespace
-\multicolumn{9}{@{}l}{\emph{Read A, own target} $\uparrow$} \\
-\quad estimate & \textbf{0.789} & 0.681 & \textbf{0.826} & 0.757 & \textbf{0.823} & 0.602 & \textbf{0.814} & 0.801 \\
-\quad $95\%$ int. & [0.76, 0.80] & [0.65, 0.69] & [0.81, 0.84] & [0.74, 0.77] & [0.80, 0.83] & [0.59, 0.62] & [0.74, 0.84] & [0.76, 0.82] \\
+\multicolumn{9}{@{}l}{\emph{Single-cell read} $\uparrow$} \\
+\quad estimate & \textbf{0.79} & 0.68 & \textbf{0.83} & 0.76 & \textbf{0.82} & 0.60 & \textbf{0.81} & 0.80 \\
+\quad $95\%$ CI & [0.76, 0.80] & [0.65, 0.69] & [0.81, 0.84] & [0.74, 0.77] & [0.80, 0.83] & [0.59, 0.62] & [0.74, 0.84] & [0.76, 0.82] \\
 \addlinespace
-\multicolumn{9}{@{}l}{\emph{Twin margin, own target} $\uparrow$} \\
-\quad estimate & \textbf{0.398} & 0.361 & 0.432 & \textbf{0.435} & \textbf{0.437} & 0.330 & \textbf{0.464} & 0.284 \\
+\multicolumn{9}{@{}l}{\emph{Twin read} $\uparrow$} \\
+\quad estimate & \textbf{0.40} & 0.36 & 0.43 & \textbf{0.44} & \textbf{0.44} & 0.33 & \textbf{0.46} & 0.28 \\
 \addlinespace
-\multicolumn{9}{@{}l}{\emph{Parts of the prediction, fraction of the noise ceiling, trusted tier}} \\
-\quad programmes & 0.520 & not mapped$^{a}$ & 0.535 & not mapped$^{a}$ & 0.535 & not mapped$^{a}$ & 0.641 & not mapped$^{a}$ \\
-\quad \termSpill{} & 0.288 & not mapped$^{a}$ & 0.390 & not mapped$^{a}$ & 0.294 & not mapped$^{a}$ & 0.207 & not mapped$^{a}$ \\
+\multicolumn{9}{@{}l}{\emph{Parts, fraction of the noise ceiling, trusted tier}} \\
+\quad programmes & 0.52 & --$^{a}$ & 0.54 & --$^{a}$ & 0.53 & --$^{a}$ & 0.64 & --$^{a}$ \\
+\quad \termSpill{} & 0.29 & --$^{a}$ & 0.39 & --$^{a}$ & 0.29 & --$^{a}$ & 0.21 & --$^{a}$ \\
 \bottomrule
 \end{tabular}
 \end{table*}

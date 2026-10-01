@@ -32,7 +32,7 @@ PT = S.paper_tables()
 OUT = S.out_path(Path(__file__).resolve().parent.parent / "fig_breakdown_data")
 SHORT = {"cycle_asym_q90": r"cycle asymmetry," "\n" r"$R^2(\mathbf{z}) - R^2(\mathbf{w})$",
          "w_niche_mi_excess": r"$I(\mathrm{niche};\mathbf{w})$" "\n" r"$-$ its floor",
-         "readA_minus_typemean": "Read A $-$ type-mean\nreference",
+         "readA_minus_typemean": "Read A $-$\ntype-mean reference",
          "readB_twin_margin": "twin margin",
          "transport_cf_minus_leak": "transport $-$\nleakage part",
          "signalling_response_lr_vs_other": "signalling share,\nLR $-$ other",

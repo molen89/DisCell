@@ -13,6 +13,15 @@
 \usepackage{xcolor}
 \usepackage{microtype}
 \usepackage{enumitem}
+% floats stay in their own section (no tables flushed after the bibliography)
+\usepackage[section]{placeins}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{6}
 \PassOptionsToPackage{hyphens}{url}
 \usepackage{xr-hyper}
 \usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
@@ -30,7 +39,7 @@
 % main-text captions imported through xr may use \suppref; inside the supplement it reads "Section S3"
 \newcommand{\suppref}[1]{Section~\ref{#1}}
 
-\externaldocument{main}[main.pdf]
+\externaldocument[][nocite]{main}[main.pdf]   % labels only: each document keeps its own bibliography numbers
 
 \renewcommand{\thesection}{S\arabic{section}}
 \renewcommand{\thefigure}{S\arabic{figure}}
@@ -48,15 +57,42 @@
 \begin{document}
 \maketitle
 
+% Guide for the reviewer: where each claim of the main text is checked (not a float, so it takes no table number)
+\section*{Guide}
+Sections follow the main text: \cref{app:derivations,app:implementation} back \cref{sec:method}, \cref{app:experimental,app:readouts-section} \cref{sec:setup}, \cref{app:simulation} \cref{sec:simulation}, \cref{app:full-results} \crefrange{sec:intrinsic-response}{sec:relocation}, \cref{app:sensitivity-section} \cref{sec:results-sweep}, and \cref{app:limitations} collects the limitations.
+
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{0.36\textwidth}p{0.17\textwidth}p{0.4\textwidth}@{}}
+\toprule
+Claim & Main text & Check in the supplement \\
+\midrule
+Model, objective, bound on $\kappa$ & \cref{sec:method} & \cref{app:derivations}, proof \cref{app:kappa}, symmetries \cref{app:symmetries}; settings \cref{app:architecture}, calibration \cref{app:S-calibration} \\
+C1 Spill-over is bounded, not estimated; breakdown points & \cref{sec:sweep,sec:results-sweep}, \cref{tab:kappa-star} & \cref{app:sweep}: \cref{tab:S-contrasts}, \cref{fig:breakdown-data}, \cref{tab:breakdown-traj}; \cref{app:S-planted-spillover}; \cref{app:sensitivity} \\
+C2 Less residual niche signal, more intrinsic state & \cref{sec:comparison}, \cref{fig:tradeoff} & \cref{tab:probe}, \cref{tab:battery}; methods \cref{app:baselines} \\
+C3 $\vz$ keeps type and cycle & \cref{sec:results-z} & \cref{tab:headline-full}, \cref{tab:probe}; definitions \cref{app:readouts} \\
+C4 $\vw$ carries the niche; sublabels split & \cref{sec:results-w} & \cref{app:response}, \cref{app:moran}, \cref{app:subtype}; limits \cref{app:planted-percell}, \cref{app:recon-modes} \\
+C4b Response programmes & \cref{sec:programmes} & \cref{fig:hallmarks}, \cref{app:response} \\
+C5 Relocation & \cref{sec:relocation} & \cref{app:readouts}, \cref{tab:cellina-cf}, \cref{tab:transport-heldout} \\
+C6 Reconstruction and speed & \cref{sec:comparison} & \cref{tab:battery}, \cref{tab:timing} \\
+C7 Simulation & \cref{sec:simulation} & \cref{app:synthetic}, \cref{tab:synthetic}, \cref{fig:synthetic-misspec}, \cref{app:planted} \\
+Data and fairness & \cref{sec:setup} & \cref{app:sections}, \cref{app:baselines}; limitations \cref{app:limitations} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% order follows the main text: model (S1-S2), data and readouts (S3-S4), simulation (S5), tissue results (S6), sweep (S7), limitations (S8)
 \input{supplement/S1_derivations}
 \input{supplement/S2_design_rationale}
 \input{supplement/S3_implementation}
 \input{supplement/S4_data_and_labels}
 \input{supplement/S5_readouts}
-\input{supplement/S6_full_results}
 \input{supplement/S7_simulation}
+\input{supplement/S6_full_results}
 \input{supplement/S8_sensitivity_and_ablations}
 \input{supplement/S9_limitations}
+\FloatBarrier
 
 \bibliographystyle{unsrtnat}
 \bibliography{../aistats/references}

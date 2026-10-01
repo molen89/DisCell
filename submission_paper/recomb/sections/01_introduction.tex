@@ -38,6 +38,6 @@ DISCELL models both sides. A cell's expected composition is a mixture of its own
 \begin{itemize}[leftmargin=*,itemsep=1pt,topsep=2pt]
 \item \textbf{A generative model in which a niche response and spill-over compete for the same counts} (\cref{sec:generative}).
 \item \textbf{Conditional invariance with a held-out probe, as an evaluation protocol} that grades every method on the same cells (\cref{sec:invariance}).
-\item \textbf{A spill-over sweep with breakdown points}, transferable to any model with a spill-over term, and with teeth: \pending{breakdown-gaps queue: it breaks three findings and the others hold across the grid} (\cref{sec:sweep,sec:robustness}).
+\item \textbf{A spill-over sweep with breakdown points}: a sensitivity analysis, transferable to any model with a spill-over term, that orders findings by how much spill-over would have to be assumed to lose them, without estimating it (\cref{sec:sweep,sec:robustness}).
 \item \textbf{An evaluation on four sections} of ovarian cancer, lung cancer and paediatric lung, plus a serial section held out whole, against resolVI, SIMVI, MintFlow and Cellina, with recovery checks on simulated sections (\cref{sec:experiments}). Code: \codelink.
 \end{itemize}

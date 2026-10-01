@@ -1,0 +1,44 @@
+% Generated table: tab:S-planted-spillover. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py --only planted_spillover reloc_clean
+% Generated: 2026-10-01 18:18:24 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   data/datasets/synthetic_smoke/experiments/null_diagnostic.json  (2026-10-01 17:45:18)  [after the freeze; see checks]
+%   data/datasets/synthetic_smoke/experiments/planted_spillover.json  (2026-10-01 14:33:48)  [after the freeze; see checks]
+%
+% Reading convention:
+%   kappa* per world from the stored breakdown records (3 model seeds, half-tile subsampling,
+%   two-sided 0.975, Bonferroni m = 2)
+%
+% Provenance (row / column -> file : key):
+%   kappa_true 0: predicted, first definition and genuine from data/datasets/synthetic_smoke/experiments/planted_spillover.json : worlds[0] (verdict.predicted_spill_kappa_star; table.members.spill_cf_minus_leak / response_cf_minus_leak status, kappa_star, reason, sign); corrected from data/datasets/synthetic_smoke/experiments/null_diagnostic.json : worlds[0].corrected (status 'no finding', kappa_star None, reason interval contains 0)
+%   kappa_true 0.1: predicted, first definition and genuine from data/datasets/synthetic_smoke/experiments/planted_spillover.json : worlds[0.1] (verdict.predicted_spill_kappa_star; table.members.spill_cf_minus_leak / response_cf_minus_leak status, kappa_star, reason, sign); corrected from data/datasets/synthetic_smoke/experiments/null_diagnostic.json : worlds[0.1].corrected (status 'breaks', kappa_star 0.05, reason interval contains 0)
+%   kappa_true 0.2: predicted, first definition and genuine from data/datasets/synthetic_smoke/experiments/planted_spillover.json : worlds[0.2] (verdict.predicted_spill_kappa_star; table.members.spill_cf_minus_leak / response_cf_minus_leak status, kappa_star, reason, sign); corrected from data/datasets/synthetic_smoke/experiments/null_diagnostic.json : worlds[0.2].corrected (status 'breaks', kappa_star 0.1, reason interval contains 0)
+%
+% Checks and notes:
+%   - Written 2026-10-01 (after the freeze; RECOMB additions,
+%     scripts/logs/recomb_additions_2026-10-01/READOUT.md and FOLLOWUP.md). The corrected
+%     contrast replaces the first definition, which cannot vanish at kappa = 0 (follow-up (a),
+%     devlog 2026-10-01); the response member and the family (m = 2) are the control's.
+%
+% Pending cells:
+%   none
+%
+\begin{table}[!htbp]
+\centering
+\caption{A planted \termSpill{} control: breakdown points on simulated sections with \termSpill{} planted at fraction $\kappa_{\text{true}}$ (final configuration; three model seeds at every grid point of \cref{tab:kappa-star}; two contrasts per world). \emph{Made by \termSpill{}}: on 20 of the 60 genes, which have no planted response, the programmes' alignment with the part of the observed shift between niches that the simulator's clean shift does not explain, $2\langle \delta_{p}, \delta_{o} - \delta_{c}\rangle / \|\delta_{t}\|^2$ ($\delta_{p}$: the programmes' predicted shift; $\delta_{o}$: the observed shift; $\delta_{c}$: the clean one; $\delta_{t}$: the \termSpill{}-containing one without count noise); \emph{first definition}: the $R^2$ gain of the full prediction over its \termSpill{} part on the same genes, which cannot vanish at $\kappa = 0$ (text). \emph{Genuine response}: the same gain on the genes with a planted response. \emph{Predicted}: set before the run for the contrast made by \termSpill{}, the first grid point at or above $\kappa_{\text{true}}$; the genuine response was predicted to hold over the grid. Notation as in \cref{tab:kappa-star}: $>$0.4, it holds at every grid point; $^{a}$the interval contains $0$; $^{b}$a seed has the opposite sign; $^{(-)}$negative at $\kappa = 0$.}
+\label{tab:S-planted-spillover}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+ & & \multicolumn{2}{c}{Made by \termSpill{}} & \\
+\cmidrule(lr){3-4}
+$\kappa_{\text{true}}$ & Predicted & corrected & first definition & Genuine response \\
+\midrule
+0 & no finding & no finding & 0.1$^{b}$$^{(-)}$ & $>$0.4 \\
+0.1 & 0.1 & 0.05$^{a}$ & 0.05$^{b}$ & 0.3$^{a}$ \\
+0.2 & 0.2 & 0.1$^{a}$ & 0.05$^{a}$ & 0.3$^{a}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

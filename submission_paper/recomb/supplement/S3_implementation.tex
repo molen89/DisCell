@@ -1,25 +1,33 @@
 % S3: copied from ../aistats/appendix (see SETUP_REPORT.md for provenance); edit here, not there.
-\section{Implementation Details}
-\label{app:implementation}
+% Trimmed 2026-10-01 (agent A): continues the section opened in S2_design_rationale.tex (no \section here).
+% Cut: tab:deviations, tab:deviations2, fig:batching, fig:probe and app:probe; \input{probe} moved to S4 (agent B).
+% Calibration ledger added; facts from S1 (old S1.2, S1.4), this file and S8 (app:sensitivity).
 
 \subsection{Architecture and Hyperparameters}
 \label{app:architecture}
 
-\cref{tab:architecture} lists every network and every fixed quantity as implemented; the weights are set once, on the primary section, by the protocol of \cref{app:gaussian-mi}, and used on every section. All multilayer perceptrons use rectified-linear hidden units.
+\Cref{tab:architecture} lists every network and every fixed quantity as implemented. All multilayer perceptrons use rectified-linear hidden units.
 
-\begin{table}[t]
+
+
+\subsection{Calibration}
+\label{app:S-calibration}
+
+Every weight was set once, on the primary section, and used unchanged on every section; \cref{app:sensitivity} refits the alternatives. \Cref{tab:S-calibration} records what was tuned, by which read, and where it was checked.
+
+\begin{table}[!htbp]
 \centering
 \caption{Networks and fixed quantities. $G$ genes, $K$ types, $\dPhi$ image-embedding dimension.}
 \label{tab:architecture}
-\small
-\begin{tabular}{@{}p{0.2\textwidth}p{0.27\textwidth}p{0.48\textwidth}@{}}
+\footnotesize
+\begin{tabular}{@{}p{0.2\textwidth}p{0.27\textwidth}p{0.475\textwidth}@{}}
 \toprule
 Component & Input & Layers / value \\
 \midrule
 Count encoding & $\vx_i$ & $[\log(1 + \vx_i \tilde\ell/\ell_i),\ \log\ell_i]$, $\tilde\ell$ the median total \\
 $q(\vz_i \mid \vx_i, t_i)$ & count encoding $\oplus \onehot(t_i)$ & $256 \to 256 \to 2\dz$, $\dz = 20$ \\
 Type query $\embed(t_i)$ & $t_i$ & learned table, width $K$ \\
-Attention sources & neighbour $j$ & $\onehot(t_j)$, width $K$; an earlier version appended the neighbour's posterior mean under a stop-gradient and was dropped after a three-seed ablation \\
+Attention sources & neighbour $j$ & $\onehot(t_j)$, width $K$ \\
 Attention layer & sources, query & one bipartite GATv2 layer, $4$ heads $\times\, 32$, averaged, LeakyReLU slope $0.2$, no self-loops, no edge features \\
 Context $\vc_i$ & & attention output ($32$) $\oplus\ \vPhi_i$ ($\dPhi = 384$) $\oplus$ isolation flag ($1$) \\
 Prior mean $\mpsi(\vc_i, t_i)$ & $\vc_i \oplus \onehot(t_i)$ & $64 \to \dw$, $\dw = 6$ \\
@@ -27,113 +35,69 @@ $q(\vw_i \mid \cdot)$ & $\vc_i \oplus \onehot(t_i) \oplus \vz_i \oplus$ count en
 Decoder $a(\vz_i)$ & $\vz_i$ & $256 \to G$ \\
 Loadings $\vB$ & $\vw_i$ & linear $\dw \to G$, no bias \\
 Adversary heads & $\vmu_{z,i} \oplus \onehot(t_i)$ & two heads $64 \to 64 \to K$ (composition) and $\to \Ephi = K$ (image niche) \\
-Image niche $\ephi_i$ & $12$ principal components of $\vPhi$ & soft $k$-means memberships $\softmax(-d^2/T)$, $T$ the median nearest squared distance; the projection is fitted on a $50{,}000$-cell random subsample and applied to all cells, the $k$-means (four restarts) on all cells; fitted once and frozen \\
-Invariance block $\vv_i$ & & $[\vy_i^{(-K)},\ 12 \text{ principal components of } \vPhi_i]$ \\
-Held-out probes & $\vmu_{z,i} \oplus \onehot(t_i)$ & ridge regression ($\lambda = 10^{-3}$) and perceptron $64 \to 64$ ($300$ Adam steps at $10^{-3}$, batches of $2{,}048$), each scored per block against its own within-type permutation floor; both fitted on at most $30{,}000$ training-tile cells \\
+Image niche $\ephi_i$ & $12$ principal components of $\vPhi$ & soft $k$-means memberships $\softmax(-d^2/T)$, $T$ the median nearest squared distance; projection fitted on a $50{,}000$-cell subsample, $k$-means (four restarts) on all cells; frozen \\
+Held-out probes & $\vmu_{z,i} \oplus \onehot(t_i)$ & ridge ($\lambda = 10^{-3}$) and perceptron $64 \to 64$ ($300$ Adam steps at $10^{-3}$, batches of $2{,}048$), per block against its own within-type permutation floor; fitted on at most $30{,}000$ training-tile cells \\
 \midrule
 Graph & & Delaunay adjacency; Voronoi faces measured within $30\um$ discs; prune at $40\um$ \\
 Kernel $\beta$ & & $f_{ij}\exp(-d_{ij}/\tau)$, $\tau = 20\um$, row-normalised over in-edges \\
 Prior scale $\sigma_w$ & & $1$ (fixed) \\
 \midrule
-Spill-over fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; the operating point $0.1$ is a working point (\cref{sec:setup}) \\
+Spill-over fraction $\kappa$ & & swept over $\{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$; operating point $0.1$ \\
 $\omega$ & & $1$ \\
-$\alphaz$ & & $\tfrac12/\lbar$, half the bound-equivalent value, with $\lbar$ the section's count scale (\cref{app:pathb}) \\
-$\alphaw$ & & $0.1$, far above $1/\lbar$ (\cref{app:pathb}); ramped linearly from $0$ over the first $30$ epochs \\
-$\alphaa$ (adversary) & & $0.3$; six head updates per model update at learning rate $2 \times 10^{-3}$, set so that the independent probe, not the heads' own loss, certifies head strength; composition half weighted $\lambda_y = 3$ \\
-$\alphaa$ (closed form) & & calibrated by the same probe protocol \\
-Moving-average rate, shrinkage & & $0.05$, $0.05$; support floor $10\times$ joint dimension \\
+$\alphaz$ & & $\tfrac12/\lbar$, $\lbar$ the section's median total \\
+$\alphaw$ & & $0.1$, ramped linearly from $0$ over the first $30$ epochs \\
+$\alphaa$ (adversary) & & $0.3$; six head updates per model update at learning rate $2 \times 10^{-3}$; composition weighted $\lambda_y = 3$ \\
 \midrule
 Tiles & & recursive median split into rectangles of $\leq 4{,}096$ cells ($2{,}048$ on the TMA core); $15\%$ of tiles held out \\
-Optimiser & & Adam \citep{kingma2015adam}, learning rate $10^{-3}$, cosine annealing \citep{loshchilov2017} over the epoch budget, gradient-norm clip $10$ \\
-Evaluation & & every $5$ epochs on posterior means; checkpoint accepted if held-out reconstruction improves and $\vz$--type agreement $\geq 0.9\times$ its running maximum; patience in epochs set with the budget; $\alphaw$ ramped linearly from $0$ over the first $30$ epochs, during which no checkpoint is accepted and patience does not count \\
+Optimiser & & Adam \citep{kingma2015adam}, learning rate $10^{-3}$, cosine annealing \citep{loshchilov2017}, gradient-norm clip $10$; $500$ epochs, patience $40$, for final fits and sweep alike \\
+Evaluation & & every $5$ epochs on posterior means; checkpoint accepted if held-out reconstruction improves and $\vz$--type agreement $\geq 0.9\times$ its running maximum; none during the $\alphaw$ ramp \\
 Hardware & & one NVIDIA GeForce RTX 4090 (24\,GB) per fit \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{The adversary's targets.} The image target $\ephi_i$ of \cref{eq:adv} is a soft membership of $\vPhi_i$ in $\Ephi$ image niches, from $k$-means on its leading principal components, never on the raw high-dimensional embedding, where distances are noise-dominated. We set $\Ephi = K$ so that the two heads face comparable difficulty; soft rather than hard memberships give a smoother target with no boundary artefacts. The composition head is weighted by $\lambda_y = 3$, in the encoder term and in the heads' own loss, because composition is the channel of the spill-over confound: at equal weights the probe finds more residual niche signal in $\vz$ ($6.6\%$ of the composition's within-type variance against $4.6\%$ on the primary section; \cref{app:sensitivity}). The adversary and the probe thus target the image through different summaries, discrete memberships and continuous components respectively: the memberships suit a classification head, the components the closed-form penalty of \cref{eq:S-penalty} and its probe.
-
-\paragraph{Warm-up, diagnostics and seeds.} The response divergence is ramped because without the ramp the conditional prior can fail to open on a given seed: the posterior of $\vw$ collapses onto a prior that ignores $\vc$ within the first ten epochs and never recovers. The collapse shows as a divergence that stays at zero and as no information between $\vw$ and the niche on held-out cells, and such a fit is discarded and re-seeded (\cref{app:planted}); the converged objective is unchanged. The running maximum of the type agreement ratchets upward, so a checkpoint that buys reconstruction at the cost of type structure is rejected rather than traded off. Held-out cells are entire spatial tiles, never random cells, because spatial autocorrelation passes the answer through neighbouring cells on both sides of a random split \citep{roberts2017}. Five diagnostics accompany every fit: (i) the within-type mirror $R^2$ of $\vz_i$ on $\vc_i$ against a within-type permuted control (\cref{app:mirror}); (ii) the response divergence per dimension (\cref{app:qw}); (iii) the held-out probe of \cref{eq:probe}; (iv) the $\vz$--type agreement, whose collapse marks the marginal-invariance failure; and (v) two checks that $\vz$ has not collapsed onto the label, the ratio $\I(\vz;t)/H(t)$ with the within-type variance of $\vmu_z$, and the gain in held-out reconstruction of decoding from the cell's own $\vz$ rather than its type's mean. On the final fits $\I(\vz;t)/H(t)$ is $0.82$ to $0.95$, the within-type share of the variance of $\vmu_z$ is $0.60$ to $0.72$, and the gain is $0.06$ to $0.17$ nats per count (\cref{tab:recon-modes}): $\vz$ retains the type almost fully without collapsing onto it. The objective is not unimodal in the seed: repeated fits of one configuration can fall into different basins. Each seed also redraws the held-out split, the image principal components and the image-niche clustering, so the range over seeds covers these choices as well.
-
-\subsection{Choices Made in Implementation}
-\label{app:deviations}
-
-Where the model description of \cref{sec:method} leaves a choice open, \cref{tab:deviations} records what was done and why. Every entry is also stated in the method text; the table collects them in one place. \todo{author to decide whether this table stays; it duplicates the method text}
-
-\begin{table}[t]
+\begin{table}[!htbp]
 \centering
-\caption{Implementation choices and their reasons.}
-\label{tab:deviations}
-\small
-\begin{tabular}{@{}p{0.22\textwidth}p{0.36\textwidth}p{0.36\textwidth}@{}}
+\caption{What was calibrated, on which section, by which read. Primary: the ovarian FFPE section.}
+\label{tab:S-calibration}
+\footnotesize
+\begin{tabular}{@{}p{0.13\textwidth}p{0.17\textwidth}p{0.35\textwidth}p{0.27\textwidth}@{}}
 \toprule
-Where & Decision & Reason \\
+Setting & Set on & Read & Checked \\
 \midrule
-Type input to $q(\vw)$ and $\mpsi$ & one-hot everywhere the type is an input; the learned type embedding exists only as the attention query, sized to match the source features & the query stands in for the $\vz_i$ that the cell deliberately does not contribute to its own context \\
-Counts input to $q(\vw)$ & the same encoding as $q(\vz)$ & one encoding of the counts for both posteriors \\
-Neighbour responses $\vw_j$ & a posterior draw from the same batched pass, under a stop-gradient & the neighbours' clean compositions must include their local programme (\cref{app:tiles}) \\
-Invariance block & one composition column dropped & the simplex makes the full block singular; the information is unchanged (\cref{app:gaussian-mi}) \\
-Penalty matrices & correlation rather than covariance form, plus $10^{-5}\vI$ on the correlation matrix before the log-determinant & identical value by scale invariance; bounded gradient; on a unit-diagonal matrix the additive term is a uniform relative jitter, not a variance-inflating ridge \\
-Penalty gradient & straight-through: value from the moving averages, gradient from the batch & otherwise the effective strength of $\alphaa$ scales with the averaging rate \\
-Penalty, adversary and probe input & posterior means $\vmu_z$, not samples & encoder noise would dilute the measured dependence \\
-Objective granularity & per-cell mean over the batch rather than a sum & invariant to tile size \\
-Evaluation draws & posterior means & the stopping signal should not ride reparameterisation noise \\
-Image embedding dimension & the full native embedding into $\vc_i$ rather than a $32$--$64$-dimensional projection & the deciding test is held-out reconstruction with and without the projection; the invariance block uses $12$ principal components regardless \\
-Probe target for the image & Gaussian log-likelihood gain on the continuous components, per block, rather than categorical cross-entropy against image-niche clusters & the closed-form penalty takes continuous components directly; a small nonlinear probe is fitted alongside and is the probe the decision rule reads (\cref{app:gaussian-mi}) \\
-Graph construction & the Voronoi tessellation is clipped to $30\um$ discs before faces are measured, then edges are pruned at $40\um$ & the clip removes faces only for pairs more than roughly $60\um$ apart, which the prune removes anyway, and bounds the length of faces at tissue borders and across gaps; the effect on $\beta$ for kept edges has not been quantified \todo{quantify} \\
-Invariance mechanism & the adversary is the operating configuration; the closed-form penalty is the cheaper first attempt & the escalation rule of \cref{app:gaussian-mi} decides between them on each section \\
+$\alphaz = \tfrac12/\lbar$ & primary & ladder $\{\tfrac14, \tfrac12, 1, 2\}\times 1/\lbar$, read on the diagnostics of \cref{sec:selection}; $\tfrac12$ restores one charge of the $\vz$-divergence at $\omega = 1$ (\cref{app:pathb}) & -- \\
+$\alphaw = 0.1$ & primary & at lower weights $\vw$ takes over type structure and the $\vz$--type agreement falls & $1/\lbar$ on primary and TMA core; $5/\lbar$, $10/\lbar$ on FF \\
+$\alphaa = 0.3$, head steps & primary & nonlinear held-out probe, without loss in $\vz$--type agreement or held-out reconstruction; head strength judged by the probe, never by the heads' loss \citep{elazar2018} & doubled steps, width, ensemble \\
+$\lambda_y = 3$ & primary & composition residual $4.6\%$ against $6.6\%$ at equal weights & $\lambda_y = 1, 5$ \\
+% omega: devlog "Reproduction card" (round 2, omega in {0.5, 2} against 1, 40-epoch single-seed fits, closed-form penalty;
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/calibration_round2.json, key "omega") and the AISTATS
+%   appendix/calibration.tex ("Round 2"). Widths: d_z = 20 is "fixed throughout" in the same card, with no search on record;
+%   d_w: devlog "d_w ablation" (2026-09-14) and "d_w = 8" (2026-09-15), runs/dw{2,3,8}_s{0,1,2} against the d_w = 6 sweep fits,
+%   200-epoch budget, before the final configuration.
+$\omega = 1$ & primary, development & $\{0.5, 1, 2\}$, one seed, short fits with the closed-form penalty: $0.5$ lowered the $\vz$--type agreement, $2$ raised reconstruction with more residual niche signal; at $1$ the two bounds weigh equally & $\omega = 0$ on all four sections \\
+$\dz = 20$ & -- & fixed during development, not tuned & -- \\
+$\dw = 6$ & primary, development & $\{2, 3, 6, 8\}$, three seeds each: likelihood and the $\vz$ reads unchanged over $\{2, 3, 6\}$; the response used one or two axes at every width; at $8$ more cycle signal in $\vw$ & not at the final configuration \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{table}[t]
-\centering
-\caption{Implementation choices, continued: the configuration used in the experiments, and what exists but is switched off.}
-\label{tab:deviations2}
-\small
-\begin{tabular}{@{}p{0.22\textwidth}p{0.36\textwidth}p{0.36\textwidth}@{}}
-\toprule
-Where & Decision & Reason \\
-\midrule
-Attention sources & neighbour types only; an earlier version also passed the neighbour's posterior mean under a stop-gradient & the case is empirical, not mechanistic: a seed-matched ablation improved held-out reconstruction, the $\vz$--type agreement, the mirror check and the cycle readout of $\vw$ while leaving $\vw$'s spatial readouts unchanged. The mechanism originally proposed for it, the prior reconstructing a cell from its neighbours' codes, was tested with two purpose-built detectors and not confirmed; the sources are types because the ablation is better, not because that mechanism was demonstrated \\
-Training budget & one budget, $500$ epochs with patience $40$, for the final fits and the sweep (\cref{sec:selection}) & a sweep point is then directly comparable with the final fit at the same $\kappa$; an earlier short budget for sweep points did not reach the better optimisation basin \\
-Choosing among seeds & no seed is selected: figures use one seed fixed in advance, tables the mean with the range over seeds & selecting a seed after seeing its readouts would bias every readout read on it \\
-Halo overhead & ring one is fully encoded; ring two contributes a type lookup only & the attention sources are types, so ring two needs no encoder pass and none is run; the node overhead falls with tile size, and tiles are sized above the knee \\
-Resident count storage & the count matrix is held on the accelerator as $16$-bit integers and cast per tile & counts are small non-negative integers, so the narrow type is exact and is asserted to be; the wide type does not fit on one consumer card for the largest section, and tile size does not help, since every tile is resident \\
-\midrule
-Built but not default & spill-over-subtracted encoder input $\tilde\vx_i = \max(\vx_i - \kappa\ell_i\rhobar_i, 0)$, normalised by its own total with the log-depth scalar left raw, as the counts-level answer to the amortisation gap; an attention sink, a fixed null logit joining every destination's softmax so that the aggregate saturates in the number of neighbours instead of ignoring it; coupled weight decay in the optimiser & each is available behind a flag and off in every fit reported here. The encoder correction is retained as an ablation rather than as the model, since it changes the evidence $\vz$ is formed from; the sink cannot be exercised on a Delaunay graph, whose degree is nearly constant, and is kept for graphs whose degree varies; weight decay is recorded because it moves the gauge of \cref{app:symmetries} rather than removing it \\
-\midrule
-Not built & Dirichlet-multinomial likelihood; per-cell counterfactuals with abduction; bounded conditional $\sigma_w(\vc,t)$; estimation of $\kappa$ from a nuclear/extranuclear split; edge features in the attention layer & each has a stated trigger that has not fired, or is future work. The \emph{type-level} counterfactual, in which the context prior is moved between two neighbourhoods with the intrinsic state held fixed, is built and exercised; only the per-cell form, which needs a non-degenerate response posterior, is not \\
-\bottomrule
-\end{tabular}
-\end{table}
+
+
+
+\paragraph{The invariance threshold is not met everywhere.} During development, a closed-form Gaussian estimate of the conditional mutual information, evaluated on the posterior means with $\vv_i = [\vy_i^{(-K)}, \mathrm{PC}_{12}(\vPhi_i)]$,
+\begin{equation}
+  \Pen = \textstyle\sum_t p(t)\cdot \tfrac{1}{2}\big[\logdet \Sighat_{\vv \mid t} + \logdet \Sighat_{\vz \mid t} - \logdet \Sighat_{[\vz,\vv] \mid t}\big],
+  \label{eq:S-penalty}
+\end{equation}
+served in place of the adversary; it removes linear dependence only, and the nonlinear probe of a converged fit stayed above its floor, so the adversary replaced it. The development target for the adversary was a nonlinear residual of at most a quarter of that of the fit without the adversary, on both blocks and for both probe families. At the operating point the nonlinear probe exceeds that threshold on the composition block on three sections and on the image block on the TMA core; on the TMA core and the lung section the residual without the adversary is itself small, so a similar absolute residual is a larger fraction of it. The residual niche signal is therefore reported descriptively, in absolute terms and as a fraction of the fit without the adversary (\cref{tab:probe}), not as a pass or a fail.
+
+\subsection{Training, Diagnostics and Seeds}
+
+The adversary's image target $\ephi_i$ is a soft membership in $\Ephi = K$ image niches from $k$-means on the leading principal components of $\vPhi_i$, never on the raw embedding, where distances are noise-dominated; $\Ephi = K$ gives the two heads comparable difficulty. The composition head is weighted $\lambda_y = 3$, in the encoder term and in the heads' loss, because composition is the channel of the spill-over confound.
+
+The response divergence is ramped because without the ramp the conditional prior can fail to open: the posterior of $\vw$ collapses within the first ten epochs onto a prior that ignores $\vc$, shown by a divergence at zero and no information between $\vw$ and the niche on held-out cells. Such dead-channel fits were discarded and re-seeded; none is among the final fits. The running maximum of the type agreement ratchets upward, so a checkpoint that buys reconstruction with type structure is rejected. Held-out cells are entire spatial tiles, because spatial autocorrelation passes the answer across a random split \citep{roberts2017}. Every fit is monitored by the mirror $R^2$ (\cref{app:mirror}), the response divergence per dimension, the held-out probe (\cref{eq:probe}), the $\vz$--type agreement, and two checks that $\vz$ has not collapsed onto the label: $\I(\vz;t)/H(t)$ is $0.82$ to $0.95$ on the final fits, the within-type share of the variance of $\vmu_z$ $0.60$ to $0.72$, and decoding from the cell's own $\vz$ rather than its type's mean gains $0.06$ to $0.17$ nats per count (\cref{tab:recon-modes}). The objective is not unimodal in the seed: repeated fits of one configuration can fall into different basins. Each seed also redraws the held-out split, the image principal components and the image-niche clustering. No seed is selected: figures use one seed fixed in advance, tables the mean with the range over seeds. A spill-over-subtracted encoder input, an attention sink and coupled weight decay are implemented but off in every reported fit.
 
 \subsection{Tiles and the Two-Hop Halo}
 \label{app:tiles}
 
-Because $\rhobar_i$ needs $\vrho_j$, hence $\vw_j$, hence $\vc_j$, hence $\nbr{j}$, a training step for cell $i$ reaches two graph hops although the attention layer reaches one. The neighbours' responses $\vw_j$ are posterior draws from the same batched pass, under the stop-gradient. Computing the influx from the baseline programme alone, $\vrho_j \approx \softmax(a(\vz_j))$, would avoid the neighbours' niches but errs in the direction that matters: neighbours share niches, so dropping $\vw_j$ strips the local programme out of $\rhobar_i$, and what the spill-over term then fails to absorb is explained by $\vw_i$ instead, inflating apparent spatial effects. Without the stop-gradient, cell $j$'s clean composition would be trained to absorb cell $i$'s residual through $\rhobar_i$, so $\vrho_j$ would stop being $j$'s own profile (\cref{app:amplification}).
-
-Batching by contiguous spatial tile makes the two hops cheap, because the halo around a tile is shared rather than disjoint; scattered seeds would cost many times more nodes. A tile's cells are the \emph{seeds}; their graph neighbours form \emph{ring one}, for which the niche descriptor, the response posterior and the clean composition are computed; the neighbours of ring one form \emph{ring two}, for which only the type is looked up. Both rings are built from the same edge list as $\beta$, never by a distance query: a cell across a pruned edge is not in ring one even if a radius search would return it, and if the halo and the kernel disagreed the spill-over influx would be silently wrong. Attention edges are restricted to destinations in the seeds and ring one, since a ring-two cell's niche descriptor would normalise over a truncated neighbourhood, and the loss is evaluated on seeds only. One consequence should be stated: the ring of a training tile can contain cells of a held-out tile, whose counts then enter training as inputs under a stop-gradient, with no loss and no gradient, that is, transductively. On our sections $0.8$ to $1.9\%$ of training seeds have a held-out neighbour, and $4.8$ to $10\%$ of held-out cells enter some training step in this way; within two hops, where only a cell's type is used, the share of seeds is $1.8$ to $4\%$. We state the exposure rather than add a buffer, which would remove the same seeds. \Cref{fig:batching} shows the tiles, the held-out split and the halo of one training tile on the primary section.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{recomb_fig_batching}
-\caption{Tiles, the held-out split and the two-hop halo on the primary section. \textbf{a},~The section cut into contiguous tiles of at most $4{,}096$ cells by recursive median split. Hatched tiles are held out ($15\%$ of tiles, one split). The blue tile is shown in b, and the black square marks the window of b. \textbf{b},~Where that training tile meets a held-out tile (left) and another training tile (below). The tile's cells are the seeds, on which the loss is evaluated. Ring one, their graph neighbours, has its context, response and clean composition computed in the same pass. Those compositions enter the seeds' spill-over influx under a stop-gradient, and ring one's types are attention sources for the seeds (solid edges). Ring two, the neighbours of ring one, contributes only its types, as attention sources for ring one (dashed edges). Both rings are read from the spill-over kernel's own edge list. Hatched cells belong to the held-out tile: ring cells drawn from it enter training as inputs, with no loss and no gradient (\cref{sec:batching}).}
-\label{fig:batching}
-\end{figure}
-
-\subsection{The Held-Out Probe}
-\label{app:probe}
-
-\Cref{fig:probe} shows how the probe of \cref{sec:invariance} is fitted, scored and read.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\textwidth]{fig_probe}
-\caption{How the held-out probe grades the invariance of $\vz$ (\cref{eq:probe}); schematic, with synthetic values chosen for legibility. \textbf{a},~The type-only baseline and the probe are fitted on the training tiles and scored on the held-out tiles (hatched). The baseline predicts each component of the invariance block by its mean over cells of the same type; the probe predicts it from $(\vmu_z, t)$ with a ridge regression or a small perceptron. \textbf{b},~One component for held-out cells of one type. The baseline's error is the spread around the type mean (dashed), the probe's the spread around its prediction (solid, the line of perfect prediction). $G_k$ is half the log ratio of the two mean squared errors, $1 - e^{-2G_k}$ is the share of within-type variance the probe explains, and $G_b$ averages $G_k$ over the block. \textbf{c},~Reading $G_b$ for each block. The floor is its value with $\vmu_z$ permuted within type; the uncontrolled fit is the same model with $\alphaa = 0$. What is reported is this fit's excess over the floor (blue bar), in \% as $1 - e^{-2\,\mathrm{excess}}$, the share of the block's within-type variance that the probe explains beyond the permutation floor, and that excess as a fraction of the uncontrolled fit's (grey bracket), for each probe family.}
-\label{fig:probe}
-\end{figure}
-
-\Cref{tab:probe} gives the probe's values on the final fits of every section (\cref{sec:results-z}).
-
-\input{\tablesdir/probe}
+Because $\rhobar_i$ needs $\vrho_j$, hence $\vw_j$, hence $\vc_j$, a training step for cell $i$ reaches two graph hops. The neighbours' responses are posterior draws from the same batched pass; dropping them would strip the local programme from $\rhobar_i$ and let $\vw_i$ absorb it, inflating apparent spatial effects. The neighbours' compositions enter under a stop-gradient, as in resolVI \citep{ergen2026resolvi}, which closes the feedback path through which $\vrho_j$ would be trained to absorb cell $i$'s residual. Batches are contiguous spatial tiles, whose halo is shared: a tile's cells are the seeds, on which the loss is evaluated; their neighbours (ring one) get context, response and clean composition; ring two contributes only types. Both rings are read from the kernel's own edge list, never from a distance query, so the halo and $\beta$ cannot disagree. One consequence: the ring of a training tile can contain cells of a held-out tile, whose counts then enter training as stop-gradient inputs with no loss. On our sections $0.8$ to $1.9\%$ of training seeds have a held-out neighbour, and $4.8$ to $10\%$ of held-out cells enter some training step in this way; within two hops, where only the type is used, the share of seeds is $1.8$ to $4\%$. We state the exposure rather than add a buffer, which would remove the same seeds.

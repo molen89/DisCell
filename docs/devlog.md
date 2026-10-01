@@ -7181,3 +7181,57 @@ READOUT.md is expected ~15:00. If the regression matches or beats DISCELL on rel
 
 **Why.** The programme-driver decomposition shows the image carrying the unique signal on FF (0.83) and composition carrying it on the TMA core (0.33). That is partly circular, because the programmes were learned with both inputs. The direct test is to fit without the image. **Plan:** the final configuration with the image descriptor Φ removed from the context, so that c is built from neighbour composition only. Four sections × seeds 0–2, at finalL's splits, run name `noimgL_s*`, with the full read set: the battery, I(niche; w), transport (fraction of the ceiling), held-out reconstruction, the atlas (leading programme, hallmark labels, cross-seed stability). Readout compared against finalL. **Prediction:** removing the image costs most on FF (niche information in w, relocation, programme stability) and least on the TMA core. If nothing moves beyond finalL's seed range, the image is optional at this configuration, and that is reported as found. **Scope:** this says something about DISCELL's inputs only, not about the other methods. **The author reads the results before anything enters the paper.** GPU 0 after the breakdown-gaps queue; never GPU 1.
 **No-image ablation queued (2026-10-01).** A new opt-in `--no-image` flag (`TrainConfig.no_image`): c becomes the attention over neighbour types plus the isolated flag. The adversary's image-block target e_Φ is unchanged, so z is still kept free of image information. Defaults are bit-identical; the new tests and a CPU smoke run of the reads pass. The preflight shows that the 12 noimgL configs differ from finalL only in `no_image`. Queue PID 2009153, waiting on the breakdown-gaps queue. ~7–8 h on GPU 0, so READOUT.md ~01:00–02:00 on 2026-10-02. **Open:** one GPU-tolerance test fails by 2e-7. The agent did not confirm whether it fails without the change too; check it before the next commit.
+
+### RECOMB additions: results and follow-ups (2026-10-01; author decisions)
+
+**Results** (`scripts/logs/recomb_additions_2026-10-01/READOUT.md`).
+1. **Planted spill-over control: predictions NOT met.** The spill-only contrast breaks at κ\* = 0.05 when κ_true is 0.1 or 0.2 (predicted: 0.1 and 0.2). The genuine response contrast breaks at 0.3 when spill-over is present (predicted: survives), and survives in the null world. In the null world (κ_true = 0) the spill-only contrast is still a finding at κ = 0 and breaks at 0.1, which is unexplained. **Reading:** κ\* orders findings (spill-only fragile, genuine robust well past κ_true) but does not estimate κ. The null-world signal must be diagnosed before the control is used.
+2. **Plain-regression reference:**
+   - Trusted tier: the rate-scale ridge on raw counts beats DISCELL on ovarian FFPE (0.86 vs 0.65), lung (0.89 vs 0.72) and FF (0.81 vs 0.67), and ties on the TMA core.
+   - All panels: DISCELL is higher on three sections.
+   - The single-cell read on raw targets is roughly level.
+
+   **Reading, per the pre-set rule:** DISCELL's advantage is the separation, not relocation accuracy. A relocation scored against observed (spill-over-containing) shifts rewards reproducing the spill-over.
+
+**Author decisions:**
+- The "the test has teeth" wording goes.
+- κ\* is presented as a sensitivity/robustness ordering, pending the diagnostic below.
+- Relocation is reframed, with the regression as a reference row.
+- The critic fixes are applied, and the tables are compressed.
+- The undefined driver/landmark methods (Fig. 3c) are defined.
+
+**Two follow-up analyses (motivation, set before running):**
+- (a) **Null-world diagnostic.** Why does the spill-only contrast register at κ = 0 when no spill-over is planted? Candidates: the contrast definition (gene-set or neighbourhood structure correlating with niche independently of spill-over), the simulator, or the read. CPU, using the existing fits.
+- (b) **Relocation against the clean truth, in simulation.** On the planted worlds, score DISCELL's relocation prediction and the plain regression against the TRUE clean (spill-free) between-niche shift, which the simulator knows. **Prediction:** the regression reproduces the observed, spill-over-containing shift and does worse against the clean truth as κ_true grows, while DISCELL, which models spill-over, does better against the clean truth. If not, that is reported as found.
+
+### Vessel landmark misses lung "EC" labels (bug; fix queued 2026-10-01)
+
+Found by the RECOMB text pass while defining the Fig. 3c driver methods. The landmark detector's vessel rule does not match the lung sections' endothelial labels ("EC …"), so lung FFPE and the TMA core have no vessel landmark, and their programme drivers' landmark block omits vessels. **Fix:** extend the vessel matcher to the lung labels (checked against each section's lineage map), then re-run the atlas, landmarks and drivers only, for finalL_s0–s2 on lung FFPE and the TMA core (the other sections are unchanged by construction; verify that). Regenerate fig:programmes and the S5 text. Old atlas files are kept as `*_prevessel`. CPU or GPU 0 (whichever the atlas needs), detached, weekend.
+
+### Follow-ups (a) and (b): results (2026-10-01 evening; `scripts/logs/recomb_additions_2026-10-01/FOLLOWUP.md`)
+
+CPU re-reads of the 54 existing planted fits, with no refits. New code: `discell/experiments/planted_followups.py` (tests pass; no existing code changed).
+
+**(a) The null-world signal is a read artefact.** It comes neither from spill-over nor from the gene set. The original spill-only contrast is [2⟨o−l, p⟩ − ‖p‖²]/‖o‖². At κ = 0 it is set by a never-positive penalty (−0.109 → −0.045), and the "break" is the leak term flipping sign. **The corrected contrast,** 2⟨p, o − c⟩/‖t‖² (the part of the observed shift the clean truth does not explain), gives κ\*:
+- null world: no finding (correct);
+- κ_true = 0.1: 0.05;
+- κ_true = 0.2: 0.1.
+
+So the corrected control is correctly ordered and breaks one grid step early: conservative. **Side finding:** the programme fits the count noise of scored cells that lie in its training tiles, an in-sample effect consistent with the held-out-tiles concern.
+
+**(b) Relocation against the clean truth.** As κ_true goes from 0 to 0.2:
+- DISCELL's spill-free programme part: R² 0.76, flat;
+- regression (log): 0.40 → 0.14;
+- regression (rate): 0.25 → −1.27;
+- DISCELL's published counterfactual (programme + leak): 0.76 → −1.05, because it predicts the observed (contaminated) shift, as intended.
+
+**Reading:** the prediction holds for the programme part. DISCELL's spill-free response recovers the clean between-niche biology at every spill-over level, while a regression on the counts degrades with spill-over. For the paper, the clean-truth claim is about the PROGRAMME part, not the full counterfactual.
+
+### Breakdown gaps: results (2026-10-01 18:01; 148 steps, 0 failed)
+
+Families: 7/7/7/6/6. **The tumour axis now covers lung and FF:** it breaks at κ\* = 0.4 on lung and 0.3 on FF (a seed flips sign) and is above the grid on ovarian; n/a on the TMA sections, which have no tumour cells. **Serial section** (core fits applied): every contrast is above the grid except relocation beyond its spill-over part (κ\* = 0.4), which is above the grid on the core. Under the serial-section rule, that GSE contrast therefore replicates only up to 0.3. All other GSE contrasts replicate. **All breaks** (6 cells over 3 contrasts):
+- the tumour axis: lung 0.4, FF 0.3;
+- the FF signalling lean: 0.2;
+- relocation beyond spill-over: ovarian 0.4, lung 0.3, serial 0.4.
+
+Everything else holds to κ = 0.4. The κ\* tables and figure are regenerated and the RECOMB PDF is rebuilt (`scripts/recomb_regen_after_gaps.sh`, done 18:01).

@@ -1,0 +1,42 @@
+% Generated table: tab:S-reloc-clean. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py --only planted_spillover reloc_clean
+% Generated: 2026-10-01 18:18:24 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   data/datasets/synthetic_smoke/experiments/relocation_clean_truth.json  (2026-10-01 17:28:27)  [after the freeze; see checks]
+%
+% Reading convention:
+%   mean over model seeds 0-2 of each fit's mean R^2 over panels (all genes); rounding half-up
+%
+% Provenance (row / column -> file : key):
+%   every cell: data/datasets/synthetic_smoke/experiments/relocation_clean_truth.json : fits[*].summary.all.<target>.<method>.mean_r2 (all 60 genes), mean over model seeds 0-2 of the (kappa_true, assumed) group; targets clean (scored cells' mean rho_true shift) and observed (held-out counts' log mean-rate shift)
+%
+% Checks and notes:
+%   - Written 2026-10-01 (after the freeze; follow-up (b),
+%     scripts/logs/recomb_additions_2026-10-01/FOLLOWUP.md). R^2 as stored, not as a fraction of
+%     the ceiling: the observed-target ceiling is below DISCELL's R^2 in the null world
+%     (FOLLOWUP.md, caveats).
+%
+% Pending cells:
+%   none
+%
+\begin{table}[!htbp]
+\centering
+\caption{\TermReloc{} on the simulated sections of \cref{tab:S-planted-spillover}, scored against the simulator's clean shift between niches (no \termSpill{}, no count noise) and against the observed shift, as on tissue: mean $R^2$ over all panels and genes, mean over three model seeds. \emph{D, programmes}: DISCELL's prediction from the response programmes alone, its \termSpill{}-free part; \emph{D, full}: programmes and \termSpill{}, the prediction of \cref{sec:relocation}, which targets the observed shift; \emph{R}: the ridge regression of \cref{sec:relocation} on the simulated counts, on log and rate scales (it does not depend on the assumed $\kappa$). Rows: the fit at the planted fraction, and at the operating point $\kappa = 0.1$ where it differs.}
+\label{tab:S-reloc-clean}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}cccccccccc@{}}
+\toprule
+ & & \multicolumn{4}{c}{Against the clean shift} & \multicolumn{4}{c}{Against the observed shift} \\
+\cmidrule(lr){3-6}\cmidrule(lr){7-10}
+$\kappa_{\text{true}}$ & Assumed $\kappa$ & D, programmes & D, full & R, log & R, rate & D, programmes & D, full & R, log & R, rate \\
+\midrule
+0 & 0 & 0.76 & 0.76 & 0.40 & 0.25 & 0.59 & 0.59 & 0.31 & 0.31 \\
+0 & 0.1 & 0.76 & $-0.43$ & 0.40 & 0.25 & 0.59 & 0.08 & 0.31 & 0.31 \\
+0.1 & 0.1 & 0.76 & $-0.45$ & 0.28 & $-0.74$ & 0.41 & 0.59 & 0.37 & 0.55 \\
+0.2 & 0.2 & 0.76 & $-1.05$ & 0.14 & $-1.27$ & 0.36 & 0.59 & 0.43 & 0.59 \\
+0.2 & 0.1 & 0.73 & $-0.17$ & 0.14 & $-1.27$ & 0.40 & 0.62 & 0.43 & 0.59 \\
+\bottomrule
+\end{tabular}
+\end{table}

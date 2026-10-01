@@ -70,6 +70,7 @@ For additional information on amsmath, use the `?' option.
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/microtype-pdftex.def)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/microtype.cfg))
 (/usr/share/texlive/texmf-dist/tex/latex/enumitem/enumitem.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/placeins/placeins.sty)
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/xr-hyper.sty)
 (/usr/share/texlive/texmf-dist/tex/latex/hyperref/hyperref.sty
 (/usr/share/texlive/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
@@ -97,50 +98,7 @@ For additional information on amsmath, use the `?' option.
 (/usr/share/texlive/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty)))
 (/usr/share/texlive/texmf-dist/tex/latex/cleveref/cleveref.sty) (./macros.tex)
 (/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
-(./supplement.aux
-
-Package natbib Warning: Citation `slavutsky2025' multiply defined.
-
-
-Package natbib Warning: Citation `elazar2018' multiply defined.
-
-
-Package natbib Warning: Citation `brody2022' multiply defined.
-
-
-Package natbib Warning: Citation `kronos2025' multiply defined.
-
-
-Package natbib Warning: Citation `yang2025mistic' multiply defined.
-
-
-Package natbib Warning: Citation `tenx_ovarian_ffpe' multiply defined.
-
-
-Package natbib Warning: Citation `tenx_lung_ffpe' multiply defined.
-
-
-Package natbib Warning: Citation `tenx_ovary_ff' multiply defined.
-
-
-Package natbib Warning: Citation `williamskatek2026fishing' multiply defined.
-
-
-Package natbib Warning: Citation `fischer2023' multiply defined.
-
-
-Package natbib Warning: Citation `akbarnejad2025mintflow' multiply defined.
-
-
-Package natbib Warning: Citation `dong2025simvi' multiply defined.
-
-
-Package natbib Warning: Citation `moeed2026cellina' multiply defined.
-
-
-Package natbib Warning: Citation `janesick2023' multiply defined.
-
-)
+(./supplement.aux)
 *geometry* driver: auto-detecting
 *geometry* detected driver: pdftex
 (/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
@@ -158,75 +116,47 @@ Package natbib Warning: Citation `janesick2023' multiply defined.
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msb.cfg)
 (./supplement/S1_derivations.tex [1{/var/lib/texmf/fonts/map/pdftex/updmap/pdft
-ex.map}] [2] [3] [4]) (./supplement/S2_design_rationale.tex [5] [6 <../aistats/
-figures//fig_graph_compare.pdf>]
-Overfull \hbox (14.29216pt too wide) in paragraph at lines 45--58
- [][] 
-[7 <../aistats/figures//fig_voronoi_face.pdf>] [8] [9 <../aistats/figures//reco
-mb_fig_contact_kernel.pdf>] [10 <../aistats/figures//fig_model_tissue.pdf> <../
-aistats/figures//fig_model_graph.pdf>] [11 <../aistats/figures//fig_mask_radius
-.pdf>] [12 <../aistats/figures//fig_kronos_umap.pdf>] [13 <../aistats/figures//
-fig_kappa_bound.pdf>]) (./supplement/S3_implementation.tex
-Underfull \hbox (badness 10000) in paragraph at lines 44--44
-[]|\OT1/cmr/m/n/9 (+20) Moving-average rate,
-
-Overfull \hbox (0.5108pt too wide) in paragraph at lines 15--52
- [][] 
-
-LaTeX Warning: Float too large for page by 27.09413pt on input line 52.
-
-[14 <../aistats/figures//recomb_fig_breakdown.pdf>]
-Underfull \hbox (badness 1810) in paragraph at lines 78--78
-[]|\OT1/cmr/m/n/9 (+20) Penalty, ad-ver-sary and
-(../aistats/tables/generated/probe.tex [15]))
-(./supplement/S4_data_and_labels.tex [16 <../aistats/figures//recomb_fig_batchi
-ng.pdf>] [17 <../aistats/figures//fig_probe.pdf>]
-(../aistats/tables/generated/battery.tex
-
-LaTeX Warning: Float too large for page by 94.343pt on input line 435.
-
-) (../aistats/tables/generated/context.tex) [18 <../aistats/figures//fig_sectio
-ns.pdf>]) (./supplement/S5_readouts.tex [19]
-(../aistats/tables/generated/headline.tex)
-(../aistats/tables/generated/headline_full.tex
-Overfull \hbox (17.45724pt too wide) in paragraph at lines 154--189
- [][] 
-) [20]) (./supplement/S6_full_results.tex [21]
-(../aistats/tables/generated/transport_heldout.tex) [22] [23 <../aistats/figure
-s//fig_transport_heldout.pdf>] [24 <../aistats/figures//recomb_fig_hallmarks.pd
-f>] (../aistats/tables/generated/cellina_cf.tex) [25] [26 <../aistats/figures//
-fig_latents_umap.pdf>] [27 <../aistats/figures//fig_kl_seeds.pdf>]
-(../aistats/tables/generated/timing.tex)) (./supplement/S7_simulation.tex
-[28] (../aistats/tables/generated/synthetic.tex) [29 <../aistats/figures//recom
-b_fig_synthetic_misspec.pdf>] (../aistats/tables/generated/planted_percell.tex)
- [30] [31 <../aistats/figures//fig_planted_percell.pdf>])
-(./supplement/S8_sensitivity_and_ablations.tex [32]
-(../aistats/tables/generated/kappa_sweep.tex
-Overfull \hbox (9.40132pt too wide) in paragraph at lines 116--149
- [][] 
-) [33 <../aistats/figures//recomb_fig_kappa_sweep.pdf>]
-(../aistats/tables/generated/breakdown.tex)
-(../aistats/tables/generated/breakdown_traj.tex
-Overfull \hbox (0.78581pt too wide) in alignment at lines 58--63
- [] [] [] [] [] [] [] 
-
-Overfull \hbox (0.78581pt too wide) in alignment at lines 63--67
- [] [] [] [] [] [] [] 
-
-Overfull \hbox (0.78581pt too wide) in alignment at lines 67--69
- [] [] [] [] [] [] [] 
-
-Overfull \hbox (0.78581pt too wide) in alignment at lines 69--141
- [] [] [] [] [] [] [] 
-[34 <../aistats/figures//recomb_fig_breakdown_data.pdf>] [35]) [36]
-(../aistats/tables/generated/sensitivity.tex)) (./supplement/S9_limitations.tex
-[37] [38 <../aistats/figures//recomb_fig_sensitivity.pdf>]) (./supplement.bbl
-[39] [40] [41])
-
-Package natbib Warning: There were multiply defined citations.
-
-[42] [43] [44] [45] [46] [47] [48] [49] [50] [51] [52] [53] [54] [55] [56]
-[57] [58] [59] (./supplement.aux) )
+ex.map}]
+Overfull \hbox (1.50969pt too wide) in paragraph at lines 60--62
+\OT1/cmr/m/n/10 (-20) Each bound car-ries its own $\OT1/cmr/bx/n/10 (-20) z$\OT
+1/cmr/m/n/10 (-20) -divergence, so $\OML/cmm/m/it/10 L[] \OT1/cmr/m/n/10 (-20) 
++ \OML/cmm/m/it/10 !L[] \OMS/cmsy/m/n/10 ^^T \OT1/cmr/m/n/10 (-20) (1 + \OML/cm
+m/m/it/10 !\OT1/cmr/m/n/10 (-20) ) [] \OML/cmm/m/it/10 p\OT1/cmr/m/n/10 (-20) (
+\OT1/cmr/bx/n/10 (-20) x[] \OMS/cmsy/m/n/10 j \OT1/cmr/bx/n/10 (-20) c[]\OML/cm
+m/m/it/10 ; t[]\OT1/cmr/m/n/10 (-20) )$ con-tains $\OMS/cmsy/m/n/10 ^^@\OT1/cmr
+/m/n/10 (-20) (1 + \OML/cmm/m/it/10 !\OT1/cmr/m/n/10 (-20) ) [](\OML/cmm/m/it/1
+0 q\OT1/cmr/m/n/10 (-20) (\OT1/cmr/bx/n/10 (-20) z[]\OT1/cmr/m/n/10 (-20) )\OMS
+/cmsy/m/n/10 k\OML/cmm/m/it/10 p\OT1/cmr/m/n/10 (-20) (\OT1/cmr/bx/n/10 (-20) z
+[]\OT1/cmr/m/n/10 (-20) ))$,
+[2] [3]) (./supplement/S2_design_rationale.tex [4] [5 <../aistats/figures//reco
+mb_fig_model_graph.pdf>]) (./supplement/S3_implementation.tex
+Underfull \hbox (badness 2326) in paragraph at lines 31--32
+[]|\OT1/cmr/m/n/8 (+20) one bi-par-tite GATv2 layer, $4$ heads $\OMS/cmsy/m/n/8
+ ^^B \OT1/cmr/m/n/8 (+20) 32$, av-er-aged,
+[6] [7]) (./supplement/S4_data_and_labels.tex [8] [9 <../aistats/figures//fig_s
+ections.pdf>] (../aistats/tables/generated/probe.tex)
+(../aistats/tables/generated/battery.tex) [10]) (./supplement/S5_readouts.tex
+[11] [12] [13] (../aistats/tables/generated/headline_full.tex) [14] [15]
+[16]) (./supplement/S7_simulation.tex [17]
+(../aistats/tables/generated/synthetic.tex) [18]
+(../aistats/tables/generated/planted_percell.tex) [19 <../aistats/figures//reco
+mb_fig_synthetic_misspec.pdf>]) (./supplement/S6_full_results.tex [20] [21 <../
+aistats/figures//recomb_fig_hallmarks.pdf>] [22]
+(../aistats/tables/generated/cellina_cf.tex)
+(../aistats/tables/generated/transport_heldout.tex) [23]
+(../aistats/tables/generated/timing.tex))
+(./supplement/S8_sensitivity_and_ablations.tex [24] [25 <../aistats/figures//fi
+g_latents_umap.pdf>] [26]
+Underfull \hbox (badness 1831) in paragraph at lines 27--27
+[]|\OT1/cmr/m/n/8 (+20) Relocation $\OML/cmm/m/it/8 >$ \OT1/cmr/m/n/8 (+20) spi
+ll-over
+[27] (../aistats/tables/generated/breakdown_traj_main.tex) [28 <../aistats/figu
+res//recomb_fig_breakdown_data.pdf>]
+(../aistats/tables/generated/planted_spillover.tex) [29 <../aistats/figures//re
+comb_fig_kappa_sweep.pdf>] [30] (../aistats/tables/generated/reloc_clean.tex)
+(../aistats/tables/generated/sensitivity.tex) [31] [32])
+(./supplement/S9_limitations.tex [33]) (./supplement.bbl [34] [35] [36])
+[37] (./supplement.aux) )
 (see the transcript file for additional information){/usr/share/texmf/fonts/enc
 /dvips/cm-super/cm-super-ts1.enc}</usr/share/texlive/texmf-dist/fonts/type1/pub
 lic/amsfonts/cmextra/cmbsy9.pfb></usr/share/texlive/texmf-dist/fonts/type1/publ
@@ -237,39 +167,37 @@ cm/cmbx5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx
 /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8.pfb></usr/sh
 are/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx9.pfb></usr/share/tex
 live/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texlive/t
-exmf-dist/fonts/type1/public/amsfonts/cmextra/cmex7.pfb></usr/share/texlive/tex
+exmf-dist/fonts/type1/public/amsfonts/cmextra/cmex9.pfb></usr/share/texlive/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmmi12.pfb></usr/share/texlive/texmf-dist/font
-s/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts/type1
-/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public
-/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfon
-ts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/c
-mmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmib10.
-pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmib5.p
-fb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmib7.pf
-b></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmib8.pfb
-></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmib9.pfb>
-</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/s
-hare/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/te
-xlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texlive/t
-exmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texlive/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texmf-dist/fonts/
-type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/pu
-blic/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/ams
-fonts/cm/cmr9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm
-/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy5
-.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></
-usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/sha
-re/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/share/texl
-ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/share/texlive/tex
-mf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/share/texlive/texmf-dis
-t/fonts/type1/public/amsfonts/cm/cmti7.pfb></usr/share/texlive/texmf-dist/fonts
-/type1/public/amsfonts/cm/cmti8.pfb></usr/share/texlive/texmf-dist/fonts/type1/
-public/amsfonts/cm/cmti9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/
-amsfonts/cm/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfon
-ts/symbols/msbm10.pfb></usr/share/texmf/fonts/type1/public/cm-super/sfrm1000.pf
-b>
-Output written on supplement.pdf (59 pages, 35733187 bytes).
+t/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/share/texlive/texmf-dist/fonts
+/type1/public/amsfonts/cm/cmmi6.pfb></usr/share/texlive/texmf-dist/fonts/type1/
+public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/
+amsfonts/cm/cmmi8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmmi9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cm
+mib10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cm
+mib5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmm
+ib7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmi
+b8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cmextra/cmmib
+9.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb><
+/usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/sh
+are/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/share/texlive/texm
+f-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/f
+onts/type1/public/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/typ
+e1/public/amsfonts/cm/cmr9.pfb></usr/share/texlive/texmf-dist/fonts/type1/publi
+c/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsf
+onts/cm/cmsy5.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm
+/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.
+pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></u
+sr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy9.pfb></usr/shar
+e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb></usr/share/texl
+ive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti7.pfb></usr/share/texlive/tex
+mf-dist/fonts/type1/public/amsfonts/cm/cmti8.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmti9.pfb></usr/share/texlive/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmtt10.pfb></usr/share/texlive/texmf-dist/fonts/type1/
+public/amsfonts/symbols/msbm10.pfb></usr/share/texmf/fonts/type1/public/cm-supe
+r/sfrm1000.pfb>
+Output written on supplement.pdf (37 pages, 17616667 bytes).
 Transcript written on supplement.log.
 Latexmk: Found input bbl file 'supplement.bbl'
 Latexmk: Log file says output to 'supplement.pdf'

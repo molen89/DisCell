@@ -40,4 +40,6 @@ DISCELL_VOCAB=recomb python "$SRC/fig_batching.py"  # RECOMB variant (spill-over
 DISCELL_VOCAB=recomb python "$SRC/fig_contact_kernel.py"  # RECOMB variant (spill-over / relocation wording) -> recomb_fig_contact_kernel
 ( cd "$SRC" && pdflatex -interaction=nonstopmode fig_model_graph.tex > /dev/null \
   && cp fig_model_graph.pdf ../ )      # fig:overview c (TikZ)
+( cd "$SRC" && pdflatex -interaction=nonstopmode recomb_fig_model_graph.tex > /dev/null \
+  && cp recomb_fig_model_graph.pdf ../ )      # RECOMB fig:model-detail (TikZ, spill-over wording)
 echo "all figures rebuilt in submission_paper/aistats/figures/"

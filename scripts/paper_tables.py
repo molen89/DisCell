@@ -40,10 +40,24 @@ Added 2026-10-01 for the RECOMB main text (one column each):
 * ``headline_main``     -- tab:headline-main: the means of tab:headline's
                            NMI, cycle, mirror and I(niche; w) rows plus the
                            residual niche signal of tab:probe (MLP composition)
+* ``breakdown_traj_main`` -- tab:breakdown-traj as the RECOMB supplement
+                           prints it (means of four trajectory readouts and
+                           the probe re-graded across the sweep); built with
+                           every run of ``breakdown_traj``
 * ``breakdown_main``    -- tab:kappa-star: tab:breakdown's kappa* grouped into
                            biological claims and allocation checks; members of
                            the expected family not yet computed are pending
                            (rerun after the breakdown gaps queue)
+
+Added 2026-10-01 for the RECOMB supplement S7 (RECOMB additions and their
+follow-ups, scripts/logs/recomb_additions_2026-10-01/):
+
+* ``planted_spillover`` -- tab:S-planted-spillover: the planted spill-over
+                           control's kappa*, the spill-made contrast corrected
+                           (null_diagnostic.json) and as first defined
+* ``reloc_clean``       -- tab:S-reloc-clean: relocation on the planted worlds
+                           against the clean and the observed shift
+                           (relocation_clean_truth.json)
 
 Post-freeze sources (the queues of 2026-09-29/30) are flagged in each header
 and named in its notes. Whole-section SIMVI / MintFlow cells follow
@@ -135,6 +149,14 @@ WHOLE_SECTION = (OVARIAN, LUNG, FF)        # the queue's whole-section targets
 MF_REFIT = BRES / "mintflow_refit_lineage"
 MF_ARCHIVE = BRES / "_archive_mintflow_export_bug" / "mintflow"
 MF_REFIT_TAG = "refit (corrected export)"   # its feasibility.tsv reasons start so
+# Until the refit queue has scored every section, the tables keep the MintFlow
+# fits they were rendered with (author, 2026-10-01): a file of a section's
+# experiments/ is read from the queue's pre-refit backup when the backup holds
+# it (those copies differ from the live files only in the MintFlow entries,
+# checked 2026-10-01), and the fit configs are the original fits'. Set
+# MF_PIN = False once the queue is done to read the refits.
+MF_PIN = True
+MF_BACKUP = REPO / "scripts" / "logs" / "mintflow_refit_2026-10-01" / "backup"
 CELLINA_EXTRA = [
     # (row label, section -> battery/probe entry)
     ("Cellina, niche domain", {OVARIAN: "cellina_nicheadv",
@@ -230,6 +252,30 @@ def paper_reason(reason: str) -> str:
                    if cells else "")
                 + f"; a retry needs {m.group(2)} GB free and {m.group(1)} GB were available")
     return re.sub(r"\s*\([^)]*(devlog|REPAIR|nvidia-smi|GPU \d)[^)]*\)", "", r)
+
+def short_reason(reason: str) -> str:
+    """A paper reason (paper_reason) cut to its kind, for a footnote that
+    points to the full one."""
+    if reason.startswith("out of GPU memory"):
+        return reason.split(" (")[0]
+    if "host memory" in reason:
+        return "out of host memory"
+    return reason
+
+
+def notrun_summary(items: list[tuple[str, str, str]]) -> str:
+    """'(method, section, short reason)' items grouped by reason and method:
+    'out of GPU memory on a 24 GB card: SIMVI on a, b and c; ...'."""
+    def join(xs):
+        return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+    out = []
+    for why in dict.fromkeys(w for *_, w in items):
+        meths = dict.fromkeys(m for m, _, w in items if w == why)
+        out.append(f"{why}: " + "; ".join(
+            f"{m} on " + join([d for m2, d, w in items
+                               if m2 == m and w == why]) for m in meths))
+    return "; ".join(out)
+
 
 def finite(x) -> bool:
     return x is not None and not (isinstance(x, float) and math.isnan(x))
@@ -330,10 +376,12 @@ class Trace:
         self.cells: list[dict] = []     # for the round-trip test
 
     def read_json(self, path: Path):
+        path = mf_pinned(path)
         self.sources[path] = path.stat().st_mtime
         return json.loads(path.read_text())
 
     def read_text(self, path: Path) -> str:
+        path = mf_pinned(path)
         self.sources[path] = path.stat().st_mtime
         return path.read_text()
 
@@ -706,6 +754,14 @@ def table_headline(command: str) -> tuple[str, Trace]:
     return tex, tr
 
 
+#: tab:headline-full's shorter row labels (the table must fit the text width)
+FULL_LABEL = {"NMI of $\\vz$ with the type": "NMI of $\\vz$, type",
+              "Cycle $R^2$ of $\\vz$": "Cycle $R^2$, $\\vz$",
+              "Cycle $R^2$ of $\\vw$": "Cycle $R^2$, $\\vw$",
+              "$\\I(\\text{niche}; \\vw)$ excess": "$\\I(\\text{niche}; \\vw)$",
+              "Atlas cross-seed cosine": "Atlas cosine"}
+
+
 def table_headline_full(command: str) -> tuple[str, Trace]:
     """tab:headline-full (appendix): the reads of tab:headline with the range
     over seeds and the tile-bootstrap intervals on rows of their own."""
@@ -740,31 +796,39 @@ def table_headline_full(command: str) -> tuple[str, Trace]:
                                         c["src"], f"{c['key']} CI column"))
             else:
                 ci_cells.append("--")
-        body.append(f"{tex_label(label)}{arrow(readout)} & "
-                    + " & ".join(mean_cells)
+        body.append(f"{tex_label(FULL_LABEL.get(label, label))}"
+                    f"{arrow(readout)} & " + " & ".join(mean_cells)
                     + " \\\\")
         if any(range_cells):
-            body.append("\\quad range over seeds & "
+            body.append("\\quad range & "
                         + " & ".join(range_cells) + " \\\\")
         if any(c.get("ci") for c in cells):
-            body.append("\\quad $95\\%$ interval & "
+            body.append("\\quad $95\\%$ CI & "
                         + " & ".join(ci_cells) + " \\\\")
         body.append("\\addlinespace")
     body = body[:-1]
-    transport, tail = _headline_caption_parts(seeds_n)
+    few = ", ".join(f"{SHORT[ds]}, {n} of 3" for ds, n in seeds_n.items())
     caption = (
-        "The reads of \\cref{tab:headline} with their intervals, on the four "
-        "sections and the held-out serial section of the TMA core: mean "
-        "over three seeds, the range over seeds and, where available, the "
-        "$200\\um$ tile-bootstrap $95\\%$ interval (lowest lower and highest "
-        "upper bound over the seeds). Reconstruction is the held-out "
-        "log-likelihood in nats per count. " + transport
-        + "; its interval is from half-tile subsampling" + tail)
+        "Model quality on the four sections and the serial section, which is "
+        "read through the core's fits (--: not read there): mean over three "
+        "seeds, range over seeds and, where available, the $200\\um$ "
+        "tile-bootstrap $95\\%$ CI (lowest lower and highest upper bound over "
+        "the seeds). Reconstruction: held-out log-likelihood, nats per count. "
+        "\\TermReloc{}: fraction of the noise ceiling (cell-split "
+        "reliability) recovered by the mean \\termReloc{} read, trusted tier"
+        + (f" ($^{{\\dagger}}$seeds with a trusted panel: {few})"
+           if seeds_n else "")
+        + "; its CI is from half-tile subsampling; on held-out tiles only: "
+        "\\cref{tab:transport-heldout}. Cycle $R^2$: top decile of the S and "
+        "G2M score among held-out cells. $\\I(\\text{niche}; \\vw)$: excess "
+        "over a within-type permutation floor, in nats. Atlas cosine: the "
+        "first programme axis, between seeds. "
+        f"{ARROW_NOTE}; {ZERO_NOTE}. Unassigned cells are not targets.")
     tex = (tr.header(command, CONVENTION + "; the serial section's values "
                      "come from the core's three fits read on it")
            + "\\begin{table*}[t]\n\\centering\n"
            f"\\caption{{{caption}}}\n\\label{{tab:headline-full}}\n\\small\n"
-           "\\setlength{\\tabcolsep}{3pt}\n"
+           "\\setlength{\\tabcolsep}{2pt}\n"
            "\\begin{tabular}{@{}lccccc@{}}\n\\toprule\n"
            "Read & " + " & ".join(SHORT[c] for c in SECTIONS) + " \\\\\n"
            "\\midrule\n" + "\n".join(body)
@@ -786,6 +850,13 @@ HEADLINE_MAIN_ROWS = [
     ("$\\I(\\text{niche}; \\vw)$ (nats)",
      "$\\I(\\text{niche}; \\vw)$ excess", 2, "mi"),
 ]
+#: reads of tab:headline-main not in the envelope for a section but computed
+#: by the breakdown gaps queue (BD_GAPS): readout -> its breakdown member,
+#: read at the final kappa once the record holds it (the sweep's point there
+#: is the final fits' read: checked on the trained sections by the tests),
+#: until then tab:kappa-star's pending mark
+MAIN_GAPS = {DUAL: {"mi": "w_niche_mi_excess"}}
+MAIN_GAP_KAPPA = "0.1"          # the final configuration's kappa
 #: the probe block behind the residual niche signal row (as tab:probe)
 HEADLINE_MAIN_PROBE = "mlp_comp"
 
@@ -826,7 +897,29 @@ def table_headline_main(command: str) -> tuple[str, Trace]:
                                "MLP composition block)")
                 continue
             c = by_label[hlabel][i]
-            if c["kind"] == "na":
+            gap = MAIN_GAPS.get(ds, {}).get(readout) if c["kind"] == "na" \
+                else None
+            if gap:
+                # read by the breakdown gaps queue: its record's mean at the
+                # final kappa once there, else tab:kappa-star's pending mark
+                bp = BREAKDOWN / "breakdown_all.json"
+                sec = dict((v, k) for k, v in BD_SECTIONS)[ds]
+                e = (tr.read_json(bp)[sec]["members"].get(gap) or {}).get(
+                    "trajectory", {}).get(MAIN_GAP_KAPPA)
+                if e is None:
+                    tr.pending.append(f"{where}: not read on this section "
+                                      f"yet: {BD_GAPS}")
+                    out.append(BD_PENDING_MARK)
+                else:
+                    v = e["estimate"]
+                    out.append(tr.cell(label, SHORT[ds], num(v, nd), [v], nd,
+                                       bp, f"{sec}.members.{gap}.trajectory."
+                                       f"{MAIN_GAP_KAPPA}.estimate"))
+                    tr.prov.append(f"{where}: {rel(bp)} : {sec}.members."
+                                   f"{gap}.trajectory.{MAIN_GAP_KAPPA}"
+                                   ".estimate (the sweep's point at the "
+                                   "final kappa)")
+            elif c["kind"] == "na":
                 out.append("--")
                 tr.prov.append(f"{where}: -- (not read on this section)")
             elif c["kind"] == "pend":
@@ -853,8 +946,11 @@ def table_headline_main(command: str) -> tuple[str, Trace]:
         "Residual niche signal: the nonlinear probe on neighbour composition "
         "(\\cref{sec:invariance}). Mirror $R^2$: within-type $R^2$ of a "
         "linear map from the niche descriptor $\\vc_i$ to $\\vmu_z$. "
-        "$\\I(\\text{niche}; \\vw)$: above a within-type permutation floor; "
-        f"--: not read. {ARROW_NOTE}; {ZERO_NOTE}.")
+        "$\\I(\\text{niche}; \\vw)$: above a within-type permutation floor. "
+        + (f"{BD_PENDING_MARK}: \\pending{{breakdown gaps queue}}. "
+           if tr.pending else "")
+        + ("--: not read. " if any("--" in b for b in body) else "")
+        + f"{ARROW_NOTE}; {ZERO_NOTE}.")
     tex = (tr.header(command, CONVENTION + "; means only (the ranges are in "
                      "tab:headline-full and tab:probe); the serial section's "
                      "values come from the core's three fits read on it")
@@ -1021,9 +1117,22 @@ def mf_refit_entry(entry: dict | None) -> bool:
     return bool(((entry or {}).get("config") or {}).get("decoded_rate"))
 
 
+def mf_pinned(p: Path) -> Path:
+    """The file read for *p*: its pre-refit backup while MF_PIN holds and the
+    backup has it, else *p* itself."""
+    if not MF_PIN:
+        return p
+    try:
+        ds, sub, *rest = p.relative_to(DATA).parts
+    except ValueError:
+        return p
+    q = MF_BACKUP / ds / Path(*rest) if sub == "experiments" and rest else p
+    return q if q.exists() else p
+
+
 def mf_refit_entries(ds: str) -> set[str]:
     """The battery entries of a section that are MintFlow refits."""
-    p = DATA / ds / "experiments" / "baseline_battery_lineage.json"
+    p = mf_pinned(DATA / ds / "experiments" / "baseline_battery_lineage.json")
     if not p.exists():
         return set()
     bat = json.loads(p.read_text())
@@ -1036,7 +1145,7 @@ def mf_config(ds: str) -> Path:
     refit's once it has written one (with the decoded rate), else the
     original fit's, in place or archived."""
     new = MF_REFIT / ds / "config.json"
-    if new.exists() and json.loads(new.read_text()).get("decoded_rate"):
+    if not MF_PIN and new.exists() and json.loads(new.read_text()).get("decoded_rate"):
         return new
     old = BRES / "mintflow" / f"{ds}_lineage" / "config.json"
     return old if old.exists() else MF_ARCHIVE / f"{ds}_lineage" / "config.json"
@@ -1108,8 +1217,8 @@ def pct_span(vals: list[float], nd: int = 1) -> str:
 # comparison-method rows of the probe table: (row label, [method labels])
 PROBE_ROWS = [("resolVI, Cellina", ["resolVI", "Cellina"]),
               ("MintFlow, SIMVI", ["MintFlow", "SIMVI"]),
-              ("Cellina, niche domain", ["Cellina, niche domain"]),
-              ("Cellina, own graph", ["Cellina, own graph"])]
+              ("Cellina niche domain, own graph",
+               ["Cellina, niche domain", "Cellina, own graph"])]
 PROBE_BLOCK_ORDER = [("mlp_comp", "Composition, MLP probe"),
                      ("mlp_img", "Image, MLP probe"),
                      ("ridge_comp", "Composition, ridge probe"),
@@ -1300,34 +1409,29 @@ def table_probe(command: str) -> tuple[str, Trace]:
               for m in ms if m.get("state") not in (None, "running", "queued",
                                                     "scoring", *RUNNABLE)]
     still = _state_phrase(pending)
+    nr = [(lab, INLINE[ds], short_reason(paper_reason(row["reason"]))
+           if row else "not attempted") for lab, ds, row in failed]
     caption = (
-        "The held-out probe on the final fits, per section. For each block "
-        "and probe, the share of the block's within-type variance that the "
-        "probe explains from the intrinsic latent beyond the permutation "
-        "floor ($1 - e^{-2\\,\\mathrm{excess}}$, in \\%): for the model "
-        "trained without the adversary ($\\alphaa = 0$, two seeds), with it "
-        "(the final fits, three seeds), and for the comparison methods on "
-        "the same section. The \\emph{fraction left} is the excess with the "
-        "adversary as a fraction of the mean excess without it: $0$ when the "
-        "adversary removes everything the probe can find, $1$ when it "
-        "removes nothing. Ranges are over seeds; Unassigned cells are not "
-        f"targets. {ARROW_NOTE}; {BOLD_NOTE} and probe block, among DISCELL "
-        "with the adversary (by its mean over seeds) and the comparison "
-        "methods. The serial section of the TMA core is graded with our "
-        "models fitted on the core; there, the Cellina rows and MintFlow are "
-        "the core's models transferred, and resolVI and SIMVI are fitted on "
-        "the serial section itself. \\emph{Cellina, niche domain}: Cellina "
-        "with its domain adversary given our niche label (clusters of "
-        "neighbour composition), which matches what this probe grades, so "
-        "it is Cellina's best case on the probe, not its published setting. "
-        "\\emph{Cellina, own graph}: Cellina on its own neighbour graph "
-        "instead of ours."
+        "The held-out probe, per section: the share of a block's within-type "
+        "variance that the probe explains from the intrinsic latent beyond "
+        "the permutation floor ($1 - e^{-2\\,\\mathrm{excess}}$, in \\%), "
+        "without the adversary ($\\alphaa = 0$, two seeds), with it (the "
+        "final fits, three seeds) and for the comparison methods; ranges are "
+        "over seeds. \\emph{Fraction left}: the excess with the adversary as "
+        "a fraction of the mean excess without it ($0$: the adversary removes "
+        "everything the probe finds; $1$: nothing). "
+        f"{ARROW_NOTE}; {BOLD_NOTE} and block, among DISCELL with the "
+        "adversary (by its mean) and the comparison methods. On the serial "
+        "section, DISCELL, the Cellina rows and MintFlow are the core's fits "
+        "transferred; resolVI and SIMVI are fitted on it. \\emph{Niche "
+        "domain}: Cellina's domain adversary given our niche label, which "
+        "matches what this probe grades (its best case, not its published "
+        "setting); \\emph{own graph}: Cellina on its own neighbour graph."
         + (f" Whole-section fits still in progress: {still} (--)." if still
            else "")
-        + (" " + "; ".join(f"{lab} on {INLINE[ds]} {NOT_RUN}"
-                           for lab, ds, _ in failed) + " (--)." if failed
-           else "")
-        + " --: not run on that section.")
+        + (f" Not run, {notrun_summary(nr)} (\\cref{{tab:timing}})."
+           if failed else "")
+        + " --: not run on that section. Unassigned cells are not targets.")
     tex = (tr.header(command, "range [min-max] over seeds (finalL_s0-s2; "
                      "uncontrolledL_s0-s1) of the per-block probe excess "
                      "expressed as 1 - exp(-2 excess) in %, and of the excess "
@@ -1415,7 +1519,7 @@ def table_battery(command: str) -> tuple[str, Trace]:
             + " \\\\")
     body = []
     ncol = len(BATTERY_COLS)
-    notrun: list[str] = []
+    notrun: list[tuple[str, str, str]] = []
     any_pending = any_trunc = any_nr = False
     for ds in SECTIONS:
         nrows = 2 + len(methods[ds])
@@ -1468,9 +1572,10 @@ def table_battery(command: str) -> tuple[str, Trace]:
                            }[state] + " (queue baselines_complete_2026-09-28)"
                     cell = tr.pend(where, why, state) + "$^{a}$"
                 else:
-                    notrun.append(f"{meth}, {INLINE[ds]}: "
-                                  + tex_escape(paper_reason(row["reason"]) if row else state))
-                    cell = f"{NOT_RUN}$^{{e}}$"
+                    notrun.append((meth, INLINE[ds],
+                                   short_reason(paper_reason(row["reason"])
+                                                if row else state)))
+                    cell = "not run$^{e}$"
                     tr.prov.append(f"{where}: feasibility.tsv outcome "
                                    f"'{state}': {row}")
                 sec_rows.append(f" & {shown} & \\multicolumn{{{ncol}}}{{c}}"
@@ -1583,45 +1688,35 @@ def table_battery(command: str) -> tuple[str, Trace]:
               + still + "; a method that cannot be run on the resources "
               "available will be reported as such, with the measured "
               "reason. " if any_pending else "")
-    foot_e = (f"$^{{e}}$Measured reason: {'; '.join(notrun)}. "
-              if notrun else "")
+    foot_e = (f"$^{{e}}$Not run, {notrun_summary(notrun)} (measured "
+              "reasons: \\cref{tab:timing}). " if notrun else "")
     foot_f = ("$^{f}$Stopped by its time cap before 50 epochs. "
               if any_trunc else "")
     caption = (
-        "One battery for every method, at lineage labels, on the held-out "
-        "cells of each section, with Unassigned cells not targets. "
-        "NMI of the intrinsic latent with the type; \\emph{Ridge}, "
-        "\\emph{MLP}: the held-out excess of the ridge and MLP probes of "
-        "neighbour "
-        "composition as a fraction of that of DISCELL without the adversary "
-        "(the fraction left of \\cref{tab:probe}); mirror $R^2$; cycle $R^2$ "
-        "of the intrinsic latent on the top-decile cycling set; held-out "
-        "reconstruction in nats per count. For DISCELL, the mean over "
-        f"three seeds and the range. {ARROW_NOTE}; {BOLD_NOTE}, for DISCELL "
-        "by its mean. DISCELL's held-out tiles are excluded "
-        "from its training loss. The comparison methods are fitted as their software is "
-        "designed, on every cell of the section with at least five counts, "
-        "held-out tiles included, and are scored on our held-out cells: "
-        "resolVI and MintFlow train on all of them, and Cellina and SIMVI "
-        "on a random nine tenths of the cells (the rest serve their own "
-        "early stopping), so their reads, reconstruction above all, are "
-        "not held-out reads. On the serial section, resolVI and SIMVI are "
-        "fitted on that section itself, so theirs are not held-out reads "
-        "either; the Cellina rows, MintFlow and DISCELL are the core's "
-        "models transferred. \\emph{Cellina, own graph}: Cellina on its own "
-        "neighbour graph instead of ours. DISCELL's rows are the battery's "
-        "own reads, on the cell set shared with the comparison methods, and "
-        "so differ slightly from \\cref{tab:headline}. "
+        "One battery for every method: lineage labels, held-out cells, "
+        "Unassigned cells not targets. NMI of the intrinsic latent with the "
+        "type; \\emph{Ridge}, \\emph{MLP}: the composition probe's fraction "
+        "left (\\cref{tab:probe}); cycle $R^2$ of the intrinsic latent on the "
+        "top-decile cycling set; held-out reconstruction in nats per count. "
+        "DISCELL: mean over three seeds and range; its rows are the "
+        "battery's own reads, on the cell set shared with the comparison "
+        "methods, so they differ slightly from "
+        f"\\cref{{tab:headline-full}}. {ARROW_NOTE}; {BOLD_NOTE}, for DISCELL "
+        "by its mean. The comparison methods are fitted as their software is "
+        "designed, on every cell with at least five counts, held-out tiles "
+        "included (resolVI and MintFlow train on all of them, Cellina and "
+        "SIMVI on a random nine tenths, the rest for early stopping), so "
+        "their reads are not held-out reads. On the serial section resolVI "
+        "and SIMVI are fitted on that section; the Cellina rows, MintFlow and "
+        "DISCELL are the core's models transferred. \\emph{Own graph}: "
+        "Cellina on its own neighbour graph. "
         + foot_a +
-        ("$^{b}$MintFlow's reconstruction is not reported: the stored value "
-         "came from an export error in our pipeline that scored each cell "
-         "against its own counts; refits with a corrected export are running. "
-         if any_nr else "") + "$^{c}$SIMVI has no count decoder. $^{d}$Cellina, niche domain: Cellina with "
-        "its domain adversary given our niche label (clusters of neighbour "
-        "composition, fitted on training cells) in place of the tissue "
-        "regions of its own paper, which our sections do not have. The "
-        "label matches what the composition probe grades, so this row is "
-        "Cellina's best case on the probe, not its published setting. "
+        ("$^{b}$Not reported: the stored value came from an export error in "
+         "our pipeline; refits with a corrected export are running. "
+         if any_nr else "") + "$^{c}$No count decoder. $^{d}$Cellina's "
+        "domain adversary given our niche label (composition clusters) in "
+        "place of tissue regions, which our sections lack: its best case on "
+        "the probe, not its published setting. "
         + foot_e + foot_f + "--: not applicable.")
     tex = (tr.header(command, "lineage labels; accepted checkpoint; one "
                      "Unassigned mask for every method; DisCell mean and "
@@ -1632,7 +1727,7 @@ def table_battery(command: str) -> tuple[str, Trace]:
            f"\\caption{{{caption}}}\n\\label{{tab:battery}}\n\\small\n"
            "\\setlength{\\tabcolsep}{2pt}\n"
            # rows a little tighter: the table and its caption fill a page
-           "\\renewcommand{\\arraystretch}{0.95}\n"
+           "\\renewcommand{\\arraystretch}{0.9}\n"
            "\\begin{tabular}{@{}llcccccc@{}}\n\\toprule\n"
            f"{head}\n\\midrule\n" + "\n".join(body)
            + "\n\\bottomrule\n\\end{tabular}\n\\end{table*}\n")
@@ -1767,7 +1862,7 @@ def table_sensitivity(command: str) -> tuple[str, Trace]:
     order = [OVARIAN, GSE, FF]
     sens_dir = {"Recon.": "recon", "NMI": "nmi", "Mirror $R^2$": "mirror",
                 "$\\I(\\text{niche}; \\vw)$": "mi"}
-    head = ("Arm & Seeds & " + " & ".join(h + arrow(sens_dir[h])
+    head = ("Arm & " + " & ".join(h + arrow(sens_dir[h])
                                           for h, *_ in SENS_READS)
             + f" & MLP (\\%){arrow('probe')} & \\TermReloc{{}}{arrow('transport')}"
             " \\\\")
@@ -1834,16 +1929,21 @@ def table_sensitivity(command: str) -> tuple[str, Trace]:
                        f"{ds}/runs/finalL_s{{0,1,2}}/transport/transport.json"
                        " : summary.extrapolation_trusted."
                        "counterfactual_of_ceiling")
-        body.append(f"\\multicolumn{{{len(SENS_READS) + 4}}}{{@{{}}l}}"
+        body.append(f"\\multicolumn{{{len(SENS_READS) + 3}}}{{@{{}}l}}"
                     f"{{\\emph{{{LONG[ds]}}}}} \\\\")
-        body.append(f"\\quad final configuration & {len(ctrl['records'])} & "
+        body.append(f"\\quad final configuration ({len(ctrl['records'])}) & "
                     + " & ".join(cells) + " \\\\")
-        body.append("\\quad\\quad range & & " + " & ".join(rng)
+        body.append("\\quad\\quad range & " + " & ".join(rng)
                     + " \\\\")
         for f, d in blocks:
             sec = d["sections"][ds]
-            body.append(f"\\multicolumn{{{len(SENS_READS) + 4}}}{{@{{}}l}}"
-                        f"{{\\quad \\emph{{{SENS_TITLE[f]}}}}} \\\\")
+            # the number of seeds: on the family's title when its arms share
+            # one, else on each arm
+            ns = {len(a["records"]) for a in sec["arms"].values()}
+            one = ns.pop() if len(ns) == 1 else None
+            body.append(f"\\multicolumn{{{len(SENS_READS) + 3}}}{{@{{}}l}}"
+                        f"{{\\quad \\emph{{{SENS_TITLE[f]}}}"
+                        + (f" ({one})" if one else "") + "} \\\\")
             for arm, a in sec["arms"].items():
                 flag = d["arms"][ds][arm]
                 label = _arm_label(f, arm, flag)
@@ -1922,8 +2022,9 @@ def table_sensitivity(command: str) -> tuple[str, Trace]:
                                f"{ds}/runs/{{{','.join(a['names'])}}}/"
                                "validation/probe_blocks.json : "
                                "mlp.comp.excess as 1 - exp(-2 excess)")
-                body.append(f"\\quad\\quad {label} & {len(a['records'])} & "
-                            + " & ".join(cells) + " \\\\")
+                body.append(f"\\quad\\quad {label}"
+                            + ("" if one else f" ({len(a['records'])})")
+                            + " & " + " & ".join(cells) + " \\\\")
         body.append("\\addlinespace")
     body = body[:-1]
     tr.notes.append("Transport (released 2026-09-30, devlog 'Transport rule "
@@ -1944,28 +2045,22 @@ def table_sensitivity(command: str) -> tuple[str, Trace]:
                     "quoted); the pooled legacy probe rows; the tile-split "
                     "and all-panel transport rows.")
     caption = (
-        "Sensitivity of the final configuration to the assumptions of the "
-        "model, each arm refitted with one setting changed. For the final "
-        "configuration, the mean over its seeds with the range; for an arm, "
-        "its mean and, in brackets, its move from the final configuration "
-        "in units of the final configuration's standard deviation over "
-        "seeds; \\emph{Seeds} gives the number of seeds fitted. "
-        "Reconstruction is held-out, in nats per count; "
-        "$\\I(\\text{niche}; \\vw)$ is the excess over the within-type floor, "
-        "in nats. \\emph{MLP}: the residual neighbour composition "
-        "in the intrinsic latent, as the share of the block's within-type "
-        "variance that the nonlinear probe explains beyond the permutation "
-        "floor, $1 - e^{-2\\,\\mathrm{excess}}$ (as in \\cref{tab:probe}), "
-        "in \\%. \\emph{\\TermReloc}: the "
-        "fraction of the noise ceiling recovered by the mean \\termReloc{} "
-        "read, trusted tier (as in \\cref{tab:headline})"
+        "Sensitivity of the final configuration to the model's assumptions, "
+        "each arm refitted with one setting changed (number of seeds in "
+        "brackets). Final configuration: mean over its seeds and range; arm: "
+        "its mean and, in brackets, its move from the final configuration in "
+        "units of the final configuration's standard deviation over seeds. "
+        "Reconstruction: held-out, nats per count; $\\I(\\text{niche}; "
+        "\\vw)$: excess over the within-type floor, nats; \\emph{MLP}: "
+        "residual niche signal of the intrinsic latent, as in "
+        "\\cref{tab:probe}; \\emph{\\TermReloc}: fraction of the noise "
+        "ceiling, trusted tier, as in \\cref{tab:headline-full}"
         + ("; $^{\\dagger}$over the seeds with a trusted panel" if few_t
-           else "") + ". The \\termSpillFrac{} "
-        "is set per cell from its neighbours' depth or density "
-        "relative to its own, or per gene, at the same mean value; the "
-        "false-positive floor is fixed once per section, or per cell scaled "
-        f"by its area. {ARROW_NOTE}, so a move in the direction of a column's arrow "
-        "is an improvement. Unassigned cells are not targets.")
+           else "") + ". The \\termSpillFrac{} is set per cell from its "
+        "neighbours' depth or density relative to its own, or per gene, at "
+        "the same mean; the false-positive floor once per section, or per "
+        f"cell scaled by its area. {ARROW_NOTE}: a move along a column's "
+        "arrow is an improvement. Unassigned cells are not targets.")
     tex = (tr.header(command, "control: mean (min-max) over finalL_s0-s2; "
                      "arm: mean over its seeds (2 or 3) and, in brackets, "
                      "(arm mean - control mean) / control sd (ddof 1) as "
@@ -1977,7 +2072,7 @@ def table_sensitivity(command: str) -> tuple[str, Trace]:
            + "\\begin{table}[t]\n\\centering\n"
            f"\\caption{{{caption}}}\n\\label{{tab:sensitivity}}\n\\footnotesize\n"
            "\\setlength{\\tabcolsep}{2pt}\n"
-           "\\begin{tabular}{@{}lccccccc@{}}\n\\toprule\n"
+           "\\begin{tabular}{@{}lcccccc@{}}\n\\toprule\n"
            f"{head}\n\\midrule\n" + "\n".join(body)
            + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
     return tex, tr
@@ -2133,7 +2228,7 @@ def table_kappa_sweep(command: str) -> tuple[str, Trace]:
         "$\\kappa$ "
         "with three seeds, as the range over seeds; the final configuration "
         f"is $\\kappa = {d['config']['kappa']:g}$ (bold), whose fits are those of "
-        "\\cref{tab:headline}. Held-out reconstruction in nats per count; "
+        "\\cref{tab:headline-full}. Held-out reconstruction in nats per count; "
         "NMI of $\\vz$ with the type; mirror $R^2$; cycle $R^2$ on the "
         "top-decile cycling set; $\\I(\\text{niche}; \\vw)$, the response's "
         "information about the niche as its excess over a within-type "
@@ -2325,12 +2420,12 @@ def table_timing(command: str) -> tuple[str, Trace]:
                     + "; ".join(trunc_note) + ").")
     caption = (
         "Model size and training cost on one GPU. \\emph{Peak memory}: "
-        "largest allocation during training, with the section resident on "
-        "the GPU. \\emph{Run time}: one whole fit, for DISCELL including its "
-        "evaluations every five epochs and the early stop, as the range over "
-        "the three seeds of the final configuration; for the comparison "
-        "methods, the training time of the fit compared in this paper, at "
-        "lineage labels. Every method is fitted on whole sections only. "
+        "largest allocation during training, the section resident on the "
+        "GPU. \\emph{Run time}: one whole fit; for DISCELL with its "
+        "evaluations every five epochs and the early stop, the range over "
+        "the three final seeds; for the comparison methods, the training "
+        "time of the lineage-label fit compared here. Every method is fitted "
+        "on whole sections. "
         f"{ARROW_NOTE}; {BOLD_NOTE}: the fastest finished fit, for DISCELL "
         "by its mean."
         + (" Whole-section fits of SIMVI and MintFlow still queued or "
@@ -2358,9 +2453,10 @@ BD_SECTIONS = [("ovarian", OVARIAN), ("lung", LUNG), ("ff", FF),
 BD_MEMBERS = [
     ("cycle_asym_q90", "Cycle asymmetry, $R^2(\\vz) - R^2(\\vw)$"),
     ("w_niche_mi_excess", "$\\I(\\text{niche}; \\vw)$ $-$ its floor"),
-    ("readA_minus_typemean", "Read A $-$ type-mean reference"),
-    ("readB_twin_margin", "Twin margin"),
-    ("transport_cf_minus_leak", "Transport $-$ leakage part"),
+    # the three relocation rows named as in tab:kappa-star
+    ("readA_minus_typemean", "Relocation $>$ type mean"),
+    ("readB_twin_margin", "Nearest-twin advantage"),
+    ("transport_cf_minus_leak", "Relocation $>$ spill-over part"),
     ("signalling_response_lr_vs_other", "Signalling share, LR $-$ other"),
     ("axis_tau_true_minus_false", "Tumour axis, true $-$ false"),
 ]
@@ -2653,7 +2749,7 @@ def table_breakdown_main(command: str) -> tuple[str, Trace]:
     if "b" in used_foot:
         fl.append("$^{b}$a seed has the opposite sign")
     if "c" in used_foot:
-        fl.append("$^{c}$see \\cref{tab:breakdown}")
+        fl.append("$^{c}$see \\cref{fig:breakdown-data}")
     na = " ".join(f"n/a: {why} on the {' and '.join(w)} section"
                   + ("s" if len(w) > 1 else "") + "."
                   for why, w in na_why.items())
@@ -2668,7 +2764,8 @@ def table_breakdown_main(command: str) -> tuple[str, Trace]:
         + (f"{BD_PENDING_MARK}: \\pending{{breakdown gaps queue}}. "
            if tr.pending else "")
         + (na + " " if na else "")
-        + "Full table: \\cref{tab:breakdown}.")
+        + "Definitions: \\cref{tab:S-contrasts}; across the grid: "
+        "\\cref{fig:breakdown-data}.")
     tex = (tr.header(command, "kappa* per member and section as stored "
                      "(the source of tab:breakdown); grouped into biological "
                      "claims and allocation checks")
@@ -2813,6 +2910,126 @@ def table_breakdown_traj(command: str) -> tuple[str, Trace]:
     return tex, tr
 
 
+#: tab:breakdown-traj in the RECOMB supplement (agent D's compact design,
+#: 2026-10-01): means only, the rows the figure of the diagnostics cannot
+#: show, plus the held-out probe across the sweep; (key, label, decimals)
+TRAJ_MAIN_READS = [
+    ("transport_of_ceiling_trusted", "Transport, fraction of ceiling", 2),
+    ("transport_cf_minus_program", "Transport $-$ programme part", 2),
+    ("marker_excl_minus_ctrl_dc", "Marker pairs (pp)", 1),
+    ("moran_mu_z", "Moran's $I$ of $\\vmu_z$", 3),
+]
+#: the probe re-graded at every grid point (one file per section)
+PROBE_SWEEP = "probe_regrade_lineage_sweep.json"
+
+
+def _probe_sweep(tr: Trace, ds: str) -> tuple[Path, dict[str, list[float]]]:
+    """The nonlinear composition probe's share (probe_share, in %) per seed,
+    by grid value, from a section's sweep re-grade. Run keys name the
+    fraction: 'DisCell/sweepL_k<g>_s<n>' or 'DisCell/finalL_s<n> (=
+    sweepL_k0.1_s<n>)'."""
+    p = DATA / ds / "experiments" / PROBE_SWEEP
+    by_g: dict[str, list[float]] = {}
+    for run, rec in tr.read_json(p).items():
+        m = re.search(r"sweepL_k([\d.]+)_s\d+", run)
+        if not m:
+            raise SystemExit(f"{rel(p)}: no kappa in run key {run!r}")
+        g = f"{float(m.group(1)):g}"
+        by_g.setdefault(g, []).append(probe_share(rec["mlp_comp"]["excess"]))
+    return p, by_g
+
+
+def table_breakdown_traj_main(command: str) -> tuple[str, Trace]:
+    """tab:breakdown-traj as the RECOMB supplement prints it: the mean over
+    seeds of four trajectory readouts and of the held-out probe's
+    composition residual, per section and grid value. Built together with
+    ``breakdown_traj`` (see COMPANIONS)."""
+    tr = Trace("tab:breakdown-traj")
+    p = BREAKDOWN / "breakdown_all_trajectory.json"
+    d = tr.read_json(p)
+    grid = None
+    body = []
+    for sec, ds in BD_SECTIONS:
+        if sec not in d or not d[sec]["readouts"]:
+            continue
+        s = d[sec]
+        grid = grid or s["grid"]
+        if s["grid"] != grid:
+            raise SystemExit("trajectory grids differ between sections")
+        body.append(f"\\multicolumn{{{len(grid) + 1}}}{{@{{}}l}}"
+                    f"{{\\emph{{{LONG[ds]}}}}} \\\\")
+        for key, label, nd in TRAJ_MAIN_READS:
+            if s["sources"].get(key) is None:
+                raise SystemExit(f"{sec}: no source recorded for {key}")
+            cells, few = [], False
+            for g in grid:
+                e = s["readouts"][key].get(f"{g:g}")
+                where = f"{SHORT[ds]} / {label} / kappa {g:g}"
+                if e is None or not finite(e.get("mean")):
+                    cells.append(tr.pend(where, "no read", "missing"))
+                    continue
+                few |= e["n"] < 3
+                sc = TRAJ_SCALE.get(key, 1.0)
+                cells.append(tr.cell(f"{SHORT[ds]} {key}", f"{g:g}",
+                                     num(e["mean"] * sc, nd),
+                                     [e["mean"] * sc], nd, p,
+                                     f"{sec}.readouts.{key}.{g:g}.mean"
+                                     + (f" x {sc:g}" if sc != 1 else "")))
+            mark = "$^{\\dagger}$" if few else ""
+            body.append(f"\\quad {tex_label(label)}{mark} & "
+                        + " & ".join(cells) + " \\\\")
+            tr.prov.append(f"{SHORT[ds]} / {label}: {rel(p)} : {sec}."
+                           f"readouts.{key} (mean per kappa); underlying "
+                           f"read: {s['sources'][key]}"
+                           + ("; fewer than three seeds" if few else ""))
+        pp, by_g = _probe_sweep(tr, ds)
+        cells = []
+        for g in grid:
+            vals = by_g.get(f"{g:g}", [])
+            where = f"{SHORT[ds]} / probe / kappa {g:g}"
+            if len(vals) != 3:
+                cells.append(tr.pend(where, f"{len(vals)} seeds in "
+                                     f"{rel(pp)}", "missing"))
+                continue
+            mean = float(np.mean(vals))
+            cells.append(tr.cell(f"{SHORT[ds]} probe", f"{g:g}",
+                                 pct(mean), [mean], 1, pp,
+                                 f"mean over seeds of 1 - exp(-2 "
+                                 f"mlp_comp.excess), kappa {g:g}"))
+        body.append("\\quad Probe, composition (\\%) & "
+                    + " & ".join(cells) + " \\\\")
+        tr.prov.append(f"{SHORT[ds]} / probe: {rel(pp)} : mlp_comp.excess "
+                       "per run, shown as 1 - exp(-2 excess) in %, mean "
+                       "over the three seeds of each kappa (the kappa = 0.1 "
+                       "runs are the final fits of tab:probe)")
+        body.append("\\addlinespace")
+    body = body[:-1]
+    head = ("Readout & " + " & ".join(
+        ("$\\kappa = 0$" if g == 0 else
+         "$\\bm{0.1}$" if g == 0.1 else f"${g:g}$") for g in grid) + " \\\\")
+    caption = (
+        "Readouts reported as trajectories across the sweep, mean over three "
+        "seeds. \\emph{\\TermReloc}: fraction of the noise ceiling, trusted "
+        "tier ($^{\\dagger}$over the seeds with a trusted panel). "
+        "\\emph{Marker pairs}: change in the double-positive rate of "
+        "exclusive pairs from raw counts to the corrected decode, minus that "
+        "of control pairs, in percentage points (\\cref{app:readouts}). "
+        "\\emph{\\TermReloc{} $-$ programme part}: mean $R^2$ over all "
+        "panels with the \\termSpill{} term minus that of the programme part "
+        "alone. \\emph{Probe}: the nonlinear probe's composition residual, "
+        "$1 - e^{-2\\,\\mathrm{excess}}$ in \\% (as in \\cref{tab:probe}).")
+    tex = (tr.header(command, "mean over seeds per kappa: the trajectory "
+                     "table for four readouts, the sweep re-grade of the "
+                     "held-out probe for the composition residual")
+           + "\\begin{table}[!htbp]\n\\centering\n"
+           f"\\caption{{{caption}}}\n\\label{{tab:breakdown-traj}}\n"
+           "\\footnotesize\n\\setlength{\\tabcolsep}{4pt}\n"
+           f"\\begin{{tabular}}{{@{{}}l{'c' * len(grid)}@{{}}}}\n\\toprule\n"
+           f"{head}\n\\midrule\n" + "\n".join(body)
+           + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
+    return tex, tr
+
+
 # ------------------------------------------------ table 8: transport held-out
 
 def _heldout_records(tr: Trace) -> tuple[Path, list[dict]]:
@@ -2852,10 +3069,11 @@ def table_transport_heldout(command: str) -> tuple[str, Trace]:
     tr = Trace("tab:transport-heldout")
     p, recs = _heldout_records(tr)
     flags_md = _md_flags(tr.read_text(HELDOUT.with_suffix(".md")))
-    reads = [("trusted", "transport_of_ceiling_trusted", 3),
-             ("all", "transport_of_ceiling", 3),
-             ("readA", "readA_gap_own", 3),
-             ("twin", "twin_margin_own", 3)]
+    # two decimals: DISCELL's seed ranges span several hundredths
+    reads = [("trusted", "transport_of_ceiling_trusted", 2),
+             ("all", "transport_of_ceiling", 2),
+             ("readA", "readA_gap_own", 2),
+             ("twin", "twin_margin_own", 2)]
 
     def val(side: dict, key: str):
         v = side[key]
@@ -2931,10 +3149,9 @@ def table_transport_heldout(command: str) -> tuple[str, Trace]:
                                       - val(r["published"],
                                             "twin_margin_own"))
             label = "DISCELL" if meth == "DisCell" else "Cellina"
-            if meth == "DisCell":
-                body.append(f"\\multicolumn{{9}}{{@{{}}l}}"
-                            f"{{\\emph{{{LONG[ds]}}}}} \\\\")
-            body.append(f"\\quad {label} & " + " & ".join(cells) + " \\\\")
+            sec = (f"\\multirow{{2}}{{*}}{{{SHORT[ds]}}}" if meth == "DisCell"
+                   else "")
+            body.append(f"{sec} & {label} & " + " & ".join(cells) + " \\\\")
             tr.prov.append(f"{SHORT[ds]} / {meth}: {rel(p)} : records with "
                            f"dataset {ds}, method {meth} (runs "
                            f"{', '.join(r['run'] for r in rs)}); published.* "
@@ -2962,28 +3179,27 @@ def table_transport_heldout(command: str) -> tuple[str, Trace]:
     ct, ca = count["trusted"], count["all"]
     tw = max(abs(x) for x in twin_moves)
     caption = (
-        "\\TermReloc{} scored on held-out tiles only, beside the published "
-        "read. "
-        "\\emph{Published}: the read of \\cref{tab:headline}, whose readout is "
-        "cross-fitted over spatial folds drawn from every tile, so most "
-        "scored cells lie in the model's training tiles. \\emph{Held-out "
-        "tiles}: only cells of the model's held-out tiles are scored, and "
-        "every model quantity is estimated from its training tiles; same "
-        "niches, panels, ceilings and Unassigned mask. Fraction of the noise "
-        "ceiling recovered by the mean read, for panels in the trusted tier "
-        "and for all panels; Read A, the median gap to the target closed, "
-        "own target; the twin margin, own target. For DISCELL the range over "
-        "three seeds; Cellina is its neighbour-rewiring counterfactual, "
-        "fitted on the training tiles and read on the same panels as the "
-        "first seed. The held-out pool is about three quarters of the "
-        "published one, so fewer panels reach the trusted tier. Against the "
-        "published $95\\%$ interval, the held-out read moves in both "
-        f"directions: in the trusted tier it lies above on {ct['up']}, below "
-        f"on {ct['down']} and inside on {ct['inside']} of the {ct['n']} "
-        f"DISCELL fits with both reads; over all panels, above on {ca['up']},"
-        f" below on {ca['down']} and inside on {ca['inside']} of {ca['n']}. "
-        f"Read A is lower on held-out tiles on {reada['lower']} of "
-        f"{sum(reada.values())} fits; the twin margin moves by at most "
+        "\\TermReloc{} scored on held-out tiles only, beside the cross-fitted "
+        "read of \\cref{tab:headline-full}, whose readout is cross-fitted "
+        "over spatial folds drawn from every tile, so most scored cells lie "
+        "in the model's training tiles. \\emph{Held-out}: only cells of the "
+        "model's held-out tiles are scored, and every model quantity is "
+        "estimated from its training tiles (same niches, panels, ceilings and "
+        "Unassigned mask). Fraction of the noise ceiling recovered by the "
+        "mean read, trusted tier and all panels; \\emph{single-cell read}: "
+        "the median gap to the cell's own target closed; \\emph{twin read}: "
+        "how much closer a cell's prediction is to its own target than to a "
+        "random cell's. DISCELL: range over three seeds; Cellina: its "
+        "neighbour-rewiring counterfactual, fitted on the training tiles and "
+        "read on the first seed's panels. The held-out pool is about three "
+        "quarters of the cross-fitted one, so fewer panels reach the trusted "
+        "tier. Against the cross-fitted $95\\%$ interval, the held-out read "
+        f"lies above on {ct['up']}, below on {ct['down']} and inside on "
+        f"{ct['inside']} of the {ct['n']} DISCELL fits with both reads in the "
+        f"trusted tier, and above on {ca['up']}, below on {ca['down']} and "
+        f"inside on {ca['inside']} of {ca['n']} over all panels. The "
+        f"single-cell read is lower on held-out tiles on {reada['lower']} of "
+        f"{sum(reada.values())} fits; the twin read moves by at most "
         f"{rnd(tw, 3)}. {ARROW_NOTE}. --: no panel in the tier, or no value"
         + ("; $^{\\dagger}$over the seeds with a value" if any(
             "seeds have a value" in m for m in missing) else "") + ".")
@@ -2994,14 +3210,14 @@ def table_transport_heldout(command: str) -> tuple[str, Trace]:
            + "\\begin{table*}[t]\n\\centering\n"
            f"\\caption{{{caption}}}\n\\label{{tab:transport-heldout}}\n"
            "\\footnotesize\n\\setlength{\\tabcolsep}{2.5pt}\n"
-           "\\begin{tabular}{@{}lcccccccc@{}}\n\\toprule\n"
-           f" & \\multicolumn{{2}}{{c}}{{Trusted tier{arrow('transport')}}} & "
+           "\\begin{tabular}{@{}llcccccccc@{}}\n\\toprule\n"
+           f" & & \\multicolumn{{2}}{{c}}{{Trusted tier{arrow('transport')}}} & "
            f"\\multicolumn{{2}}{{c}}{{All panels{arrow('transport')}}} & "
-           f"\\multicolumn{{2}}{{c}}{{Read A{arrow('reada')}}} & "
-           f"\\multicolumn{{2}}{{c}}{{Twin margin{arrow('twin')}}} "
-           "\\\\\n\\cmidrule(lr){2-3}\\cmidrule(lr){4-5}"
-           "\\cmidrule(lr){6-7}\\cmidrule(lr){8-9}\n"
-           "Method" + " & published & held-out" * 4
+           f"\\multicolumn{{2}}{{c}}{{Single-cell read{arrow('reada')}}} & "
+           f"\\multicolumn{{2}}{{c}}{{Twin read{arrow('twin')}}} "
+           "\\\\\n\\cmidrule(lr){3-4}\\cmidrule(lr){5-6}"
+           "\\cmidrule(lr){7-8}\\cmidrule(lr){9-10}\n"
+           "Section & Method" + " & cross-fitted & held-out" * 4
            + " \\\\\n\\midrule\n" + "\n".join(body)
            + "\n\\bottomrule\n\\end{tabular}\n\\end{table*}\n")
     return tex, tr
@@ -3083,7 +3299,7 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
             vals["reada"].append(ra["value"])
             vals["twin"].append(pub["twin_margin_own"])
             rows["frac"].append(tr.cell("fraction", f"{SHORT[ds]} {meth}",
-                                        num(fr["value"], 3), [fr["value"]], 3,
+                                        num(fr["value"], 2), [fr["value"]], 2,
                                         p, "published.transport_of_ceiling_"
                                         "trusted.value"))
             rows["frac_ci"].append(tr.cell("fraction CI", f"{SHORT[ds]} {meth}",
@@ -3096,22 +3312,22 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
                                           "published.transport_of_ceiling_"
                                           "trusted.n_panels"))
             rows["reada"].append(tr.cell("Read A", f"{SHORT[ds]} {meth}",
-                                         num(ra["value"], 3), [ra["value"]], 3,
+                                         num(ra["value"], 2), [ra["value"]], 2,
                                          p, "published.readA_gap_own.value"))
             rows["reada_ci"].append(tr.cell("Read A CI", f"{SHORT[ds]} {meth}",
                                             interval(*ra["ci95"], 2),
                                             ra["ci95"], 2, p, "published."
                                             "readA_gap_own.ci95"))
             rows["twin"].append(tr.cell("twin", f"{SHORT[ds]} {meth}",
-                                        num(pub["twin_margin_own"], 3),
-                                        [pub["twin_margin_own"]], 3, p,
+                                        num(pub["twin_margin_own"], 2),
+                                        [pub["twin_margin_own"]], 2, p,
                                         "published.twin_margin_own"))
             if meth == "DisCell":
                 for part, rk in (("program_only", "prog"),
                                  ("leak_only", "leak")):
                     v = ts[part] / ts["noise_ceiling"]
-                    rows[rk].append(tr.cell(part, SHORT[ds], num(v, 3), [v],
-                                            3, tp, f"summary.extrapolation_"
+                    rows[rk].append(tr.cell(part, SHORT[ds], num(v, 2), [v],
+                                            2, tp, f"summary.extrapolation_"
                                             f"trusted.{part} / noise_ceiling"))
             else:
                 for part, rk in (("program_only", "prog"),
@@ -3120,7 +3336,7 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
                             ct["summary"]["extrapolation_trusted"][part]
                             is not None):
                         raise SystemExit(f"{ds}: Cellina {part} is mapped?")
-                    rows[rk].append("not mapped$^{a}$")
+                    rows[rk].append("--$^{a}$")
         tr.prov.append(f"{SHORT[ds]}: {rel(p)} : published side of DisCell "
                        f"finalL_s0 and Cellina cf (fraction trusted + ci95, "
                        "readA_gap_own + ci95, twin_margin_own); "
@@ -3136,7 +3352,7 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
     for k, rd in (("frac", "transport"), ("reada", "reada"), ("twin", "twin")):
         for i, ds in enumerate(cols):
             pair = vals[k][2 * i:2 * i + 2]
-            for j in best(pair, rd, [rnd(v, 3) if finite(v) else ""
+            for j in best(pair, rd, [rnd(v, 2) if finite(v) else ""
                                      for v in pair]):
                 rows[k][2 * i + j] = bold(rows[k][2 * i + j])
                 tr.notes.append(f"{SHORT[ds]} / {k}: bold on "
@@ -3145,20 +3361,20 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
         "\\multicolumn{9}{@{}l}{\\emph{Fraction of the noise ceiling, "
         f"trusted tier}}{arrow('transport')}}} \\\\",
         "\\quad estimate & " + " & ".join(rows["frac"]) + " \\\\",
-        "\\quad $95\\%$ int. & " + " & ".join(rows["frac_ci"]) + " \\\\",
+        "\\quad $95\\%$ CI & " + " & ".join(rows["frac_ci"]) + " \\\\",
         "\\quad panels & " + " & ".join(rows["panels"]) + " \\\\",
         "\\addlinespace",
-        f"\\multicolumn{{9}}{{@{{}}l}}{{\\emph{{Read A, own target}}"
+        f"\\multicolumn{{9}}{{@{{}}l}}{{\\emph{{Single-cell read}}"
         f"{arrow('reada')}}} \\\\",
         "\\quad estimate & " + " & ".join(rows["reada"]) + " \\\\",
-        "\\quad $95\\%$ int. & " + " & ".join(rows["reada_ci"]) + " \\\\",
+        "\\quad $95\\%$ CI & " + " & ".join(rows["reada_ci"]) + " \\\\",
         "\\addlinespace",
-        f"\\multicolumn{{9}}{{@{{}}l}}{{\\emph{{Twin margin, own target}}"
+        f"\\multicolumn{{9}}{{@{{}}l}}{{\\emph{{Twin read}}"
         f"{arrow('twin')}}} \\\\",
         "\\quad estimate & " + " & ".join(rows["twin"]) + " \\\\",
         "\\addlinespace",
-        "\\multicolumn{9}{@{}l}{\\emph{Parts of the prediction, fraction of "
-        "the noise ceiling, trusted tier}} \\\\",
+        "\\multicolumn{9}{@{}l}{\\emph{Parts, fraction of the noise ceiling, "
+        "trusted tier}} \\\\",
         "\\quad programmes & " + " & ".join(rows["prog"]) + " \\\\",
         "\\quad \\termSpill{} & " + " & ".join(rows["leak"]) + " \\\\",
     ]
@@ -3167,25 +3383,22 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
                     "decode, DisCell's panels and draws replayed, replay = 0.0 "
                     "on every dataset) and transport_heldout_2026-09-29.")
     caption = (
-        "The counterfactual claim head to head: DISCELL's \\termReloc{} "
-        "prediction against Cellina's neighbour-rewiring counterfactual, "
-        "scored with the same \\termReloc{} reads (published read, as in "
-        "\\cref{tab:headline}). Cellina is refitted on the training tiles only, "
-        "decoded at its posterior mean, and read on the panels, niches, "
-        "ceilings and bootstrap draws of DISCELL's first seed, which is "
-        "shown beside it with the $95\\%$ intervals (half-tile subsampling "
-        "for the fraction, tile bootstrap for Read A; to two decimals); "
-        "DISCELL's range over three seeds is in \\cref{tab:transport-heldout}. "
-        "\\emph{Panels}: panels in the trusted tier. Read A: the median gap to the target closed; twin margin: how "
-        "much closer a cell's prediction is to its own target than to a "
-        "random cell's. \\emph{Parts of the prediction}: DISCELL's "
-        "prediction from the response programmes alone and from the "
-        "\\termSpill{} alone (the parts are not additive). $^{a}$Not mapped: "
-        "Cellina has no \\termSpill{} channel, so its "
-        "counterfactual cannot be split into these parts. "
+        "DISCELL's \\termReloc{} prediction against Cellina's "
+        "neighbour-rewiring counterfactual, scored with the same cross-fitted "
+        "\\termReloc{} reads (\\cref{tab:headline-full}). Cellina is refitted "
+        "on the training tiles only, decoded at its posterior mean, and read "
+        "on the panels, niches, ceilings and bootstrap draws of DISCELL's "
+        "first seed, shown beside it (DISCELL's range over seeds: "
+        "\\cref{tab:transport-heldout}). $95\\%$ CI: half-tile subsampling "
+        "for the fraction, tile bootstrap for the single-cell read. "
+        "\\emph{Panels}: panels in the trusted tier. \\emph{Single-cell "
+        "read}: the median gap to the cell's own target closed; \\emph{twin "
+        "read}: how much closer a cell's prediction is to its own target than "
+        "to a random cell's. \\emph{Parts}: DISCELL's prediction from the "
+        "response programmes alone and from the \\termSpill{} alone (not "
+        "additive). $^{a}$Not mapped: Cellina has no \\termSpill{} channel. "
         f"{ARROW_NOTE} (the parts have none); {BOLD_NOTE}, of the two "
-        "estimates. Unassigned cells "
-        "are not targets.")
+        "estimates. Unassigned cells are not targets.")
     head = (" & " + " & ".join(f"\\multicolumn{{2}}{{c}}{{{SHORT[d]}}}"
                                for d in cols) + " \\\\\n"
             + "".join(f"\\cmidrule(lr){{{2 + 2 * i}-{3 + 2 * i}}}"
@@ -3246,7 +3459,12 @@ def table_synthetic(command: str) -> tuple[str, Trace]:
             tr.notes.append(f"{label}: a fit has a dead w channel.")
         return cells
 
-    body = ["\\multicolumn{8}{@{}l}{\\emph{Assumed $\\kappa$ = planted "
+    nfits = {g["n_fits"] for g in groups}
+    if len(nfits) != 1:
+        raise SystemExit(f"synthetic: groups of {sorted(nfits)} fits; the "
+                         "caption states one number")
+    nfits = nfits.pop()
+    body = ["\\multicolumn{5}{@{}l}{\\emph{Assumed $\\kappa$ = planted "
             "$\\kappa$}} \\\\"]
     order = [("final", 0.0, 0.0, "final configuration"),
              ("uncontrolled", 0.0, 0.0, "without the adversary"),
@@ -3256,22 +3474,21 @@ def table_synthetic(command: str) -> tuple[str, Trace]:
         g = find(arm, pk, ak)
         if g is None:
             raise SystemExit(f"synthetic: no group {arm} {pk} {ak}")
-        body.append(f"\\quad {lab} & {pk:g} & {ak:g} & {g['n_fits']} & "
+        body.append(f"\\quad {lab}, $\\kappa = {pk:g}$ & "
                     + " & ".join(row_cells(g, f"{arm} {pk:g}/{ak:g}"))
                     + " \\\\")
     body.append("\\addlinespace")
-    body.append("\\multicolumn{8}{@{}l}{\\emph{Misspecified $\\kappa$, "
-                "planted $\\kappa = 0.2$, final configuration}} \\\\")
+    body.append("\\multicolumn{5}{@{}l}{\\emph{Planted $\\kappa = 0.2$, "
+                "final configuration, assumed $\\kappa$:}} \\\\")
     for ak in sorted({x["assumed_kappa"] for x in groups
                       if x["arm"] == "final" and x["planted_kappa"] == 0.2}):
         g = find("final", 0.2, ak)
         a = f"\\textbf{{{ak:g}}}" if ak == 0.2 else f"{ak:g}"
-        body.append(f"\\quad assumed $\\kappa$ & 0.2 & {a} & {g['n_fits']} & "
-                    + " & ".join(row_cells(g, f"final 0.2/{ak:g}")) + " \\\\")
+        body.append(f"\\quad {a} & " + " & ".join(row_cells(g, f"final 0.2/{ak:g}")) + " \\\\")
     body.append("\\addlinespace")
     # world references (range over the three worlds, both planted kappa)
     wr = d["world_references"]
-    body.append("\\multicolumn{8}{@{}l}{\\emph{References of the simulated "
+    body.append("\\multicolumn{5}{@{}l}{\\emph{References of the simulated "
                 "worlds}} \\\\")
 
     def wref(key, nd, label):
@@ -3292,7 +3509,7 @@ def table_synthetic(command: str) -> tuple[str, Trace]:
             ("random subspace, 95th percentile",
              ["--", "--", wref("b_cosine_random_q95", 2, "random q95"),
               "--"])):
-        body.append(f"\\quad {lab} & & & -- & " + " & ".join(cells)
+        body.append(f"\\quad {lab} & " + " & ".join(cells)
                     + " \\\\")
     tr.prov.append(f"every row: {rel(p)} : groups[arm, planted_kappa, "
                    "assumed_kappa].fits[*] (min, max over world x model "
@@ -3311,34 +3528,27 @@ def table_synthetic(command: str) -> tuple[str, Trace]:
     tr.notes.append("Written 2026-09-29 16:58 (after the freeze; a new run, "
                     "scripts/logs/synthetic_2026-09-29/AGENT_REPORT.md).")
     caption = (
-        "Recovery on simulated sections at the final configuration, scaled "
-        "to the simulated world. Three worlds per planted \\termSpillFrac{}, "
-        "each "
-        "fitted with three model seeds; the range over the nine fits "
-        "(\\emph{Fits}). NMI of the intrinsic latent's posterior mean with "
-        "the planted type; \\emph{CCA}: the first canonical correlation of "
-        "the response's posterior mean with the planted response; "
-        "\\emph{Loadings}: the principal-angle cosine of the fitted against "
-        "the planted loadings; \\emph{Comp.\\ $R^2$}: the within-type "
-        "$R^2$ of neighbour composition from the intrinsic latent. "
-        "\\emph{Misspecified $\\kappa$}: the worlds planted at $\\kappa = "
-        "0.2$, fitted at each assumed rate (the matched rate in bold). "
-        "\\emph{References}: NMI of clusters of the counts and of the "
-        "planted intrinsic state, the composition $R^2$ of the planted state, "
-        "and the loading cosine of a random subspace (its mean and 95th "
-        "percentile), each as the range over the three worlds and both "
-        "planted rates. A fit is "
-        "stopped early on $15\\%$ of held-out tiles; every read covers all "
+        "Recovery on simulated sections, scaled to the simulated world: "
+        "three worlds per planted \\termSpillFrac{}, each fitted with three "
+        f"model seeds; the range over the {nfits} fits of each row. NMI of "
+        "$\\vmu_z$ with the planted type; \\emph{CCA}: first canonical "
+        "correlation of $\\vmu_w$ with the planted response; "
+        "\\emph{Loadings}: principal-angle cosine of the fitted against the "
+        "planted loadings; \\emph{Comp.\\ $R^2$}: within-type $R^2$ of "
+        "neighbour composition from $\\vmu_z$. Bold: the matched $\\kappa$. "
+        "\\emph{References}: NMI of clusters of the counts and of the planted "
+        "intrinsic state, composition $R^2$ of the planted state, and the "
+        "loading cosine of a random subspace (mean and 95th percentile), "
+        "each the range over the three worlds and both planted rates. A fit "
+        "is stopped early on $15\\%$ of held-out tiles; every read covers all "
         f"cells. {ARROW_NOTE}.")
     tex = (tr.header(command, "[min, max] over 3 world seeds x 3 model seeds "
                      "per arm; best checkpoint; all 6,000 cells")
            + "\\begin{table}[t]\n\\centering\n"
            f"\\caption{{{caption}}}\n\\label{{tab:synthetic}}\n\\small\n"
            "\\setlength{\\tabcolsep}{3pt}\n"
-           "\\begin{tabular}{@{}lccccccc@{}}\n\\toprule\n"
-           "& \\multicolumn{2}{c}{$\\kappa$} & & & & & \\\\\n"
-           "\\cmidrule(lr){2-3}\n"
-           "Arm & planted & assumed & Fits & "
+           "\\begin{tabular}{@{}lcccc@{}}\n\\toprule\n"
+           "Arm & "
            + " & ".join(h + arrow(SYN_DIR[k]) for k, h, _ in SYN_READS)
            + " \\\\\n\\midrule\n"
            + "\n".join(body)
@@ -3361,10 +3571,11 @@ def table_planted_percell(command: str) -> tuple[str, Trace]:
     d = tr.read_json(p)
     rule = d["rule"]
     body = []
+    any_det = False
     for w in sorted({g["world_seed"] for g in d["groups"]}):
         title = ("World 0 (decides)" if w == rule["world_seed"]
                  else f"World {w} (replication)")
-        body.append(f"\\multicolumn{{9}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
+        body.append(f"\\multicolumn{{8}}{{@{{}}l}}{{\\emph{{{title}}}}} \\\\")
         for g in sorted((g for g in d["groups"] if g["world_seed"] == w),
                         key=lambda g: g["s"]):
             cells = []
@@ -3383,7 +3594,9 @@ def table_planted_percell(command: str) -> tuple[str, Trace]:
                                      vrange(vals, nd), [min(vals), max(vals)],
                                      nd, p, f"groups[world {w}, s {g['s']:g}]"
                                      f".{key} min, max"))
-            det = "yes" if g["detected"] else "no"
+            # a detected strength is marked on its s (no column of "no"s)
+            det = "$^{*}$" if g["detected"] else ""
+            any_det = any_det or bool(g["detected"])
             if w == rule["world_seed"] and rule["by_s"][f"{g['s']:g}"][
                     "detected"] != g["detected"]:
                 raise SystemExit("planted: rule and group verdict differ")
@@ -3391,8 +3604,8 @@ def table_planted_percell(command: str) -> tuple[str, Trace]:
                             rnd(g["shift_norm_lograte"], 1),
                             [g["shift_norm_lograte"]], 1, p,
                             "shift_norm_lograte")
-            body.append(f"\\quad {g['s']:g} & {shift} & " + " & ".join(cells)
-                        + f" & {det} \\\\")
+            body.append(f"\\quad {g['s']:g}{det} & {shift} & "
+                        + " & ".join(cells) + " \\\\")
         body.append("\\addlinespace")
     body = body[:-1]
     pr = d["predictability"]
@@ -3414,26 +3627,26 @@ def table_planted_percell(command: str) -> tuple[str, Trace]:
                     f"Smallest detected s on world 0: {smallest}.")
     caption = (
         "A planted per-cell response on simulated sections (planted $\\kappa "
-        "= 0.2$, final configuration unchanged). In $10\\%$ of the cells of "
-        "one type, spread across niches, the log-rate is shifted along the "
-        "planted response programme by $s$ times the size of the planted "
-        "niche effect (\\emph{Shift}, its norm in log-rate units); $s = 0$ is "
-        "the null. \\emph{KL AUC}: the per-cell divergence of the response "
-        "posterior from its prior separating the planted cells from the "
-        "other cells of their type; \\emph{$\\vw$ corr.}: correlation of the "
-        "response's deviation from its prior mean, along the planted "
-        "direction, with the plant; \\emph{$\\vz$ absorption}: the same for "
-        "the intrinsic latent, read through the decoder along the planted direction; "
-        "\\emph{Recon. gain}: held-out gain in nats per count of the full "
-        "decode over the response at its prior mean, on planted cells; "
-        "\\emph{Spearman} and \\emph{top-decile overlap}: agreement of the "
-        "per-cell divergence between seeds. Ranges over three model seeds "
-        "(seed pairs for the last two). The rule, fixed in advance and "
-        "applied to world 0: the channel detects at $s$ if every seed has "
-        "KL AUC $\\geq 0.8$ and every seed pair a Spearman correlation "
-        "$\\geq 0.5$; worlds 1 and 2 replicate. "
+        "= 0.2$, final configuration). In $10\\%$ of the cells of one type, "
+        "spread across niches, the log-rate is shifted along the planted "
+        "response programme by $s$ times the planted niche effect "
+        "(\\emph{Shift}: its norm in log-rate units); $s = 0$ is the null. "
+        "\\emph{KL AUC}: the per-cell divergence of the response posterior "
+        "from its prior separating planted cells from the rest of their type; "
+        "\\emph{$\\vw$ corr.}: correlation of the response's deviation from "
+        "its prior mean, along the planted direction, with the plant; "
+        "\\emph{$\\vz$ absorption}: the same for the intrinsic latent, read "
+        "through the decoder; \\emph{Recon. gain}: held-out gain in nats per "
+        "count of the full decode over the response at its prior mean, on "
+        "planted cells; \\emph{Spearman}, \\emph{top-decile overlap}: "
+        "agreement of the per-cell divergence between seeds. Ranges over "
+        "three model seeds (seed pairs for the last two). Rule, fixed in "
+        "advance and applied to world 0: the channel detects at $s$ if every "
+        "seed has KL AUC $\\geq 0.8$ and every seed pair a Spearman "
+        "correlation $\\geq 0.5$; worlds 1 and 2 replicate. "
         + ("No strength is detected. " if smallest is None else
            f"The smallest strength detected is $s = {smallest:g}$. ")
+        + ("$^{*}$Detected. " if any_det else "")
         + "The planted subset cannot be predicted from neighbour composition "
         "or from composition and the image descriptor (five-fold "
         f"cross-validated AUC {rnd(min(aucs), 2)}--{rnd(max(aucs), 2)} "
@@ -3444,11 +3657,219 @@ def table_planted_percell(command: str) -> tuple[str, Trace]:
            + "\\begin{table}[t]\n\\centering\n"
            f"\\caption{{{caption}}}\n\\label{{tab:planted-percell}}\n\\small\n"
            "\\setlength{\\tabcolsep}{3pt}\n"
-           "\\begin{tabular}{@{}lcccccccc@{}}\n\\toprule\n"
+           "\\begin{tabular}{@{}lccccccc@{}}\n\\toprule\n"
            "$s$ & Shift & " + " & ".join(
                h + (arrow("kl_auc") if k == "kl_auc" else "")
                for k, h, _ in PP_READS)
-           + " & Detected \\\\\n\\midrule\n" + "\n".join(body)
+           + " \\\\\n\\midrule\n" + "\n".join(body)
+           + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
+    return tex, tr
+
+
+# ------------------------------- RECOMB S7: planted spill-over control (2026-10-01)
+
+#: kappa* reason -> footnote, as in tab:kappa-star
+KSTAR_FOOT = {"interval contains 0": "a", "a seed flips sign": "b",
+              "seeds disagree in sign": "b"}
+
+
+def _kstar_text(e: dict, top: float) -> str:
+    """A breakdown record as a cell: '>top', 'no finding' or kappa* with its
+    reason footnote; '$^{(-)}$' marks a contrast negative at kappa = 0."""
+    if e["status"] == "above the grid":
+        txt = f"$>${top:g}"
+    elif e["status"] == "no finding":
+        txt = "no finding"
+    elif e["status"] == "breaks":
+        txt = f"{e['kappa_star']:g}$^{{{KSTAR_FOOT[e['reason']]}}}$"
+    else:
+        raise SystemExit(f"planted control: unknown status {e['status']!r}")
+    return txt + ("$^{(-)}$" if e.get("sign") == -1 else "")
+
+
+def table_planted_spillover(command: str) -> tuple[str, Trace]:
+    """tab:S-planted-spillover (RECOMB supplement S7.3): the planted
+    spill-over control's breakdown points per planted kappa. The spill-made
+    contrast is shown as corrected (null_diagnostic.json, follow-up (a)) and
+    as first defined (planted_spillover.json); the genuine response contrast
+    and the prediction come from planted_spillover.json."""
+    tr = Trace("tab:S-planted-spillover")
+    p_first = SYNTH / "planted_spillover.json"
+    p_corr = SYNTH / "null_diagnostic.json"
+    first = tr.read_json(p_first)
+    corr = tr.read_json(p_corr)
+    if first["grid"] != corr["grid"]:
+        raise SystemExit("planted control: the two files' grids differ")
+    top = max(first["grid"])
+    body = []
+    for w in sorted(first["worlds"], key=float):
+        fw, cw = first["worlds"][w], corr["worlds"][w]
+        if fw["kappa_true"] != cw["kappa_true"]:
+            raise SystemExit(f"planted control: world {w} differs")
+        kt = fw["kappa_true"]
+        v = fw["verdict"]
+        pred = ("no finding" if kt == 0
+                else f"{v['predicted_spill_kappa_star']:g}")
+        mem = fw["table"]["members"]
+        cells = [
+            tr.cell(f"kappa_true {kt:g}", "predicted", pred, [], 0, p_first,
+                    f"worlds[{w}].verdict.predicted_spill_kappa_star"),
+            tr.cell(f"kappa_true {kt:g}", "spill-made, corrected",
+                    _kstar_text(cw["corrected"], top), [], 0, p_corr,
+                    f"worlds[{w}].corrected"),
+            tr.cell(f"kappa_true {kt:g}", "spill-made, first definition",
+                    _kstar_text(mem["spill_cf_minus_leak"], top), [], 0,
+                    p_first, f"worlds[{w}].table.members.spill_cf_minus_leak"),
+            tr.cell(f"kappa_true {kt:g}", "genuine response",
+                    _kstar_text(mem["response_cf_minus_leak"], top), [], 0,
+                    p_first,
+                    f"worlds[{w}].table.members.response_cf_minus_leak")]
+        # the first definition as stored must be the one the diagnostic
+        # re-read (same fits, same draws)
+        if (cw["original"]["kappa_star"]
+                != mem["spill_cf_minus_leak"]["kappa_star"]):
+            raise SystemExit(f"planted control: world {w}: the diagnostic's "
+                             "original kappa* differs from the control's")
+        body.append(f"{kt:g} & " + " & ".join(cells) + " \\\\")
+        tr.prov.append(
+            f"kappa_true {kt:g}: predicted, first definition and genuine from "
+            f"{rel(p_first)} : worlds[{w}] (verdict.predicted_spill_kappa_"
+            "star; table.members.spill_cf_minus_leak / response_cf_minus_"
+            f"leak status, kappa_star, reason, sign); corrected from "
+            f"{rel(p_corr)} : worlds[{w}].corrected (status "
+            f"'{cw['corrected']['status']}', kappa_star "
+            f"{cw['corrected']['kappa_star']}, reason "
+            f"{cw['corrected']['reason']})")
+    n_spill = first["world"]["n_spill_genes"]
+    n_genes = first["world"]["n_genes"]
+    tr.cells.append({"row": "caption", "col": "genes",
+                     "text": f"{n_spill} of the {n_genes} genes",
+                     "values": [n_spill, n_genes], "nd": 0,
+                     "src": rel(p_first), "key": "world.n_spill_genes, "
+                     "world.n_genes"})
+    tr.notes.append("Written 2026-10-01 (after the freeze; RECOMB additions, "
+                    "scripts/logs/recomb_additions_2026-10-01/READOUT.md and "
+                    "FOLLOWUP.md). The corrected contrast replaces the first "
+                    "definition, which cannot vanish at kappa = 0 (follow-up "
+                    "(a), devlog 2026-10-01); the response member and the "
+                    "family (m = 2) are the control's.")
+    caption = (
+        "A planted \\termSpill{} control: breakdown points on simulated "
+        "sections with \\termSpill{} planted at fraction $\\kappa_{\\text{"
+        "true}}$ (final configuration; three model seeds at every grid point "
+        "of \\cref{tab:kappa-star}; two contrasts per world). "
+        f"\\emph{{Made by \\termSpill{{}}}}: on {n_spill} of the {n_genes} "
+        "genes, which have no planted response, the programmes' alignment "
+        "with the part of the observed shift between niches that the "
+        "simulator's clean shift does not explain, "
+        "$2\\langle \\delta_{p}, \\delta_{o} - \\delta_{c}\\rangle / "
+        "\\|\\delta_{t}\\|^2$ ($\\delta_{p}$: the programmes' predicted "
+        "shift; $\\delta_{o}$: the observed shift; $\\delta_{c}$: the clean "
+        "one; $\\delta_{t}$: the \\termSpill{}-containing one without count "
+        "noise); "
+        "\\emph{first definition}: the $R^2$ gain of the full prediction over "
+        "its \\termSpill{} part on the same genes, which cannot vanish at "
+        "$\\kappa = 0$ (text). \\emph{Genuine response}: the same gain on "
+        "the genes with a planted response. \\emph{Predicted}: set before "
+        "the run for the contrast made by \\termSpill{}, the first grid "
+        "point at or above $\\kappa_{\\text{true}}$; the genuine response "
+        "was predicted to hold over the grid. Notation as in "
+        f"\\cref{{tab:kappa-star}}: $>${top:g}, it holds at every grid "
+        "point; $^{a}$the interval contains $0$; $^{b}$a seed has the "
+        "opposite sign; $^{(-)}$negative at $\\kappa = 0$.")
+    tex = (tr.header(command, "kappa* per world from the stored breakdown "
+                     "records (3 model seeds, half-tile subsampling, two-"
+                     "sided 0.975, Bonferroni m = 2)")
+           + "\\begin{table}[!htbp]\n\\centering\n"
+           f"\\caption{{{caption}}}\n\\label{{tab:S-planted-spillover}}\n"
+           "\\small\n\\setlength{\\tabcolsep}{4pt}\n"
+           "\\begin{tabular}{@{}ccccc@{}}\n\\toprule\n"
+           " & & \\multicolumn{2}{c}{Made by \\termSpill{}} & \\\\\n"
+           "\\cmidrule(lr){3-4}\n"
+           "$\\kappa_{\\text{true}}$ & Predicted & corrected & first "
+           "definition & Genuine response \\\\\n\\midrule\n"
+           + "\n".join(body)
+           + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
+    return tex, tr
+
+
+#: tab:S-reloc-clean's methods: (key in relocation_clean_truth.json, header)
+RC_METHODS = [("discell_programme", "D, programmes"),
+              ("discell_cf", "D, full"),
+              ("regression_log", "R, log"),
+              ("regression_rate", "R, rate")]
+RC_TARGETS = [("clean", "against the clean shift"),
+              ("observed", "against the observed shift")]
+
+
+def table_reloc_clean(command: str) -> tuple[str, Trace]:
+    """tab:S-reloc-clean (RECOMB supplement S7): relocation on the planted
+    worlds scored against the simulator's clean (spill-free) shift and
+    against the observed shift; mean R^2 over the three model seeds of each
+    (planted kappa, assumed kappa), from relocation_clean_truth.json."""
+    tr = Trace("tab:S-reloc-clean")
+    p = SYNTH / "relocation_clean_truth.json"
+    d = tr.read_json(p)
+    if set(d["methods"]) != {m for m, _ in RC_METHODS}:
+        raise SystemExit("relocation clean truth: unexpected methods")
+    groups: dict[tuple[float, float], list[dict]] = {}
+    for f in d["fits"]:
+        groups.setdefault((f["kappa_true"], f["assumed"]), []).append(f)
+    body = []
+    # rows: assumed = planted first, then the operating point where it differs
+    order = sorted(groups, key=lambda k: (k[0], k[1] != k[0], k[1]))
+    for kt, ka in order:
+        fs = groups[(kt, ka)]
+        if sorted(f["seed"] for f in fs) != list(SEEDS):
+            raise SystemExit(f"relocation clean truth: ({kt}, {ka}) seeds "
+                             f"{[f['seed'] for f in fs]}")
+        cells = []
+        for tgt, _ in RC_TARGETS:
+            for m, head in RC_METHODS:
+                vals = [f["summary"]["all"][tgt][m]["mean_r2"] for f in fs]
+                mean = float(np.mean(vals))
+                cells.append(tr.cell(f"kappa_true {kt:g}, assumed {ka:g}",
+                                     f"{tgt} / {m}", num(mean, 2), [mean], 2,
+                                     p, f"fits[kappa_true {kt:g}, assumed "
+                                     f"{ka:g}].summary.all.{tgt}.{m}.mean_r2,"
+                                     " mean over seeds"))
+        body.append(f"{kt:g} & {ka:g} & " + " & ".join(cells) + " \\\\")
+    tr.prov.append(f"every cell: {rel(p)} : fits[*].summary.all.<target>."
+                   "<method>.mean_r2 (all 60 genes), mean over model seeds "
+                   "0-2 of the (kappa_true, assumed) group; targets clean "
+                   "(scored cells' mean rho_true shift) and observed (held-out "
+                   "counts' log mean-rate shift)")
+    tr.notes.append("Written 2026-10-01 (after the freeze; follow-up (b), "
+                    "scripts/logs/recomb_additions_2026-10-01/FOLLOWUP.md). "
+                    "R^2 as stored, not as a fraction of the ceiling: the "
+                    "observed-target ceiling is below DISCELL's R^2 in the "
+                    "null world (FOLLOWUP.md, caveats).")
+    caption = (
+        "\\TermReloc{} on the simulated sections of "
+        "\\cref{tab:S-planted-spillover}, scored against the simulator's "
+        "clean shift between niches (no \\termSpill{}, no count noise) and "
+        "against the observed shift, as on tissue: mean $R^2$ over all "
+        "panels and genes, mean over three model seeds. "
+        "\\emph{D, programmes}: DISCELL's prediction from the response "
+        "programmes alone, its \\termSpill{}-free part; \\emph{D, full}: "
+        "programmes and \\termSpill{}, the prediction of "
+        "\\cref{sec:relocation}, which targets the observed shift; "
+        "\\emph{R}: the ridge regression of \\cref{sec:relocation} on the "
+        "simulated counts, on log and rate scales (it does not depend on the "
+        "assumed $\\kappa$). Rows: the fit at the planted fraction, and at "
+        "the operating point $\\kappa = 0.1$ where it differs.")
+    heads = " & ".join(h for _ in RC_TARGETS for _, h in RC_METHODS)
+    tex = (tr.header(command, "mean over model seeds 0-2 of each fit's mean "
+                     "R^2 over panels (all genes); rounding half-up")
+           + "\\begin{table}[!htbp]\n\\centering\n"
+           f"\\caption{{{caption}}}\n\\label{{tab:S-reloc-clean}}\n"
+           "\\footnotesize\n\\setlength{\\tabcolsep}{3pt}\n"
+           "\\begin{tabular}{@{}cccccccccc@{}}\n\\toprule\n"
+           " & & \\multicolumn{4}{c}{Against the clean shift} & "
+           "\\multicolumn{4}{c}{Against the observed shift} \\\\\n"
+           "\\cmidrule(lr){3-6}\\cmidrule(lr){7-10}\n"
+           "$\\kappa_{\\text{true}}$ & Assumed $\\kappa$ & " + heads
+           + " \\\\\n\\midrule\n" + "\n".join(body)
            + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
     return tex, tr
 
@@ -3684,16 +4105,26 @@ TABLES = {"headline": table_headline,
           "breakdown": table_breakdown,
           "breakdown_main": table_breakdown_main,
           "breakdown_traj": table_breakdown_traj,
+          "breakdown_traj_main": table_breakdown_traj_main,
           "transport_heldout": table_transport_heldout,
           "cellina_cf": table_cellina_cf,
           "synthetic": table_synthetic,
           "planted_percell": table_planted_percell,
+          "planted_spillover": table_planted_spillover,
+          "reloc_clean": table_reloc_clean,
           "context": table_context}
+
+
+#: tables built whenever their key is: the RECOMB supplement's compact
+#: trajectory table is refreshed by every run that refreshes breakdown_traj
+COMPANIONS = {"breakdown_traj": ["breakdown_traj_main"]}
 
 
 def build(names: list[str], out: Path, command: str) -> dict[str, Trace]:
     out.mkdir(parents=True, exist_ok=True)
     traces = {}
+    names = list(dict.fromkeys(n2 for n in names
+                               for n2 in [n, *COMPANIONS.get(n, [])]))
     for name in names:
         tex, tr = TABLES[name](command)
         (out / f"{name}.tex").write_text(tex)

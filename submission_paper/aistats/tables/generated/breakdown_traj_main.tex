@@ -1,0 +1,80 @@
+% Generated table: tab:breakdown-traj. DO NOT EDIT BY HAND; regenerate instead.
+% Command: python scripts/paper_tables.py --only breakdown_main breakdown breakdown_traj
+% Generated: 2026-10-01 18:01:10 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+%
+% Sources read (modification time):
+%   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_sweep.json  (2026-09-29 09:46:52)
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_sweep.json  (2026-09-29 09:46:54)
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_sweep.json  (2026-09-29 09:46:55)
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_sweep.json  (2026-09-29 09:46:53)
+%   scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json  (2026-10-01 18:00:58)  [after the freeze; see checks]
+%
+% Reading convention:
+%   mean over seeds per kappa: the trajectory table for four readouts, the sweep re-grade of
+%   the held-out probe for the composition residual
+%
+% Provenance (row / column -> file : key):
+%   Ovarian FFPE / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.transport_of_ceiling_trusted (mean per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling
+%   Ovarian FFPE / Transport $-$ programme part: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.transport_cf_minus_program (mean per kappa); underlying read: runs/<run>/transport/transport.json panels[]: mean R^2(counterfactual) - mean R^2(program_only) over ALL panels (breakdown_draws.all_panel_contrasts)
+%   Ovarian FFPE / Marker pairs (pp): scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.marker_excl_minus_ctrl_dc (mean per kappa); underlying read: runs/<run>/marker_pairs.json differences.decode_corrected-raw: exclusive.estimate - control.estimate
+%   Ovarian FFPE / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ovarian.readouts.moran_mu_z (mean per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   Ovarian FFPE / probe: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_sweep.json : mlp_comp.excess per run, shown as 1 - exp(-2 excess) in %, mean over the three seeds of each kappa (the kappa = 0.1 runs are the final fits of tab:probe)
+%   Lung FFPE / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.transport_of_ceiling_trusted (mean per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling
+%   Lung FFPE / Transport $-$ programme part: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.transport_cf_minus_program (mean per kappa); underlying read: runs/<run>/transport/transport.json panels[]: mean R^2(counterfactual) - mean R^2(program_only) over ALL panels (breakdown_draws.all_panel_contrasts)
+%   Lung FFPE / Marker pairs (pp): scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.marker_excl_minus_ctrl_dc (mean per kappa); underlying read: runs/<run>/marker_pairs.json differences.decode_corrected-raw: exclusive.estimate - control.estimate
+%   Lung FFPE / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : lung.readouts.moran_mu_z (mean per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   Lung FFPE / probe: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_sweep.json : mlp_comp.excess per run, shown as 1 - exp(-2 excess) in %, mean over the three seeds of each kappa (the kappa = 0.1 runs are the final fits of tab:probe)
+%   Ovarian FF / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.transport_of_ceiling_trusted (mean per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling
+%   Ovarian FF / Transport $-$ programme part: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.transport_cf_minus_program (mean per kappa); underlying read: runs/<run>/transport/transport.json panels[]: mean R^2(counterfactual) - mean R^2(program_only) over ALL panels (breakdown_draws.all_panel_contrasts)
+%   Ovarian FF / Marker pairs (pp): scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.marker_excl_minus_ctrl_dc (mean per kappa); underlying read: runs/<run>/marker_pairs.json differences.decode_corrected-raw: exclusive.estimate - control.estimate
+%   Ovarian FF / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : ff.readouts.moran_mu_z (mean per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   Ovarian FF / probe: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_sweep.json : mlp_comp.excess per run, shown as 1 - exp(-2 excess) in %, mean over the three seeds of each kappa (the kappa = 0.1 runs are the final fits of tab:probe)
+%   TMA core / Transport, fraction of ceiling: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.transport_of_ceiling_trusted (mean per kappa); underlying read: runs/<run>/transport/transport.json summary.extrapolation_trusted.counterfactual_of_ceiling; fewer than three seeds
+%   TMA core / Transport $-$ programme part: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.transport_cf_minus_program (mean per kappa); underlying read: runs/<run>/transport/transport.json panels[]: mean R^2(counterfactual) - mean R^2(program_only) over ALL panels (breakdown_draws.all_panel_contrasts)
+%   TMA core / Marker pairs (pp): scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.marker_excl_minus_ctrl_dc (mean per kappa); underlying read: runs/<run>/marker_pairs.json differences.decode_corrected-raw: exclusive.estimate - control.estimate
+%   TMA core / Moran's $I$ of $\vmu_z$: scripts/logs/breakdown_2026-09-29/breakdown_all_trajectory.json : gse.readouts.moran_mu_z (mean per kappa); underlying read: validation/validation.json morans.mu_z, variance-weighted
+%   TMA core / probe: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_sweep.json : mlp_comp.excess per run, shown as 1 - exp(-2 excess) in %, mean over the three seeds of each kappa (the kappa = 0.1 runs are the final fits of tab:probe)
+%
+% Pending cells:
+%   none
+%
+\begin{table}[!htbp]
+\centering
+\caption{Readouts reported as trajectories across the sweep, mean over three seeds. \emph{\TermReloc}: fraction of the noise ceiling, trusted tier ($^{\dagger}$over the seeds with a trusted panel). \emph{Marker pairs}: change in the double-positive rate of exclusive pairs from raw counts to the corrected decode, minus that of control pairs, in percentage points (\cref{app:readouts}). \emph{\TermReloc{} $-$ programme part}: mean $R^2$ over all panels with the \termSpill{} term minus that of the programme part alone. \emph{Probe}: the nonlinear probe's composition residual, $1 - e^{-2\,\mathrm{excess}}$ in \% (as in \cref{tab:probe}).}
+\label{tab:breakdown-traj}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+Readout & $\kappa = 0$ & $0.05$ & $\bm{0.1}$ & $0.2$ & $0.3$ & $0.4$ \\
+\midrule
+\multicolumn{7}{@{}l}{\emph{Ovarian cancer (FFPE)}} \\
+\quad \TermReloc{}, fraction of ceiling & 0.56 & 0.63 & 0.65 & 0.62 & 0.47 & 0.35 \\
+\quad \TermReloc{} $-$ programme part & 0.00 & 0.02 & 0.02 & 0.02 & $-0.01$ & $-0.04$ \\
+\quad Marker pairs (pp) & 0.4 & 0.4 & 0.6 & 0.6 & 0.7 & 0.9 \\
+\quad Moran's $I$ of $\vmu_z$ & 0.118 & 0.112 & 0.108 & 0.096 & 0.083 & 0.072 \\
+\quad Probe, composition (\%) & 4.7 & 4.5 & 4.6 & 4.5 & 3.5 & 3.5 \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Lung cancer (FFPE)}} \\
+\quad \TermReloc{}, fraction of ceiling & 0.58 & 0.69 & 0.72 & 0.74 & 0.66 & 0.61 \\
+\quad \TermReloc{} $-$ programme part & 0.00 & 0.02 & 0.04 & 0.04 & 0.03 & 0.02 \\
+\quad Marker pairs (pp) & $-1.7$ & $-1.6$ & $-1.6$ & $-1.3$ & $-0.8$ & $-0.6$ \\
+\quad Moran's $I$ of $\vmu_z$ & 0.064 & 0.059 & 0.054 & 0.048 & 0.043 & 0.038 \\
+\quad Probe, composition (\%) & 4.4 & 4.2 & 4.4 & 4.0 & 3.7 & 3.7 \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Ovarian cancer (FF)}} \\
+\quad \TermReloc{}, fraction of ceiling & 0.58 & 0.64 & 0.67 & 0.70 & 0.67 & 0.62 \\
+\quad \TermReloc{} $-$ programme part & 0.00 & 0.06 & 0.10 & 0.11 & 0.12 & 0.10 \\
+\quad Marker pairs (pp) & $-2.9$ & $-2.8$ & $-2.5$ & $-2.0$ & $-1.4$ & $-0.9$ \\
+\quad Moran's $I$ of $\vmu_z$ & 0.360 & 0.358 & 0.351 & 0.341 & 0.312 & 0.302 \\
+\quad Probe, composition (\%) & 4.5 & 4.3 & 4.6 & 4.3 & 3.5 & 3.5 \\
+\addlinespace
+\multicolumn{7}{@{}l}{\emph{Lung TMA core}} \\
+\quad \TermReloc{}, fraction of ceiling$^{\dagger}$ & 0.58 & 0.73 & 0.73 & 0.73 & 0.70 & 0.67 \\
+\quad \TermReloc{} $-$ programme part & 0.00 & 0.02 & 0.02 & 0.02 & 0.01 & $-0.00$ \\
+\quad Marker pairs (pp) & $-1.7$ & $-1.7$ & $-1.5$ & $-1.2$ & $-0.8$ & $-0.6$ \\
+\quad Moran's $I$ of $\vmu_z$ & 0.076 & 0.066 & 0.059 & 0.052 & 0.040 & 0.038 \\
+\quad Probe, composition (\%) & 4.0 & 4.1 & 4.0 & 3.4 & 3.4 & 2.9 \\
+\bottomrule
+\end{tabular}
+\end{table}

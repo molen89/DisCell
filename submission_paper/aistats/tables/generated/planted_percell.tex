@@ -1,6 +1,6 @@
 % Generated table: tab:planted-percell. DO NOT EDIT BY HAND; regenerate instead.
 % Command: python scripts/paper_tables.py
-% Generated: 2026-10-01 13:48:01 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Generated: 2026-10-01 17:35:54 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   data/datasets/synthetic_smoke/experiments/planted_percell.json  (2026-09-29 17:49:51)  [after the freeze; see checks]
@@ -22,31 +22,31 @@
 %
 \begin{table}[t]
 \centering
-\caption{A planted per-cell response on simulated sections (planted $\kappa = 0.2$, final configuration unchanged). In $10\%$ of the cells of one type, spread across niches, the log-rate is shifted along the planted response programme by $s$ times the size of the planted niche effect (\emph{Shift}, its norm in log-rate units); $s = 0$ is the null. \emph{KL AUC}: the per-cell divergence of the response posterior from its prior separating the planted cells from the other cells of their type; \emph{$\vw$ corr.}: correlation of the response's deviation from its prior mean, along the planted direction, with the plant; \emph{$\vz$ absorption}: the same for the intrinsic latent, read through the decoder along the planted direction; \emph{Recon. gain}: held-out gain in nats per count of the full decode over the response at its prior mean, on planted cells; \emph{Spearman} and \emph{top-decile overlap}: agreement of the per-cell divergence between seeds. Ranges over three model seeds (seed pairs for the last two). The rule, fixed in advance and applied to world 0: the channel detects at $s$ if every seed has KL AUC $\geq 0.8$ and every seed pair a Spearman correlation $\geq 0.5$; worlds 1 and 2 replicate. No strength is detected. The planted subset cannot be predicted from neighbour composition or from composition and the image descriptor (five-fold cross-validated AUC 0.44--0.54 within the planted type, logistic and forest classifiers, all three worlds). The arrow gives the preferred direction.}
+\caption{A planted per-cell response on simulated sections (planted $\kappa = 0.2$, final configuration). In $10\%$ of the cells of one type, spread across niches, the log-rate is shifted along the planted response programme by $s$ times the planted niche effect (\emph{Shift}: its norm in log-rate units); $s = 0$ is the null. \emph{KL AUC}: the per-cell divergence of the response posterior from its prior separating planted cells from the rest of their type; \emph{$\vw$ corr.}: correlation of the response's deviation from its prior mean, along the planted direction, with the plant; \emph{$\vz$ absorption}: the same for the intrinsic latent, read through the decoder; \emph{Recon. gain}: held-out gain in nats per count of the full decode over the response at its prior mean, on planted cells; \emph{Spearman}, \emph{top-decile overlap}: agreement of the per-cell divergence between seeds. Ranges over three model seeds (seed pairs for the last two). Rule, fixed in advance and applied to world 0: the channel detects at $s$ if every seed has KL AUC $\geq 0.8$ and every seed pair a Spearman correlation $\geq 0.5$; worlds 1 and 2 replicate. No strength is detected. The planted subset cannot be predicted from neighbour composition or from composition and the image descriptor (five-fold cross-validated AUC 0.44--0.54 within the planted type, logistic and forest classifiers, all three worlds). The arrow gives the preferred direction.}
 \label{tab:planted-percell}
 \small
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{@{}lcccccccc@{}}
+\begin{tabular}{@{}lccccccc@{}}
 \toprule
-$s$ & Shift & KL AUC $\uparrow$ & $\vw$ corr. & $\vz$ absorption & Recon. gain & Spearman & Top-decile overlap & Detected \\
+$s$ & Shift & KL AUC $\uparrow$ & $\vw$ corr. & $\vz$ absorption & Recon. gain & Spearman & Top-decile overlap \\
 \midrule
-\multicolumn{9}{@{}l}{\emph{World 0 (decides)}} \\
-\quad 0 & 0.0 & 0.45--0.51 & $-0.01$ to 0.01 & 0.00--0.03 & 0.002--0.006 & 0.39--0.41 & 0.42--0.46 & no \\
-\quad 0.5 & 4.7 & 0.38--0.59 & 0.18--0.28 & 0.15--0.17 & 0.005--0.009 & 0.34--0.36 & 0.37--0.40 & no \\
-\quad 1 & 9.3 & 0.66--0.85 & 0.34--0.37 & 0.23--0.27 & 0.008--0.017 & 0.11--0.18 & 0.21--0.31 & no \\
-\quad 2 & 18.6 & 0.56--0.69 & 0.16--0.38 & 0.36--0.48 & 0.011--0.015 & 0.25--0.42 & 0.32--0.41 & no \\
+\multicolumn{8}{@{}l}{\emph{World 0 (decides)}} \\
+\quad 0 & 0.0 & 0.45--0.51 & $-0.01$ to 0.01 & 0.00--0.03 & 0.002--0.006 & 0.39--0.41 & 0.42--0.46 \\
+\quad 0.5 & 4.7 & 0.38--0.59 & 0.18--0.28 & 0.15--0.17 & 0.005--0.009 & 0.34--0.36 & 0.37--0.40 \\
+\quad 1 & 9.3 & 0.66--0.85 & 0.34--0.37 & 0.23--0.27 & 0.008--0.017 & 0.11--0.18 & 0.21--0.31 \\
+\quad 2 & 18.6 & 0.56--0.69 & 0.16--0.38 & 0.36--0.48 & 0.011--0.015 & 0.25--0.42 & 0.32--0.41 \\
 \addlinespace
-\multicolumn{9}{@{}l}{\emph{World 1 (replication)}} \\
-\quad 0 & 0.0 & 0.46--0.48 & 0.02--0.04 & $-0.00$ to 0.04 & 0.003--0.006 & 0.41--0.45 & 0.34--0.38 & no \\
-\quad 0.5 & 4.1 & 0.62--0.78 & 0.33--0.35 & 0.27--0.30 & 0.004--0.013 & 0.35--0.39 & 0.34--0.40 & no \\
-\quad 1 & 8.1 & 0.67--0.80 & 0.32--0.41 & 0.58--0.63 & 0.004--0.013 & 0.33--0.39 & 0.39--0.42 & no \\
-\quad 2 & 16.3 & 0.46--0.62 & 0.18--0.21 & 0.86--0.88 & 0.001--0.003 & 0.37--0.39 & 0.39--0.42 & no \\
+\multicolumn{8}{@{}l}{\emph{World 1 (replication)}} \\
+\quad 0 & 0.0 & 0.46--0.48 & 0.02--0.04 & $-0.00$ to 0.04 & 0.003--0.006 & 0.41--0.45 & 0.34--0.38 \\
+\quad 0.5 & 4.1 & 0.62--0.78 & 0.33--0.35 & 0.27--0.30 & 0.004--0.013 & 0.35--0.39 & 0.34--0.40 \\
+\quad 1 & 8.1 & 0.67--0.80 & 0.32--0.41 & 0.58--0.63 & 0.004--0.013 & 0.33--0.39 & 0.39--0.42 \\
+\quad 2 & 16.3 & 0.46--0.62 & 0.18--0.21 & 0.86--0.88 & 0.001--0.003 & 0.37--0.39 & 0.39--0.42 \\
 \addlinespace
-\multicolumn{9}{@{}l}{\emph{World 2 (replication)}} \\
-\quad 0 & 0.0 & 0.46--0.49 & $-0.01$ to 0.05 & 0.03--0.05 & 0.000--0.001 & 0.19--0.25 & 0.23--0.28 & no \\
-\quad 0.5 & 2.7 & 0.47--0.55 & 0.12--0.16 & 0.13--0.18 & 0.000--0.001 & 0.19--0.26 & 0.24--0.31 & no \\
-\quad 1 & 5.5 & 0.56--0.59 & 0.11--0.29 & 0.28--0.33 & 0.002 & 0.14--0.20 & 0.23--0.25 & no \\
-\quad 2 & 11.0 & 0.58--0.74 & 0.20--0.29 & 0.52--0.70 & 0.000--0.006 & 0.16--0.24 & 0.17--0.33 & no \\
+\multicolumn{8}{@{}l}{\emph{World 2 (replication)}} \\
+\quad 0 & 0.0 & 0.46--0.49 & $-0.01$ to 0.05 & 0.03--0.05 & 0.000--0.001 & 0.19--0.25 & 0.23--0.28 \\
+\quad 0.5 & 2.7 & 0.47--0.55 & 0.12--0.16 & 0.13--0.18 & 0.000--0.001 & 0.19--0.26 & 0.24--0.31 \\
+\quad 1 & 5.5 & 0.56--0.59 & 0.11--0.29 & 0.28--0.33 & 0.002 & 0.14--0.20 & 0.23--0.25 \\
+\quad 2 & 11.0 & 0.58--0.74 & 0.20--0.29 & 0.52--0.70 & 0.000--0.006 & 0.16--0.24 & 0.17--0.33 \\
 \bottomrule
 \end{tabular}
 \end{table}

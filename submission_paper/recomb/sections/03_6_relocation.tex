@@ -1,36 +1,42 @@
 \subsection{Relocation}
 \label{sec:relocation}
 % 03_6_relocation.tex -- budget 0.8 p. Claim C5.
-% tab:relocation is a hand table: every number is traced from
-%   ../aistats/tables/generated/cellina_cf.tex (tab:cellina-cf, DISCELL's first seed beside Cellina).
+% tab:relocation is a hand table (2 decimals, as cellina_cf.tex since 2026-10-01); every number is traced from
+%   ../aistats/tables/generated/cellina_cf.tex (tab:cellina-cf, DISCELL's first seed beside Cellina);
+%   column R from data/datasets/<ds>/experiments/transport_regression_reference.md, finalL_s0,
+%   extrapolation_trusted, regression (rate) (scripts/logs/recomb_additions_2026-10-01/READOUT.md).
 
 \begin{table}[t]
 \centering
-\caption{Relocation, DISCELL against Cellina's neighbour-rewiring counterfactual, on the same panels, niches and ceilings (DISCELL's first seed, which supplies the panels; Cellina refitted on the training tiles). \emph{Ceiling}: share of the reproducible between-niche difference recovered, over the panels whose ceiling can be read. \emph{Single cell}: share of the distribution gap to the target niche's own cells that the moved cells close. \emph{Twin}: how much closer, in expression, each target cell lies to the moved cell nearest it in intrinsic state than to a random moved cell. D: DISCELL; C: Cellina. Higher is better; bold marks the better of the two. $^{a}$A single readable panel. Intervals: \cref{tab:cellina-cf}.}
+\caption{Relocation, DISCELL against Cellina's neighbour-rewiring counterfactual, on the same panels, niches and ceilings (DISCELL's first seed, which supplies the panels; Cellina refitted on the training tiles). \emph{Ceiling}: share of the reproducible between-niche difference recovered, over the panels whose ceiling can be read. \emph{Single cell}: share of the distribution gap to the target niche's own cells that the moved cells close. \emph{Twin}: how much closer, in expression, each target cell lies to the moved cell nearest it in intrinsic state than to a random moved cell. D: DISCELL; C: Cellina; R: a plain regression on the raw counts (see text), a reference, not marked. Higher is better; bold marks the better of D and C. $^{a}$A single readable panel. Intervals: \cref{tab:cellina-cf}.}
 \label{tab:relocation}
 \footnotesize
-\setlength{\tabcolsep}{2.8pt}
-\begin{tabular}{@{}lcccccc@{}}
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccccccc@{}}
 \toprule
- & \multicolumn{2}{c}{Ceiling} & \multicolumn{2}{c}{Single cell} & \multicolumn{2}{c}{Twin} \\
-\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
-Section & D & C & D & C & D & C \\
+ & \multicolumn{3}{c}{Ceiling} & \multicolumn{2}{c}{Single cell} & \multicolumn{2}{c}{Twin} \\
+\cmidrule(lr){2-4}\cmidrule(lr){5-6}\cmidrule(lr){7-8}
+Section & D & C & R & D & C & D & C \\
 \midrule
-Ovarian FFPE & 0.650 & \textbf{0.731} & \textbf{0.789} & 0.681 & \textbf{0.398} & 0.361 \\
-Lung FFPE    & \textbf{0.743} & 0.703 & \textbf{0.826} & 0.757 & 0.432 & \textbf{0.435} \\
-Ovarian FF   & \textbf{0.677} & 0.566 & \textbf{0.823} & 0.602 & \textbf{0.437} & 0.330 \\
-TMA core     & 0.711 & \textbf{0.899}$^{a}$ & \textbf{0.814} & 0.801 & \textbf{0.464} & 0.284 \\
+Ovarian FFPE & 0.65 & \textbf{0.73} & 0.89 & \textbf{0.79} & 0.68 & \textbf{0.40} & 0.36 \\
+Lung FFPE    & \textbf{0.74} & 0.70 & 0.87 & \textbf{0.83} & 0.76 & 0.43 & 0.43 \\
+Ovarian FF   & \textbf{0.68} & 0.57 & 0.82 & \textbf{0.82} & 0.60 & \textbf{0.44} & 0.33 \\
+TMA core     & 0.71 & \textbf{0.90}$^{a}$ & 0.73$^{a}$ & \textbf{0.81} & 0.80 & \textbf{0.46} & 0.28 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\emph{Relocation} asks how a cell type's expression would change if its cells sat in another niche. DISCELL answers it by keeping each cell's intrinsic state, moving the prior of its response and its spill-over influx to the target niche, and decoding. For each type and pair of niches (a panel), the predicted change in the type's mean expression is scored against the observed difference between the two niches, as a share of the part of that difference that is reproducible between two random halves of the cells (the noise ceiling); only panels whose ceiling is high enough to be read count (\suppref{app:readouts}).
+\emph{Relocation} asks how a cell type's expression would change if its cells sat in another niche. DISCELL answers it by keeping each cell's intrinsic state, moving the prior of its response and its spill-over influx to the target niche, and decoding, so relocation exercises the whole model at once. For each type and pair of niches (a panel), the predicted change in the type's mean expression is scored against the observed difference between the two niches, as a share of the part of that difference that is reproducible between two random halves of the cells (the noise ceiling); only panels whose ceiling is high enough to be read count (\suppref{app:readouts}).
 
 Moved to another niche, a cell type's predicted shift recovers $0.65$ to $0.73$ of the reproducible between-niche difference (\cref{tab:headline-full}). The response programmes of \cref{sec:programmes} carry most of it: predicted from the programmes alone, the shift recovers $0.52$ to $0.64$ of the ceiling, and from the spill-over alone $0.21$ to $0.39$ (the two parts are not additive; \cref{tab:cellina-cf}).
 
-Cellina \citep{moeed2026cellina} also predicts expression under a rewired neighbourhood, so we score its counterfactual by the same reads on the same panels (\cref{tab:relocation}). The comparison is mixed. DISCELL's moved cells are closer to the target cells' own distribution on every section, with disjoint intervals on three, and DISCELL leads on all three reads on the FF section. Cellina recovers more of the ceiling on the ovarian FFPE section, and on the TMA core on its single readable panel, and is narrowly ahead on the twin read on lung. Most scored cells lie in the model's training tiles; scored on held-out tiles only, DISCELL's share of the ceiling moves in both directions across fits, so it shows no systematic in-sample advantage, while Cellina's falls on both FFPE sections, on lung from $0.70$ to $0.49$, below DISCELL's range (\cref{tab:transport-heldout}).
+Cellina \citep{moeed2026cellina} also predicts expression under a rewired neighbourhood, so we score its counterfactual by the same reads on the same panels (\cref{tab:relocation}). The comparison is mixed. DISCELL's moved cells are closer to the target cells' own distribution on every section, with disjoint intervals on three, and DISCELL leads on all three reads on the FF section. Cellina recovers more of the ceiling on the ovarian FFPE section, and on the TMA core on its single readable panel. Scored on held-out tiles only (\cref{sec:setup}), DISCELL's share of the ceiling moves in both directions across fits and its single-cell read falls, while Cellina's share falls on both FFPE sections, on lung from $0.70$ to $0.49$, below DISCELL's range (\cref{tab:transport-heldout}).
 
-Would a plain regression do as well? Regressing each type's expression shift directly on neighbour composition, from the counts as observed, recovers \pending{plain-regression reference} of the ceiling.
-% Planned follow-up sentence, one of: below DISCELL -> modelling spill-over and the intrinsic state adds
-%   accuracy beyond what niche composition predicts; level -> DISCELL's advantage lies in the separation
-%   (an intrinsic state largely free of the niche, spill-over modelled), not in relocation accuracy.
+A plain ridge regression of each type's expression on neighbour composition, fitted to the raw counts of the same panels, recovers $0.81$ to $0.89$ of the ceiling on the whole-slide sections, against DISCELL's $0.65$ to $0.72$, and is level on the TMA core (R in \cref{tab:relocation}); over all panels DISCELL is higher on three sections (\suppref{app:cellina-cf}). The observed shifts, however, contain the spill-over, so reproducing them rewards ignoring it. In simulation, where the spill-free shift between niches is known (\suppref{app:S-reloc-clean}), only DISCELL recovers it: its prediction from the programmes alone, without the spill-over, explains $R^2 \approx 0.76$ of the spill-free shift at every planted spill-over fraction from $0$ to $0.2$, while the regression falls from $0.40$ to $0.14$ as spill-over grows (log scale; below zero on the rate scale). DISCELL's full prediction falls too, by design, since it predicts the observed shift.
+% Source: scripts/logs/recomb_additions_2026-10-01/READOUT.md, section 2 (trusted tier, rate-scale ridge: ovarian 0.860, lung 0.892,
+%   FF 0.810 vs DISCELL 0.649, 0.724, 0.668; TMA core 0.770 vs 0.733, n = 2, ranges overlap; log scale 0.055-0.218;
+%   all panels: DISCELL higher on GSE, ovarian, lung; single-cell read on raw targets: regression (rate) 0.48-0.62 vs DISCELL
+%   count-matched 0.25-0.63).
+% Clean truth: data/datasets/synthetic_smoke/experiments/relocation_clean_truth.md (follow-up (b)), generated as
+%   tab:S-reloc-clean: programme part 0.76 / 0.76 / 0.76 at kappa_true 0 / 0.1 / 0.2; regression log 0.40 -> 0.14,
+%   rate 0.25 -> -1.27; full counterfactual 0.76 -> -1.05.

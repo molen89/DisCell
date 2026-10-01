@@ -1,10 +1,10 @@
 % Generated table: tab:breakdown. DO NOT EDIT BY HAND; regenerate instead.
-% Command: python scripts/paper_tables.py
-% Generated: 2026-10-01 13:48:01 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Command: python scripts/paper_tables.py --only breakdown_main breakdown breakdown_traj
+% Generated: 2026-10-01 18:01:10 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
-%   scripts/logs/breakdown_2026-09-29/breakdown_all.json  (2026-10-01 08:35:40)  [after the freeze; see checks]
-%   scripts/logs/breakdown_2026-09-29/breakdown_all.md  (2026-10-01 08:35:40)  [after the freeze; see checks]
+%   scripts/logs/breakdown_2026-09-29/breakdown_all.json  (2026-10-01 18:00:58)  [after the freeze; see checks]
+%   scripts/logs/breakdown_2026-09-29/breakdown_all.md  (2026-10-01 18:00:58)  [after the freeze; see checks]
 %
 % Reading convention:
 %   kappa* per member and section from the lean 8.19 table; Bonferroni within each section
@@ -20,23 +20,30 @@
 %   $\I(\text{niche}; \vw)$ $-$ its floor / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
 %   $\I(\text{niche}; \vw)$ $-$ its floor / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
 %   $\I(\text{niche}; \vw)$ $-$ its floor / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
-%   Read A $-$ type-mean reference / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
-%   Read A $-$ type-mean reference / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
-%   Read A $-$ type-mean reference / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
-%   Read A $-$ type-mean reference / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
-%   Twin margin / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
-%   Twin margin / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
-%   Twin margin / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
-%   Twin margin / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
-%   Transport $-$ leakage part / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.transport_cf_minus_leak (status 'breaks', kappa_star 0.4, sign 1)
-%   Transport $-$ leakage part / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.transport_cf_minus_leak (status 'breaks', kappa_star 0.3, sign 1)
-%   Transport $-$ leakage part / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.transport_cf_minus_leak (status 'above the grid', kappa_star None, sign 1)
-%   Transport $-$ leakage part / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.transport_cf_minus_leak (status 'above the grid', kappa_star None, sign 1)
+%   $\I(\text{niche}; \vw)$ $-$ its floor / TMA serial: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse_dual.members.w_niche_mi_excess (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ type mean / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ type mean / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ type mean / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ type mean / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ type mean / TMA serial: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse_dual.members.readA_minus_typemean (status 'above the grid', kappa_star None, sign 1)
+%   Nearest-twin advantage / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
+%   Nearest-twin advantage / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
+%   Nearest-twin advantage / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
+%   Nearest-twin advantage / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
+%   Nearest-twin advantage / TMA serial: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse_dual.members.readB_twin_margin (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ spill-over part / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.transport_cf_minus_leak (status 'breaks', kappa_star 0.4, sign 1)
+%   Relocation $>$ spill-over part / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.transport_cf_minus_leak (status 'breaks', kappa_star 0.3, sign 1)
+%   Relocation $>$ spill-over part / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.transport_cf_minus_leak (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ spill-over part / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.transport_cf_minus_leak (status 'above the grid', kappa_star None, sign 1)
+%   Relocation $>$ spill-over part / TMA serial: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse_dual.members.transport_cf_minus_leak (status 'breaks', kappa_star 0.4, sign 1)
 %   Signalling share, LR $-$ other / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.signalling_response_lr_vs_other (status 'above the grid', kappa_star None, sign 1)
 %   Signalling share, LR $-$ other / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.signalling_response_lr_vs_other (status 'above the grid', kappa_star None, sign 1)
 %   Signalling share, LR $-$ other / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.signalling_response_lr_vs_other (status 'breaks', kappa_star 0.2, sign 1)
 %   Signalling share, LR $-$ other / TMA core: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse.members.signalling_response_lr_vs_other (status 'above the grid', kappa_star None, sign 1)
+%   Signalling share, LR $-$ other / TMA serial: scripts/logs/breakdown_2026-09-29/breakdown_all.json : gse_dual.members.signalling_response_lr_vs_other (status 'above the grid', kappa_star None, sign 1)
 %   Tumour axis, true $-$ false / Ovarian FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ovarian.members.axis_tau_true_minus_false (status 'above the grid', kappa_star None, sign 1)
+%   Tumour axis, true $-$ false / Lung FFPE: scripts/logs/breakdown_2026-09-29/breakdown_all.json : lung.members.axis_tau_true_minus_false (status 'breaks', kappa_star 0.4, sign 1)
+%   Tumour axis, true $-$ false / Ovarian FF: scripts/logs/breakdown_2026-09-29/breakdown_all.json : ff.members.axis_tau_true_minus_false (status 'breaks', kappa_star 0.3, sign 1)
 %
 % Checks and notes:
 %   - Statuses checked equal to the rendered scripts/logs/breakdown_2026-09-29/breakdown_all.md.
@@ -50,21 +57,21 @@
 %
 \begin{table*}[t]
 \centering
-\caption{Breakdown points $\kappa^*$ of the contrasts the results claim, per section, on the \termSpill{} sweep ($\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$, three seeds each). A contrast holds at a grid point if every seed has the sign it has at $\kappa = 0$ and the interval of the mean over seeds (spatial block bootstrap over tiles, two-sided, Bonferroni-adjusted over the $m$ contrasts of the section) excludes $0$. $\kappa^*$ is the first grid point where it fails; \emph{above the grid}: it holds at every grid point; \emph{no finding}: it fails already at $\kappa = 0$; $^{a}$the interval contains $0$, $^{b}$a seed has the opposite sign. Signalling share: the response's share of ligand-receptor (LR) genes against other genes; tumour axis: Kendall's $\tau$ of the response-predicted shift with the true against a false axis. On the serial section only the cycle asymmetry is read, through the core's fits. The tumour axis exists on the ovarian FFPE section only. The marker-pair contrast and \termReloc{} $-$ programme part are trajectories (\cref{tab:breakdown-traj}). --: not in that section's set.}
+\caption{Breakdown points $\kappa^*$ of the contrasts the results claim, per section, on the \termSpill{} sweep ($\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$, three seeds each). A contrast holds at a grid point if every seed has the sign it has at $\kappa = 0$ and the interval of the mean over seeds (spatial block bootstrap over tiles, two-sided, Bonferroni-adjusted over the $m$ contrasts of the section) excludes $0$. $\kappa^*$ is the first grid point where it fails; \emph{above the grid}: it holds at every grid point; \emph{no finding}: it fails already at $\kappa = 0$; $^{a}$the interval contains $0$, $^{b}$a seed has the opposite sign. Signalling share: the response's share of ligand-receptor (LR) genes against other genes; tumour axis: Kendall's $\tau$ of the response-predicted shift with the true against a false axis. On the serial section the contrasts are read with the core's fits applied to its cells. The marker-pair contrast and \termReloc{} $-$ programme part are trajectories (\cref{tab:breakdown-traj}). --: not in that section's set. n/a: not applicable on TMA core and TMA serial (no tumour cells).}
 \label{tab:breakdown}
 \footnotesize
 \setlength{\tabcolsep}{2pt}
 \begin{tabular}{@{}lccccc@{}}
 \toprule
-Contrast & \shortstack{Ovarian FFPE\\($m = 7$)} & \shortstack{Lung FFPE\\($m = 6$)} & \shortstack{Ovarian FF\\($m = 6$)} & \shortstack{TMA core\\($m = 6$)} & \shortstack{TMA serial\\($m = 1$)} \\
+Contrast & \shortstack{Ovarian FFPE\\($m = 7$)} & \shortstack{Lung FFPE\\($m = 7$)} & \shortstack{Ovarian FF\\($m = 7$)} & \shortstack{TMA core\\($m = 6$)} & \shortstack{TMA serial\\($m = 6$)} \\
 \midrule
 Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ & above the grid & above the grid & above the grid & above the grid & above the grid \\
-$\I(\text{niche}; \vw)$ $-$ its floor & above the grid & above the grid & above the grid & above the grid & -- \\
-Read A $-$ type-mean reference & above the grid & above the grid & above the grid & above the grid & -- \\
-Twin margin & above the grid & above the grid & above the grid & above the grid & -- \\
-\TermReloc{} $-$ \termSpill{} part & 0.4$^{b}$ & 0.3$^{b}$ & above the grid & above the grid & -- \\
-Signalling share, LR $-$ other & above the grid & above the grid & 0.2$^{a}$ & above the grid & -- \\
-Tumour axis, true $-$ false & above the grid & -- & -- & -- & -- \\
+$\I(\text{niche}; \vw)$ $-$ its floor & above the grid & above the grid & above the grid & above the grid & above the grid \\
+\TermReloc{} $>$ type mean & above the grid & above the grid & above the grid & above the grid & above the grid \\
+Nearest-twin advantage & above the grid & above the grid & above the grid & above the grid & above the grid \\
+\TermReloc{} $>$ \termSpill{} part & 0.4$^{b}$ & 0.3$^{b}$ & above the grid & above the grid & 0.4$^{b}$ \\
+Signalling share, LR $-$ other & above the grid & above the grid & 0.2$^{a}$ & above the grid & above the grid \\
+Tumour axis, true $-$ false & above the grid & 0.4$^{b}$ & 0.3$^{b}$ & n/a & n/a \\
 \bottomrule
 \end{tabular}
 \end{table*}

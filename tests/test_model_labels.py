@@ -82,3 +82,45 @@ def test_malignant_cells_is_tumour_and_t_cells_is_not():
     from discell.model.labels import is_tumour
     assert is_tumour("Malignant Cells") and is_tumour("Malignant cells")
     assert not is_tumour("T cells") and not is_tumour("T-cells") and not is_tumour("Tumour T cells")
+
+
+# Lung lineage vocabulary (GSE TMA cores, Xenium lung FFPE) names its
+# endothelial classes "EC ..." / "... EC"; the vessel landmark missed them
+# (devlog 2026-10-01, "Vessel landmark misses lung 'EC' labels").
+LUNG_ENDOTHELIAL = ["EC aerocyte capillary", "EC general capillary",
+                    "EC venous", "Lymphatic EC"]
+LUNG_NOT_ENDOTHELIAL = [
+    "Adventitial fibroblasts", "Alveolar fibroblasts", "Multiciliated", "AT1",
+    "AT2", "Neutrophils", "Interstitial macrophages", "Unassigned",
+    "Pericytes", "Chondrocytes", "Vascular smooth muscle",
+    "Airway smooth muscle", "Smooth muscle", "Secretory", "Schwann cells",
+    "Skeletal muscle", "Neuroendocrine", "T/NK cells", "Megakaryocytes",
+    "Alveolar macrophages", "Distal epithelium", "Erythroid", "Mast cells",
+    "Basal", "B cells", "Goblet", "Plasma cells", "Tumour"]
+OVARIAN_LABELS = [
+    "Tumour", "Macrophages", "Ovarian stroma", "Fibroblasts", "T/NK cells",
+    "Unassigned", "Plasma cells", "Endothelial cells", "Pericytes",
+    "Smooth muscle cells", "Fallopian tube epithelium",
+    "Mesothelial-like cyst lining", "Ciliated epithelial cells",
+    "Urothelial-like cells"]
+
+
+@pytest.mark.parametrize("name", LUNG_ENDOTHELIAL)
+def test_is_endothelial_matches_lung_ec_labels(name):
+    assert is_endothelial(name)
+
+
+@pytest.mark.parametrize("name", LUNG_NOT_ENDOTHELIAL)
+def test_is_endothelial_rejects_other_lung_labels(name):
+    assert not is_endothelial(name)
+
+
+def test_is_endothelial_ovarian_match_set_unchanged():
+    # no new false matches on the ovarian vocabularies
+    assert [n for n in OVARIAN_LABELS if is_endothelial(n)] == \
+        ["Endothelial cells"]
+
+
+def test_is_endothelial_ec_token_is_case_sensitive_whole_word():
+    for name in ("Secretory", "Necrotic", "ec", "Specimen"):
+        assert not is_endothelial(name), name

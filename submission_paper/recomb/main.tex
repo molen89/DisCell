@@ -35,7 +35,7 @@
 
 % labels of the supplement (S1, S2, ...; Figure S1, Table S1) are imported without a prefix;
 % the label namespaces of main and supplement must stay disjoint (build.sh checks).
-\externaldocument{supplement}[supplement.pdf]
+\externaldocument[][nocite]{supplement}[supplement.pdf]   % labels only: each document keeps its own bibliography numbers
 \newcommand{\suppref}[1]{\ref{#1}}   % -> "S3" / "S3.2" (the S prefix marks the supplement; author 2026-10-01)
 
 % main-text page count, written at shipout (read by build.sh)
