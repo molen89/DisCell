@@ -328,7 +328,9 @@ def test_default_config_is_finalL_s0(dataset):
     default = dataclasses.replace(default,
                                   alpha_z=resolve_alpha_z(dataset, None))
     got = dataclasses.asdict(default)
-    assert set(got) == set(final)
+    # fields added after the finalL fits, at their bit-identical defaults
+    assert set(got) - set(final) == {"no_image"} and got["no_image"] is False
+    assert set(final) <= set(got)
     differs = {k: final[k] for k in final if got[k] != final[k]}
     assert differs == BUDGET
 

@@ -1,0 +1,25 @@
+\subsection{What the Response Encodes}
+\label{sec:programmes}
+% 03_4_programmes.tex -- budget 0.8 p. Claim C4b. Every value from data/datasets/<ds>/runs/finalL_s{0,1,2}/atlas
+% and the validation files, via figures/src/recomb_fig_programmes.py (verification log in _reports/exp_a.md).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{recomb_fig_programmes}
+\caption{The leading response programme of each section, in one fit. \textbf{a},~Territory: each cell's shift toward the red (blue) genes of b, relative to its type's average (FF rotated), with the programme's share of $\vw$'s within-type variance and its within-type Moran's I. \textbf{b},~Signature: the five largest positive and negative gene loadings, scaled, and its two most significant hallmark labels \citep{liberzon2015hallmark}, with the number of seeds in which the matching programme carries each among its top three at $q \leq 0.05$. \textbf{c},~Drivers: cross-validated $R^2$ of the score from neighbour composition, image context and distances to landmarks (vessels, smooth muscle, the tumour--stroma interface, where annotated): alone (light), unique given the others (dark), all three together (title). \textbf{d},~Within-type Moran's I of $\vz$ without the adversary (two seeds), and of $\vz$ and $\vw$ in the final fits (three seeds): mean and range.}
+\label{fig:programmes}
+\end{figure*}
+
+Within types, the response's variation lies in two or three programmes (four or five on the FF section, depending on the seed). Programmes, directions of $\vw$ read in gene space through $\vB$, are identified only up to rotation (\cref{sec:sweep}), so we describe each section's leading programme within one fit (\cref{fig:programmes}) and compare seeds only on its leading genes and hallmark labels.
+
+\paragraph{The response maps territories.}
+Within types, Moran's I of $\vw$ is $0.48$ to $0.73$, against $0.05$ to $0.11$ for $\vz$ on three sections and $0.35$ on the FF section (\cref{fig:programmes}d).
+
+\paragraph{Each leading programme has a recognisable signature.}
+On the ovarian FFPE section the leading programme ($70\%$ of the response's within-type variance) sets \textit{COL11A1}, \textit{MMP11}, \textit{COL10A1} and \textit{INHBA}, genes of the cancer-associated fibroblasts of invasive tumours, ovarian cancer included \citep{kim2010multicancer,zhu2021adipose}, against \textit{C7} and \textit{DPT}, genes of non-activated stromal fibroblasts \citep{zhu2021adipose,buechler2021crosstissue}, \textit{TNXB} and inflammatory genes (\textit{IL6}, \textit{PTGS2}). Its territory lies around the tumour: in fibroblasts, macrophages, T/NK and endothelial cells the score rises with the share of tumour cells among the neighbours. The same genes lead it in all three seeds, as do its hallmark labels, epithelial--mesenchymal transition (EMT) and TNF$\alpha$/NF-$\kappa$B signalling. On the lung FFPE section the leading programme sets \textit{CCL19}, a gene of immune-interacting fibroblasts in inflamed tissue \citep{korsunsky2022stromal}, with \textit{PLVAP}, \textit{ADAMDEC1} and \textit{MMP9} against the alveolar \textit{AGER} and \textit{MME}, with the same two labels in all seeds; on the TMA core, the adventitial-fibroblast genes \textit{MFAP5} and \textit{PI16}, with \textit{PDGFD}, against the alveolar-fibroblast gene \textit{NPNT}, with \textit{CCN5} and \textit{FAT3} \citep{tsukui2020collagen,hanley2023lungcaf}. The labels are coarse: EMT, dominated by extracellular-matrix genes, is significant on most programmes (\cref{fig:hallmarks}), so the genes are the more specific read.
+
+\paragraph{What drives each programme.}
+As the response is close to its prior mean, composition and image together explain most of each programme (joint $R^2$ $0.74$ to $0.93$, \cref{fig:programmes}c). The image carries the unique share on the ovarian FFPE section, composition on the TMA core, both on the lung section. Distances to landmarks, not a model input, explain up to $0.46$ of the ovarian programme alone but at most $0.02$ beyond composition and image, which already reflect them.
+
+\paragraph{The FF section is the least stable.}
+Its leading programme follows the image almost alone (unique $R^2$ $0.83$), splits the section into two large regions and is led by tumour-cell genes such as the cancer--testis antigens \textit{MAGEA4} and \textit{MAGEB2}: a regional difference between tumour areas explains it as well as a response does. Across seeds its leading direction matches least well (cosine as low as $0.67$, against $0.72$ to $0.98$ elsewhere), the number of programmes changes, and only its EMT label recurs. We do not interpret it as a niche response.

@@ -1,0 +1,31 @@
+\subsection{What the Intrinsic State and the Response Carry}
+\label{sec:intrinsic-response}
+\label{sec:results-z}
+\label{sec:results-w}
+% 03_3_intrinsic_and_response.tex -- budget 1.2 p. Claims C3, C4.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_latents_main}
+\caption{The two latents on the ovarian FFPE section (one seed; UMAP of the posterior means). \textbf{a},~$\vmu_z$ of $30{,}000$ random cells, coloured by the cell's own lineage. \textbf{b},~$\vmu_w$ of the same cells, coloured by the lineage that dominates the cell's neighbours. \textbf{c},~$\vmu_z$ of T/NK cells, the large type with the most mixed neighbourhoods (chosen by that rule), coloured by their neighbours. \textbf{d},~$\vmu_w$ of the same T/NK cells. UMAP can exaggerate separation; the held-out probe measures what c and d show.}
+\label{fig:latents-main}
+\end{figure}
+
+\Cref{fig:latents-main} shows the split at a glance: $\vz$ groups cells by their own lineage (a), $\vw$ by their neighbours' (b), and within the T/NK cells $\vz$ shows no grouping by the neighbours (c) while $\vw$ is ordered by them (d). \Cref{tab:headline-main} measures this on every section.
+
+\input{\tablesdir/headline_main}
+
+\paragraph{The intrinsic state keeps the type and the cell cycle.}
+On every section $\vz$ agrees with the lineage labels (NMI $0.62$ to $0.74$) and carries the cell cycle, a within-type state the labels do not encode: on the most strongly cycling tenth of held-out cells, $\vz$ explains $19$ to $76\%$ of the variance of the cycle scores and $\vw$ at most $1\%$ (\cref{tab:headline-main}). The cycle score is a proxy computed from the same segmented counts, which spill-over from cycling neighbours also raises; the asymmetry shows where the model puts this axis, not that the score is free of spill-over. Read without refitting, the serial section gives what the core gives (NMI $0.61$ against $0.62$; cycle $R^2$ of $\vz$ $0.49$ against $0.50$): an out-of-sample replication on a second slide.
+
+\paragraph{The adversary removes most of the niche from $\vz$.}
+On the four fitted sections it cuts the residual niche signal (\cref{sec:invariance}) that a held-out linear probe finds in $\vz$ by $80$ to $93\%$. A nonlinear probe still finds $3.5$ to $5.5\%$ of the within-type variance of neighbour composition on every section (\cref{tab:probe}); on the TMA sections, which carry little niche signal even without the adversary, that is more than half of the original amount. A probe-free read agrees: the within-type spatial autocorrelation (Moran's I) of $\vz$ falls by $25$ to $48\%$ (\cref{fig:programmes}d).
+
+\paragraph{The response carries the niche.}
+$\vw$ holds $0.47$ to $0.60$ nats of information about the niche beyond a within-type permutation floor (\cref{tab:headline-main}), $85$ to $90\%$ of what the two latents carry together (\suppref{app:response}). Without the adversary the response nearly vanishes within types and $\vz$ takes up the niche instead (\suppref{app:moran}): on tissue, as in simulation, the adversary is what makes the split exist.
+
+\paragraph{Held-out sublabels split as designed.}
+The lineage labels merge finer curated classes that the model never saw: a tumour \emph{state} should go to $\vz$, a \emph{location} to $\vw$. On the primary section, held-out probes show a double dissociation (\suppref{app:subtype}). Tumour- against stroma-associated fibroblasts are read from $\vw$ with balanced accuracy $0.95$ (from $\vz$: $0.66$), and the same split of endothelial cells with $0.90$ ($0.67$). The four tumour states are read from $\vz$ with $0.79$ (from $\vw$: $0.41$; chance $0.25$). By the call fixed in advance, the proliferative and inflammatory states go to $\vz$ on all three seeds and the locations to $\vw$ on two of three. The exceptions are states that are also places: hypoxic VEGFA$^+$ tumour cells are read from both latents, and myofibroblasts on the TMA core better from $\vw$. Merging such a state into its lineage moves part of it into the response.
+
+\paragraph{At the operating point the response is type-level.}
+A held-out classifier separates tumour- from stroma-associated fibroblasts almost as well from the response's context prediction $\mpsi(\vc_i, t_i)$ alone as from the response itself (balanced accuracy $0.94$ against $0.95$; chance $0.5$), the posterior adds one part in a thousand or less to held-out reconstruction (\suppref{app:recon-modes}), and a per-cell response planted in simulation, twice the niche effect, is not detected (\suppref{app:planted-percell}). At $\alphaw = 0.1$ the response thus describes how a cell \emph{type} shifts with its niche, not how one cell deviates from that shift; the lung section is a partial exception.

@@ -224,7 +224,9 @@ def test_every_file_has_the_traceability_header_and_one_label(built):
                         ("transport_heldout", "tab:transport-heldout"),
                         ("cellina_cf", "tab:cellina-cf"),
                         ("synthetic", "tab:synthetic"),
-                        ("planted_percell", "tab:planted-percell")]:
+                        ("planted_percell", "tab:planted-percell"),
+                        ("headline_main", "tab:headline-main"),
+                        ("breakdown_main", "tab:kappa-star")]:
         text = (out / f"{name}.tex").read_text()
         for key in ("% Command:", "% Generated:", "% Sources read",
                     "% Reading convention:", "% Provenance",
@@ -260,7 +262,7 @@ def test_every_traced_cell_is_in_its_file_and_matches_its_values(pt, built):
 
 def test_transport_is_released(built):
     out, _ = built
-    head = row(out / "headline.tex", "Transport")
+    head = row(out / "headline.tex", "\\TermReloc{}")
     assert not any("\\pending" in c for c in head)
     ov = [v for v in _raw_transport(OV) if v is not None]
     assert slim(head[1]) == (r(sum(ov) / 3, 2), f"{r(min(ov), 2)}--{r(max(ov), 2)}")
@@ -533,7 +535,7 @@ def test_breakdown_round_trip(built):
     assert not [ln for ln in rendered(f) if ln.startswith("Marker pairs")]
     # so is transport - programme part (2026-10-01)
     assert not [ln for ln in rendered(f)
-                if ln.startswith("Transport $-$ programme")]
+                if ln.startswith("\\TermReloc{} $-$ programme")]
 
 
 def test_breakdown_traj_round_trip(built):
@@ -554,7 +556,7 @@ def test_breakdown_traj_round_trip(built):
     # transport - programme part, zero by construction at kappa = 0
     # (2026-10-01)
     lines = [ln for ln in rendered(out / "breakdown_traj.tex")
-             if ln.strip().startswith("\\quad Transport $-$ programme")]
+             if ln.strip().startswith("\\quad \\TermReloc{} $-$ programme")]
     for g in ("0", "0.2"):
         e = d["ff"]["readouts"]["transport_cf_minus_program"][g]
         cells = [c.strip() for c in lines[2].rstrip("\\ ").split(" & ")]
@@ -641,7 +643,7 @@ def test_headline_transport_rounded_once_from_raw(built):
     out, _ = built
     f = out / "headline_full.tex"
     tma = [v for v in _raw_transport(GSE) if v is not None]
-    assert slim(row(out / "headline.tex", "Transport")[4])[1] == "0.71--0.75"
+    assert slim(row(out / "headline.tex", "\\TermReloc{}")[4])[1] == "0.71--0.75"
     rng = [ln for ln in rendered(f) if ln.startswith("\\quad range over seeds")]
     ci = [ln for ln in rendered(f) if ln.startswith("\\quad $95\\%$ interval")]
     t_rng = [c.strip() for c in rng[-2].rstrip("\\ ").split("&")]
@@ -846,7 +848,8 @@ def test_arrows_follow_the_direction_map(pt, built):
     for name in ("headline", "headline_full"):
         f = out / f"{name}.tex"
         for label, *_, rd in pt.HEADLINE_ROWS:
-            assert row(f, label)[0] == label + pt.arrow(rd), (name, label)
+            assert row(f, pt.tex_label(label))[0] == (
+                pt.tex_label(label) + pt.arrow(rd)), (name, label)
         assert "Arrows give the preferred direction" in f.read_text()
     assert row(out / "headline.tex", "Cycle $R^2$ of $\\vw$")[0].endswith(
         "($\\approx 0$)")
@@ -946,3 +949,96 @@ def test_mintflow_refit_switch(pt, tmp_path, monkeypatch):
                     f"{pt.MF_REFIT_TAG}: whole section\n")
     state, row_ = pt.baseline_state(pt.Trace("t"), "MintFlow", LUNG)
     assert state == "ok" and row_["wall_h"] == "2"
+
+
+# ------------------------------------------- RECOMB main-text tables (one column)
+
+def test_headline_main_round_trip(pt, built):
+    """tab:headline-main: means only, from the same raw values as
+    tab:headline (fewer digits), and the probe row is the mean over the
+    final fits of tab:probe's MLP composition share."""
+    out, _ = built
+    f = out / "headline_main.tex"
+    text = f.read_text()
+    assert "\\begin{table}[t]" in text and "table*" not in text
+    assert "{\\scriptsize" not in text and "\\textbf" not in text
+    vals = _battery_at_best(OV, "nmi_targets")
+    assert row(f, "NMI of")[1] == r(sum(vals) / 3, 2)
+    vals = _battery_at_best(LUNG, "cycle_r2_z_q90")
+    assert row(f, "Cycle $R^2$ of $\\vz$")[2] == r(sum(vals) / 3, 2)
+    env = _envelope_row(GSE, "I(niche; w) excess over within-type floor (nats)")
+    assert row(f, "$\\I(\\text{niche}; \\vw)$")[4] == r(float(env[2]), 2)
+    assert row(f, "$\\I(\\text{niche}; \\vw)$")[5] == "--"
+    for j, ds in enumerate((OV, LUNG, FF, GSE, DUAL)):
+        d = json.loads((DATA / ds / "experiments"
+                        / "probe_regrade_lineage_final.json").read_text())
+        v = [share(d[f"DisCell/finalL_s{s}"]["mlp_comp"]["excess"])
+             for s in range(3)]
+        assert row(f, "Residual niche signal")[j + 1] == r(sum(v) / 3, 1), ds
+    # the rows of the story map, in its order, with their arrows
+    labels = [ln.split(" & ")[0] for ln in rendered(f)
+              if " & " in ln and not ln.startswith("Read &")]
+    assert labels == [lab + pt.arrow(rd)
+                      for lab, _h, _nd, rd in pt.HEADLINE_MAIN_ROWS]
+    assert [lab for lab, *_ in pt.HEADLINE_MAIN_ROWS] == [
+        "NMI of $\\vz$ with type", "Cycle $R^2$ of $\\vz$",
+        "Cycle $R^2$ of $\\vw$", "Residual niche signal (\\%)",
+        "Mirror $R^2$", "$\\I(\\text{niche}; \\vw)$ (nats)"]
+    assert "$\\downarrow$" in labels[3] and "$\\approx 0$" in labels[2]
+
+
+def test_breakdown_main_round_trip(pt, built):
+    """tab:kappa-star: every cell follows the record's status (>top, the
+    bold kappa* with its footnote, n/a), and a member of the expected family
+    the record lacks is pending, never blank."""
+    out, _ = built
+    f = out / "breakdown_main.tex"
+    text = f.read_text()
+    assert "\\begin{table}[t]" in text and "table*" not in text
+    assert "\\emph{Biological claims}" in text
+    assert "\\emph{Allocation checks}" in text
+    d = json.loads((REPO / "scripts" / "logs" / "breakdown_2026-09-29"
+                    / "breakdown_all.json").read_text())
+    fam, na_all = pt._bd_expected()
+    secs = ("ovarian", "lung", "ff", "gse", "gse_dual")
+    top = f"{max(d['ovarian']['grid']):g}"
+    for _group, members in pt.BD_MAIN_GROUPS:
+        for key, label in members:
+            cells = _expand(row(f, pt.tex_label(label))[1:])
+            assert len(cells) == 5, label
+            for c, sec in zip(cells, secs):
+                e = d[sec]["members"].get(key)
+                na = ((d[sec].get("not_applicable") or {}).get(key)
+                      or na_all.get(sec, {}).get(key))
+                if na:
+                    assert c == "n/a", (key, sec)
+                elif e is None:
+                    assert (c == pt.BD_PENDING_MARK) == (key in fam[sec]), \
+                        (key, sec)
+                elif e["status"] == "above the grid":
+                    assert c.startswith(f"$>${top}"), (key, sec)
+                elif e["status"] == "breaks":
+                    assert c.startswith(f"\\textbf{{{e['kappa_star']:g}}}$^"), \
+                        (key, sec)
+    assert "no tumour cells" in text
+
+
+def test_vocabulary_is_neutral(built):
+    """The tables are shared by two manuscripts with different words
+    (leakage / spill-over, transport / relocation): rendered text uses the
+    vocabulary macros, the provenance comments keep the raw names."""
+    out, _ = built
+    raw = re.compile(r"leak|transport|spill|relocat|influx", re.I)
+    for f in sorted(out.glob("*.tex")):
+        for ln in rendered(f):
+            ln = re.sub(r"\\(label|cref)\{[^}]*\}|\\[tT]erm[A-Za-z]+", "",
+                        ln)
+            assert not raw.search(ln), (f.name, ln)
+    for name in ("headline", "breakdown", "breakdown_main"):
+        comments = [ln for ln in (out / f"{name}.tex").read_text().splitlines()
+                    if ln.startswith("%")]
+        assert not any("\\termSpill" in ln or "\\TermReloc" in ln
+                       for ln in comments), name
+    assert any("Transport $-$ leakage part" in ln for ln in
+               (out / "breakdown.tex").read_text().splitlines()
+               if ln.startswith("%"))

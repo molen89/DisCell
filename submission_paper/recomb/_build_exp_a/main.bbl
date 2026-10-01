@@ -1,0 +1,222 @@
+\begin{thebibliography}{}
+
+\bibitem[{10x Genomics}, 2024a]{tenx_ovarian_ffpe}
+{10x Genomics} (2024a).
+\newblock {FFPE} human ovarian cancer with {5K} human pan tissue and pathways
+  panel plus 100 custom genes.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-prime-ffpe-human-ovarian-cancer}.
+\newblock In Situ Gene Expression dataset by Xenium Onboard Analysis v3.0.0,
+  10x Genomics (2024, December 17).
+
+\bibitem[{10x Genomics}, 2024b]{tenx_ovary_ff}
+{10x Genomics} (2024b).
+\newblock Fresh frozen human ovarian adenocarcinoma with {5K} human pan tissue
+  and pathways panel.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-prime-fresh-frozen-human-ovary}.
+\newblock In Situ Gene Expression dataset by Xenium Onboard Analysis v3.0.0,
+  10x Genomics (2024, September 4).
+
+\bibitem[{10x Genomics}, 2024c]{tenx_lung_ffpe}
+{10x Genomics} (2024c).
+\newblock Post-{Xenium} technical note: {Xenium} v1 and {Xenium Prime 5K} for
+  {FFPE} human lung cancer.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-human-lung-cancer-post-xenium-technote}.
+\newblock Experiment 2, Xenium Prime 5K. In Situ Gene Expression dataset by
+  Xenium Onboard Analysis v3.0.0, 10x Genomics (2024, November 6).
+
+\bibitem[Akbarnejad et~al., 2025]{akbarnejad2025mintflow}
+Akbarnejad, A., Steele, L., Jafree, D.~J., Birk, S., Sallese, M.~R., et~al.
+  (2025).
+\newblock Mapping and reprogramming human tissue microenvironments with
+  {MintFlow}.
+\newblock {\em bioRxiv}.
+
+\bibitem[Arnol et~al., 2019]{arnol2019svca}
+Arnol, D., Schapiro, D., Bodenmiller, B., Saez-Rodriguez, J., and Stegle, O.
+  (2019).
+\newblock {Modeling Cell-Cell Interactions from Spatial Molecular Data with
+  Spatial Variance Component Analysis}.
+\newblock {\em Cell Reports}, 29(1):202--211.e6.
+
+\bibitem[Bilous et~al., 2026]{bilous2026split}
+Bilous, M., Buszta, D., Bac, J., Kang, S., Dong, Y., Tissot, S., Andre, S.,
+  Alexandre~Gaveta, M., Voize, C., Peters, S., Homicsko, K., and Gottardo, R.
+  (2026).
+\newblock Resolving sensitivity, specificity and signal contamination in
+  {Xenium} spatial transcriptomics.
+\newblock {\em Nature Methods}, 23:1152--1162.
+
+\bibitem[Birk et~al., 2025]{birk2025nichecompass}
+Birk, S., Lotfollahi, M., et~al. (2025).
+\newblock Quantitative characterization of cell niches in spatially resolved
+  omics data.
+\newblock {\em Nature Genetics}.
+\newblock CHECK: author list, volume, identifier.
+
+\bibitem[Brody et~al., 2022]{brody2022}
+Brody, S., Alon, U., and Yahav, E. (2022).
+\newblock How attentive are graph attention networks?
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Cable et~al., 2022]{cable2022cside}
+Cable, D.~M., Murray, E., Shanmugam, V., Zhang, S., Zou, L.~S., Diao, M., Chen,
+  H., Macosko, E.~Z., Irizarry, R.~A., and Chen, F. (2022).
+\newblock {Cell type-specific inference of differential expression in spatial
+  transcriptomics}.
+\newblock {\em Nature Methods}, 19(9):1076--1087.
+\newblock Preprint: doi:10.1101/2021.12.26.474183.
+
+\bibitem[Dong et~al., 2025]{dong2025simvi}
+Dong, M., Kluger, Y., et~al. (2025).
+\newblock {SIMVI} disentangles intrinsic and spatial-induced cellular states in
+  spatial omics data.
+\newblock {\em Nature Communications}.
+\newblock CHECK: author list, volume, identifier.
+
+\bibitem[Elazar and Goldberg, 2018]{elazar2018}
+Elazar, Y. and Goldberg, Y. (2018).
+\newblock Adversarial removal of demographic attributes from text data.
+\newblock In {\em Proceedings of the 2018 Conference on Empirical Methods in
+  Natural Language Processing}, pages 11--21.
+
+\bibitem[Ergen and Yosef, 2025]{ergen2025}
+Ergen, C. and Yosef, N. (2025).
+\newblock {ResolVI} -- addressing noise and bias in spatial transcriptomics.
+\newblock bioRxiv preprint.
+
+\bibitem[Ergen and Yosef, 2026]{ergen2026resolvi}
+Ergen, C. and Yosef, N. (2026).
+\newblock {ResolVI}: addressing noise and bias in spatial transcriptomics.
+\newblock {\em Nature Methods}.
+
+\bibitem[Fischer et~al., 2023]{fischer2023}
+Fischer, D.~S., Schaar, A.~C., and Theis, F.~J. (2023).
+\newblock Modeling intercellular communication in tissues using spatial graphs
+  of cells.
+\newblock {\em Nature Biotechnology}, 41:332--336.
+
+\bibitem[Fleming et~al., 2023]{fleming2023cellbender}
+Fleming, S.~J., Chaffin, M.~D., Arduini, A., Akkad, A.-D., Banks, E., Marioni,
+  J.~C., Philippakis, A.~A., Ellinor, P.~T., and Babadi, M. (2023).
+\newblock {Unsupervised removal of systematic background noise from
+  droplet-based single-cell experiments using CellBender}.
+\newblock {\em Nature Methods}, 20(9):1323--1335.
+\newblock Preprint: doi:10.1101/791699.
+
+\bibitem[Janesick et~al., 2023]{janesick2023}
+Janesick, A., Shelansky, R., Gottscho, A.~D., Wagner, F., Williams, S.~R.,
+  Rouault, M., Beliakoff, G., Morrison, C.~A., Oliveira, M.~F., Sicherman,
+  J.~T., et~al. (2023).
+\newblock High resolution mapping of the tumor microenvironment using
+  integrated single-cell, spatial and in situ analysis.
+\newblock {\em Nature Communications}, 14:8353.
+\newblock CHECK: full author list truncated.
+
+\bibitem[Liberzon et~al., 2015]{liberzon2015hallmark}
+Liberzon, A., Birger, C., Thorvaldsd{\'o}ttir, H., Ghandi, M., Mesirov, J.~P.,
+  and Tamayo, P. (2015).
+\newblock The molecular signatures database hallmark gene set collection.
+\newblock {\em Cell Systems}, 1(6):417--425.
+
+\bibitem[Manski, 2003]{manski2003}
+Manski, C.~F. (2003).
+\newblock {\em Partial Identification of Probability Distributions}.
+\newblock Springer.
+
+\bibitem[Megas et~al., 2026]{megas2026celcomen}
+Megas, S., Chen, D.~G., Polanski, K., Asadollahzadeh, H., Eliasof, M.,
+  Sch{\"o}nlieb, C.-B., and Teichmann, S.~A. (2026).
+\newblock Celcomen: spatial causal disentanglement for single-cell and tissue
+  perturbation modeling.
+\newblock {\em Nature Communications}, 17:4126.
+
+\bibitem[Mitchel et~al., 2026]{mitchel2026celladmix}
+Mitchel, J., Gao, T., Petukhov, V., Cole, E., and Kharchenko, P.~V. (2026).
+\newblock Impact and correction of segmentation errors in spatial
+  transcriptomics.
+\newblock {\em Nature Genetics}, 58:434--444.
+
+\bibitem[Moeed et~al., 2026]{moeed2026cellina}
+Moeed, A., Schrod, S., Rohbeck, M., Bonder, M.~J., Lutsik, P., Stegle, O., and
+  Dimitrov, D. (2026).
+\newblock Querying counterfactuals on tissue graphs with supervised
+  disentanglement.
+\newblock arXiv preprint 2606.08493.
+
+\bibitem[Petukhov et~al., 2022]{petukhov2022baysor}
+Petukhov, V., Xu, R.~J., Soldatov, R.~A., Cadinu, P., Khodosevich, K., Moffitt,
+  J.~R., and Kharchenko, P.~V. (2022).
+\newblock {Cell segmentation in imaging-based spatial transcriptomics}.
+\newblock {\em Nature Biotechnology}, 40:345--354.
+
+\bibitem[Rosenbaum, 2002]{rosenbaum2002}
+Rosenbaum, P.~R. (2002).
+\newblock {\em Observational Studies}.
+\newblock Springer, 2nd edition.
+
+\bibitem[Shaban et~al., 2025]{kronos2025}
+Shaban, M., Chang, Y., Qiu, H., Yeo, Y.~Y., Song, A.~H., Jaume, G., et~al.
+  (2025).
+\newblock A foundation model for spatial proteomics.
+\newblock arXiv preprint 2506.03373.
+
+\bibitem[Slavutsky et~al., 2026]{slavutsky2025}
+Slavutsky, Y., Beker, O., Blei, D., and Dumitrascu, B. (2026).
+\newblock Variational learning of disentangled representations.
+\newblock In {\em International Conference on Machine Learning}.
+\newblock arXiv:2506.17182.
+
+\bibitem[Svensson et~al., 2018]{svensson2018spatialde}
+Svensson, V., Teichmann, S.~A., and Stegle, O. (2018).
+\newblock {SpatialDE: identification of spatially variable genes}.
+\newblock {\em Nature Methods}, 15:343--346.
+
+\bibitem[Tanevski et~al., 2022]{tanevski2022misty}
+Tanevski, J., Ramirez~Flores, R.~O., Gabor, A., Schapiro, D., and
+  Saez-Rodriguez, J. (2022).
+\newblock {Explainable multiview framework for dissecting spatial relationships
+  from highly multiplexed data}.
+\newblock {\em Genome Biology}, 23:97.
+
+\bibitem[VanderWeele and Ding, 2017]{vanderweele2017}
+VanderWeele, T.~J. and Ding, P. (2017).
+\newblock Sensitivity analysis in observational research: Introducing the
+  {E}-value.
+\newblock {\em Annals of Internal Medicine}, 167(4):268--274.
+
+\bibitem[Williams-Katek et~al., 2026]{williamskatek2026fishing}
+Williams-Katek, A.~L., Mallapragada, S., Mee, E.~D., Fischer, B.~K., Vannan,
+  A., Eldredge, L.~C., Deutsch, G.~H., Kropski, J.~A., Sucre, J.~M., and
+  Banovich, N.~E. (2026).
+\newblock Fishing with two lines: a hybrid approach to spatial transcriptomics
+  discovery.
+\newblock {\em Life Science Alliance}, 9(10).
+
+\bibitem[Xu et~al., 2020]{xu2020vinfo}
+Xu, Y., Zhao, S., Song, J., Stewart, R., and Ermon, S. (2020).
+\newblock A theory of usable information under computational constraints.
+\newblock In {\em International Conference on Learning Representations}.
+
+\bibitem[Yang et~al., 2025]{yang2025mistic}
+Yang, Y., DePasquale, E., Adeleke, D., Xie, X., Lu, Z., Nelson, M.~D., Xiao,
+  G., Wang, X., and Wang, Y. (2025).
+\newblock {MisTIC}: Missegmented transcript inference correction for improved
+  spatial transcriptomics analysis.
+\newblock bioRxiv preprint.
+
+\bibitem[Young and Behjati, 2020]{young2020soupx}
+Young, M.~D. and Behjati, S. (2020).
+\newblock {SoupX removes ambient RNA contamination from droplet-based
+  single-cell RNA sequencing data}.
+\newblock {\em GigaScience}, 9(12):giaa151.
+
+\bibitem[Zhao and Gordon, 2019]{zhao2019inherent}
+Zhao, H. and Gordon, G.~J. (2019).
+\newblock Inherent tradeoffs in learning fair representations.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~32.
+
+\end{thebibliography}

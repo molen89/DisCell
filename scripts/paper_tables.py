@@ -35,6 +35,16 @@ Added 2026-09-30 (after the author's transport decision of that day):
 * ``context``           -- tab:context, app:baselines: what each method's context
                            latent carries (context_grade.json, devlog 2026-09-30)
 
+Added 2026-10-01 for the RECOMB main text (one column each):
+
+* ``headline_main``     -- tab:headline-main: the means of tab:headline's
+                           NMI, cycle, mirror and I(niche; w) rows plus the
+                           residual niche signal of tab:probe (MLP composition)
+* ``breakdown_main``    -- tab:kappa-star: tab:breakdown's kappa* grouped into
+                           biological claims and allocation checks; members of
+                           the expected family not yet computed are pending
+                           (rerun after the breakdown gaps queue)
+
 Post-freeze sources (the queues of 2026-09-29/30) are flagged in each header
 and named in its notes. Whole-section SIMVI / MintFlow cells follow
 DisCell-baselines/results/feasibility.tsv, else the baselines_complete queue
@@ -249,6 +259,26 @@ ARROWS = {"up": "$\\uparrow$", "down": "$\\downarrow$",
 ARROW_NOTE = "Arrows give the preferred direction"
 BOLD_NOTE = "bold marks the best value per section"
 ZERO_NOTE = "$\\approx 0$: expected to be near zero"
+
+
+#: the two manuscripts word spill-over and relocation differently, so the
+#: rendered text uses the vocabulary macros of each paper's macros.tex
+#: (\termSpill, \termSpillFrac, \termReloc, \termInflux and their
+#: capitalised \Term... forms); a row label that is also written into the
+#: provenance comments keeps its raw name there and is rendered through this map
+LABEL_TEX = {
+    "Transport": "\\TermReloc{}",
+    "Transport, fraction of ceiling": "\\TermReloc{}, fraction of ceiling",
+    "Transport $-$ programme part": "\\TermReloc{} $-$ programme part",
+    "Transport $-$ leakage part": "\\TermReloc{} $-$ \\termSpill{} part",
+    "Relocation $>$ spill-over part": "\\TermReloc{} $>$ \\termSpill{} part",
+    "Relocation $>$ type mean": "\\TermReloc{} $>$ type mean",
+}
+
+
+def tex_label(label: str) -> str:
+    """A row label as rendered (vocabulary macros); provenance keeps *label*."""
+    return LABEL_TEX.get(label, label)
 
 
 def arrow(readout: str) -> str:
@@ -609,8 +639,9 @@ def _headline_caption_parts(seeds_n: dict[str, int]) -> tuple[str, str]:
     """The transport sentence (without its interval) and the shared tail."""
     few = ", ".join(f"{SHORT[ds]}, {n} of 3" for ds, n in seeds_n.items())
     transport = (
-        "Transport is the fraction of the noise ceiling (cell-split "
-        "reliability) recovered by the mean transport read, over the panels "
+        "\\TermReloc{} is the fraction of the noise ceiling (cell-split "
+        "reliability) recovered by the mean \\termReloc{} read, over the "
+        "panels "
         "in the trusted tier"
         + (f" ($^{{\\dagger}}$seeds with a trusted panel: {few})"
            if seeds_n else ""))
@@ -652,7 +683,8 @@ def table_headline(command: str) -> tuple[str, Trace]:
                 out.append(tr.cell(label, SHORT[ds], text,
                                    [c["mean"], c["min"], c["max"]], nd,
                                    c["src"], f"{c['key']} mean (min, max)"))
-        body.append(f"{label}{arrow(readout)} & " + " & ".join(out) + " \\\\")
+        body.append(f"{tex_label(label)}{arrow(readout)} & " + " & ".join(out)
+                    + " \\\\")
     transport, tail = _headline_caption_parts(seeds_n)
     caption = (
         "Model quality on the four sections and the held-out serial section "
@@ -708,7 +740,8 @@ def table_headline_full(command: str) -> tuple[str, Trace]:
                                         c["src"], f"{c['key']} CI column"))
             else:
                 ci_cells.append("--")
-        body.append(f"{label}{arrow(readout)} & " + " & ".join(mean_cells)
+        body.append(f"{tex_label(label)}{arrow(readout)} & "
+                    + " & ".join(mean_cells)
                     + " \\\\")
         if any(range_cells):
             body.append("\\quad range over seeds & "
@@ -736,6 +769,103 @@ def table_headline_full(command: str) -> tuple[str, Trace]:
            "Read & " + " & ".join(SHORT[c] for c in SECTIONS) + " \\\\\n"
            "\\midrule\n" + "\n".join(body)
            + "\n\\bottomrule\n\\end{tabular}\n\\end{table*}\n")
+    return tex, tr
+
+
+#: column heads of the one-column main-text tables (RECOMB): two short lines
+MAIN_HEAD = {OVARIAN: "Ov.\\\\FFPE", LUNG: "Lung\\\\FFPE", FF: "Ov.\\\\FF",
+             GSE: "TMA\\\\core", DUAL: "TMA\\\\serial"}
+#: tab:headline-main rows: (label, headline row label or None for the probe
+#: row, digits, readout), in the order of the RECOMB story map
+HEADLINE_MAIN_ROWS = [
+    ("NMI of $\\vz$ with type", "NMI of $\\vz$ with the type", 2, "nmi"),
+    ("Cycle $R^2$ of $\\vz$", "Cycle $R^2$ of $\\vz$", 2, "cycle_z"),
+    ("Cycle $R^2$ of $\\vw$", "Cycle $R^2$ of $\\vw$", 3, "cycle_w"),
+    ("Residual niche signal (\\%)", None, 1, "probe"),
+    ("Mirror $R^2$", "Mirror $R^2$", 3, "mirror"),
+    ("$\\I(\\text{niche}; \\vw)$ (nats)",
+     "$\\I(\\text{niche}; \\vw)$ excess", 2, "mi"),
+]
+#: the probe block behind the residual niche signal row (as tab:probe)
+HEADLINE_MAIN_PROBE = "mlp_comp"
+
+
+def table_headline_main(command: str) -> tuple[str, Trace]:
+    """tab:headline-main (RECOMB main text): one column, the mean over seeds
+    only (the ranges and intervals stay in tab:headline-full and tab:probe).
+    The rows of tab:headline it keeps are read and checked by the same code
+    (_headline_data); the residual niche signal is the mean over the final
+    fits of tab:probe's MLP composition share, 1 - exp(-2 excess), in %."""
+    tr = Trace("tab:headline-main")
+    rows, _ = _headline_data(tr)
+    by_label = {label: cells for label, _nd, _rd, cells in rows}
+    finals = [f"DisCell/finalL_s{s}" for s in SEEDS]
+    body = []
+    for label, hlabel, nd, readout in HEADLINE_MAIN_ROWS:
+        out = []
+        for i, ds in enumerate(SECTIONS):
+            where = f"{label} / {SHORT[ds]}"
+            if hlabel is None:
+                p, d = _probe_file(tr, ds)
+                bad = [q for q in (_probe_consistent(d, e, HEADLINE_MAIN_PROBE)
+                                   for e in finals) if q]
+                if bad:
+                    out.append(tr.pend(where, "; ".join(bad), "check"))
+                    continue
+                vals = [probe_share(d[e][HEADLINE_MAIN_PROBE]["excess"])
+                        for e in finals]
+                mean = float(np.mean(vals))
+                out.append(tr.cell(label, SHORT[ds], pct(mean, nd), [mean],
+                                   nd, p, f"DisCell/finalL_s{{0,1,2}}."
+                                   f"{HEADLINE_MAIN_PROBE}.excess: mean of "
+                                   "1 - exp(-2 excess), x100"))
+                tr.prov.append(f"{where}: {rel(p)} : finalL_s{{0,1,2}}."
+                               f"{HEADLINE_MAIN_PROBE}.excess as 1 - exp(-2 "
+                               "excess) (x100), mean over the three seeds "
+                               "(the 'with the adversary' row of tab:probe, "
+                               "MLP composition block)")
+                continue
+            c = by_label[hlabel][i]
+            if c["kind"] == "na":
+                out.append("--")
+                tr.prov.append(f"{where}: -- (not read on this section)")
+            elif c["kind"] == "pend":
+                out.append(tr.pend(c["where"], c["why"], c["short"]))
+            else:
+                out.append(tr.cell(label, SHORT[ds],
+                                   num(c["mean"], nd) + c["mark"],
+                                   [c["mean"]], nd, c["src"],
+                                   f"{c['key']} mean"))
+                tr.prov.append(f"{where}: as tab:headline row '{hlabel}', "
+                               f"mean only ({c['key']})")
+        body.append(f"{tex_label(label)}{arrow(readout)} & " + " & ".join(out)
+                    + " \\\\")
+    tr.notes.append("Means only, rounded once from the same values as "
+                    "tab:headline (fewer digits on some rows to fit one "
+                    "column); the ranges are in tab:headline-full and "
+                    "tab:probe. Rows and order: RECOMB story map (claim C3). "
+                    "No bold: nothing competes here.")
+    caption = (
+        "What the two latents carry: the mean over three seeds on the four "
+        "sections and on the serial section, which is read through the "
+        "core's fits (ranges: \\cref{tab:headline-full,tab:probe}). Cycle "
+        "$R^2$: on the most strongly cycling tenth of held-out cells. "
+        "Residual niche signal: the nonlinear probe on neighbour composition "
+        "(\\cref{sec:invariance}). Mirror $R^2$: within-type $R^2$ of a "
+        "linear map from the niche descriptor $\\vc_i$ to $\\vmu_z$. "
+        "$\\I(\\text{niche}; \\vw)$: above a within-type permutation floor; "
+        f"--: not read. {ARROW_NOTE}; {ZERO_NOTE}.")
+    tex = (tr.header(command, CONVENTION + "; means only (the ranges are in "
+                     "tab:headline-full and tab:probe); the serial section's "
+                     "values come from the core's three fits read on it")
+           + "\\begin{table}[t]\n\\centering\n"
+           f"\\caption{{{caption}}}\n\\label{{tab:headline-main}}\n"
+           "\\footnotesize\n\\setlength{\\tabcolsep}{1.2pt}\n"
+           "\\begin{tabular}{@{}lccccc@{}}\n\\toprule\n"
+           "Read & " + " & ".join(f"\\shortstack{{{MAIN_HEAD[c]}}}"
+                                  for c in SECTIONS) + " \\\\\n"
+           "\\midrule\n" + "\n".join(body)
+           + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
     return tex, tr
 
 
@@ -1512,7 +1642,7 @@ def table_battery(command: str) -> tuple[str, Trace]:
 # -------------------------------------------------------- table 4: sensitivity
 
 SENS_FAMILIES = ["kappa_form", "fp_floor", "alpha_w", "adversary"]
-SENS_TITLE = {"kappa_form": "Form of the leakage rate",
+SENS_TITLE = {"kappa_form": "Form of the \\termSpillFrac{}",
               "fp_floor": "Fixed false-positive floor",
               "alpha_w": "Weight of the response deviation",
               "adversary": "Adversary capacity and weight"}
@@ -1639,7 +1769,7 @@ def table_sensitivity(command: str) -> tuple[str, Trace]:
                 "$\\I(\\text{niche}; \\vw)$": "mi"}
     head = ("Arm & Seeds & " + " & ".join(h + arrow(sens_dir[h])
                                           for h, *_ in SENS_READS)
-            + f" & MLP (\\%){arrow('probe')} & Transport{arrow('transport')}"
+            + f" & MLP (\\%){arrow('probe')} & \\TermReloc{{}}{arrow('transport')}"
             " \\\\")
     body = []
     for ds in order:
@@ -1826,13 +1956,13 @@ def table_sensitivity(command: str) -> tuple[str, Trace]:
         "in the intrinsic latent, as the share of the block's within-type "
         "variance that the nonlinear probe explains beyond the permutation "
         "floor, $1 - e^{-2\\,\\mathrm{excess}}$ (as in \\cref{tab:probe}), "
-        "in \\%. \\emph{Transport}: the "
-        "fraction of the noise ceiling recovered by the mean transport read, "
-        "trusted tier (as in \\cref{tab:headline})"
+        "in \\%. \\emph{\\TermReloc}: the "
+        "fraction of the noise ceiling recovered by the mean \\termReloc{} "
+        "read, trusted tier (as in \\cref{tab:headline})"
         + ("; $^{\\dagger}$over the seeds with a trusted panel" if few_t
-           else "") + ". The leakage "
-        "rate is set per cell from its neighbours' depth or density "
-        "relative to its own, or per gene, at the same mean rate; the "
+           else "") + ". The \\termSpillFrac{} "
+        "is set per cell from its neighbours' depth or density "
+        "relative to its own, or per gene, at the same mean value; the "
         "false-positive floor is fixed once per section, or per cell scaled "
         f"by its area. {ARROW_NOTE}, so a move in the direction of a column's arrow "
         "is an improvement. Unassigned cells are not targets.")
@@ -1999,7 +2129,8 @@ def table_kappa_sweep(command: str) -> tuple[str, Trace]:
                      "\\pending{re-read}} \\\\")
     body = lines
     caption = (
-        "The leakage sweep: every setting refitted at each rate $\\kappa$ "
+        "The \\termSpill{} sweep: every setting refitted at each value of "
+        "$\\kappa$ "
         "with three seeds, as the range over seeds; the final configuration "
         f"is $\\kappa = {d['config']['kappa']:g}$ (bold), whose fits are those of "
         "\\cref{tab:headline}. Held-out reconstruction in nats per count; "
@@ -2342,7 +2473,7 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
             tr.prov.append(f"{where}: {rel(p)} : {sec}.members.{key} "
                            f"(status '{st}', kappa_star {e.get('kappa_star')},"
                            f" sign {e.get('sign')})")
-        body.append(f"{label} & " + " & ".join(span_pending(cells))
+        body.append(f"{tex_label(label)} & " + " & ".join(span_pending(cells))
                     + " \\\\")
     tr.notes.append("Statuses checked equal to the rendered "
                     f"{rel(BREAKDOWN / 'breakdown_all.md')}. family_complete: "
@@ -2374,7 +2505,7 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
                   for why, w in na_where.items())
     caption = (
         "Breakdown points $\\kappa^*$ of the contrasts the results claim, per "
-        "section, on the leakage sweep ($\\kappa \\in \\{"
+        "section, on the \\termSpill{} sweep ($\\kappa \\in \\{"
         + ", ".join(f"{g:g}" for g in grid) + "\\}$, three seeds each). A "
         "contrast holds at a grid point if every seed has the sign it has "
         "at $\\kappa = 0$ and the interval of the mean over seeds (spatial "
@@ -2387,7 +2518,7 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
         + ". Signalling share: the response's share of ligand-receptor (LR) "
         "genes against other genes; tumour axis: Kendall's $\\tau$ of the "
         "response-predicted shift with the true against a false axis. "
-        + serial + axis + "The marker-pair contrast and transport $-$ "
+        + serial + axis + "The marker-pair contrast and \\termReloc{} $-$ "
         "programme part are trajectories "
         "(\\cref{tab:breakdown-traj}). --: not in that section's set."
         + (" " + na if na else ""))
@@ -2400,6 +2531,155 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
            "\\begin{tabular}{@{}lccccc@{}}\n\\toprule\n"
            + " & ".join(header) + " \\\\\n\\midrule\n" + "\n".join(body)
            + "\n\\bottomrule\n\\end{tabular}\n\\end{table*}\n")
+    return tex, tr
+
+
+#: tab:kappa-star (RECOMB main text): (group, [(member, row label)]); the
+#: split into biological claims and allocation checks is the author's
+#: (2026-10-01)
+BD_MAIN_GROUPS = [
+    ("Biological claims", [
+        ("transport_cf_minus_leak", "Relocation $>$ spill-over part"),
+        ("readA_minus_typemean", "Relocation $>$ type mean"),
+        ("readB_twin_margin", "Nearest-twin advantage"),
+        ("signalling_response_lr_vs_other", "Signalling-gene lean of $\\vw$"),
+        ("axis_tau_true_minus_false", "Tumour axis in $\\vw$"),
+    ]),
+    ("Allocation checks", [
+        ("cycle_asym_q90", "Cycle in $\\vz$, not in $\\vw$"),
+        ("w_niche_mi_excess", "Niche information in $\\vw$"),
+    ]),
+]
+BD_GAPS = "breakdown gaps queue (scripts/logs/breakdown_gaps_2026-10-01)"
+#: the cell of a family member still being computed (one column is narrow)
+BD_PENDING_MARK = "\\textcolor{violet}{\\textbf{?}}"
+
+
+def _bd_expected() -> tuple[dict, dict]:
+    """Each section's full family and its not-applicable members, as the
+    breakdown module defines them since 2026-10-01 (by readout
+    availability). A member of the family that a section's record does not
+    hold yet is pending (the gaps queue), not absent."""
+    sys.path.insert(0, str(REPO))
+    try:
+        from discell.experiments import breakdown as B
+    finally:
+        sys.path.pop(0)
+    return ({s: set(f) for s, f in B.FAMILY.items()},
+            {s: dict(v) for s, v in B.NOT_APPLICABLE.items()})
+
+
+def table_breakdown_main(command: str) -> tuple[str, Trace]:
+    """tab:kappa-star (RECOMB main text): one column, the breakdown points
+    of tab:breakdown grouped into biological claims and allocation checks.
+    Cells: '>top of the grid', the bold kappa* with its reason footnote, or
+    'n/a' with the reason in the caption; a member the expected family holds
+    but the record does not yet is pending. Rerun after the gaps queue."""
+    tr = Trace("tab:kappa-star")
+    p = BREAKDOWN / "breakdown_all.json"
+    d = tr.read_json(p)
+    fam_all, na_all = _bd_expected()
+    foot = {"interval contains 0": "a", "a seed flips sign": "b",
+            "seeds disagree in sign": "b"}
+    used_foot: set[str] = set()
+    na_why: dict[str, list[str]] = {}
+    neg = False
+    top = max(d["ovarian"]["grid"])
+    body = []
+    for group, members in BD_MAIN_GROUPS:
+        if body:
+            body.append("\\addlinespace")
+        body.append(f"\\multicolumn{{{len(BD_SECTIONS) + 1}}}{{@{{}}l}}"
+                    f"{{\\emph{{{group}}}}} \\\\")
+        for key, label in members:
+            cells = []
+            for sec, ds in BD_SECTIONS:
+                s = d[sec]
+                where = f"{label} / {SHORT[ds]}"
+                na = ((s.get("not_applicable") or {}).get(key)
+                      or na_all.get(sec, {}).get(key))
+                if na:
+                    cells.append("n/a")
+                    na_why.setdefault(na["short"], []).append(SHORT[ds])
+                    tr.prov.append(f"{where}: n/a ({na['short']})")
+                    continue
+                e = s["members"].get(key)
+                if e is None:
+                    if key in fam_all.get(sec, set()):
+                        # a short mark in the cell (a \\pending marker is
+                        # wider than the column); the caption says why
+                        tr.pending.append(f"{where}: member of the section's "
+                                          f"family not yet in {rel(p)}: "
+                                          f"{BD_GAPS}")
+                        cells.append(BD_PENDING_MARK)
+                    else:
+                        cells.append("--")
+                        tr.prov.append(f"{where}: -- (not in the family)")
+                    continue
+                st = e["status"]
+                sign = "$^{(-)}$" if e.get("sign") == -1 else ""
+                neg |= bool(sign)
+                if st == "above the grid":
+                    txt = f"$>${top:g}"
+                elif st in ("breaks", "no finding"):
+                    f = foot.get(e.get("reason"), "c")
+                    used_foot.add(f)
+                    core = (f"{e['kappa_star']:g}" if st == "breaks"
+                            else "none")
+                    txt = f"\\textbf{{{core}}}$^{{{f}}}$"
+                else:
+                    cells.append(tr.pend(where, f"status '{st}'", "gap"))
+                    continue
+                cells.append(tr.cell(label, SHORT[ds], txt + sign, [], 0, p,
+                                     f"{sec}.members.{key}.status/kappa_star"))
+                tr.prov.append(f"{where}: {rel(p)} : {sec}.members.{key} "
+                               f"(status '{st}', kappa_star "
+                               f"{e.get('kappa_star')}, reason "
+                               f"{e.get('reason')}, sign {e.get('sign')})")
+            body.append(f"{tex_label(label)} & "
+                        + " & ".join(span_pending(cells))
+                        + " \\\\")
+    tr.notes.append("Same statuses as tab:breakdown (one source file); "
+                    "family_complete: " + ", ".join(
+                        f"{sec} {d[sec].get('family_complete')}"
+                        for sec, _ in BD_SECTIONS) + ". Members of the "
+                    "expected family (discell.experiments.breakdown.FAMILY) "
+                    "that the file does not hold yet are pending; rerun "
+                    "'python scripts/paper_tables.py --only breakdown_main' "
+                    "after the gaps queue's render step.")
+    fl = []
+    if "a" in used_foot:
+        fl.append("$^{a}$the interval contains $0$")
+    if "b" in used_foot:
+        fl.append("$^{b}$a seed has the opposite sign")
+    if "c" in used_foot:
+        fl.append("$^{c}$see \\cref{tab:breakdown}")
+    na = " ".join(f"n/a: {why} on the {' and '.join(w)} section"
+                  + ("s" if len(w) > 1 else "") + "."
+                  for why, w in na_why.items())
+    grid = ", ".join(f"{g:g}" for g in d["ovarian"]["grid"])
+    caption = (
+        "Breakdown points $\\kappa^\\star$ (\\cref{def:breakdown}) on the "
+        f"grid $\\kappa \\in \\{{{grid}\\}}$, three seeds each. "
+        f"$>${top:g}: the finding holds at every grid point; bold: it "
+        "breaks" + ("; " + ", ".join(fl) if fl else "") + "."
+        + (" $^{(-)}$Negative at $\\kappa = 0$." if neg else "")
+        + " The serial section is read through the core's fits. "
+        + (f"{BD_PENDING_MARK}: \\pending{{breakdown gaps queue}}. "
+           if tr.pending else "")
+        + (na + " " if na else "")
+        + "Full table: \\cref{tab:breakdown}.")
+    tex = (tr.header(command, "kappa* per member and section as stored "
+                     "(the source of tab:breakdown); grouped into biological "
+                     "claims and allocation checks")
+           + "\\begin{table}[t]\n\\centering\n"
+           f"\\caption{{{caption}}}\n\\label{{tab:kappa-star}}\n"
+           "\\footnotesize\n\\setlength{\\tabcolsep}{1.5pt}\n"
+           "\\begin{tabular}{@{}lccccc@{}}\n\\toprule\n"
+           "Finding & " + " & ".join(f"\\shortstack{{{MAIN_HEAD[ds]}}}"
+                                     for _, ds in BD_SECTIONS)
+           + " \\\\\n\\midrule\n" + "\n".join(body)
+           + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
     return tex, tr
 
 
@@ -2472,7 +2752,8 @@ def table_breakdown_traj(command: str) -> tuple[str, Trace]:
                                      + (f" x {sc:g}" if sc != 1 else "")))
             mk = (arrow("transport")
                   if key == "transport_of_ceiling_trusted" else "")
-            body.append(f"\\quad {label}{mk} & " + " & ".join(mean_c)
+            body.append(f"\\quad {tex_label(label)}{mk} & "
+                        + " & ".join(mean_c)
                         + " \\\\")
             body.append("\\quad\\quad range & " + " & ".join(rng_c) + " \\\\")
             tr.prov.append(f"{SHORT[ds]} / {label}: {rel(p)} : {sec}."
@@ -2489,16 +2770,18 @@ def table_breakdown_traj(command: str) -> tuple[str, Trace]:
                     "trajectory reads." + (" Fewer seeds: " + "; ".join(few)
                                           if few else ""))
     caption = (
-        "Readouts reported as trajectories across the leakage sweep, without "
+        "Readouts reported as trajectories across the \\termSpill{} sweep, "
+        "without "
         "a breakdown point: the mean over three seeds with the range. These "
         "are magnitudes, positive under any fit, or descriptions of what the "
         "invariance leaves, so no null applies, and the marker-pair contrast, "
-        "which is signed but measures the decode rather than the leak "
-        "correction, since it is already present at $\\kappa = 0$, and "
-        "transport $-$ programme part, which is zero by construction at "
-        "$\\kappa = 0$, where no leakage is modelled. "
-        "\\emph{Transport}: the "
-        "fraction of the noise ceiling recovered by the mean transport read, "
+        "which is signed but measures the decode rather than the "
+        "\\termSpill{} correction, since it is already present at "
+        "$\\kappa = 0$, and \\termReloc{} $-$ programme part, which is zero "
+        "by construction at $\\kappa = 0$, where no \\termSpill{} is "
+        "modelled. \\emph{\\TermReloc}: the "
+        "fraction of the noise ceiling recovered by the mean \\termReloc{} "
+        "read, "
         "trusted tier" + ("; $^{\\dagger}$over the seeds with a trusted panel"
                           if few else "")
         + ". \\emph{Within-type share of $\\vw$ variance}: the share of "
@@ -2510,9 +2793,10 @@ def table_breakdown_traj(command: str) -> tuple[str, Trace]:
         "fit. \\emph{Marker pairs}: the change in the double-positive rate of "
         "mutually exclusive marker pairs from the raw counts to the "
         "corrected decode, minus the same change for control pairs, in "
-        "percentage points (\\cref{app:readouts}). \\emph{Transport $-$ "
-        "programme part}: the mean $R^2$ over all panels of the mean transport "
-        "read with the leakage term, minus that of the programme part alone. "
+        "percentage points (\\cref{app:readouts}). \\emph{\\TermReloc{} "
+        "$-$ programme part}: the mean $R^2$ over all panels of the mean "
+        "\\termReloc{} read with the \\termSpill{} term, minus that of the "
+        "programme part alone. "
         "The operating point $\\kappa = 0.1$ is in "
         "bold. The arrow gives "
         "the preferred direction; the other readouts have none.")
@@ -2678,7 +2962,8 @@ def table_transport_heldout(command: str) -> tuple[str, Trace]:
     ct, ca = count["trusted"], count["all"]
     tw = max(abs(x) for x in twin_moves)
     caption = (
-        "Transport scored on held-out tiles only, beside the published read. "
+        "\\TermReloc{} scored on held-out tiles only, beside the published "
+        "read. "
         "\\emph{Published}: the read of \\cref{tab:headline}, whose readout is "
         "cross-fitted over spatial folds drawn from every tile, so most "
         "scored cells lie in the model's training tiles. \\emph{Held-out "
@@ -2875,16 +3160,16 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
         "\\multicolumn{9}{@{}l}{\\emph{Parts of the prediction, fraction of "
         "the noise ceiling, trusted tier}} \\\\",
         "\\quad programmes & " + " & ".join(rows["prog"]) + " \\\\",
-        "\\quad leakage & " + " & ".join(rows["leak"]) + " \\\\",
+        "\\quad \\termSpill{} & " + " & ".join(rows["leak"]) + " \\\\",
     ]
     tr.notes.append("Written after the freeze by cellina_extra_2026-09-29 "
                     "(Cellina refit on training tiles only, posterior-mean "
                     "decode, DisCell's panels and draws replayed, replay = 0.0 "
                     "on every dataset) and transport_heldout_2026-09-29.")
     caption = (
-        "The counterfactual claim head to head: DISCELL's transported "
+        "The counterfactual claim head to head: DISCELL's \\termReloc{} "
         "prediction against Cellina's neighbour-rewiring counterfactual, "
-        "scored with the same transport reads (published read, as in "
+        "scored with the same \\termReloc{} reads (published read, as in "
         "\\cref{tab:headline}). Cellina is refitted on the training tiles only, "
         "decoded at its posterior mean, and read on the panels, niches, "
         "ceilings and bootstrap draws of DISCELL's first seed, which is "
@@ -2894,8 +3179,9 @@ def table_cellina_cf(command: str) -> tuple[str, Trace]:
         "\\emph{Panels}: panels in the trusted tier. Read A: the median gap to the target closed; twin margin: how "
         "much closer a cell's prediction is to its own target than to a "
         "random cell's. \\emph{Parts of the prediction}: DISCELL's "
-        "prediction from the response programmes alone and from the leakage "
-        "alone (the parts are not additive). $^{a}$Not mapped: Cellina has no leakage channel, so its "
+        "prediction from the response programmes alone and from the "
+        "\\termSpill{} alone (the parts are not additive). $^{a}$Not mapped: "
+        "Cellina has no \\termSpill{} channel, so its "
         "counterfactual cannot be split into these parts. "
         f"{ARROW_NOTE} (the parts have none); {BOLD_NOTE}, of the two "
         "estimates. Unassigned cells "
@@ -3026,7 +3312,8 @@ def table_synthetic(command: str) -> tuple[str, Trace]:
                     "scripts/logs/synthetic_2026-09-29/AGENT_REPORT.md).")
     caption = (
         "Recovery on simulated sections at the final configuration, scaled "
-        "to the simulated world. Three worlds per planted leakage rate, each "
+        "to the simulated world. Three worlds per planted \\termSpillFrac{}, "
+        "each "
         "fitted with three model seeds; the range over the nine fits "
         "(\\emph{Fits}). NMI of the intrinsic latent's posterior mean with "
         "the planted type; \\emph{CCA}: the first canonical correlation of "
@@ -3388,12 +3675,14 @@ def table_context(command: str) -> tuple[str, Trace]:
 
 TABLES = {"headline": table_headline,
           "headline_full": table_headline_full,
+          "headline_main": table_headline_main,
           "probe": table_probe,
           "battery": table_battery,
           "sensitivity": table_sensitivity,
           "kappa_sweep": table_kappa_sweep,
           "timing": table_timing,
           "breakdown": table_breakdown,
+          "breakdown_main": table_breakdown_main,
           "breakdown_traj": table_breakdown_traj,
           "transport_heldout": table_transport_heldout,
           "cellina_cf": table_cellina_cf,

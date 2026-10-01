@@ -422,7 +422,7 @@ class DisCell(nn.Module):
                  kappa_mode: str = "global",
                  kappa_gene_share: np.ndarray | None = None,
                  kappa_ratio_mean: float | None = None,
-                 phi_proj: int = 0):
+                 phi_proj: int = 0, no_image: bool = False):
         super().__init__()
         self.n_types, self.d_z, self.d_w = n_types, d_z, d_w
         self.median_counts = float(median_counts)
@@ -446,6 +446,13 @@ class DisCell(nn.Module):
         # the projection test (S53, 2026-09-25): phi_proj > 0 puts a learned
         # linear map Phi -> phi_proj columns in c; 0 = the full Phi (pinned)
         c_dim = gat_dim + (phi_proj or phi_dim) + 1       # +1: isolated flag
+        # the no-image ablation (2026-10-01): no_image=True drops Phi from c,
+        # so c = GAT (+) flag. False = every run before it, bit for bit.
+        if no_image:
+            if phi_proj or query == "image":
+                raise ValueError("no_image excludes phi_proj and query='image'")
+            c_dim = gat_dim + 1
+        self.no_image = no_image
         # ablation (iii): p(w|t) = N(mu_t, I), the context-free DisCoVR prior.
         # Default False = the spec's m_psi(c, t) = every pinned run.
         # arm (iii), 2026-09-23: prior_type_free=True drops t from m_psi.
@@ -530,6 +537,8 @@ class DisCell(nn.Module):
             h_dst = self.embed_t(t[:n_context])
         gat, alpha = self.gat(h_src, h_dst, edge_src, edge_dst)
         flag = isolated[:n_context].float()[:, None]
+        if self.no_image:
+            return torch.cat([gat, flag], dim=-1), alpha
         phi_c = (phi[:n_context] if self.phi_proj is None
                  else self.phi_proj(phi[:n_context]))
         c = torch.cat([gat, phi_c, flag], dim=-1)

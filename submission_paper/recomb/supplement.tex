@@ -1,0 +1,64 @@
+% DISCELL -- RECOMB submission, supplement (separate PDF).
+% Sections are numbered S1, S2, ...; figures, tables and equations S1, S2, ...
+% Main-text labels are imported from main.aux via xr-hyper (no prefix).
+\documentclass[letterpaper,10pt]{article}
+
+\usepackage[letterpaper,margin=1in]{geometry}
+
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{amsmath,amssymb,amsthm,bm,mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs,multirow,array,longtable}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{enumitem}
+\PassOptionsToPackage{hyphens}{url}
+\usepackage{xr-hyper}
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+\usepackage[capitalise]{cleveref}
+% short reference names to save space (author, 2026-10-01)
+\crefname{figure}{Fig.}{Figs.}\Crefname{figure}{Fig.}{Figs.}
+\crefname{table}{Table}{Tables}\Crefname{table}{Table}{Tables}
+\crefname{section}{Sec.}{Secs.}\Crefname{section}{Sec.}{Secs.}
+\crefname{equation}{Eq.}{Eqs.}\Crefname{equation}{Eq.}{Eqs.}
+\renewcommand{\figurename}{Fig.}
+
+\graphicspath{{../aistats/figures/}}
+\newcommand{\tablesdir}{../aistats/tables/generated}
+\input{macros}
+% main-text captions imported through xr may use \suppref; inside the supplement it reads "Section S3"
+\newcommand{\suppref}[1]{Section~\ref{#1}}
+
+\externaldocument{main}[main.pdf]
+
+\renewcommand{\thesection}{S\arabic{section}}
+\renewcommand{\thefigure}{S\arabic{figure}}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\theequation}{S\arabic{equation}}
+\renewcommand{\theHsection}{S\arabic{section}}
+\renewcommand{\theHfigure}{S\arabic{figure}}
+\renewcommand{\theHtable}{S\arabic{table}}
+\renewcommand{\theHequation}{S\arabic{equation}}
+
+\title{DISCELL: Supplementary Material}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\input{supplement/S1_derivations}
+\input{supplement/S2_design_rationale}
+\input{supplement/S3_implementation}
+\input{supplement/S4_data_and_labels}
+\input{supplement/S5_readouts}
+\input{supplement/S6_full_results}
+\input{supplement/S7_simulation}
+\input{supplement/S8_sensitivity_and_ablations}
+\input{supplement/S9_limitations}
+
+\bibliographystyle{unsrtnat}
+\bibliography{../aistats/references}
+
+\end{document}

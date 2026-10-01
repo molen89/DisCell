@@ -109,6 +109,34 @@ def paper_tables():
     return mod
 
 
+# ---- RECOMB vocabulary switch: DISCELL_VOCAB=recomb renders "spill-over"/"relocation" for the
+# AISTATS words and writes recomb_<name>.pdf/.png. Unset: nothing changes.
+import os as _os
+import re as _re
+
+RECOMB = _os.environ.get("DISCELL_VOCAB", "") == "recomb"
+_VOCAB = [(r"real at every leak fraction", r"real at every $\\kappa$"), (r"leak fraction", "spill-over fraction"), (r"composition(\s)leakage", r"niche\1signal"),
+          (r"leakage", "spill-over"), (r"no-leak", "no-spill-over"), (r"leak", "spill-over"),
+          (r"Transport", "Relocation"), (r"transport", "relocation")]
+
+
+def out_path(path):
+    """Output stem: unchanged by default, recomb_-prefixed under DISCELL_VOCAB=recomb."""
+    return path.with_name("recomb_" + path.name) if RECOMB else path
+
+
+if RECOMB:
+    import matplotlib.text as _mt
+    _set_text = _mt.Text.set_text
+
+    def _vocab_set_text(self, s):
+        if isinstance(s, str):
+            for a, b in _VOCAB:
+                s = _re.sub(a, b, s)
+        return _set_text(self, s)
+    _mt.Text.set_text = _vocab_set_text
+
+
 def save(fig, out):
     """Vector PDF for the paper and a PNG preview, side by side."""
     fig.savefig(out.with_suffix(".pdf"))

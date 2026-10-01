@@ -1,0 +1,13 @@
+\section{Discussion}
+\label{sec:discussion}
+% 04_discussion.tex -- budget 0.6 p. Each claim once, with its reference and why it matters;
+% one limitations paragraph pointing to the supplement; then the code link.
+
+Spill-over and a niche response compete for the same counts, and the counts cannot say how much of a cell's resemblance to its neighbours is which (\cref{prop:kappa-bound}). DISCELL therefore treats the spill-over fraction as a sensitivity parameter, not an estimate, and attaches a breakdown point to each finding. The test is not vacuous: it breaks the findings that spill-over could most plausibly produce and leaves the others standing across the grid (\cref{sec:robustness}). The protocol transfers to any model with a spill-over term, and lets a reader judge a spatial claim by how much misassignment it tolerates.
+
+Separating the two mechanisms leaves an intrinsic state that keeps the cell type and the cell cycle and loses most of the niche, on a held-out serial section as on the fitted ones (\cref{sec:intrinsic-response}). Against four methods, none carries less niche signal while keeping more within-type state, and the separation is not reproduced by giving another model an adversary (\cref{sec:comparison}). For biology, the response is where the niche goes: it maps tissue territories with recognisable programmes (\cref{sec:programmes}), held-out locations are read from it while tumour states are read from the intrinsic state, and relocating a cell type predicts most of the reproducible shift between niches (\cref{sec:relocation}).
+
+\paragraph{Limitations.}
+The sweep rules out only spill-over of the modelled form, one hop, one fraction per section and no gene dependence; a fixed false-positive floor already moves the primary relocation read (\cref{sec:robustness}). All sections come from one platform. At the operating weights the response is type-level: it describes how a cell type shifts with its niche, not how one cell deviates from that shift (\cref{sec:intrinsic-response}). The cycle score that grades the intrinsic state is a proxy computed from the same segmented counts. DISCELL's weights were calibrated on these sections, while the comparison methods ran at their defaults (\cref{sec:setup}). The full list is in \suppref{app:limitations}.
+
+\paragraph{Code.} \codelink.

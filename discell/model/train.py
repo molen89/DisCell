@@ -121,6 +121,10 @@ class TrainConfig:
     #: applied to Phi before it enters c. 0 = the full Phi = every run before
     #: it, bit for bit.
     phi_proj: int = 0
+    #: the no-image ablation (2026-10-01): True drops Phi from the context c
+    #: (c = GAT (+) isolated flag). The adversary's e_Phi target is unchanged.
+    #: False = every run before it, bit for bit.
+    no_image: bool = False
     v_pcs: int = 12                     # Phi PCs inside the invariance block
     # the objective -- defaults are the calibrated operating point (2026-09,
     # four calibration rounds + two sweeps; see docs/devlog.md): adversary at
@@ -416,6 +420,7 @@ class Trainer:
                               if config.kappa_mode == "gene" else None),
             kappa_ratio_mean=config.kappa_ratio_mean,
             phi_proj=config.phi_proj,
+            no_image=config.no_image,
         ).to(self.device)
         self.covariances = None
         self.adversary = self.adversary_optimiser = None
@@ -1479,6 +1484,9 @@ def build_parser() -> argparse.ArgumentParser:
                         choices=("type", "type_free", "image"),
                         help="arms (i)/(ii): the GAT query -- embed(t_i), one "
                              "shared learned vector, or a linear map of Phi_i")
+    parser.add_argument("--no-image", action="store_true",
+                        help="no-image ablation: drop Phi from the context c "
+                             "(c = GAT + isolated flag)")
     parser.add_argument("--prior-type-free", action="store_true",
                         help="arm (iii): m_psi(c) only, t dropped from the "
                              "prior; the posterior q(w|.) is unchanged")

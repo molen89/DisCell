@@ -36,7 +36,7 @@ SECTIONS = [("xenium_prime_ovarian_cancer_ffpe", "full"), ("xenium_prime_human_l
             ("xenium_prime_human_ovary_ff", "full"), ("gse315411_pdltma06_11_prime_solo", "full"),
             ("gse315411_pdltma06_10_prime_dual", "full")]
 HERE = Path(__file__).resolve().parent
-OUT = HERE.parent / "fig_contact_kernel"
+OUT = S.out_path(HERE.parent / "fig_contact_kernel")
 
 
 def bundle(ds, var):

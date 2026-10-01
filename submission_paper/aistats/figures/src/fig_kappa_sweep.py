@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import style as S  # noqa: E402
 
 PT = S.paper_tables()
-OUT = Path(__file__).resolve().parent.parent / "fig_kappa_sweep"
+OUT = S.out_path(Path(__file__).resolve().parent.parent / "fig_kappa_sweep")
 # column headers name the quantity on the vertical axes below them; no direction marker:
 # kappa is not selected on these readouts, which move with kappa by construction
 READS = [("recon", "held-out log-lik." "\n" "(nats/count)"),
@@ -84,7 +84,7 @@ for i, (ds, name) in enumerate(ROWS):
         if i == 0:
             ax.set_title(title, fontsize=6.5, color=S.INK, pad=4, linespacing=1.1)
         if i == len(ROWS) - 1:
-            ax.set_xlabel(r"leak fraction $\kappa$", labelpad=0.5, fontsize=7)
+            ax.set_xlabel(r"spill-over $\kappa$" if S.RECOMB else r"leak fraction $\kappa$", labelpad=0.5, fontsize=7)
     axes[i, 0].annotate(name, xy=(-0.58, 0.5), xycoords="axes fraction", rotation=90,
                         ha="center", va="center", fontsize=7, color=S.INK)
 S.save(fig, OUT)

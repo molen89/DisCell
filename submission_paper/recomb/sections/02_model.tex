@@ -1,0 +1,104 @@
+\section{Model}
+\label{sec:method}  % name kept from AISTATS: the supplement refers to it
+% 02_model.tex -- budget 2.25 p, Fig 1 included. Clean math; notation as in STYLE.md.
+% 2.1 sec:generative (+ sec:setting); 2.2 sec:inference (+ sec:objective, sec:batching);
+% 2.3 sec:invariance (+ sec:selection); 2.4 sec:sweep. Moved to the supplement: see
+% _reports/model.md ("requests").
+
+DISCELL writes a cell's counts as the sum of its intrinsic state, its response to the niche and spill-over from its neighbours, whose size $\kappa$ is swept (\cref{fig:overview}).
+
+\begin{figure*}[t]
+\centering
+\includegraphics{recomb_fig1_overview}
+\caption{DISCELL in four panels. \textbf{a},~Spill-over on segmented cells of the primary section: a cell (blue) receives transcripts from its first ring in proportion to the kernel weights $\beta_{ij}$ (arrow widths). Below: the morphology image, embedded as $\vPhi_i$ into the niche descriptor $\vc_i$ (grey arrow), with a $25\um$ disc around the cell masked out. \textbf{b},~The generative model (\cref{sec:generative}): $\vz_i$ and $\vw_i$, whose prior is set by the niche and the type, decode to the cell's own composition $\vrho_i$, mixed with the neighbours' compositions at the fixed fraction $\kappa$; an adversary keeps the niche out of $\vz_i$ given the type. \textbf{c},~Why $\kappa$ is swept (\cref{prop:kappa-bound}): on the simplex of three genes, each assumed $\kappa$ implies a clean composition on a line from the observed $\vp_i$ away from the influx $\rhobar_i$; every $\kappa$ fits until a gene's share would turn negative at $\bar\kappa_i$. \textbf{d},~The breakdown point (\cref{def:breakdown}): $\kappa^\star$ is the smallest grid value at which a finding's interval reaches its null value. b--d are schematic.}
+\label{fig:overview}
+\end{figure*}
+
+\subsection{Generative model}
+\label{sec:generative}
+\label{sec:setting}
+
+For each of $N$ segmented cells $i$ on one section we observe a count vector $\vx_i$ over $G$ genes with total $\ell_i$, a lineage label $t_i \in \{1,\dots,K\}$, its position and the morphology image around it. Two cells are neighbours if their Voronoi cells share a face (Delaunay adjacency), with edges longer than $40\um$ pruned; $\nbr{i}$ is the neighbour set of $i$. The model is
+\begin{align}
+  \vz_i &\sim \N(\mathbf{0}, \vI), \label{eq:gen-z}\\
+  \vw_i \mid \vc_i, t_i &\sim \N\big(\mpsi(\vc_i, t_i),\, \sigma_w^2 \vI\big), \label{eq:gen-w}\\
+  \vrho_i &= \softmax\big(\underbrace{a(\vz_i)}_{\text{intrinsic}} + \underbrace{\vB\vw_i}_{\text{response}}\big), \label{eq:gen-rho}\\
+  \rhobar_i &= \textstyle\sum_{j \in \nbr{i}} \beta_{ij}\, \vrho_j, \label{eq:gen-rhobar}\\
+  \vp_i &= (1-\kappa)\, \vrho_i + \underbrace{\kappa\, \rhobar_i}_{\text{spill-over}}, \label{eq:gen-p}\\
+  \vx_i \mid \ell_i &\sim \Mult(\ell_i, \vp_i). \label{eq:gen-x}
+\end{align}
+Here $\vrho_i$ is the cell's own, \emph{clean} composition over genes. Its intrinsic part decodes $\vz_i \in \R^{\dz}$; its response part is linear in $\vw_i \in \R^{\dw}$, so that column $k$ of the loadings $\vB$ is a gene programme and $w_{ik}$ is how far the cell has moved along it. The decoder has no type input: the only route from identity to expression runs through $\vz_i$, which therefore carries the type together with what the label discretises away, such as cell-cycle phase. The prior mean $\mpsi(\vc_i, t_i)$ is the response expected of a cell of type $t_i$ in niche $\vc_i$; the prior scale is fixed at $\sigma_w = 1$, which pins the scale of $\vw$ against that of $\vB$.
+
+\paragraph{The niche descriptor.}
+$\vc_i$ is a deterministic function of the data, shared by co-located cells and containing no latent:
+\begin{equation}
+  \vc_i = \GAT\big(\embed(t_i);\ \{t_j\}_{j \in \nbr{i}}\big) \oplus \vPhi_i \oplus \mathbf{1}[\nbr{i} {=} \emptyset].
+  \label{eq:context-gat}
+\end{equation}
+The first part is one graph-attention layer \citep{brody2022} over the neighbours' types, queried with the cell's own type, which amounts to a learned, type-specific reweighting of the neighbour-type composition $\vy_i$. The second, $\vPhi_i$, is the embedding by a frozen pretrained image model \citep{kronos2025} of a $128\um$ morphology crop around the cell, in which a disc of radius $25\um$ around the cell is set to zero, so that it describes the surrounding tissue and not the cell. No distances enter, so that the attention cannot rediscover the spill-over kernel and merge the two mechanisms the model separates (\suppref{app:graph}).
+
+\paragraph{Spill-over.}
+The influx $\rhobar_i$ is the neighbours' clean compositions averaged with a fixed kernel, $\beta_{ij} \propto f_{ij}\exp(-d_{ij}/\tau)$, normalised over $\nbr{i}$, where $d_{ij}$ is the distance between centroids, $f_{ij}$ the length of the shared Voronoi face and $\tau = 20\um$. The kernel is computed once and not learned, unlike resolVI's per-cell weights. The spill-over it represents has a specific form: one hop, one fraction for the whole section, and no gene dependence; an isolated cell receives none (\suppref{app:bound}).
+
+\subsection{Inference and objective}
+\label{sec:inference}
+\label{sec:objective}
+\label{sec:batching}
+
+Both latents have amortised diagonal-Gaussian posteriors. The encoder of $q(\vz_i \mid \vx_i, t_i)$ reads the cell's normalised log counts, its log total and its type, never the niche; $q(\vw_i \mid \vc_i, t_i, \vz_i, \vx_i)$ reads the niche and the cell. Writing $r_i(\vw) = \ell_i^{-1}\sum_g x_{ig}\log p_{ig}(\vz_i, \vw)$ for the reconstruction per count, the training objective, maximised, is
+\begin{equation}
+\begin{split}
+  J = \tfrac{1}{|\mathcal{S}|}\textstyle\sum_{i \in \mathcal{S}} \Big[\,& r_i(\vw_i) + \omega\, r_i(\wbreve_i) - \alphaa \Adv_i \\
+  & - (1+\omega)\,\alphaz \KL\big(q(\vz_i) \,\|\, p(\vz_i)\big) \\
+  & - \alphaw \KL\big(q(\vw_i) \,\|\, p(\vw_i \mid \vc_i, t_i)\big) \Big],
+\end{split}
+\label{eq:objective}
+\end{equation}
+over a batch $\mathcal{S}$ of cells. With $\omega = 0$ and $\alphaa = 0$ this is an evidence lower bound, scaled by depth so that the weights transfer between sections of different depth. The second term is the \emph{intrinsic path}: the same decoder evaluated with $\wbreve_i$ drawn from the prior instead of the posterior, a second bound on the same evidence \citep{slavutsky2025} that asks $\vz_i$ to explain the cell given only the response \emph{expected} in its niche. It keeps the type out of $\vw$: refitted with $\omega = 0$, the response's agreement with type rises on all four sections (\suppref{app:sensitivity}). The last term is the adversary of \cref{sec:invariance}. The neighbours' $\vrho_j$ enter $\rhobar_i$ under a stop-gradient, as in resolVI, and batches are contiguous spatial tiles with a two-hop halo (\suppref{app:tiles}). We use $\dz = 20$, $\dw = 6$, $\omega = 1$, $\alphaz = \tfrac12/\lbar$ with $\lbar$ the section's median total, and $\alphaw = 0.1$; the remaining settings are in \suppref{app:architecture}.
+
+\subsection{Conditional invariance}
+\label{sec:invariance}
+
+The architecture keeps the niche out of the encoder of $\vz$, but not out of the counts it reads. The target is that, within a type, the intrinsic state says nothing about the niche:
+\begin{equation}
+  \I\big(\vz_i;\, [\vy_i, \vPhi_i] \mid t_i\big) = 0.
+  \label{eq:invariance-target}
+\end{equation}
+It is conditional on the type because cell types cluster in space: an intrinsic state blind to the niche unconditionally would have to discard its type \citep{zhao2019inherent}. It covers the image too, so that a niche defined by morphology alone cannot hide in $\vz$. Two heads with parameters $\xi$ predict, from the posterior mean $\vmu_{z,i}$ and the type, the neighbour-type composition $\vy_i$ and a soft membership $\ephi_i$ of $\vPhi_i$ in $K$ image niches; the encoder is penalised by their skill beyond knowing the type alone,
+\begin{equation}
+\begin{split}
+  \Adv_i = \;&\lambda_y\big[\CE(\vy_i, \ybar(t_i)) - \CE(\vy_i, \hat{\vy}_\xi(\vmu_{z,i}, t_i))\big] \\
+  +\;&\CE(\ephi_i, \Phibar(t_i)) - \CE(\ephi_i, \hat{e}^{\Phi}_\xi(\vmu_{z,i}, t_i)),
+\end{split}
+\label{eq:adv}
+\end{equation}
+where $\ybar(t)$ and $\Phibar(t)$ are the mean targets of type $t$ and $\lambda_y = 3$ weights the composition, the channel of the spill-over confound. The heads maximise $\Adv_i$ with their own optimiser, the encoder minimises it, and it is zero at the optimum. Type-conditional adversarial invariance of an intrinsic latent against neighbour-type composition was introduced by MintFlow's per-type critics \citep{akbarnejad2025mintflow}; what we add is the image target and an independent test of the result.
+
+\paragraph{The held-out probe.}
+\label{sec:selection}
+A training adversary that is defeated proves nothing \citep{elazar2018}, so invariance is graded by a \emph{fresh} predictor of each target block $b$ (the composition, and the leading principal components of $\vPhi$) from $(\vmu_{z,i}, t_i)$, trained on spatially separate training tiles and scored on held-out tiles. Its held-out gain over the type mean $\bar v_k(t)$, per component $k$ of the block,
+\begin{equation}
+  G_b = \frac{1}{|b|}\sum_{k \in b} \frac{1}{2}\log \frac{\E\big(v_k - \bar v_k(t)\big)^2}{\E\big(v_k - \hat v_k(\vmu_z, t)\big)^2},
+  \label{eq:probe}
+\end{equation}
+estimates the predictive information from $\vz$ to the block given the type \citep{xu2020vinfo}. Its value with $\vmu_z$ permuted among cells of the same type is the chance floor. The \textbf{residual niche signal} is the excess of $G_b$ over that floor, reported as $1 - e^{-2\,\text{excess}}$: the share of the block's within-type variance that the probe explains beyond chance. We fit a linear (ridge) and a nonlinear (small perceptron) probe, each against its own floor, and compare with a fit without the adversary ($\alphaa = 0$). A probe at its floor bounds the dependence it can detect; it does not certify independence. Checkpoints are selected on held-out reconstruction while the agreement of $\vz$ with type (normalised mutual information of a $k$-means clustering of $\vmu_z$ with $t$) stays within $90\%$ of its running maximum (\suppref{app:architecture}).
+
+\subsection{What is identified}
+\label{sec:sweep}
+
+Spill-over and response both make a cell resemble its neighbours, and a flexible model can fit either. The counts constrain the spill-over fraction in one direction only. Removing more and more of the neighbours' profile from a cell eventually drives some gene's share below zero, which no clean profile can have: this bounds $\kappa$ from above. Every smaller $\kappa$ yields a valid clean profile that reproduces the data exactly, so there is no lower bound (\cref{fig:overview}c).
+
+\begin{proposition}\label{prop:kappa-bound}
+Hold the neighbours' clean compositions, and hence $\rhobar_i$, fixed, and let $\vp_i = (1-\kappa)\vrho_i + \kappa\rhobar_i$ with $\vrho_i$ in the simplex. A fraction $\kappa' \in [0, 1)$ reproduces $\vp_i$ with a clean composition in the simplex if and only if $\kappa' \le \bar\kappa_i = \min_{g:\,\bar\rho_{ig} > 0} p_{ig}/\bar\rho_{ig}$. The true $\kappa$ satisfies $\kappa \le \bar\kappa_i$, with equality if and only if $\rho_{ig} = 0$ for some gene $g$ with $\bar\rho_{ig} > 0$.
+\end{proposition}
+
+\noindent The proof is in \suppref{app:kappa}. Even with the neighbours' clean profiles known, then, the counts bound $\kappa$ only from above, and pin it only through a gene that the cell cannot express itself. With finite counts the bound is soft; we do not compute it on our sections, and in simulation the fit offers no handle on $\kappa$ (\cref{sec:simulation}). Given $\kappa$, the response is identified at most up to a rotation of its programmes (as in factor analysis, its axes can be rotated, with the loadings counter-rotated, without changing the fit) and a per-type offset, so we report only rotation-invariant summaries and within-type contrasts (\suppref{app:symmetries}).
+
+\paragraph{The sweep.}
+We therefore do not estimate $\kappa$. We fit the model independently at each $\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$, with three seeds per value and every other weight held fixed, and check the held-out probe at each value, so that a change in a readout is not a change in the invariance. This is a sensitivity analysis with $\kappa$ as the sensitivity parameter, in the tradition of tipping-point and E-value analyses of unmeasured confounding \citep{rosenbaum2002,vanderweele2017}: the fractions compatible with the data form an interval from zero \citep{manski2003}, and the question asked of each finding is how far into it the finding survives.
+
+\begin{definition}[Breakdown point]\label{def:breakdown}
+For a signed contrast $r$, let $I_\kappa(r)$ be the interval of its mean over seeds at spill-over fraction $\kappa$. The contrast holds at $\kappa$ if $I_\kappa(r)$ excludes zero and every seed keeps the sign the contrast has at $\kappa = 0$. Its \emph{breakdown point} $\kappa^\star(r)$ is the smallest grid value at which it does not hold. If it does not hold at $\kappa = 0$, $r$ is no finding; if it holds at every grid value, $\kappa^\star(r)$ is reported as exceeding the top of the grid.
+\end{definition}
+
+\noindent The interval comes from a spatial block bootstrap over tiles, Bonferroni-adjusted over the contrasts claimed on a section. A finding with $\kappa^\star > 0.4$ cannot be explained by spill-over of the modelled form up to four times the typical misassignment of about a tenth of a cell's transcripts \citep{yang2025mistic}; spill-over of another form (longer-ranged, gene-specific, depth-dependent) is not ruled out. Readouts shrink with $\kappa$ by construction, so only sign and interval are read. A contrast without a sign at $\kappa = 0$, because it is zero there by construction or measures decoding rather than spill-over removal, is shown as a trajectory instead (\suppref{app:sweep}). Nothing in the protocol is specific to DISCELL: any model with a spill-over term at a fixed fraction can attach a breakdown point to any spatial readout.

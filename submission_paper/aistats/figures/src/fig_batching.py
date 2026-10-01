@@ -38,7 +38,7 @@ from discell.model.prepare import rings, spatial_tiles  # noqa: E402
 DS, NAME = "xenium_prime_ovarian_cancer_ffpe", "full"
 BUNDLE = Path(f"data/datasets/{DS}/bundle")
 PRUNE_UM, TILE_CELLS, VAL_FRACTION, SEED, WIN_UM = 40.0, 4096, 0.15, 0, 110.0
-OUT = Path(__file__).resolve().parent.parent / "fig_batching"
+OUT = S.out_path(Path(__file__).resolve().parent.parent / "fig_batching")
 ROLE = {"seed": (S.FOCAL_FILL, "#9ec5f4", 0.45), "ring1": ("#b9b7b0", "#8f8d86", 0.4),
         "ring2": ("#dcdad4", "#b5b3ab", 0.35), "other": (S.GHOST, "#e2e0da", 0.3)}
 HATCH = "//////"

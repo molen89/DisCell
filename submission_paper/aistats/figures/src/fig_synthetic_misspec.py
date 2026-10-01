@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import style as S  # noqa: E402
 
 PT = S.paper_tables()
-OUT = Path(__file__).resolve().parent.parent / "fig_synthetic_misspec"
+OUT = S.out_path(Path(__file__).resolve().parent.parent / "fig_synthetic_misspec")
 d = json.loads((PT.SYNTH / "synthetic_recovery.json").read_text())
 if not d["simulator_checks"]["all_pass"]:
     raise SystemExit("synthetic simulator checks do not all pass")

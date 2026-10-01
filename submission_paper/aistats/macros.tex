@@ -12,6 +12,16 @@
 % reading-order markers: bold white on teal, [R N]; shown only with \showflagstrue
 \DeclareRobustCommand{\readorder}[1]{\ifshowflags\leavevmode{\sffamily\bfseries\footnotesize\setlength{\fboxsep}{1.5pt}\colorbox{teal!80!black}{\textcolor{white}{[R~#1]}}}\space\fi\ignorespaces}
 
+% vocabulary of the generated tables (shared by both manuscripts): AISTATS words; ../recomb/macros.tex defines the RECOMB ones
+\newcommand{\termSpill}{leakage}
+\newcommand{\TermSpill}{Leakage}
+\newcommand{\termSpillFrac}{leak fraction}
+\newcommand{\TermSpillFrac}{Leak fraction}
+\newcommand{\termReloc}{transport}
+\newcommand{\TermReloc}{Transport}
+\newcommand{\termInflux}{foreign influx}
+\newcommand{\TermInflux}{Foreign influx}
+
 % operators
 \DeclareMathOperator{\sgop}{sg}
 \newcommand{\sg}[1]{\sgop\!\left[#1\right]}

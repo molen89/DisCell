@@ -1,6 +1,6 @@
 % Generated table: tab:sensitivity. DO NOT EDIT BY HAND; regenerate instead.
 % Command: python scripts/paper_tables.py
-% Generated: 2026-10-01 08:10:25 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Generated: 2026-10-01 13:48:01 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   data/datasets/gse315411_pdltma06_11_prime_solo/runs/finalL_s0/degeneracy.json  (2026-09-28 16:12:42)
@@ -265,18 +265,18 @@
 %
 \begin{table}[t]
 \centering
-\caption{Sensitivity of the final configuration to the assumptions of the model, each arm refitted with one setting changed. For the final configuration, the mean over its seeds with the range; for an arm, its mean and, in brackets, its move from the final configuration in units of the final configuration's standard deviation over seeds; \emph{Seeds} gives the number of seeds fitted. Reconstruction is held-out, in nats per count; $\I(\text{niche}; \vw)$ is the excess over the within-type floor, in nats. \emph{MLP}: the residual neighbour composition in the intrinsic latent, as the share of the block's within-type variance that the nonlinear probe explains beyond the permutation floor, $1 - e^{-2\,\mathrm{excess}}$ (as in \cref{tab:probe}), in \%. \emph{Transport}: the fraction of the noise ceiling recovered by the mean transport read, trusted tier (as in \cref{tab:headline}); $^{\dagger}$over the seeds with a trusted panel. The leakage rate is set per cell from its neighbours' depth or density relative to its own, or per gene, at the same mean rate; the false-positive floor is fixed once per section, or per cell scaled by its area. Arrows give the preferred direction, so a move in the direction of a column's arrow is an improvement. Unassigned cells are not targets.}
+\caption{Sensitivity of the final configuration to the assumptions of the model, each arm refitted with one setting changed. For the final configuration, the mean over its seeds with the range; for an arm, its mean and, in brackets, its move from the final configuration in units of the final configuration's standard deviation over seeds; \emph{Seeds} gives the number of seeds fitted. Reconstruction is held-out, in nats per count; $\I(\text{niche}; \vw)$ is the excess over the within-type floor, in nats. \emph{MLP}: the residual neighbour composition in the intrinsic latent, as the share of the block's within-type variance that the nonlinear probe explains beyond the permutation floor, $1 - e^{-2\,\mathrm{excess}}$ (as in \cref{tab:probe}), in \%. \emph{\TermReloc}: the fraction of the noise ceiling recovered by the mean \termReloc{} read, trusted tier (as in \cref{tab:headline}); $^{\dagger}$over the seeds with a trusted panel. The \termSpillFrac{} is set per cell from its neighbours' depth or density relative to its own, or per gene, at the same mean value; the false-positive floor is fixed once per section, or per cell scaled by its area. Arrows give the preferred direction, so a move in the direction of a column's arrow is an improvement. Unassigned cells are not targets.}
 \label{tab:sensitivity}
 \footnotesize
 \setlength{\tabcolsep}{2pt}
 \begin{tabular}{@{}lccccccc@{}}
 \toprule
-Arm & Seeds & Recon. $\uparrow$ & NMI $\uparrow$ & Mirror $R^2$ $\downarrow$ & $\I(\text{niche}; \vw)$ $\uparrow$ & MLP (\%) $\downarrow$ & Transport $\uparrow$ \\
+Arm & Seeds & Recon. $\uparrow$ & NMI $\uparrow$ & Mirror $R^2$ $\downarrow$ & $\I(\text{niche}; \vw)$ $\uparrow$ & MLP (\%) $\downarrow$ & \TermReloc{} $\uparrow$ \\
 \midrule
 \multicolumn{8}{@{}l}{\emph{Ovarian cancer (FFPE)}} \\
 \quad final configuration & 3 & $-7.193$ & 0.713 & 0.048 & 0.47 & 4.6 & 0.65 \\
 \quad\quad range & & $-7.232$ to $-7.148$ & 0.701--0.723 & 0.044--0.051 & 0.45--0.50 & 4.0--5.5 & 0.63--0.67 \\
-\multicolumn{8}{@{}l}{\quad \emph{Form of the leakage rate}} \\
+\multicolumn{8}{@{}l}{\quad \emph{Form of the \termSpillFrac{}}} \\
 \quad\quad per cell, depth ratio & 3 & $-7.202$ ($-0.2$) & 0.699 ($-1.3$) & 0.052 (1.1) & 0.48 (0.3) & 5.3 (1.0) & 0.66 (0.6) \\
 \quad\quad per gene & 3 & $-7.193$ ($-0.0$) & 0.716 (0.3) & 0.048 ($-0.3$) & 0.48 (0.2) & 4.4 ($-0.2$) & 0.65 (0.2) \\
 \quad\quad per cell, density ratio & 3 & $-7.192$ (0.0) & 0.700 ($-1.1$) & 0.047 ($-0.3$) & 0.47 (0.2) & 4.4 ($-0.3$) & 0.65 (0.1) \\

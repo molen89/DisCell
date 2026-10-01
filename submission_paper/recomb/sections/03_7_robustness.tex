@@ -1,0 +1,18 @@
+\subsection{Robustness to Spill-over}
+\label{sec:robustness}
+\label{sec:results-sweep}
+% 03_7_robustness.tex -- budget 1.0 p. Claim C1.
+% Freeze rule: C1 is worded finally only after the breakdown-gaps queue lands (~21:00).
+% tab:kappa-star is generated (scripts/paper_tables.py --only breakdown_main); rerun it after the
+%   breakdown-gaps queue lands, then recount the breaks below.
+
+\input{\tablesdir/breakdown_main}
+
+Every section was refitted along the sweep of \cref{sec:sweep}, and \cref{tab:kappa-star} gives each finding of \crefrange{sec:intrinsic-response}{sec:relocation} its breakdown point. The findings are split in two groups. The \emph{allocation checks}, that $\vz$ keeps the cycle and $\vw$ the niche, are favoured by the model's design; the \emph{biological claims} are the stronger test.
+
+The test has teeth. It breaks three findings: the response's lean toward ligand--receptor genes on the FF section ($\kappa^\star = 0.2$), and the relocation's margin over its spill-over part on the ovarian and lung FFPE sections ($\kappa^\star = 0.4$ and $0.3$, where a seed changes sign). These are the findings that spill-over could most plausibly produce: a gene-specific spill-over would create the lean, and the margin measures what the prediction adds to spill-over. Every other finding holds across the whole grid on every section. \pending{breakdown gaps: recount} Two contrasts first in the graded set were moved to trajectories after reading, by the rule of \cref{sec:sweep}: one, between marker pairs, measures decoding, and the other, the relocation's margin over its programme part, is zero by construction at $\kappa = 0$.
+
+A positive control shows that the rule detects spill-over when it is there. In simulation, we plant a spatial contrast created only by spill-over at a known fraction beside a genuine response contrast, and run the same sweep. The prediction, set before the run, is that the spill-over contrast breaks at the first grid point at or above the planted fraction, while the response contrast holds. \pending{planted spill-over control}
+% If kappa* does not track the planted fraction: report it as found and present the breakdown point as a lower-power check.
+
+Of the spill-over forms the sweep leaves open, several were refitted on the primary section, three seeds each (\suppref{app:sensitivity}): per-cell and per-gene spill-over rates move no read by more than $1.3$ seed standard deviations, but a fixed false-positive floor lowers the relocation read from $0.65$ to $0.50$.

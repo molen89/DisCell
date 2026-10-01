@@ -7159,3 +7159,25 @@ tab:timing returns to its earlier form: DISCELL's model and training details (pa
 - **Family sizes** become 7/7/7/6/6.
 
 Queue `scripts/queue_2026-10-01_breakdown_gaps.sh` runs on GPU 0 only and is detached (PID 1626065): lung axis → dual → FF axis → re-render (breakdown tables, paper tables, fig_breakdown_data, main.pdf). ~10 h.
+
+### RECOMB story map approved; three additions (motivation, 2026-10-01; author)
+
+The author approved `submission_paper/recomb/STORY_MAP.md` (v2 + programme atlas C4b). The paper is rewritten for RECOMB in `submission_paper/recomb/`, one .tex file per section so that sections can be drafted in parallel. **Additions approved:**
+1. **Planted-spill-over positive control** (simulation). Plant a spatial contrast created *only* by spill-over at a known κ_true, run the κ sweep, and read the contrast's breakdown point. **Prediction set in advance:** κ\* falls at or near κ_true (the first grid point ≥ κ_true at which the interval reaches 0), while a planted genuine response contrast in the same world survives the grid. If κ\* does not track κ_true, that is reported as found, and the breakdown point is presented as a lower-power check.
+2. **A plain-regression reference for relocation:** on the same panels, regress each type's expression shift between niches directly on neighbour composition from the contaminated counts, scored by the same fraction-of-ceiling and Read A reads. It answers "why not just regress". **No outcome is pre-judged:** if the regression matches DISCELL on relocation, the text says DISCELL's advantage lies in the separation (z clean, spill-over modelled), not in relocation accuracy.
+3. **Verification of the related-work comparison table** against each source paper (reading only).
+**RECOMB additions launched (2026-10-01; `scripts/logs/recomb_additions_2026-10-01/`).** Queue `scripts/queue_2026-10-01_recomb_additions.sh`, detached, on CPU while the breakdown-gaps queue holds GPU 0; never GPU 1. 44 tests pass; defaults are bit-identical. **Deviations from the motivation entry, recorded before the results:**
+1. **The planted spill-over control fits at d_w = 6** (the final configuration). At the recovery width of 2, a smoke fit put none of the spill-over into the programmes, so there was nothing to break.
+2. **The published Read A cannot score the regression,** because its target is DISCELL's own decode. The regression is scored against the raw target cells and compared with DISCELL's count-matched read.
+3. **The log-scale regression scores near zero** (~0.10 of the ceiling). A rate-scale ridge is reported beside it. The stronger reference is the conservative choice, and both are reported.
+
+**Early signal, not a result yet:**
+- on ovarian, the rate-scale ridge beats DISCELL on the trusted tier (0.83–0.89 vs 0.63–0.67) and trails on all panels;
+- in a one-seed smoke run, the spill-over control breaks earlier than predicted.
+
+READOUT.md is expected ~15:00. If the regression matches or beats DISCELL on relocation, the text follows the pre-set wording: DISCELL's advantage lies in the separation, not in relocation accuracy.
+
+### No-image ablation at the final configuration (motivation, 2026-10-01; author)
+
+**Why.** The programme-driver decomposition shows the image carrying the unique signal on FF (0.83) and composition carrying it on the TMA core (0.33). That is partly circular, because the programmes were learned with both inputs. The direct test is to fit without the image. **Plan:** the final configuration with the image descriptor Φ removed from the context, so that c is built from neighbour composition only. Four sections × seeds 0–2, at finalL's splits, run name `noimgL_s*`, with the full read set: the battery, I(niche; w), transport (fraction of the ceiling), held-out reconstruction, the atlas (leading programme, hallmark labels, cross-seed stability). Readout compared against finalL. **Prediction:** removing the image costs most on FF (niche information in w, relocation, programme stability) and least on the TMA core. If nothing moves beyond finalL's seed range, the image is optional at this configuration, and that is reported as found. **Scope:** this says something about DISCELL's inputs only, not about the other methods. **The author reads the results before anything enters the paper.** GPU 0 after the breakdown-gaps queue; never GPU 1.
+**No-image ablation queued (2026-10-01).** A new opt-in `--no-image` flag (`TrainConfig.no_image`): c becomes the attention over neighbour types plus the isolated flag. The adversary's image-block target e_Φ is unchanged, so z is still kept free of image information. Defaults are bit-identical; the new tests and a CPU smoke run of the reads pass. The preflight shows that the 12 noimgL configs differ from finalL only in `no_image`. Queue PID 2009153, waiting on the breakdown-gaps queue. ~7–8 h on GPU 0, so READOUT.md ~01:00–02:00 on 2026-10-02. **Open:** one GPU-tolerance test fails by 2e-7. The agent did not confirm whether it fails without the change too; check it before the next commit.

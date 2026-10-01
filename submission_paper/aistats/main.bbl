@@ -88,11 +88,12 @@ Bilous, M., Buszta, D., Bac, J., Kang, S., Dong, Y., Tissot, S., Andre, S.,
 \newblock {\em Nature Methods}, 23:1152--1162.
 
 \bibitem[Birk et~al., 2025]{birk2025nichecompass}
-Birk, S., Lotfollahi, M., et~al. (2025).
+Birk, S., Bonafonte-Pard{\`a}s, I., Feriz, A.~M., Boxall, A., Agirre, E., Memi,
+  F., Maguza, A., Yadav, A., Armingol, E., Fan, R., Castelo-Branco, G., Theis,
+  F.~J., Bayraktar, O.~A., Talavera-L{\'o}pez, C., and Lotfollahi, M. (2025).
 \newblock Quantitative characterization of cell niches in spatially resolved
   omics data.
-\newblock {\em Nature Genetics}.
-\newblock CHECK: author list, volume, identifier.
+\newblock {\em Nature Genetics}, 57:897--909.
 
 \bibitem[Brody et~al., 2022]{brody2022}
 Brody, S., Alon, U., and Yahav, E. (2022).
@@ -113,11 +114,10 @@ Cover, T.~M. and Thomas, J.~A. (2006).
 \newblock Wiley, 2nd edition.
 
 \bibitem[Dong et~al., 2025]{dong2025simvi}
-Dong, M., Kluger, Y., et~al. (2025).
+Dong, M., Su, D.~G., Kluger, H., Fan, R., and Kluger, Y. (2025).
 \newblock {SIMVI} disentangles intrinsic and spatial-induced cellular states in
   spatial omics data.
-\newblock {\em Nature Communications}.
-\newblock CHECK: author list, volume, identifier.
+\newblock {\em Nature Communications}, 16(1):2990.
 
 \bibitem[Elazar and Goldberg, 2018]{elazar2018}
 Elazar, Y. and Goldberg, Y. (2018).
@@ -184,7 +184,6 @@ Janesick, A., Shelansky, R., Gottscho, A.~D., Wagner, F., Williams, S.~R.,
 \newblock High resolution mapping of the tumor microenvironment using
   integrated single-cell, spatial and in situ analysis.
 \newblock {\em Nature Communications}, 14:8353.
-\newblock CHECK: full author list truncated.
 
 \bibitem[Jin et~al., 2025]{jin2025cellchat}
 Jin, S., Plikus, M.~V., and Nie, Q. (2025).

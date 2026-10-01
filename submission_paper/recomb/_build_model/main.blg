@@ -1,0 +1,80 @@
+This is BibTeX, Version 0.99d (TeX Live 2022/dev/Debian)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: apalike.bst
+I couldn't open database file ../aistats/references.bib
+---line 153 of file main.aux
+ : \bibdata{../aistats/references
+ :                               }
+I'm skipping whatever remains of this command
+I found no database files---while reading file main.aux
+Warning--I didn't find a database entry for "janesick2023"
+Warning--I didn't find a database entry for "yang2025mistic"
+Warning--I didn't find a database entry for "bilous2026split"
+Warning--I didn't find a database entry for "mitchel2026celladmix"
+Warning--I didn't find a database entry for "svensson2018spatialde"
+Warning--I didn't find a database entry for "arnol2019svca"
+Warning--I didn't find a database entry for "cable2022cside"
+Warning--I didn't find a database entry for "tanevski2022misty"
+Warning--I didn't find a database entry for "young2020soupx"
+Warning--I didn't find a database entry for "fleming2023cellbender"
+Warning--I didn't find a database entry for "petukhov2022baysor"
+Warning--I didn't find a database entry for "ergen2026resolvi"
+Warning--I didn't find a database entry for "fischer2023"
+Warning--I didn't find a database entry for "dong2025simvi"
+Warning--I didn't find a database entry for "akbarnejad2025mintflow"
+Warning--I didn't find a database entry for "moeed2026cellina"
+Warning--I didn't find a database entry for "megas2026celcomen"
+Warning--I didn't find a database entry for "birk2025nichecompass"
+Warning--I didn't find a database entry for "rosenbaum2002"
+Warning--I didn't find a database entry for "manski2003"
+Warning--I didn't find a database entry for "brody2022"
+Warning--I didn't find a database entry for "kronos2025"
+Warning--I didn't find a database entry for "ergen2025"
+Warning--I didn't find a database entry for "slavutsky2025"
+Warning--I didn't find a database entry for "zhao2019inherent"
+Warning--I didn't find a database entry for "elazar2018"
+Warning--I didn't find a database entry for "xu2020vinfo"
+Warning--I didn't find a database entry for "vanderweele2017"
+You've used 0 entries,
+            1935 wiz_defined-function locations,
+            499 strings with 4091 characters,
+and the built_in function-call counts, 17 in all, are:
+= -- 0
+> -- 0
+< -- 0
++ -- 0
+- -- 0
+* -- 0
+:= -- 7
+add.period$ -- 0
+call.type$ -- 0
+change.case$ -- 0
+chr.to.int$ -- 0
+cite$ -- 0
+duplicate$ -- 0
+empty$ -- 1
+format.name$ -- 0
+if$ -- 1
+int.to.chr$ -- 1
+int.to.str$ -- 0
+missing$ -- 0
+newline$ -- 3
+num.names$ -- 0
+pop$ -- 0
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 1
+stack$ -- 0
+substring$ -- 0
+swap$ -- 0
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 0
+while$ -- 0
+width$ -- 0
+write$ -- 2
+(There were 2 error messages)

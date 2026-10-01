@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import style as S  # noqa: E402
 
 PT = S.paper_tables()
-OUT = Path(__file__).resolve().parent.parent / "fig_breakdown_data"
+OUT = S.out_path(Path(__file__).resolve().parent.parent / "fig_breakdown_data")
 SHORT = {"cycle_asym_q90": r"cycle asymmetry," "\n" r"$R^2(\mathbf{z}) - R^2(\mathbf{w})$",
          "w_niche_mi_excess": r"$I(\mathrm{niche};\mathbf{w})$" "\n" r"$-$ its floor",
          "readA_minus_typemean": "Read A $-$ type-mean\nreference",

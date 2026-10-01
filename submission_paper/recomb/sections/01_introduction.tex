@@ -1,0 +1,43 @@
+\section{Introduction}
+\label{sec:intro}
+% 01_introduction.tex -- budget 1.3 p in total (Introduction + Related work + Contributions).
+
+Imaging-based spatial transcriptomics measures thousands of genes in every cell of a tissue section, in place \citep{janesick2023}. The counts assigned to a cell, however, come from three sources. The first is the cell's \emph{intrinsic state}: its type, its cell-cycle phase and whatever else it would carry anywhere in the tissue. The second is its \emph{response} to its niche: programmes that change with who its neighbours are and what tissue surrounds it. The third is \emph{spill-over}: transcripts of neighbouring cells assigned to it, because segmentation of densely packed tissue is imperfect. On this platform a typical cell carries about a tenth of its counts from neighbours \citep{yang2025mistic}.
+
+The response and spill-over are confounded. A cell that receives its neighbours' transcripts acquires their markers; a cell that responds to its neighbours shifts its programmes in a way that their types predict. Both grow with the share of a neighbouring type \citep{bilous2026split}, and spill-over alone produces apparent cell--cell interaction signals \citep{mitchel2026celladmix}. They differ in form (one adds a neighbour's profile, the other shifts the cell's own programmes), but from the counts alone the split between them is set by the modelling assumptions, and a flexible decoder can mimic either. Every claim that a spatial effect is real therefore rests, usually silently, on how much of the neighbour-predictable signal was attributed to spill-over.
+
+\paragraph{Related work.}
+\label{sec:related}
+Classical models split a gene's variance into spatial and intrinsic parts \citep{svensson2018spatialde,arnol2019svca} or regress expression on niche covariates \citep{cable2022cside,tanevski2022misty}, and remove contamination separately, before analysis \citep{young2020soupx,fleming2023cellbender,petukhov2022baysor,mitchel2026celladmix}. Among generative models of the cell, each models only one side of the confound (\cref{tab:related}).
+On the spill-over side, resolVI \citep{ergen2026resolvi} writes a cell's counts as a mixture of its own decoded expression, its neighbours' expression and a background, with the mixing weights estimated per cell. It has no niche term, and it separates the components by expecting true expression to be low-dimensional; a niche response is low-dimensional too, and the part of it that moves a cell toward its neighbours' profile acts like spill-over.
+On the niche side, NCEM \citep{fischer2023} regresses a cell's expression on its neighbourhood given cell-type labels. SIMVI \citep{dong2025simvi} splits a cell into an intrinsic latent and a spatially induced one, whose prior is a regression on the neighbours' intrinsic latents, the closest analogue of our response prior. MintFlow \citep{akbarnejad2025mintflow} keeps neighbour-type composition out of a type-conditioned intrinsic latent with type-specific adversarial critics, the type-conditional invariance we also use. Cellina \citep{moeed2026cellina} removes spatial-domain labels from its intrinsic latent adversarially and predicts expression under a swapped neighbourhood. Celcomen \citep{megas2026celcomen} and NicheCompass \citep{birk2025nichecompass} model inter-cellular gene programmes without a per-cell split. None of these models spill-over; MintFlow and Cellina name segmentation errors as a limitation. SIMVI and MintFlow state identifiability results for their latents, but no method states what the counts cannot identify when a response and spill-over compete for them.
+
+\begin{table}[t]
+\centering
+\caption{The closest generative models. \emph{Spill-over}: misassigned transcripts are part of the generative model. \emph{Invariance}: the regulariser that keeps the intrinsic latent free of the niche. \emph{Intervention}: expression generated under an explicit change of the neighbourhood. $^a$SIMVI instead estimates a spatial treatment effect.}
+\label{tab:related}
+\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}l>{\centering\arraybackslash}p{0.1\columnwidth}>{\raggedright\arraybackslash}p{0.19\columnwidth}>{\raggedright\arraybackslash}p{0.22\columnwidth}>{\raggedright\arraybackslash}p{0.22\columnwidth}@{}}
+\toprule
+Model & Niche & Spill-over & Invariance & Intervention \\
+\midrule
+resolVI & $\times$ & estimated per cell & $\times$ & $\times$ \\
+SIMVI & $\checkmark$ & $\times$ & independence, marginal & $\times^a$ \\
+MintFlow & $\checkmark$ & $\times$ & adversarial, given type & delete, replace cells \\
+Cellina & $\checkmark$ & $\times$ & adversarial, marginal & swap neighbours \\
+DISCELL & $\checkmark$ & one fraction, swept & adversarial, given type & relocate a type \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Our approach.}
+DISCELL models both sides. A cell's expected composition is a mixture of its own expression, built from an intrinsic state $\vz_i$ and a response $\vw_i$ whose prior depends on a descriptor of the niche, and a fraction $\kappa$ of its neighbours' expression (\cref{sec:generative}). The counts bound $\kappa$ from above but never from below (\cref{prop:kappa-bound}), so we do not estimate it: we refit the model over a grid of $\kappa$ and report, for each finding, its \emph{breakdown point} $\kappa^\star$, the smallest spill-over fraction that explains the finding away (\cref{def:breakdown}). Neither ingredient is new alone: the spill-over term is resolVI's mixture with fixed weights, and adversarial invariance given type is MintFlow's. What is new is putting a niche response and spill-over into one model, which creates the confound, and the sweep, which handles it.
+
+\paragraph{Contributions.}
+\begin{itemize}[leftmargin=*,itemsep=1pt,topsep=2pt]
+\item \textbf{A generative model in which a niche response and spill-over compete for the same counts} (\cref{sec:generative}).
+\item \textbf{Conditional invariance with a held-out probe, as an evaluation protocol} that grades every method on the same cells (\cref{sec:invariance}).
+\item \textbf{A spill-over sweep with breakdown points}, transferable to any model with a spill-over term, and with teeth: \pending{breakdown-gaps queue: it breaks three findings and the others hold across the grid} (\cref{sec:sweep,sec:robustness}).
+\item \textbf{An evaluation on four sections} of ovarian cancer, lung cancer and paediatric lung, plus a serial section held out whole, against resolVI, SIMVI, MintFlow and Cellina, with recovery checks on simulated sections (\cref{sec:experiments}). Code: \codelink.
+\end{itemize}

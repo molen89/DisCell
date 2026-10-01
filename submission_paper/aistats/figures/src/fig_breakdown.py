@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import style as S  # noqa: E402
 
 GRID = np.array([0.0, 0.05, 0.1, 0.2, 0.3, 0.4])          # the model's kappa grid
-OUT = Path(__file__).resolve().parent.parent / "fig_breakdown"
+OUT = S.out_path(Path(__file__).resolve().parent.parent / "fig_breakdown")
 
 # (title, mean(kappa), interval half-width, null value)
 READOUTS = [

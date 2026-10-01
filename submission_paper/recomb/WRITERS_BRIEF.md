@@ -1,0 +1,11 @@
+# Brief for the section writers (parallel drafting, 2026-10-01)
+
+**Read first:** STORY_MAP.md (the approved plan: claims, evidence, limits, budgets), STYLE.md (vocabulary, notation, rules), CRITIQUE_publishability.md (proposed claim wordings, reviewer objections), CRITIQUE_clarity.md, RELATED_VERIFIED.md (the corrected related-work facts), and the end of ../../docs/devlog.md (decisions 2026-09-28 to 2026-10-01). Source text: ../aistats/ (sections, appendix, tables/generated, figures).
+
+**Ownership:** write ONLY the section files assigned to you. Do not edit main.tex, macros.tex, STYLE.md, other writers' files, the supplement or ../aistats/*.tex. If you need a supplement change, a new macro or a label elsewhere, list it in your report under "requests". You may add new figure scripts under ../aistats/figures/src/ with a distinct name prefix `recomb_` (add a line to build.sh there) and new bib entries to ../aistats/references.bib (append only, no duplicate keys).
+
+**Build:** to avoid clashing with the other writers, build in a private output directory: `latexmk -pdf -interaction=nonstopmode -outdir=_build_<yourname> main.tex`. Undefined references to sections that others are still writing are acceptable; your own must resolve. Report your files' approximate page use; with your build, count the pages your section adds against its budget.
+
+**Rules:** the RECOMB reader is a computational biologist. Plain language first, then the precise statement. Use 0–2 numbers per claim; tables and figures carry the rest. Say nothing twice: refer back instead. Experiments describe (what was done, what it shows); the Discussion makes the claims. Sell each strength exactly as far as the data support it, and state each limit once, briefly. No code references. Every number from a generated table or a result file you opened. Results still running (MintFlow refits; the breakdown gaps landing ~21:00; the planted spill-over control; the regression reference) go in as `\pending{...}`, with the planned sentence written around them.
+
+**Report:** `_reports/<yourname>.md` (create the folder): what you wrote; pages used against the budget; every number with its source; open \pending items; requests to other files.

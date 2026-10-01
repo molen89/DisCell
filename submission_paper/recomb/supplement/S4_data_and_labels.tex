@@ -1,0 +1,179 @@
+% S4: copied from ../aistats/appendix (see SETUP_REPORT.md for provenance); edit here, not there.
+\section{Data, Labels and Comparison Methods}
+\label{app:experimental}
+% from experimental.tex: Sections, Lineage Labels, Baselines, Assets and Licences, What the Model Needs
+
+\subsection{Sections}
+\label{app:sections}
+
+\Cref{tab:sections} lists the sections of \cref{sec:setup}, and \cref{fig:sections} shows them. The lineage classes include Unassigned. On the ovarian FFPE section it also holds a low-depth class of mixed lineage that the curated annotation had named as a tumour subtype, which is why its share is the largest.
+
+\begin{table}[t]
+\centering
+\caption{The sections. Median counts are per cell over the whole section. The TMA core and its serial section are one core of the microarray on two slides; no model is fitted to the serial section.}
+\label{tab:sections}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llrrrrr@{}}
+\toprule
+Section & Role & Cells & Genes & Lineage classes & Unassigned (\%) & Median counts \\
+\midrule
+Ovarian cancer (FFPE) & primary & 407{,}120 & 5{,}101 & 12 & 10.3 & 178 \\
+Lung cancer (FFPE) & fitted & 278{,}324 & 5{,}001 & 20 & 0.1 & 242 \\
+Ovarian cancer (FF) & fitted & 1{,}157{,}637 & 5{,}001 & 10 & 4.3 & 1{,}401 \\
+Lung TMA core & fitted & 69{,}422 & 5{,}001 & 30 & 4.2 & 279 \\
+Lung TMA core, serial section & held out & 70{,}757 & 5{,}001 & 30 & 4.8 & 253 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_sections}
+\caption{The four fitted sections. \textbf{a},~Every cell at its centroid, coloured by its lineage label, with the labels grouped into six families for display only; the model is fitted with the finer lineage classes of \cref{tab:sections}. \textbf{b},~The morphology image of the same section, the four channels the image descriptor reads, shown as one colour composite (\cref{app:image}). The TMA panel is the fitted core only. Each section is shown at its own scale; the bars are $1$\,mm.}
+\label{fig:sections}
+\end{figure}
+
+\subsection{Lineage Labels}
+\label{app:lineage}
+
+The fitted labels are lineage-level on every section (\cref{sec:setup}). States, such as proliferating, activated or hypoxic, and locations, such as tumour- or stroma-associated, are merged into their lineage; lineages and developmentally distinct sub-lineages are kept. The mappings were fixed and recorded before any model was refitted.
+
+\paragraph{Curated annotations.}
+On the ovarian FFPE section the eighteen curated classes become twelve (\cref{tab:lineage-ovarian}). Two classes needed a decision. The class named as a SOX2-OT$^+$ tumour subtype is mostly not tumour: its cells have a median of $27$ transcripts against $333$ for tumour cells, three quarters show no SOX2-OT count, and its pooled profile decomposes mostly into macrophage expression, so it is folded into Unassigned rather than into the tumour lineage. The class named as malignant cells lining a cyst expresses mesothelial markers (CALB2, PRG4, BNC1, PDPN, UPK3B) and lacks the tumour markers (EPCAM, PAX8, ESR1), and becomes its own lineage. On the lung TMA the thirty-five curated classes become thirty: the state classes (activated, inflammatory and myofibroblasts, activated endothelium and proliferating cells) are reassigned cell by cell to the sub-lineage their markers indicate, with the cell-cycle genes left out for the proliferating class, and the other classes are kept.
+
+\paragraph{Other judgement calls.}
+Four further choices are not forced by the rule and are stated so that they can be revisited. The tumour- and stroma-associated fibroblasts of the ovarian FFPE section are merged, because what separates them is the cancer-associated fibroblast programme, a state, rather than a lineage. Its two endothelial classes are merged too, although what separates them is less clear: a tip-cell state on one side and a weakly venous identity on the other. On the lung TMA the alveolar and adventitial fibroblasts are kept as distinct sub-lineages, and the myofibroblasts, which could belong to either, are split between them by their markers, about evenly. The cell-by-cell reassignment of the TMA's state classes is expected to be right for about three cells in four, and its margins are recorded with the mapping.
+
+\paragraph{Clustered sections.}
+On the lung FFPE section and the fresh-frozen ovarian section the labels start from unsupervised clusters, and each cluster is assigned the lineage its marker genes indicate, on the lung TMA's vocabulary for the lung section (\cref{tab:lineage-clusters}). Clusters of immune cells next to tumour that carry some tumour signal keep their immune lineage, since that signal is the spill-over the model is built to absorb, and one low-depth cluster of the fresh-frozen section becomes Unassigned.
+
+\begin{table}[t]
+\centering
+\caption{Lineage labels on the ovarian FFPE section: the curated classes merged into each lineage.}
+\label{tab:lineage-ovarian}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.28\textwidth}>{\raggedright\arraybackslash}p{0.62\textwidth}@{}}
+\toprule
+Lineage & Curated classes \\
+\midrule
+Ciliated epithelial cells & Ciliated Epithelial Cells \\
+Endothelial cells & Stromal Associated Endothelial Cells, Tumor Associated Endothelial Cells \\
+Fallopian tube epithelium & Fallopian Tube Epithelium \\
+Fibroblasts & Stromal Associated Fibroblasts, Tumor Associated Fibroblasts \\
+Macrophages & Macrophages \\
+Mesothelial-like cyst lining & Malignant Cells Lining Cyst \\
+Pericytes & Pericytes \\
+Smooth muscle cells & Smooth Muscle Cells \\
+T/NK cells & T and NK Cells \\
+Tumour & Inflammatory Tumor Cells, Proliferative Tumor Cells, Tumor Cells, VEGFA+ Tumor Cells \\
+Unassigned & SOX2-OT+ Tumor Cells, Unassigned \\
+Urothelial-like cells & Urothelial-like Cells \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Lineage labels on the two clustered sections: the clusters assigned to each lineage.}
+\label{tab:lineage-clusters}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.24\textwidth}>{\raggedright\arraybackslash}p{0.13\textwidth}@{\hspace{0.04\textwidth}}>{\raggedright\arraybackslash}p{0.2\textwidth}>{\raggedright\arraybackslash}p{0.33\textwidth}@{}}
+\toprule
+\multicolumn{2}{@{}l}{Lung cancer (FFPE)} & \multicolumn{2}{l@{}}{Ovarian cancer (FF)} \\
+\cmidrule(r){1-2}\cmidrule(l){3-4}
+Lineage & Clusters & Lineage & Clusters \\
+\midrule
+AT1 & 18, 23 & Endothelial cells & 16, 38 \\
+AT2 & 20 & Fibroblasts & 7, 13 \\
+Adventitial fibroblasts & 4, 17 & Macrophages & 10, 14, 19, 20, 25, 26, 28, 30, 34 \\
+Alveolar fibroblasts & 10 & Ovarian stroma & 3, 6, 23 \\
+Alveolar macrophages & 16 & Pericytes & 32 \\
+B cells & 12 & Plasma cells & 17, 35 \\
+EC general capillary & 3, 22, 25 & Smooth muscle cells & 33 \\
+EC venous & 13 & T/NK cells & 18, 22, 24, 27, 29, 31, 36, 37 \\
+Goblet & 19 & Tumour & 1, 2, 4, 5, 8, 11, 12, 15, 21 \\
+Interstitial macrophages & 2 & Unassigned & 9; unclustered cells \\
+Mast cells & 27 &  &  \\
+Multiciliated & 26, 28 &  &  \\
+Neuroendocrine & 31 &  &  \\
+Neutrophils & 6 &  &  \\
+Pericytes & 24 &  &  \\
+Plasma cells & 15 &  &  \\
+Smooth muscle & 5 &  &  \\
+T/NK cells & 1, 7, 21, 30, 32 &  &  \\
+Tumour & 8, 9, 11, 14, 29 &  &  \\
+Unassigned & unclustered cells &  &  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Baselines}
+\label{app:baselines}
+
+\Cref{tab:baselines} gives the configuration of each comparison method. Every method is run at its published defaults, and on our pruned Delaunay graph where it accepts an external graph; resolVI and MintFlow build their own. The methods that read a label read the lineage labels. SIMVI does not read one, so refitting it at lineage labels only checks reproducibility. Every comparison is on whole sections: a method that cannot be fitted to a whole section on the resources available is reported as such, with the measured reason, and never on a window of the section. Cellina removes a spatial-domain label from its intrinsic latent adversarially, and our sections carry no such label, so its main row runs without the adversary. It is run in three further forms: with the adversary given our niche label (clusters of neighbour composition, $K = 10$, fitted on training cells), which matches what our probe grades and is therefore Cellina's best case on the probe, not its published setting; on its own neighbour graph instead of ours, on the TMA core and its serial section; and, for the counterfactual comparison of \cref{tab:cellina-cf}, refitted on the training tiles only and decoded at its posterior mean. \Cref{tab:battery} gives every method's values on one battery of reads. MintFlow's reconstruction is not reported: its stored value was found invalid, because an export error in our pipeline passed MintFlow's split of each cell's observed counts, which sums back to those counts, in place of a decode, so the read scored each cell against its own counts. MintFlow is being refitted on its three sections with a corrected export, and all its reads will be taken from the new fits \pending{MintFlow refits with the corrected export}. \Cref{tab:context} grades each method's context latent in the same way, in the positive direction: how much of the niche it carries.
+
+\paragraph{Cellina variants.} Given our niche label as its domain, Cellina's adversary does not consistently lower its composition residual: the nonlinear residual falls on three sections of five and rises on the lung section and the TMA core, by at most $2.0$ points either way, the linear one rises on four sections of five, and its NMI with type and cycle $R^2$ fall on every section (\cref{tab:probe,tab:battery}). On its own neighbour graph, run on the TMA core and its serial section only, its composition residual is slightly higher than on ours and its cycle $R^2$ higher.
+
+\begin{table}[t]
+\centering
+\caption{Comparison methods as run. Versions are the package versions used. \emph{Latents}: the latent each method's intrinsic read-outs are taken from, and the latent that plays the role of DISCELL's response $\vw$ in \cref{tab:context}. \emph{Coverage}: the sections with a completed whole-section fit, and the state of the others.}
+\label{tab:baselines}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.1\textwidth}>{\raggedright\arraybackslash}p{0.15\textwidth}>{\raggedright\arraybackslash}p{0.12\textwidth}>{\raggedright\arraybackslash}p{0.1\textwidth}>{\raggedright\arraybackslash}p{0.15\textwidth}>{\raggedright\arraybackslash}p{0.26\textwidth}@{}}
+\toprule
+Method & Version & Graph & Label & Latents: intrinsic / context & Budget and coverage \\
+\midrule
+resolVI & scvi-tools 1.5.1 & own, 10 nearest neighbours & lineage & its single cell latent / none (neighbour spill-over is a mixture, not a latent) & 50 epochs; every section; on the serial section refitted there, since the transfer from the core failed \\
+SIMVI & simvi 0.1.2 (scvi-tools 0.16.1) & ours & not used & intrinsic latent / spatial latent & package default; the TMA core, and the serial section fitted on itself. Could not be run on the resources currently available on the lung FFPE, ovarian FFPE and fresh-frozen sections: out of GPU memory on a 24 GB card within minutes (requests of $5.2$ GiB, $7.7$ GiB and $40$ MiB with $21.3$, $15.9$ and $23.5$ GiB in use) \\
+MintFlow & mintflow 0.3.0 & own Delaunay graph & lineage & intrinsic latent / microenvironment latent & width 600, 50 epochs; the TMA core, transferred to its serial section, and the whole lung FFPE and ovarian FFPE sections; reconstruction not reported, refits with a corrected export running \pending{MintFlow refits with the corrected export}. Could not be run on the resources currently available on the fresh-frozen section ($1.16$ M cells): killed for lack of host memory after $574$ s of data set-up, before training, on a 125 GB host \\
+Cellina & cellina 1.1.1 (scvi-tools 1.2.0) & ours & lineage & intrinsic latent / microenvironment latent $s$ & package default, no domain adversary; every section, transferred from the core to its serial section \\
+Cellina, niche domain & as Cellina & ours & lineage; niche label as domain & as Cellina & as Cellina; every section \\
+Cellina, own graph & as Cellina & own & lineage & as Cellina & as Cellina; the TMA core and its serial section \\
+Cellina, counterfactual & as Cellina & ours & lineage & as Cellina & refitted on training tiles only; the four fitted sections \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\input{\tablesdir/battery}
+
+\input{\tablesdir/context}
+
+\subsection{Assets and Licences}
+\label{app:assets}
+
+The ovarian FFPE, lung FFPE and fresh-frozen ovarian sections are public datasets of 10x Genomics \citep{tenx_ovarian_ffpe,tenx_lung_ffpe,tenx_ovary_ff}, released under the Creative Commons Attribution 4.0 International licence (CC BY 4.0). The TMA core and its serial section are two public samples of GEO series GSE315411 \citep{williamskatek2026fishing}. The image model KRONOS and its successor KRONOS2 \citep{kronos2025} are released under CC BY-NC-ND~4.0, for non-commercial academic research and after registration; we use them as distributed by their authors, for that purpose, and redistribute neither. The comparison methods are released under the BSD 3-Clause licence: scvi-tools, which contains resolVI, SIMVI, MintFlow and Cellina. A code repository accompanies the submission as a clean, standalone implementation of DISCELL; it does not contain KRONOS or its weights, which are obtained from their authors under their licence. No new data are released.
+
+\subsection{What the Model Needs}
+\label{app:inputs}
+
+Every fit in this paper is to a section profiled with Xenium Prime 5K. From its output the model uses five inputs (\cref{tab:inputs}). The graph needs positions only. It is the Delaunay adjacency of the cell positions, and the kernel's two ingredients, the length of the shared Voronoi face and the distance between positions, come from the positions too (\cref{app:graph}). The segmented polygons are therefore not required. Our runs take each cell's position as the centroid of its segmented polygon; the centroid the platform reports would serve equally in form. The polygons were used for three things outside the model: choosing the radius of the disc that removes the cell from the image field, which a new tissue or platform would need to recheck from its cell sizes (\cref{app:image}), and the graph and mask comparisons of \cref{app:graph,app:image}. The transcript coordinates, the nucleus boundaries and the H\&E image taken after the run are not used. Cell-cycle genes enter a diagnostic only (\cref{sec:selection}).
+
+\begin{table}[t]
+\centering
+\caption{The inputs of a fit, and where they come from in a Xenium Prime 5K output.}
+\label{tab:inputs}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.22\textwidth}>{\raggedright\arraybackslash}p{0.38\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}@{}}
+\toprule
+Input & Used for & Xenium Prime 5K source \\
+\midrule
+Counts per cell & the likelihood and the intrinsic encoder & the cell-by-gene count matrix \\
+One position per cell & the graph, the kernel, the tiles and the image fields & the centroid of the segmented cell \\
+Pixel size & every length in micrometres & the run's metadata \\
+A type label per cell & the prior on the response, the adversary and the context's query & a curated annotation, or clusters of the counts mapped to lineages (\cref{app:lineage}) \\
+Morphology image & the image descriptor $\vPhi_i$ & the four-channel morphology image \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Implicit requirements.} Counts must be assigned to segmented cells at single-cell resolution: the spill-over term models transcripts misassigned between neighbouring cells, and has no meaning for a unit that holds several cells. One fit is to one contiguous section. Counts are modelled as a multinomial given each cell's total, suited to the hundreds to about a thousand counts per cell of in situ data (\cref{sec:generative}), and a type label must be derivable for every cell. Nothing else is assumed about the gene panel.
+
+\paragraph{Other assays (untested).} None of the following has been run. Each paragraph states what the model's assumptions would require, not what it would deliver.
+
+\emph{Imaging platforms with other panels.} Other imaging-based assays, including smaller Xenium panels, provide segmented counts, positions and fluorescence stains, the inputs of \cref{tab:inputs}. The model applies in form. What changes is the depth and number of genes, and the stains, whose mapping onto the image model's marker vocabulary would have to be redone (\cref{app:image}).
+
+\emph{Sequencing-based arrays.} On a high-resolution array whose bins are assigned to segmented cells, counts per cell and positions are available, but two things differ. The image is H\&E rather than multiplexed fluorescence, so the image descriptor would need an H\&E encoder. And transcripts are also mislocated by lateral movement during capture, a mechanism separate from segmentation whose extent differs between platforms: small on one high-resolution array \citep{deoliveira2025visiumhd}, larger on another \citep{ren2025benchmark}. The form of the spill-over kernel would have to be re-examined before the sweep could be read the same way. Arrays whose spots hold several cells pose a deconvolution problem rather than a spill-over problem and are outside the model's setting.
+
+\emph{Protein imaging.} Multiplexed protein imaging measures intensities per marker rather than counts, so the multinomial likelihood would have to be replaced. The spill-over mechanism carries over, since signal from a neighbour's membrane spills over into the cell, through imperfect segmentation and through the interleaving of adjacent membranes \citep{bai2021redsea}, and the image model was built for such images \citep{kronos2025}, so the image descriptor would be native to the assay.

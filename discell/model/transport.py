@@ -1961,11 +1961,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                              "the kNN-smoothed tumour fraction")
     parser.add_argument("--figures", type=int, default=8)
     parser.add_argument("--read", default="mean",
-                        choices=("mean", "distribution", "twins", "both"),
+                        choices=("mean", "distribution", "twins", "both",
+                                 "regression"),
                         help="mean-shift read (default), the distribution-"
                              "level MMD read (which always also produces "
                              "the model-vs-model variant), the matched-twin "
-                             "per-cell read, or both")
+                             "per-cell read, or both; regression (opt-in): "
+                             "the plain-regression reference on the "
+                             "published panels (transport_regression; needs "
+                             "the mean and distribution reads on disk)")
     parser.add_argument("--target-side", default="both",
                         choices=("group", "both"),
                         help="group: the target cloud is decoded at the "
@@ -2003,6 +2007,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--eval-dataset applies to --run with fold-0 scoring")
     if args.sweep_tag:
         sweep_sensitivity(args)
+    elif args.run and args.read == "regression":
+        if args.scored_cells != "fold0" or args.eval_dataset:
+            parser.error("--read regression replays the published fold-0 read")
+        from discell.model.transport_regression import regression_reference
+        regression_reference(args)
     elif args.run:
         if args.read in ("mean", "both"):
             transport_check(args)

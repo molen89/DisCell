@@ -1,6 +1,6 @@
 % Generated table: tab:synthetic. DO NOT EDIT BY HAND; regenerate instead.
 % Command: python scripts/paper_tables.py
-% Generated: 2026-10-01 08:10:25 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Generated: 2026-10-01 13:48:01 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   data/datasets/synthetic_smoke/experiments/synthetic_recovery.json  (2026-09-29 16:58:56)  [after the freeze; see checks]
@@ -23,7 +23,7 @@
 %
 \begin{table}[t]
 \centering
-\caption{Recovery on simulated sections at the final configuration, scaled to the simulated world. Three worlds per planted leakage rate, each fitted with three model seeds; the range over the nine fits (\emph{Fits}). NMI of the intrinsic latent's posterior mean with the planted type; \emph{CCA}: the first canonical correlation of the response's posterior mean with the planted response; \emph{Loadings}: the principal-angle cosine of the fitted against the planted loadings; \emph{Comp.\ $R^2$}: the within-type $R^2$ of neighbour composition from the intrinsic latent. \emph{Misspecified $\kappa$}: the worlds planted at $\kappa = 0.2$, fitted at each assumed rate (the matched rate in bold). \emph{References}: NMI of clusters of the counts and of the planted intrinsic state, the composition $R^2$ of the planted state, and the loading cosine of a random subspace (its mean and 95th percentile), each as the range over the three worlds and both planted rates. A fit is stopped early on $15\%$ of held-out tiles; every read covers all cells. Arrows give the preferred direction.}
+\caption{Recovery on simulated sections at the final configuration, scaled to the simulated world. Three worlds per planted \termSpillFrac{}, each fitted with three model seeds; the range over the nine fits (\emph{Fits}). NMI of the intrinsic latent's posterior mean with the planted type; \emph{CCA}: the first canonical correlation of the response's posterior mean with the planted response; \emph{Loadings}: the principal-angle cosine of the fitted against the planted loadings; \emph{Comp.\ $R^2$}: the within-type $R^2$ of neighbour composition from the intrinsic latent. \emph{Misspecified $\kappa$}: the worlds planted at $\kappa = 0.2$, fitted at each assumed rate (the matched rate in bold). \emph{References}: NMI of clusters of the counts and of the planted intrinsic state, the composition $R^2$ of the planted state, and the loading cosine of a random subspace (its mean and 95th percentile), each as the range over the three worlds and both planted rates. A fit is stopped early on $15\%$ of held-out tiles; every read covers all cells. Arrows give the preferred direction.}
 \label{tab:synthetic}
 \small
 \setlength{\tabcolsep}{3pt}

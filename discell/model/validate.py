@@ -99,7 +99,8 @@ def load_run(dataset: str, run: str, device: str = "cuda",
                     # the gene form's s_g scale is a buffer in the checkpoint
                     kappa_mode=config.kappa_mode,
                     # S53 projection test; 0 (every older run) = full Phi
-                    phi_proj=config.phi_proj).to(device)
+                    phi_proj=config.phi_proj,
+                    no_image=config.no_image).to(device)
     model.load_state_dict(payload["model"])
     trainer = Trainer(config, data)
     trainer.model = model.eval()

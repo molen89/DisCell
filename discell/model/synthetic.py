@@ -49,7 +49,8 @@ def simulate(n_cells: int = 6000, n_genes: int = 60, n_types: int = 4,
              d_z: int = 4, d_w: int = 2, d_phi: int = 8,
              kappa: float = 0.2, mean_counts: float = 150.0,
              box_um: float = 1000.0, seed: int = 0,
-             w_shift: np.ndarray | None = None) -> Simulation:
+             w_shift: np.ndarray | None = None,
+             b_zero: np.ndarray | None = None) -> Simulation:
     """Simulate one tissue. Defaults match Xenium's ~13 um cell spacing.
 
     The pieces, in the generative order of the spec:
@@ -70,6 +71,12 @@ def simulate(n_cells: int = 6000, n_genes: int = 60, n_types: int = 4,
     ``w_true`` stays the planted niche response and no random draw moves.
     None = every call before it, bit for bit (planted per-cell arm,
     devlog 2026-09-29).
+
+    *b_zero* (G,) bool, optional: genes with no response -- their columns
+    of the planted B are set to 0 (in the log-rate and in ``B_true``), so
+    any niche dependence they show comes from the leak mixture alone. No
+    random draw moves; None = every call before it, bit for bit (planted
+    spill-over control, devlog 2026-10-01).
     """
     rng = np.random.default_rng(seed)
     positions = rng.uniform(0, box_um, size=(n_cells, 2))
@@ -98,6 +105,8 @@ def simulate(n_cells: int = 6000, n_genes: int = 60, n_types: int = 4,
 
     a_load = rng.normal(0.0, 1.0, size=(d_z, n_genes))
     b_load = rng.normal(0.0, 1.0, size=(d_w, n_genes))
+    if b_zero is not None:
+        b_load[:, np.asarray(b_zero, dtype=bool)] = 0.0
     w_rate = w if w_shift is None else w + w_shift
     logits_rho = z @ a_load + w_rate @ b_load
     rho = np.exp(logits_rho - logits_rho.max(axis=1, keepdims=True))

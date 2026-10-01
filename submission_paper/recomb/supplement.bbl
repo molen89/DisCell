@@ -1,0 +1,364 @@
+\begin{thebibliography}{45}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Slavutsky et~al.(2026)Slavutsky, Beker, Blei, and
+  Dumitrascu]{slavutsky2025}
+Yuli Slavutsky, Ozgur Beker, David Blei, and Bianca Dumitrascu.
+\newblock Variational learning of disentangled representations.
+\newblock In \emph{International Conference on Machine Learning}, 2026.
+\newblock arXiv:2506.17182.
+
+\bibitem[Ganchev et~al.(2010)Ganchev, Gra{\c{c}}a, Gillenwater, and
+  Taskar]{ganchev2010}
+Kuzman Ganchev, Jo{\~a}o Gra{\c{c}}a, Jennifer Gillenwater, and Ben Taskar.
+\newblock Posterior regularization for structured latent variable models.
+\newblock \emph{Journal of Machine Learning Research}, 11:\penalty0 2001--2049,
+  2010.
+
+\bibitem[Cover and Thomas(2006)]{cover2006}
+Thomas~M. Cover and Joy~A. Thomas.
+\newblock \emph{Elements of Information Theory}.
+\newblock Wiley, 2nd edition, 2006.
+
+\bibitem[Ledoit and Wolf(2004)]{ledoit2004}
+Olivier Ledoit and Michael Wolf.
+\newblock A well-conditioned estimator for large-dimensional covariance
+  matrices.
+\newblock \emph{Journal of Multivariate Analysis}, 88\penalty0 (2):\penalty0
+  365--411, 2004.
+
+\bibitem[Sch{\"a}fer and Strimmer(2005)]{schafer2005}
+Juliane Sch{\"a}fer and Korbinian Strimmer.
+\newblock A shrinkage approach to large-scale covariance matrix estimation and
+  implications for functional genomics.
+\newblock \emph{Statistical Applications in Genetics and Molecular Biology},
+  4\penalty0 (1), 2005.
+
+\bibitem[Bengio et~al.(2013)Bengio, L{\'e}onard, and Courville]{bengio2013}
+Yoshua Bengio, Nicholas L{\'e}onard, and Aaron Courville.
+\newblock Estimating or propagating gradients through stochastic neurons for
+  conditional computation.
+\newblock \emph{arXiv preprint arXiv:1308.3432}, 2013.
+
+\bibitem[Elazar and Goldberg(2018)]{elazar2018}
+Yanai Elazar and Yoav Goldberg.
+\newblock Adversarial removal of demographic attributes from text data.
+\newblock In \emph{Proceedings of the 2018 Conference on Empirical Methods in
+  Natural Language Processing}, pages 11--21, 2018.
+
+\bibitem[Khemakhem et~al.(2020)Khemakhem, Kingma, Monti, and
+  Hyv{\"a}rinen]{khemakhem2020}
+Ilyes Khemakhem, Diederik~P. Kingma, Ricardo~Pio Monti, and Aapo Hyv{\"a}rinen.
+\newblock Variational autoencoders and nonlinear {ICA}: A unifying framework.
+\newblock In \emph{International Conference on Artificial Intelligence and
+  Statistics}, 2020.
+
+\bibitem[Locatello et~al.(2019)Locatello, Bauer, Lucic, R{\"a}tsch, Gelly,
+  Sch{\"o}lkopf, and Bachem]{locatello2019}
+Francesco Locatello, Stefan Bauer, Mario Lucic, Gunnar R{\"a}tsch, Sylvain
+  Gelly, Bernhard Sch{\"o}lkopf, and Olivier Bachem.
+\newblock Challenging common assumptions in the unsupervised learning of
+  disentangled representations.
+\newblock In \emph{International Conference on Machine Learning}, 2019.
+
+\bibitem[Ergen and Yosef(2025)]{ergen2025}
+Can Ergen and Nir Yosef.
+\newblock {ResolVI} -- addressing noise and bias in spatial transcriptomics.
+\newblock bioRxiv preprint, 2025.
+
+\bibitem[Brody et~al.(2022)Brody, Alon, and Yahav]{brody2022}
+Shaked Brody, Uri Alon, and Eran Yahav.
+\newblock How attentive are graph attention networks?
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+
+\bibitem[Kingma et~al.(2016)Kingma, Salimans, Jozefowicz, Chen, Sutskever, and
+  Welling]{kingma2016}
+Diederik~P. Kingma, Tim Salimans, Rafal Jozefowicz, Xi~Chen, Ilya Sutskever,
+  and Max Welling.
+\newblock Improved variational inference with inverse autoregressive flow.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~29, 2016.
+
+\bibitem[Shaban et~al.(2025)Shaban, Chang, Qiu, Yeo, Song, Jaume,
+  et~al.]{kronos2025}
+Muhammad Shaban, Yuzhou Chang, Huaying Qiu, Yao~Yu Yeo, Andrew~H. Song,
+  Guillaume Jaume, et~al.
+\newblock A foundation model for spatial proteomics.
+\newblock arXiv preprint 2506.03373, 2025.
+
+\bibitem[Klys et~al.(2018)Klys, Snell, and Zemel]{klys2018}
+Jack Klys, Jake Snell, and Richard Zemel.
+\newblock Learning latent subspaces in variational autoencoders.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~31, 2018.
+
+\bibitem[Hern{\'a}n et~al.(2004)Hern{\'a}n, Hern{\'a}ndez-D{\'i}az, and
+  Robins]{hernan2004}
+Miguel~A. Hern{\'a}n, Sonia Hern{\'a}ndez-D{\'i}az, and James~M. Robins.
+\newblock A structural approach to selection bias.
+\newblock \emph{Epidemiology}, 15\penalty0 (5):\penalty0 615--625, 2004.
+
+\bibitem[Yang et~al.(2025)Yang, DePasquale, Adeleke, Xie, Lu, Nelson, Xiao,
+  Wang, and Wang]{yang2025mistic}
+Yuqiu Yang, Erica DePasquale, David Adeleke, Xiangfei Xie, Zeyu Lu, Michael~D.
+  Nelson, Guanghua Xiao, Xinlei Wang, and Yunguan Wang.
+\newblock {MisTIC}: Missegmented transcript inference correction for improved
+  spatial transcriptomics analysis.
+\newblock bioRxiv preprint, 2025.
+
+\bibitem[Kingma and Welling(2014)]{kingma2014}
+Diederik~P. Kingma and Max Welling.
+\newblock Auto-encoding variational {Bayes}.
+\newblock In \emph{International Conference on Learning Representations}, 2014.
+
+\bibitem[Rezende et~al.(2014)Rezende, Mohamed, and Wierstra]{rezende2014}
+Danilo~Jimenez Rezende, Shakir Mohamed, and Daan Wierstra.
+\newblock Stochastic backpropagation and approximate inference in deep
+  generative models.
+\newblock In \emph{International Conference on Machine Learning}, 2014.
+
+\bibitem[Tomczak and Welling(2018)]{tomczak2018}
+Jakub~M. Tomczak and Max Welling.
+\newblock {VAE} with a {VampPrior}.
+\newblock In \emph{International Conference on Artificial Intelligence and
+  Statistics}, 2018.
+
+\bibitem[Kingma and Ba(2015)]{kingma2015adam}
+Diederik~P. Kingma and Jimmy Ba.
+\newblock Adam: A method for stochastic optimization.
+\newblock In \emph{International Conference on Learning Representations}, 2015.
+
+\bibitem[Loshchilov and Hutter(2017)]{loshchilov2017}
+Ilya Loshchilov and Frank Hutter.
+\newblock {SGDR}: Stochastic gradient descent with warm restarts.
+\newblock In \emph{International Conference on Learning Representations}, 2017.
+
+\bibitem[Roberts et~al.(2017)Roberts, Bahn, Ciuti, Boyce, Elith,
+  Guillera-Arroita, Hauenstein, Lahoz-Monfort, Schr{\"o}der, Thuiller, Warton,
+  Wintle, Hartig, and Dormann]{roberts2017}
+David~R. Roberts, Volker Bahn, Simone Ciuti, Mark~S. Boyce, Jane Elith,
+  Gurutzeta Guillera-Arroita, Severin Hauenstein, Jos{\'e}~J. Lahoz-Monfort,
+  Boris Schr{\"o}der, Wilfried Thuiller, David~I. Warton, Brendan~A. Wintle,
+  Florian Hartig, and Carsten~F. Dormann.
+\newblock Cross-validation strategies for data with temporal, spatial,
+  hierarchical, or phylogenetic structure.
+\newblock \emph{Ecography}, 40\penalty0 (8):\penalty0 913--929, 2017.
+
+\bibitem[{10x Genomics}(2024{\natexlab{a}})]{tenx_ovarian_ffpe}
+{10x Genomics}.
+\newblock {FFPE} human ovarian cancer with {5K} human pan tissue and pathways
+  panel plus 100 custom genes.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-prime-ffpe-human-ovarian-cancer},
+  2024{\natexlab{a}}.
+\newblock In Situ Gene Expression dataset by Xenium Onboard Analysis v3.0.0,
+  10x Genomics (2024, December 17).
+
+\bibitem[{10x Genomics}(2024{\natexlab{b}})]{tenx_lung_ffpe}
+{10x Genomics}.
+\newblock Post-{Xenium} technical note: {Xenium} v1 and {Xenium Prime 5K} for
+  {FFPE} human lung cancer.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-human-lung-cancer-post-xenium-technote},
+  2024{\natexlab{b}}.
+\newblock Experiment 2, Xenium Prime 5K. In Situ Gene Expression dataset by
+  Xenium Onboard Analysis v3.0.0, 10x Genomics (2024, November 6).
+
+\bibitem[{10x Genomics}(2024{\natexlab{c}})]{tenx_ovary_ff}
+{10x Genomics}.
+\newblock Fresh frozen human ovarian adenocarcinoma with {5K} human pan tissue
+  and pathways panel.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-prime-fresh-frozen-human-ovary},
+  2024{\natexlab{c}}.
+\newblock In Situ Gene Expression dataset by Xenium Onboard Analysis v3.0.0,
+  10x Genomics (2024, September 4).
+
+\bibitem[Williams-Katek et~al.(2026)Williams-Katek, Mallapragada, Mee, Fischer,
+  Vannan, Eldredge, Deutsch, Kropski, Sucre, and
+  Banovich]{williamskatek2026fishing}
+A.~L. Williams-Katek, S.~Mallapragada, E.~D. Mee, B.~K. Fischer, A.~Vannan,
+  L.~C. Eldredge, G.~H. Deutsch, J.~A. Kropski, J.~M. Sucre, and N.~E.
+  Banovich.
+\newblock Fishing with two lines: a hybrid approach to spatial transcriptomics
+  discovery.
+\newblock \emph{Life Science Alliance}, 9\penalty0 (10), 2026.
+\newblock \doi{10.26508/lsa.202603690}.
+
+\bibitem[Oliveira et~al.(2025)Oliveira, Romero, Chung, Williams, Gottscho,
+  Gupta, Pilipauskas, Mohabbat, Raman, Sukovich, Patterson, {Visium HD
+  Development Team}, and Taylor]{deoliveira2025visiumhd}
+Michelli~Faria Oliveira, Juan~Pablo Romero, Meii Chung, Stephen~R. Williams,
+  Andrew~D. Gottscho, Anushka Gupta, Susan~E. Pilipauskas, Seayar Mohabbat,
+  Nandhini Raman, David~J. Sukovich, David~M. Patterson, {Visium HD Development
+  Team}, and Sarah E.~B. Taylor.
+\newblock High-definition spatial transcriptomic profiling of immune cell
+  populations in colorectal cancer.
+\newblock \emph{Nature Genetics}, 57\penalty0 (6):\penalty0 1512--1523, 2025.
+\newblock \doi{10.1038/s41588-025-02193-3}.
+
+\bibitem[Ren et~al.(2025)Ren, Zhang, Wang, Zhang, Luo, Wang, Li, Zhang, Zhao,
+  He, Zhang, Li, Gao, Zhang, Zhao, Liu, Meng, Zhang, and
+  Zeng]{ren2025benchmark}
+Pengfei Ren, Rui Zhang, Yunfeng Wang, Peng Zhang, Ce~Luo, Suyan Wang, Xiaohong
+  Li, Zongxu Zhang, Yanping Zhao, Yufeng He, Haorui Zhang, Yufeng Li, Zhidong
+  Gao, Xiuping Zhang, Yahui Zhao, Zhihua Liu, Yuanguang Meng, Zhe Zhang, and
+  Zexian Zeng.
+\newblock Systematic benchmarking of high-throughput subcellular spatial
+  transcriptomics platforms across human tumors.
+\newblock \emph{Nature Communications}, 16:\penalty0 9232, 2025.
+\newblock \doi{10.1038/s41467-025-64292-3}.
+
+\bibitem[Bai et~al.(2021)Bai, Zhu, Rovira-Clave, Chen, Markovic, Chan, Su,
+  McIlwain, Estes, Keren, Nolan, and Jiang]{bai2021redsea}
+Yunhao Bai, Bokai Zhu, Xavier Rovira-Clave, Han Chen, Maxim Markovic, Chi~Ngai
+  Chan, Tung-Hung Su, David~R. McIlwain, Jacob~D. Estes, Leeat Keren, Garry~P.
+  Nolan, and Sizun Jiang.
+\newblock Adjacent cell marker lateral spillover compensation and reinforcement
+  for multiplexed images.
+\newblock \emph{Frontiers in Immunology}, 12:\penalty0 652631, 2021.
+\newblock \doi{10.3389/fimmu.2021.652631}.
+
+\bibitem[Fischer et~al.(2023)Fischer, Schaar, and Theis]{fischer2023}
+David~S. Fischer, Anna~C. Schaar, and Fabian~J. Theis.
+\newblock Modeling intercellular communication in tissues using spatial graphs
+  of cells.
+\newblock \emph{Nature Biotechnology}, 41:\penalty0 332--336, 2023.
+
+\bibitem[Ross(2014)]{ross2014}
+Brian~C. Ross.
+\newblock Mutual information between discrete and continuous data sets.
+\newblock \emph{PLoS ONE}, 9\penalty0 (2):\penalty0 e87357, 2014.
+\newblock \doi{10.1371/journal.pone.0087357}.
+
+\bibitem[Tirosh et~al.(2016)Tirosh, Izar, Prakadan, Wadsworth, Treacy,
+  Trombetta, Rotem, Rodman, Lian, Murphy, Fallahi-Sichani, Dutton-Regester,
+  Lin, Cohen, Shah, Lu, Genshaft, Hughes, Ziegler, Kazer, Gaillard, Kolb,
+  Villani, Johannessen, Andreev, Van~Allen, Bertagnolli, Sorger, Sullivan,
+  Flaherty, Frederick, Jan{\'e}-Valbuena, Yoon, Rozenblatt-Rosen, Shalek,
+  Regev, and Garraway]{tirosh2016}
+Itay Tirosh, Benjamin Izar, Sanjay~M. Prakadan, Marc~H. Wadsworth, Daniel
+  Treacy, John~J. Trombetta, Asaf Rotem, Christopher Rodman, Christine Lian,
+  George Murphy, Mohammad Fallahi-Sichani, Ken Dutton-Regester, Jia-Ren Lin,
+  Ofir Cohen, Parin Shah, Diana Lu, Alex~S. Genshaft, Travis~K. Hughes, Carly
+  G.~K. Ziegler, Samuel~W. Kazer, Aleth Gaillard, Kellie~E. Kolb,
+  Alexandra-Chlo{\'e} Villani, Cory~M. Johannessen, Aleksandr~Y. Andreev,
+  Eliezer~M. Van~Allen, Monica Bertagnolli, Peter~K. Sorger, Ryan~J. Sullivan,
+  Keith~T. Flaherty, Dennie~T. Frederick, Judit Jan{\'e}-Valbuena, Charles~H.
+  Yoon, Orit Rozenblatt-Rosen, Alex~K. Shalek, Aviv Regev, and Levi~A.
+  Garraway.
+\newblock Dissecting the multicellular ecosystem of metastatic melanoma by
+  single-cell {RNA}-seq.
+\newblock \emph{Science}, 352\penalty0 (6282):\penalty0 189--196, 2016.
+
+\bibitem[Wolf et~al.(2018)Wolf, Angerer, and Theis]{wolf2018}
+F.~Alexander Wolf, Philipp Angerer, and Fabian~J. Theis.
+\newblock {SCANPY}: large-scale single-cell gene expression data analysis.
+\newblock \emph{Genome Biology}, 19:\penalty0 15, 2018.
+
+\bibitem[Gretton et~al.(2012)Gretton, Borgwardt, Rasch, Sch{\"o}lkopf, and
+  Smola]{gretton2012}
+Arthur Gretton, Karsten~M. Borgwardt, Malte~J. Rasch, Bernhard Sch{\"o}lkopf,
+  and Alexander Smola.
+\newblock A kernel two-sample test.
+\newblock \emph{Journal of Machine Learning Research}, 13\penalty0
+  (25):\penalty0 723--773, 2012.
+\newblock URL \url{https://jmlr.org/papers/v13/gretton12a.html}.
+
+\bibitem[Kaiser(1958)]{kaiser1958}
+Henry~F. Kaiser.
+\newblock The varimax criterion for analytic rotation in factor analysis.
+\newblock \emph{Psychometrika}, 23\penalty0 (3):\penalty0 187--200, 1958.
+\newblock \doi{10.1007/BF02289233}.
+
+\bibitem[Ashburner et~al.(2000)Ashburner, Ball, Blake, Botstein, Butler,
+  Cherry, Davis, Dolinski, Dwight, Eppig, Harris, Hill, Issel-Tarver,
+  Kasarskis, Lewis, Matese, Richardson, Ringwald, Rubin, and
+  Sherlock]{ashburner2000}
+Michael Ashburner, Catherine~A. Ball, Judith~A. Blake, David Botstein, Heather
+  Butler, J.~Michael Cherry, Allan~P. Davis, Kara Dolinski, Selina~S. Dwight,
+  Janan~T. Eppig, Midori~A. Harris, David~P. Hill, Laurie Issel-Tarver, Andrew
+  Kasarskis, Suzanna Lewis, John~C. Matese, Joel~E. Richardson, Martin
+  Ringwald, Gerald~M. Rubin, and Gavin Sherlock.
+\newblock Gene ontology: Tool for the unification of biology.
+\newblock \emph{Nature Genetics}, 25\penalty0 (1):\penalty0 25--29, 2000.
+\newblock \doi{10.1038/75556}.
+
+\bibitem[{Gene Ontology Consortium} et~al.(2023){Gene Ontology Consortium},
+  Aleksander, Balhoff, et~al.]{go2023}
+{Gene Ontology Consortium}, Suzi~A. Aleksander, James Balhoff, et~al.
+\newblock The {Gene Ontology} knowledgebase in 2023.
+\newblock \emph{Genetics}, 224\penalty0 (1):\penalty0 iyad031, 2023.
+\newblock \doi{10.1093/genetics/iyad031}.
+
+\bibitem[Benjamini and Hochberg(1995)]{benjamini1995}
+Yoav Benjamini and Yosef Hochberg.
+\newblock Controlling the false discovery rate: A practical and powerful
+  approach to multiple testing.
+\newblock \emph{Journal of the Royal Statistical Society: Series B
+  (Methodological)}, 57\penalty0 (1):\penalty0 289--300, 1995.
+\newblock \doi{10.1111/j.2517-6161.1995.tb02031.x}.
+
+\bibitem[Akbarnejad et~al.(2025)Akbarnejad, Steele, Jafree, Birk, Sallese,
+  et~al.]{akbarnejad2025mintflow}
+Amir Akbarnejad, Lloyd Steele, Daniyal~J. Jafree, Sebastian Birk, Marta~Rosa
+  Sallese, et~al.
+\newblock Mapping and reprogramming human tissue microenvironments with
+  {MintFlow}.
+\newblock \emph{bioRxiv}, 2025.
+\newblock \doi{10.1101/2025.06.24.661094}.
+
+\bibitem[Jin et~al.(2025)Jin, Plikus, and Nie]{jin2025cellchat}
+Suoqin Jin, Maksim~V. Plikus, and Qing Nie.
+\newblock {CellChat} for systematic analysis of cell--cell communication from
+  single-cell transcriptomics.
+\newblock \emph{Nature Protocols}, 20\penalty0 (1):\penalty0 180--219, 2025.
+\newblock \doi{10.1038/s41596-024-01045-4}.
+
+\bibitem[Belghazi et~al.(2018)Belghazi, Baratin, Rajeshwar, Ozair, Bengio,
+  Courville, and Hjelm]{belghazi2018}
+Mohamed~Ishmael Belghazi, Aristide Baratin, Sai Rajeshwar, Sherjil Ozair,
+  Yoshua Bengio, Aaron Courville, and Devon Hjelm.
+\newblock Mutual information neural estimation.
+\newblock In \emph{Proceedings of the 35th International Conference on Machine
+  Learning}, volume~80 of \emph{Proceedings of Machine Learning Research},
+  pages 531--540, 2018.
+\newblock URL \url{https://proceedings.mlr.press/v80/belghazi18a.html}.
+
+\bibitem[Dong et~al.(2025)Dong, Su, Kluger, Fan, and Kluger]{dong2025simvi}
+Mingze Dong, David~G. Su, Harriet Kluger, Rong Fan, and Yuval Kluger.
+\newblock {SIMVI} disentangles intrinsic and spatial-induced cellular states in
+  spatial omics data.
+\newblock \emph{Nature Communications}, 16\penalty0 (1):\penalty0 2990, 2025.
+\newblock \doi{10.1038/s41467-025-58089-7}.
+
+\bibitem[Moeed et~al.(2026)Moeed, Schrod, Rohbeck, Bonder, Lutsik, Stegle, and
+  Dimitrov]{moeed2026cellina}
+Abdul Moeed, Stefan Schrod, Martin Rohbeck, Marc~Jan Bonder, Pavlo Lutsik,
+  Oliver Stegle, and Daniel Dimitrov.
+\newblock Querying counterfactuals on tissue graphs with supervised
+  disentanglement.
+\newblock arXiv preprint 2606.08493, 2026.
+
+\bibitem[Janesick et~al.(2023)Janesick, Shelansky, Gottscho, Wagner, Williams,
+  Rouault, Beliakoff, Morrison, Oliveira, Sicherman, et~al.]{janesick2023}
+Amanda Janesick, Robert Shelansky, Andrew~D. Gottscho, Florian Wagner,
+  Stephen~R. Williams, Morgane Rouault, Ghezal Beliakoff, Carolyn~A. Morrison,
+  Michelli~F. Oliveira, Jordan~T. Sicherman, et~al.
+\newblock High resolution mapping of the tumor microenvironment using
+  integrated single-cell, spatial and in situ analysis.
+\newblock \emph{Nature Communications}, 14:\penalty0 8353, 2023.
+
+\bibitem[Xia et~al.(2019)Xia, Fan, Emanuel, Hao, and Zhuang]{xia2019merfish}
+Chenglong Xia, Jean Fan, George Emanuel, Junjie Hao, and Xiaowei Zhuang.
+\newblock Spatial transcriptome profiling by {MERFISH} reveals subcellular
+  {RNA} compartmentalization and cell cycle-dependent gene expression.
+\newblock \emph{Proceedings of the National Academy of Sciences}, 116\penalty0
+  (39):\penalty0 19490--19499, 2019.
+\newblock \doi{10.1073/pnas.1912459116}.
+
+\end{thebibliography}

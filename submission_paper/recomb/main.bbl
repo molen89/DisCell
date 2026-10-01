@@ -1,0 +1,326 @@
+\begin{thebibliography}{38}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Janesick et~al.(2023)Janesick, Shelansky, Gottscho, Wagner, Williams,
+  Rouault, Beliakoff, Morrison, Oliveira, Sicherman, et~al.]{janesick2023}
+Amanda Janesick, Robert Shelansky, Andrew~D. Gottscho, Florian Wagner,
+  Stephen~R. Williams, Morgane Rouault, Ghezal Beliakoff, Carolyn~A. Morrison,
+  Michelli~F. Oliveira, Jordan~T. Sicherman, et~al.
+\newblock High resolution mapping of the tumor microenvironment using
+  integrated single-cell, spatial and in situ analysis.
+\newblock \emph{Nature Communications}, 14:\penalty0 8353, 2023.
+
+\bibitem[Yang et~al.(2025)Yang, DePasquale, Adeleke, Xie, Lu, Nelson, Xiao,
+  Wang, and Wang]{yang2025mistic}
+Yuqiu Yang, Erica DePasquale, David Adeleke, Xiangfei Xie, Zeyu Lu, Michael~D.
+  Nelson, Guanghua Xiao, Xinlei Wang, and Yunguan Wang.
+\newblock {MisTIC}: Missegmented transcript inference correction for improved
+  spatial transcriptomics analysis.
+\newblock bioRxiv preprint, 2025.
+
+\bibitem[Bilous et~al.(2026)Bilous, Buszta, Bac, Kang, Dong, Tissot, Andre,
+  Alexandre~Gaveta, Voize, Peters, Homicsko, and Gottardo]{bilous2026split}
+Mariia Bilous, Daria Buszta, Jonathan Bac, Senbai Kang, Yixing Dong, Stephanie
+  Tissot, Sylvie Andre, Marina Alexandre~Gaveta, Christel Voize, Solange
+  Peters, Krisztian Homicsko, and Raphael Gottardo.
+\newblock Resolving sensitivity, specificity and signal contamination in
+  {Xenium} spatial transcriptomics.
+\newblock \emph{Nature Methods}, 23:\penalty0 1152--1162, 2026.
+\newblock \doi{10.1038/s41592-026-03089-8}.
+
+\bibitem[Mitchel et~al.(2026)Mitchel, Gao, Petukhov, Cole, and
+  Kharchenko]{mitchel2026celladmix}
+J.~Mitchel, T.~Gao, V.~Petukhov, E.~Cole, and P.~V. Kharchenko.
+\newblock Impact and correction of segmentation errors in spatial
+  transcriptomics.
+\newblock \emph{Nature Genetics}, 58:\penalty0 434--444, 2026.
+\newblock \doi{10.1038/s41588-025-02497-4}.
+
+\bibitem[Svensson et~al.(2018)Svensson, Teichmann, and
+  Stegle]{svensson2018spatialde}
+V.~Svensson, S.~A. Teichmann, and O.~Stegle.
+\newblock {SpatialDE: identification of spatially variable genes}.
+\newblock \emph{Nature Methods}, 15:\penalty0 343--346, 2018.
+\newblock \doi{10.1038/nmeth.4636}.
+
+\bibitem[Arnol et~al.(2019)Arnol, Schapiro, Bodenmiller, Saez-Rodriguez, and
+  Stegle]{arnol2019svca}
+D.~Arnol, D.~Schapiro, B.~Bodenmiller, J.~Saez-Rodriguez, and O.~Stegle.
+\newblock {Modeling Cell-Cell Interactions from Spatial Molecular Data with
+  Spatial Variance Component Analysis}.
+\newblock \emph{Cell Reports}, 29\penalty0 (1):\penalty0 202--211.e6, 2019.
+\newblock \doi{10.1016/j.celrep.2019.08.077}.
+
+\bibitem[Cable et~al.(2022)Cable, Murray, Shanmugam, Zhang, Zou, Diao, Chen,
+  Macosko, Irizarry, and Chen]{cable2022cside}
+D.~M. Cable, E.~Murray, V.~Shanmugam, S.~Zhang, L.~S. Zou, M.~Diao, H.~Chen,
+  E.~Z. Macosko, R.~A. Irizarry, and F.~Chen.
+\newblock {Cell type-specific inference of differential expression in spatial
+  transcriptomics}.
+\newblock \emph{Nature Methods}, 19\penalty0 (9):\penalty0 1076--1087, 2022.
+\newblock \doi{10.1038/s41592-022-01575-3}.
+\newblock Preprint: doi:10.1101/2021.12.26.474183.
+
+\bibitem[Tanevski et~al.(2022)Tanevski, Ramirez~Flores, Gabor, Schapiro, and
+  Saez-Rodriguez]{tanevski2022misty}
+J.~Tanevski, R.~O. Ramirez~Flores, A.~Gabor, D.~Schapiro, and
+  J.~Saez-Rodriguez.
+\newblock {Explainable multiview framework for dissecting spatial relationships
+  from highly multiplexed data}.
+\newblock \emph{Genome Biology}, 23:\penalty0 97, 2022.
+\newblock \doi{10.1186/s13059-022-02663-5}.
+
+\bibitem[Young and Behjati(2020)]{young2020soupx}
+M.~D. Young and S.~Behjati.
+\newblock {SoupX removes ambient RNA contamination from droplet-based
+  single-cell RNA sequencing data}.
+\newblock \emph{GigaScience}, 9\penalty0 (12):\penalty0 giaa151, 2020.
+\newblock \doi{10.1093/gigascience/giaa151}.
+
+\bibitem[Fleming et~al.(2023)Fleming, Chaffin, Arduini, Akkad, Banks, Marioni,
+  Philippakis, Ellinor, and Babadi]{fleming2023cellbender}
+S.~J. Fleming, M.~D. Chaffin, A.~Arduini, A.-D. Akkad, E.~Banks, J.~C. Marioni,
+  A.~A. Philippakis, P.~T. Ellinor, and M.~Babadi.
+\newblock {Unsupervised removal of systematic background noise from
+  droplet-based single-cell experiments using CellBender}.
+\newblock \emph{Nature Methods}, 20\penalty0 (9):\penalty0 1323--1335, 2023.
+\newblock \doi{10.1038/s41592-023-01943-7}.
+\newblock Preprint: doi:10.1101/791699.
+
+\bibitem[Petukhov et~al.(2022)Petukhov, Xu, Soldatov, Cadinu, Khodosevich,
+  Moffitt, and Kharchenko]{petukhov2022baysor}
+V.~Petukhov, R.~J. Xu, R.~A. Soldatov, P.~Cadinu, K.~Khodosevich, J.~R.
+  Moffitt, and P.~V. Kharchenko.
+\newblock {Cell segmentation in imaging-based spatial transcriptomics}.
+\newblock \emph{Nature Biotechnology}, 40:\penalty0 345--354, 2022.
+\newblock \doi{10.1038/s41587-021-01044-w}.
+
+\bibitem[Ergen and Yosef(2026)]{ergen2026resolvi}
+Can Ergen and Nir Yosef.
+\newblock {ResolVI}: addressing noise and bias in spatial transcriptomics.
+\newblock \emph{Nature Methods}, 2026.
+\newblock \doi{10.1038/s41592-026-03212-9}.
+
+\bibitem[Fischer et~al.(2023)Fischer, Schaar, and Theis]{fischer2023}
+David~S. Fischer, Anna~C. Schaar, and Fabian~J. Theis.
+\newblock Modeling intercellular communication in tissues using spatial graphs
+  of cells.
+\newblock \emph{Nature Biotechnology}, 41:\penalty0 332--336, 2023.
+
+\bibitem[Dong et~al.(2025)Dong, Su, Kluger, Fan, and Kluger]{dong2025simvi}
+Mingze Dong, David~G. Su, Harriet Kluger, Rong Fan, and Yuval Kluger.
+\newblock {SIMVI} disentangles intrinsic and spatial-induced cellular states in
+  spatial omics data.
+\newblock \emph{Nature Communications}, 16\penalty0 (1):\penalty0 2990, 2025.
+\newblock \doi{10.1038/s41467-025-58089-7}.
+
+\bibitem[Akbarnejad et~al.(2025)Akbarnejad, Steele, Jafree, Birk, Sallese,
+  et~al.]{akbarnejad2025mintflow}
+Amir Akbarnejad, Lloyd Steele, Daniyal~J. Jafree, Sebastian Birk, Marta~Rosa
+  Sallese, et~al.
+\newblock Mapping and reprogramming human tissue microenvironments with
+  {MintFlow}.
+\newblock \emph{bioRxiv}, 2025.
+\newblock \doi{10.1101/2025.06.24.661094}.
+
+\bibitem[Moeed et~al.(2026)Moeed, Schrod, Rohbeck, Bonder, Lutsik, Stegle, and
+  Dimitrov]{moeed2026cellina}
+Abdul Moeed, Stefan Schrod, Martin Rohbeck, Marc~Jan Bonder, Pavlo Lutsik,
+  Oliver Stegle, and Daniel Dimitrov.
+\newblock Querying counterfactuals on tissue graphs with supervised
+  disentanglement.
+\newblock arXiv preprint 2606.08493, 2026.
+
+\bibitem[Megas et~al.(2026)Megas, Chen, Polanski, Asadollahzadeh, Eliasof,
+  Sch{\"o}nlieb, and Teichmann]{megas2026celcomen}
+Stathis Megas, Daniel~G. Chen, Krzysztof Polanski, Hesam Asadollahzadeh, Moshe
+  Eliasof, Carola-Bibiane Sch{\"o}nlieb, and Sarah~A. Teichmann.
+\newblock Celcomen: spatial causal disentanglement for single-cell and tissue
+  perturbation modeling.
+\newblock \emph{Nature Communications}, 17:\penalty0 4126, 2026.
+\newblock \doi{10.1038/s41467-026-69856-5}.
+
+\bibitem[Birk et~al.(2025)Birk, Bonafonte-Pard{\`a}s, Feriz, Boxall, Agirre,
+  Memi, Maguza, Yadav, Armingol, Fan, Castelo-Branco, Theis, Bayraktar,
+  Talavera-L{\'o}pez, and Lotfollahi]{birk2025nichecompass}
+Sebastian Birk, Irene Bonafonte-Pard{\`a}s, Adib~Miraki Feriz, Adam Boxall,
+  Eneritz Agirre, Fani Memi, Anna Maguza, Anamika Yadav, Erick Armingol, Rong
+  Fan, Gon{\c{c}}alo Castelo-Branco, Fabian~J. Theis, Omer~Ali Bayraktar,
+  Carlos Talavera-L{\'o}pez, and Mohammad Lotfollahi.
+\newblock Quantitative characterization of cell niches in spatially resolved
+  omics data.
+\newblock \emph{Nature Genetics}, 57:\penalty0 897--909, 2025.
+\newblock \doi{10.1038/s41588-025-02120-6}.
+
+\bibitem[Brody et~al.(2022)Brody, Alon, and Yahav]{brody2022}
+Shaked Brody, Uri Alon, and Eran Yahav.
+\newblock How attentive are graph attention networks?
+\newblock In \emph{International Conference on Learning Representations}, 2022.
+
+\bibitem[Shaban et~al.(2025)Shaban, Chang, Qiu, Yeo, Song, Jaume,
+  et~al.]{kronos2025}
+Muhammad Shaban, Yuzhou Chang, Huaying Qiu, Yao~Yu Yeo, Andrew~H. Song,
+  Guillaume Jaume, et~al.
+\newblock A foundation model for spatial proteomics.
+\newblock arXiv preprint 2506.03373, 2025.
+
+\bibitem[Slavutsky et~al.(2026)Slavutsky, Beker, Blei, and
+  Dumitrascu]{slavutsky2025}
+Yuli Slavutsky, Ozgur Beker, David Blei, and Bianca Dumitrascu.
+\newblock Variational learning of disentangled representations.
+\newblock In \emph{International Conference on Machine Learning}, 2026.
+\newblock arXiv:2506.17182.
+
+\bibitem[Zhao and Gordon(2019)]{zhao2019inherent}
+Han Zhao and Geoffrey~J. Gordon.
+\newblock Inherent tradeoffs in learning fair representations.
+\newblock In \emph{Advances in Neural Information Processing Systems},
+  volume~32, 2019.
+
+\bibitem[Elazar and Goldberg(2018)]{elazar2018}
+Yanai Elazar and Yoav Goldberg.
+\newblock Adversarial removal of demographic attributes from text data.
+\newblock In \emph{Proceedings of the 2018 Conference on Empirical Methods in
+  Natural Language Processing}, pages 11--21, 2018.
+
+\bibitem[Xu et~al.(2020)Xu, Zhao, Song, Stewart, and Ermon]{xu2020vinfo}
+Yilun Xu, Shengjia Zhao, Jiaming Song, Russell Stewart, and Stefano Ermon.
+\newblock A theory of usable information under computational constraints.
+\newblock In \emph{International Conference on Learning Representations}, 2020.
+
+\bibitem[Rosenbaum(2002)]{rosenbaum2002}
+Paul~R. Rosenbaum.
+\newblock \emph{Observational Studies}.
+\newblock Springer, 2nd edition, 2002.
+
+\bibitem[VanderWeele and Ding(2017)]{vanderweele2017}
+Tyler~J. VanderWeele and Peng Ding.
+\newblock Sensitivity analysis in observational research: Introducing the
+  {E}-value.
+\newblock \emph{Annals of Internal Medicine}, 167\penalty0 (4):\penalty0
+  268--274, 2017.
+\newblock \doi{10.7326/M16-2607}.
+
+\bibitem[Manski(2003)]{manski2003}
+Charles~F. Manski.
+\newblock \emph{Partial Identification of Probability Distributions}.
+\newblock Springer, 2003.
+
+\bibitem[{10x Genomics}(2024{\natexlab{a}})]{tenx_ovarian_ffpe}
+{10x Genomics}.
+\newblock {FFPE} human ovarian cancer with {5K} human pan tissue and pathways
+  panel plus 100 custom genes.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-prime-ffpe-human-ovarian-cancer},
+  2024{\natexlab{a}}.
+\newblock In Situ Gene Expression dataset by Xenium Onboard Analysis v3.0.0,
+  10x Genomics (2024, December 17).
+
+\bibitem[{10x Genomics}(2024{\natexlab{b}})]{tenx_lung_ffpe}
+{10x Genomics}.
+\newblock Post-{Xenium} technical note: {Xenium} v1 and {Xenium Prime 5K} for
+  {FFPE} human lung cancer.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-human-lung-cancer-post-xenium-technote},
+  2024{\natexlab{b}}.
+\newblock Experiment 2, Xenium Prime 5K. In Situ Gene Expression dataset by
+  Xenium Onboard Analysis v3.0.0, 10x Genomics (2024, November 6).
+
+\bibitem[{10x Genomics}(2024{\natexlab{c}})]{tenx_ovary_ff}
+{10x Genomics}.
+\newblock Fresh frozen human ovarian adenocarcinoma with {5K} human pan tissue
+  and pathways panel.
+\newblock
+  \url{https://www.10xgenomics.com/datasets/xenium-prime-fresh-frozen-human-ovary},
+  2024{\natexlab{c}}.
+\newblock In Situ Gene Expression dataset by Xenium Onboard Analysis v3.0.0,
+  10x Genomics (2024, September 4).
+
+\bibitem[Williams-Katek et~al.(2026)Williams-Katek, Mallapragada, Mee, Fischer,
+  Vannan, Eldredge, Deutsch, Kropski, Sucre, and
+  Banovich]{williamskatek2026fishing}
+A.~L. Williams-Katek, S.~Mallapragada, E.~D. Mee, B.~K. Fischer, A.~Vannan,
+  L.~C. Eldredge, G.~H. Deutsch, J.~A. Kropski, J.~M. Sucre, and N.~E.
+  Banovich.
+\newblock Fishing with two lines: a hybrid approach to spatial transcriptomics
+  discovery.
+\newblock \emph{Life Science Alliance}, 9\penalty0 (10), 2026.
+\newblock \doi{10.26508/lsa.202603690}.
+
+\bibitem[Liberzon et~al.(2015)Liberzon, Birger, Thorvaldsd{\'o}ttir, Ghandi,
+  Mesirov, and Tamayo]{liberzon2015hallmark}
+Arthur Liberzon, Chet Birger, Helga Thorvaldsd{\'o}ttir, Mahmoud Ghandi,
+  Jill~P. Mesirov, and Pablo Tamayo.
+\newblock The molecular signatures database hallmark gene set collection.
+\newblock \emph{Cell Systems}, 1\penalty0 (6):\penalty0 417--425, 2015.
+\newblock \doi{10.1016/j.cels.2015.12.004}.
+
+\bibitem[Kim et~al.(2010)Kim, Watkinson, Varadan, and
+  Anastassiou]{kim2010multicancer}
+Hoon Kim, John Watkinson, Vinay Varadan, and Dimitris Anastassiou.
+\newblock Multi-cancer computational analysis reveals invasion-associated
+  variant of desmoplastic reaction involving {INHBA}, {THBS2} and {COL11A1}.
+\newblock \emph{BMC Medical Genomics}, 3:\penalty0 51, 2010.
+\newblock \doi{10.1186/1755-8794-3-51}.
+
+\bibitem[Zhu et~al.(2021)Zhu, Cai, Cui, de~los Toyos, and
+  Anastassiou]{zhu2021adipose}
+Kaiyi Zhu, Lingyi Cai, Chenqian Cui, Juan~R. de~los Toyos, and Dimitris
+  Anastassiou.
+\newblock Single-cell analysis reveals the pan-cancer invasiveness-associated
+  transition of adipose-derived stromal cells into {COL11A1}-expressing
+  cancer-associated fibroblasts.
+\newblock \emph{PLOS Computational Biology}, 17\penalty0 (7):\penalty0
+  e1009228, 2021.
+\newblock \doi{10.1371/journal.pcbi.1009228}.
+
+\bibitem[Buechler et~al.(2021)Buechler, Pradhan, Krishnamurty, Cox, Calviello,
+  Wang, Yang, Tam, Caothien, Roose-Girma, Modrusan, Arron, Bourgon, M{\"u}ller,
+  and Turley]{buechler2021crosstissue}
+Matthew~B. Buechler, Rachana~N. Pradhan, Akshay~T. Krishnamurty, Christian Cox,
+  Aslihan~Karabacak Calviello, Amber~W. Wang, Yeqing~Angela Yang, Lucinda Tam,
+  Roger Caothien, Merone Roose-Girma, Zora Modrusan, Joseph~R. Arron, Richard
+  Bourgon, S{\"o}ren M{\"u}ller, and Shannon~J. Turley.
+\newblock Cross-tissue organization of the fibroblast lineage.
+\newblock \emph{Nature}, 593\penalty0 (7860):\penalty0 575--579, 2021.
+\newblock \doi{10.1038/s41586-021-03549-5}.
+
+\bibitem[Korsunsky et~al.(2022)Korsunsky, Wei, Pohin, Kim, Barone, Major,
+  Taylor, Ravindran, Kemble, Watts, et~al.]{korsunsky2022stromal}
+Ilya Korsunsky, Kevin Wei, Mathilde Pohin, Edy~Y. Kim, Francesca Barone, Triin
+  Major, Emily Taylor, Rahul Ravindran, Samuel Kemble, Gerald F.~M. Watts,
+  et~al.
+\newblock Cross-tissue, single-cell stromal atlas identifies shared
+  pathological fibroblast phenotypes in four chronic inflammatory diseases.
+\newblock \emph{Med}, 3\penalty0 (7):\penalty0 481--518.e14, 2022.
+\newblock \doi{10.1016/j.medj.2022.05.002}.
+
+\bibitem[Tsukui et~al.(2020)Tsukui, Sun, Wetter, Wilson-Kanamori, Hazelwood,
+  Henderson, Adams, Schupp, Poli, Rosas, Kaminski, Matthay, Wolters, and
+  Sheppard]{tsukui2020collagen}
+Tatsuya Tsukui, Kai-Hui Sun, Joseph~B. Wetter, John~R. Wilson-Kanamori, Lisa~A.
+  Hazelwood, Neil~C. Henderson, Taylor~S. Adams, Jonas~C. Schupp, Sergio~D.
+  Poli, Ivan~O. Rosas, Naftali Kaminski, Michael~A. Matthay, Paul~J. Wolters,
+  and Dean Sheppard.
+\newblock Collagen-producing lung cell atlas identifies multiple subsets with
+  distinct localization and relevance to fibrosis.
+\newblock \emph{Nature Communications}, 11:\penalty0 1920, 2020.
+\newblock \doi{10.1038/s41467-020-15647-5}.
+
+\bibitem[Hanley et~al.(2023)Hanley, Waise, Ellis, Lopez, Pun, Taylor, Parker,
+  Kimbley, Chee, Shaw, West, Alzetani, Woo, Ottensmeier, Rose-Zerilli, and
+  Thomas]{hanley2023lungcaf}
+Christopher~J. Hanley, Sara Waise, Matthew~J. Ellis, Maria~A. Lopez, Wai~Y.
+  Pun, Julian Taylor, Rachel Parker, Lucy~M. Kimbley, Serena~J. Chee, Emily~C.
+  Shaw, Jonathan West, Aiman Alzetani, Edwin Woo, Christian~H. Ottensmeier,
+  Matthew J.~J. Rose-Zerilli, and Gareth~J. Thomas.
+\newblock Single-cell analysis reveals prognostic fibroblast subpopulations
+  linked to molecular and immunological subtypes of lung cancer.
+\newblock \emph{Nature Communications}, 14:\penalty0 387, 2023.
+\newblock \doi{10.1038/s41467-023-35832-6}.
+
+\end{thebibliography}

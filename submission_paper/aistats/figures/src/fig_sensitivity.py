@@ -28,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import style as S  # noqa: E402
 
 PT = S.paper_tables()
-OUT = Path(__file__).resolve().parent.parent / "fig_sensitivity"
+OUT = S.out_path(Path(__file__).resolve().parent.parent / "fig_sensitivity")
 # short titles, with the side of zero on which a move is an improvement
 COLS = [("Recon.", "reconstruction", True), ("NMI", r"NMI of $\mathbf{z}$", True),
         ("Mirror $R^2$", r"mirror $R^2$", False),

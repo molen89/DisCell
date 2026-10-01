@@ -1,6 +1,6 @@
 % Generated table: tab:breakdown. DO NOT EDIT BY HAND; regenerate instead.
-% Command: python scripts/paper_tables.py --only breakdown breakdown_traj
-% Generated: 2026-10-01 08:40:35 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Command: python scripts/paper_tables.py
+% Generated: 2026-10-01 13:48:01 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   scripts/logs/breakdown_2026-09-29/breakdown_all.json  (2026-10-01 08:35:40)  [after the freeze; see checks]
@@ -50,7 +50,7 @@
 %
 \begin{table*}[t]
 \centering
-\caption{Breakdown points $\kappa^*$ of the contrasts the results claim, per section, on the leakage sweep ($\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$, three seeds each). A contrast holds at a grid point if every seed has the sign it has at $\kappa = 0$ and the interval of the mean over seeds (spatial block bootstrap over tiles, two-sided, Bonferroni-adjusted over the $m$ contrasts of the section) excludes $0$. $\kappa^*$ is the first grid point where it fails; \emph{above the grid}: it holds at every grid point; \emph{no finding}: it fails already at $\kappa = 0$; $^{a}$the interval contains $0$, $^{b}$a seed has the opposite sign. Signalling share: the response's share of ligand-receptor (LR) genes against other genes; tumour axis: Kendall's $\tau$ of the response-predicted shift with the true against a false axis. On the serial section only the cycle asymmetry is read, through the core's fits. The tumour axis exists on the ovarian FFPE section only. The marker-pair contrast and transport $-$ programme part are trajectories (\cref{tab:breakdown-traj}). --: not in that section's set.}
+\caption{Breakdown points $\kappa^*$ of the contrasts the results claim, per section, on the \termSpill{} sweep ($\kappa \in \{0, 0.05, 0.1, 0.2, 0.3, 0.4\}$, three seeds each). A contrast holds at a grid point if every seed has the sign it has at $\kappa = 0$ and the interval of the mean over seeds (spatial block bootstrap over tiles, two-sided, Bonferroni-adjusted over the $m$ contrasts of the section) excludes $0$. $\kappa^*$ is the first grid point where it fails; \emph{above the grid}: it holds at every grid point; \emph{no finding}: it fails already at $\kappa = 0$; $^{a}$the interval contains $0$, $^{b}$a seed has the opposite sign. Signalling share: the response's share of ligand-receptor (LR) genes against other genes; tumour axis: Kendall's $\tau$ of the response-predicted shift with the true against a false axis. On the serial section only the cycle asymmetry is read, through the core's fits. The tumour axis exists on the ovarian FFPE section only. The marker-pair contrast and \termReloc{} $-$ programme part are trajectories (\cref{tab:breakdown-traj}). --: not in that section's set.}
 \label{tab:breakdown}
 \footnotesize
 \setlength{\tabcolsep}{2pt}
@@ -62,7 +62,7 @@ Cycle asymmetry, $R^2(\vz) - R^2(\vw)$ & above the grid & above the grid & above
 $\I(\text{niche}; \vw)$ $-$ its floor & above the grid & above the grid & above the grid & above the grid & -- \\
 Read A $-$ type-mean reference & above the grid & above the grid & above the grid & above the grid & -- \\
 Twin margin & above the grid & above the grid & above the grid & above the grid & -- \\
-Transport $-$ leakage part & 0.4$^{b}$ & 0.3$^{b}$ & above the grid & above the grid & -- \\
+\TermReloc{} $-$ \termSpill{} part & 0.4$^{b}$ & 0.3$^{b}$ & above the grid & above the grid & -- \\
 Signalling share, LR $-$ other & above the grid & above the grid & 0.2$^{a}$ & above the grid & -- \\
 Tumour axis, true $-$ false & above the grid & -- & -- & -- & -- \\
 \bottomrule

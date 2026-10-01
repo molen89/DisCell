@@ -1,0 +1,90 @@
+% DISCELL -- RECOMB submission, main text.
+% Build: ./build.sh  (builds main.pdf and supplement.pdf; cross-references via xr-hyper)
+% Format: letter paper, 10 pt, 1-inch margins, two columns; separate title page (not counted);
+% at most 10 pages of main text including floats; bibliography not counted.
+\documentclass[letterpaper,10pt,twocolumn]{article}
+
+\usepackage[letterpaper,margin=1in]{geometry}
+\setlength{\columnsep}{0.25in}
+
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{amsmath,amssymb,amsthm,bm,mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs,multirow,array,longtable}
+\usepackage{subcaption}
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{enumitem}
+\PassOptionsToPackage{hyphens}{url}
+\usepackage{xr-hyper}   % must precede hyperref
+\usepackage[colorlinks=true,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black]{hyperref}
+\usepackage{pdfpages}
+\usepackage[capitalise]{cleveref}
+% short reference names to save space (author, 2026-10-01)
+\crefname{figure}{Fig.}{Figs.}\Crefname{figure}{Fig.}{Figs.}
+\crefname{table}{Table}{Tables}\Crefname{table}{Table}{Tables}
+\crefname{section}{Sec.}{Secs.}\Crefname{section}{Sec.}{Secs.}
+\crefname{equation}{Eq.}{Eqs.}\Crefname{equation}{Eq.}{Eqs.}
+\renewcommand{\figurename}{Fig.}
+
+% shared resources: one output location for the figure and table generators
+\graphicspath{{../aistats/figures/}}
+\newcommand{\tablesdir}{../aistats/tables/generated}
+\renewcommand{\dbltopfraction}{0.95}
+\input{macros}
+
+% labels of the supplement (S1, S2, ...; Figure S1, Table S1) are imported without a prefix;
+% the label namespaces of main and supplement must stay disjoint (build.sh checks).
+\externaldocument{supplement}[supplement.pdf]
+\newcommand{\suppref}[1]{\ref{#1}}   % -> "S3" / "S3.2" (the S prefix marks the supplement; author 2026-10-01)
+
+% main-text page count, written at shipout (read by build.sh)
+\makeatletter
+\newcommand{\markmainend}{\protected@write\@auxout{}{\string\gdef\string\mainpages{\thepage}}}
+\makeatother
+
+\title{DISCELL% TODO final title
+}
+\author{Author One\textsuperscript{1} \and Author Two\textsuperscript{2}\\[2pt]
+  {\small \textsuperscript{1}Affiliation One \quad \textsuperscript{2}Affiliation Two}}
+\date{}
+
+\begin{document}
+
+% ---------------- title page (not counted) ----------------
+\onecolumn
+\pagenumbering{alph}   % unique page anchors for the title page
+\maketitle
+\thispagestyle{empty}
+\begin{abstract}
+  \input{sections/00_abstract}
+\end{abstract}
+\clearpage
+\twocolumn
+\pagenumbering{arabic}  % main text numbered from 1
+
+% ---------------- main text (pages 1--10) ----------------
+\input{sections/01_introduction}
+\input{sections/02_model}
+
+\section{Experiments}
+\label{sec:experiments}
+\input{sections/03_1_setup}
+\input{sections/03_2_simulation}
+\input{sections/03_3_intrinsic_and_response}
+\input{sections/03_4_programmes}
+\input{sections/03_5_comparison}
+\input{sections/03_6_relocation}
+\input{sections/03_7_robustness}
+
+\input{sections/04_discussion}
+
+\markmainend
+% ---------------- bibliography (not counted) ----------------
+\bibliographystyle{unsrtnat}
+\bibliography{../aistats/references}
+% the supplement follows the references in main.pdf (author, 2026-10-01); the
+% separate supplement.pdf is still built for submission as supplementary material
+\IfFileExists{supplement.pdf}{\clearpage\includepdf[pages=-]{supplement.pdf}}{}
+
+\end{document}

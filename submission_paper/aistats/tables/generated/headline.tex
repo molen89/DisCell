@@ -1,6 +1,6 @@
 % Generated table: tab:headline. DO NOT EDIT BY HAND; regenerate instead.
 % Command: python scripts/paper_tables.py
-% Generated: 2026-10-01 08:10:25 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Generated: 2026-10-01 13:48:00 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/envelope_table_ci_at_best.md  (2026-09-29 09:46:56)
@@ -147,7 +147,7 @@
 %
 \begin{table*}[t]
 \centering
-\caption{Model quality on the four sections and the held-out serial section of the TMA core: the mean over three seeds, with the range over seeds in brackets; the $95\%$ intervals are in \cref{tab:headline-full}. Reconstruction is the held-out log-likelihood in nats per count. Transport is the fraction of the noise ceiling (cell-split reliability) recovered by the mean transport read, over the panels in the trusted tier ($^{\dagger}$seeds with a trusted panel: TMA core, 2 of 3). The same read scored on held-out tiles only is a sensitivity row (\cref{tab:transport-heldout}). Cycle $R^2$ is read on the top decile of the S and G2M score among held-out cells. $\I(\text{niche}; \vw)$ is the excess over a within-type permutation floor, in nats. The atlas cosine compares the first programme axis between seeds. The serial section is read through the models fitted on the core (--: not read there). Arrows give the preferred direction; $\approx 0$: expected to be near zero. Unassigned cells are not targets of any read.}
+\caption{Model quality on the four sections and the held-out serial section of the TMA core: the mean over three seeds, with the range over seeds in brackets; the $95\%$ intervals are in \cref{tab:headline-full}. Reconstruction is the held-out log-likelihood in nats per count. \TermReloc{} is the fraction of the noise ceiling (cell-split reliability) recovered by the mean \termReloc{} read, over the panels in the trusted tier ($^{\dagger}$seeds with a trusted panel: TMA core, 2 of 3). The same read scored on held-out tiles only is a sensitivity row (\cref{tab:transport-heldout}). Cycle $R^2$ is read on the top decile of the S and G2M score among held-out cells. $\I(\text{niche}; \vw)$ is the excess over a within-type permutation floor, in nats. The atlas cosine compares the first programme axis between seeds. The serial section is read through the models fitted on the core (--: not read there). Arrows give the preferred direction; $\approx 0$: expected to be near zero. Unassigned cells are not targets of any read.}
 \label{tab:headline}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -161,7 +161,7 @@ Mirror $R^2$ $\downarrow$ & 0.048 {\scriptsize (0.044--0.051)} & 0.026 {\scripts
 Cycle $R^2$ of $\vz$ $\uparrow$ & 0.519 {\scriptsize (0.504--0.548)} & 0.186 {\scriptsize (0.177--0.195)} & 0.757 {\scriptsize (0.744--0.768)} & 0.497 {\scriptsize (0.476--0.509)} & 0.495 {\scriptsize (0.494--0.496)} \\
 Cycle $R^2$ of $\vw$ ($\approx 0$) & \begin{tabular}[c]{@{}c@{}}0.006\\{\scriptsize (0.003--0.009)}\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.003\\{\scriptsize (0.001--0.006)}\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.001\\{\scriptsize (0.000--0.002)}\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.000\\{\scriptsize ($-0.000$ to 0.002)}\end{tabular} & \begin{tabular}[c]{@{}c@{}}$-0.001$\\{\scriptsize ($-0.004$ to 0.002)}\end{tabular} \\
 $\I(\text{niche}; \vw)$ excess $\uparrow$ & 0.47 {\scriptsize (0.45--0.50)} & 0.59 {\scriptsize (0.58--0.62)} & 0.60 {\scriptsize (0.58--0.62)} & 0.48 {\scriptsize (0.42--0.52)} & -- \\
-Transport $\uparrow$ & 0.65 {\scriptsize (0.63--0.67)} & 0.72 {\scriptsize (0.68--0.75)} & 0.67 {\scriptsize (0.65--0.68)} & 0.73$^{\dagger}$ {\scriptsize (0.71--0.75)} & -- \\
+\TermReloc{} $\uparrow$ & 0.65 {\scriptsize (0.63--0.67)} & 0.72 {\scriptsize (0.68--0.75)} & 0.67 {\scriptsize (0.65--0.68)} & 0.73$^{\dagger}$ {\scriptsize (0.71--0.75)} & -- \\
 Atlas cross-seed cosine $\uparrow$ & 0.97 {\scriptsize (0.97--0.98)} & 0.84 {\scriptsize (0.80--0.90)} & 0.82 {\scriptsize (0.76--0.90)} & 0.91 {\scriptsize (0.89--0.92)} & -- \\
 \bottomrule
 \end{tabular}
