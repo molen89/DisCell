@@ -26,12 +26,17 @@ import style as S  # noqa: E402
 
 PT = S.paper_tables()
 OUT = Path(__file__).resolve().parent.parent / "fig_battery"
-# titles carry the preferred direction: higher (up arrow) or lower (down arrow) is better
-READS = [("nmi", "battery", r"NMI of $\mathbf{z}$ $\uparrow$"),
-         ("mlp_comp", "probe", r"composition, fraction left $\downarrow$"),
-         ("mirror.r2", "battery", r"mirror $R^2$ $\downarrow$"),
-         ("cycle_q90.z.r2_pooled", "battery", r"cycle $R^2$ of $\mathbf{z}$ $\uparrow$"),
-         ("reconstruction.recon", "battery", r"reconstruction $\uparrow$")]
+# short titles with the preferred direction along x; each x label names the quantity
+READS = [("nmi", "battery", "type" + S.RIGHT,
+          r"NMI of $\mathbf{z}$ with" "\n" r"cell type"),
+         ("mlp_comp", "probe", "composition leakage" + S.LEFT,
+          r"fraction of composition" "\n" r"left (vs.\ no adversary)"),
+         ("mirror.r2", "battery", "mirror" + S.LEFT,
+          r"mirror $R^2$"),
+         ("cycle_q90.z.r2_pooled", "battery", "cycle state" + S.RIGHT,
+          r"cycle $R^2$ of $\mathbf{z}$"),
+         ("reconstruction.recon", "battery", "reconstruction" + S.RIGHT,
+          r"held-out log-likelihood" "\n" r"(nats/count)")]
 ROWS = [(PT.OVARIAN, "Ovarian FFPE"), (PT.LUNG, "Lung FFPE"), (PT.FF, "Ovarian FF"),
         (PT.GSE, "Lung TMA core"), (PT.DUAL, "TMA serial")]
 ORDER = ["DISCELL", "resolVI", "SIMVI", "MintFlow", "Cellina", "Cellina, niche domain", "Cellina, own graph"]
@@ -62,9 +67,9 @@ def value(ds, entry_b, entry_p, key, src):
 
 S.apply()
 n = len(ORDER)
-fig, axes = plt.subplots(1, len(READS), figsize=(S.TEXTWIDTH, 3.0), sharey=True)
-fig.subplots_adjust(left=0.125, right=0.99, bottom=0.2, top=0.93, wspace=0.14)
-for ax, (key, src, title) in zip(axes, READS):
+fig, axes = plt.subplots(1, len(READS), figsize=(S.TEXTWIDTH, 3.3), sharey=True)
+fig.subplots_adjust(left=0.125, right=0.985, bottom=0.25, top=0.94, wspace=0.14)
+for ax, (key, src, title, xlab) in zip(axes, READS):
     for i, (ds, _) in enumerate(ROWS):
         base = -i * (n + 1.2)
         if i:
@@ -83,6 +88,7 @@ for ax, (key, src, title) in zip(axes, READS):
                 continue                                    # no decoder
             S.method_point(ax, x, y, m["label"], scale=0.4)
     ax.set_title(title, fontsize=7, color=S.INK, pad=3)
+    ax.set_xlabel(xlab, fontsize=6.5, labelpad=2, linespacing=1.1)
     ax.grid(axis="x", color=S.GHOST, lw=0.5, zorder=0)
     ax.set_axisbelow(True)
     ax.xaxis.set_major_locator(plt.MaxNLocator(4))
@@ -100,5 +106,5 @@ present = [nm for nm in ORDER if nm == "DISCELL" or any(m["label"] == nm for s i
 h = S.method_handles(present, scale=0.75)
 h[0].set_label("DISCELL (bar: range over seeds)")
 fig.legend(handles=h, loc="lower center", ncol=4, frameon=False, fontsize=6.5, handletextpad=0.3,
-           columnspacing=1.2, bbox_to_anchor=(0.56, -0.015))
+           columnspacing=1.2, bbox_to_anchor=(0.56, -0.02))
 S.save(fig, OUT)

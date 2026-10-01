@@ -41,6 +41,7 @@ LABEL_AT = {
     (PT.OVARIAN, "Cellina"): ("off", (-5, 3), "right"),
     (PT.LUNG, "Cellina"): ("off", (-5, 3), "right"),
     (PT.LUNG, "MintFlow"): ("off", (-3, 6), "right"),
+    (PT.OVARIAN, "MintFlow"): ("off", (-3, 6), "right"),
     (PT.FF, "Cellina"): ("off", (-5, 3), "right"),
     (PT.GSE, "Cellina, niche domain"): ("at", (32, 6.4), "left"),
     (PT.GSE, "SIMVI"): ("at", (32, 5.5), "left"),
@@ -81,7 +82,7 @@ def section_points(ds):
 
 S.apply()
 fig, axes = plt.subplots(2, 3, figsize=(S.TEXTWIDTH, 4.3))
-fig.subplots_adjust(left=0.07, right=0.975, bottom=0.1, top=0.95, wspace=0.22, hspace=0.36)
+fig.subplots_adjust(left=0.095, right=0.975, bottom=0.1, top=0.95, wspace=0.22, hspace=0.36)
 for ax, (ds, title) in zip(axes.flat, PANELS):
     pts, missing = section_points(ds)
     if missing:
@@ -108,10 +109,14 @@ for ax, (ds, title) in zip(axes.flat, PANELS):
     ax.set_title(title, fontsize=7.5, color=S.INK, pad=3)
     S.light_grid(ax)
     ax.tick_params(labelsize=6.5)
-fig.supxlabel(r"neighbour composition recovered from the context latent (\%), better $\rightarrow$",
+fig.supxlabel(r"neighbour composition recovered from the context latent (\%)",
               fontsize=8, y=0.01)
-fig.supylabel(r"neighbour composition left in the intrinsic latent $\mathbf{z}$ (\%), $\leftarrow$ better",
+fig.supylabel(r"neighbour composition left in the intrinsic latent $\mathbf{z}$ (\%)",
               fontsize=8, x=0.005)
+for ax in axes[:, 0]:
+    S.ybetter(ax, up=False)       # lower is better on the vertical axis
+for ax in list(axes[1, :2]) + [axes[0, 2]]:
+    S.xbetter(ax, right=True)     # higher is better on the horizontal axis
 axes[1, 2].axis("off")
 axes[1, 2].text(0.05, 0.5, "resolVI has no context latent.\nSIMVI and MintFlow are shown\nwhere their whole-section\nfits exist.",
                 transform=axes[1, 2].transAxes, fontsize=7, color=S.INK2, va="center", ha="left")

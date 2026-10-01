@@ -4,6 +4,13 @@
 \newcommand{\needsource}{\textcolor{red}{\textbf{[NEEDS A SOURCE]}}}
 \newcommand{\todo}[1]{\textcolor{orange}{\textbf{[TODO: #1]}}}
 \newcommand{\pending}[1]{\textcolor{violet}{\textbf{[PENDING RUNS: #1]}}}
+% editorial flags (kind: note), teal on light cyan; soul's \hl lets a long note break across lines
+\newif\ifshowflags \showflagstrue % set \showflagsfalse to hide every editorial flag
+\usepackage{soul}
+\colorlet{flagbg}{cyan!12}
+\DeclareRobustCommand{\flag}[2]{\ifshowflags\leavevmode{\sffamily\bfseries\footnotesize\color{teal!80!black}\sethlcolor{flagbg}\hl{[#1: #2]}}\space\fi\ignorespaces}
+% reading-order markers: bold white on teal, [R N]; shown only with \showflagstrue
+\DeclareRobustCommand{\readorder}[1]{\ifshowflags\leavevmode{\sffamily\bfseries\footnotesize\setlength{\fboxsep}{1.5pt}\colorbox{teal!80!black}{\textcolor{white}{[R~#1]}}}\space\fi\ignorespaces}
 
 % operators
 \DeclareMathOperator{\sgop}{sg}

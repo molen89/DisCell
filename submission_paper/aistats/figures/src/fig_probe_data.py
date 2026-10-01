@@ -94,13 +94,12 @@ for c, (ax, (block, title)) in enumerate(zip(axes, PANELS)):
     ax.tick_params(axis="y", length=0, labelsize=7)
     ax.tick_params(axis="x", labelsize=6.5)
     ax.spines["left"].set_visible(False)
-    ax.set_title(title, fontsize=7.5, color=S.INK2 if ridge else S.INK, pad=3)
+    ax.set_title(title + S.LEFT, fontsize=7.5, color=S.INK2 if ridge else S.INK, pad=3)
     if ridge:                                   # the secondary probe, visually lighter
         ax.set_facecolor("#fafaf8")
         for s in ("bottom",):
             ax.spines[s].set_color(S.CELL_EDGE)
-fig.text(0.56, 0.185, r"share of the block's within-type variance recovered by the probe (\%, log scale), "
-         r"$\leftarrow$ better",
+fig.text(0.56, 0.185, r"share of the block's within-type variance recovered by the probe (\%, log scale)",
          ha="center", fontsize=7.5, color=S.INK)
 names = ["DISCELL, no adversary", "DISCELL"] + [n for n in BASE_ORDER
                                                 if any(m["label"] == n for _, (_, ms) in data.items() for m in ms)]

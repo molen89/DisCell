@@ -1,9 +1,9 @@
 % Generated table: tab:context. DO NOT EDIT BY HAND; regenerate instead.
-% Command: python scripts/paper_tables.py
-% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Command: python scripts/paper_tables.py --only context
+% Generated: 2026-10-01 08:13:29 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
-%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 06:02:09)  [after the freeze; see checks]
+%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 22:00:20)  [after the freeze; see checks]
 %   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json  (2026-09-29 16:43:05)  [after the freeze; see checks]
 %   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/context_grade.json  (2026-09-30 10:42:32)  [after the freeze; see checks]
 %   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/baseline_battery_lineage.json  (2026-09-29 16:42:22)  [after the freeze; see checks]
@@ -12,9 +12,8 @@
 %   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json  (2026-09-30 10:58:01)  [after the freeze; see checks]
 %   data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json  (2026-09-29 17:13:13)  [after the freeze; see checks]
 %   data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json  (2026-09-30 11:31:58)  [after the freeze; see checks]
-%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-29 23:31:14)  [after the freeze; see checks]
-%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json  (2026-09-30 10:50:22)  [after the freeze; see checks]
-%   scripts/logs/baselines_complete_2026-09-28/queue.log  (2026-09-30 06:04:07)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-30 21:54:06)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json  (2026-10-01 08:13:28)  [after the freeze; see checks]
 %
 % Reading convention:
 %   lineage labels; accepted checkpoint; one Unassigned mask for every method; DisCell mean
@@ -24,20 +23,20 @@
 % Provenance (row / column -> file : key):
 %   Ovarian FFPE / DISCELL: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
 %   Ovarian FFPE / resolVI: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : resolVI.absent (no context latent)
-%   Ovarian FFPE / SIMVI: not graded (whole-section fit: queued)
-%   Ovarian FFPE / MintFlow: not graded (whole-section fit: running)
+%   Ovarian FFPE / SIMVI: not graded (whole-section fit: failed)
+%   Ovarian FFPE / MintFlow: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : 'MintFlow' (X_mintflow_micro_in of /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_ovarian_cancer_ffpe_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   Ovarian FFPE / Cellina: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   Ovarian FFPE / Cellina, niche domain: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   Lung FFPE / DISCELL: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
 %   Lung FFPE / resolVI: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : resolVI.absent (no context latent)
-%   Lung FFPE / SIMVI: not graded (whole-section fit: queued)
+%   Lung FFPE / SIMVI: not graded (whole-section fit: failed)
 %   Lung FFPE / MintFlow: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : 'MintFlow' (X_mintflow_micro_in of /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_human_lung_cancer_ffpe_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   Lung FFPE / Cellina: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   Lung FFPE / Cellina, niche domain: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   Ovarian FF / DISCELL: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
 %   Ovarian FF / resolVI: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : resolVI.absent (no context latent)
-%   Ovarian FF / SIMVI: not graded (whole-section fit: queued)
-%   Ovarian FF / MintFlow: not graded (whole-section fit: queued)
+%   Ovarian FF / SIMVI: not graded (whole-section fit: failed)
+%   Ovarian FF / MintFlow: not graded (whole-section fit: not_attempted)
 %   Ovarian FF / Cellina: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : 'Cellina' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   Ovarian FF / Cellina, niche domain: data/datasets/xenium_prime_human_ovary_ff/experiments/context_grade.json : 'Cellina, niche domain' (X_cellina_spatial of /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage_nicheadv/latents.h5ad; probe 1 - exp(-2 excess) x100, niche_mi excess, nmi)
 %   TMA core / DISCELL: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/context_grade.json : DISCELL.runs.finalL_s{0,1,2} (probe 1 - exp(-2 excess) x100, niche_mi excess, nmi; mean and min, max)
@@ -78,11 +77,7 @@
 %     probe records).
 %
 % Pending cells:
-%   - Ovarian FFPE / SIMVI: whole-section fit queued
-%   - Ovarian FFPE / MintFlow: whole-section fit running
-%   - Lung FFPE / SIMVI: whole-section fit queued
-%   - Ovarian FF / SIMVI: whole-section fit queued
-%   - Ovarian FF / MintFlow: whole-section fit queued
+%   none
 %
 \begin{table*}[t]
 \centering
@@ -99,15 +94,15 @@ Section & Method & $d$ & MLP $\uparrow$ & Ridge $\uparrow$ & MLP $\uparrow$ & Ri
 \multirow{7}{*}{Ovarian FFPE} & DISCELL & 6 & 23.3 & 15.6 & \textbf{39.9} & \textbf{31.2} & 0.47 & 0.42 \\
  & \quad range &  & 21.1--25.1 & 14.9--17.0 & 36.5--43.5 & 29.7--33.3 & 0.45--0.50 & 0.37--0.45 \\
  & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
- & SIMVI & -- & \multicolumn{6}{c}{\pending{queued}} \\
- & MintFlow & -- & \multicolumn{6}{c}{\pending{running}} \\
+ & SIMVI & -- & \multicolumn{6}{c}{could not be run on the resources currently available} \\
+ & MintFlow & 100 & \textbf{95.8} & \textbf{96.5} & 10.2 & 8.8 & 1.33 & 0.43 \\
  & Cellina & 64 & 40.2 & 24.9 & 26.9 & 22.2 & 0.58 & 0.27 \\
- & Cellina, niche domain & 64 & \textbf{51.5} & \textbf{37.0} & 28.4 & 25.2 & 0.74 & 0.32 \\
+ & Cellina, niche domain & 64 & 51.5 & 37.0 & 28.4 & 25.2 & 0.74 & 0.32 \\
 \midrule
 \multirow{7}{*}{Lung FFPE} & DISCELL & 6 & 15.6 & 12.2 & \textbf{40.1} & \textbf{35.1} & 0.59 & 0.27 \\
  & \quad range &  & 13.1--17.3 & 10.8--13.2 & 35.5--45.9 & 30.2--41.8 & 0.58--0.62 & 0.24--0.29 \\
  & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
- & SIMVI & -- & \multicolumn{6}{c}{\pending{queued}} \\
+ & SIMVI & -- & \multicolumn{6}{c}{could not be run on the resources currently available} \\
  & MintFlow & 100 & \textbf{93.2} & \textbf{95.0} & 13.8 & 11.4 & 1.46 & 0.34 \\
  & Cellina & 64 & 32.7 & 19.5 & 20.8 & 15.9 & 0.72 & 0.28 \\
  & Cellina, niche domain & 64 & 42.8 & 26.9 & 22.6 & 18.4 & 0.83 & 0.31 \\
@@ -115,8 +110,8 @@ Section & Method & $d$ & MLP $\uparrow$ & Ridge $\uparrow$ & MLP $\uparrow$ & Ri
 \multirow{7}{*}{Ovarian FF} & DISCELL & 6 & 33.7 & 30.1 & 37.6 & 28.1 & 0.60 & 0.33 \\
  & \quad range &  & 32.8--35.3 & 29.0--32.1 & 35.1--42.0 & 25.9--31.8 & 0.58--0.62 & 0.33--0.34 \\
  & resolVI & -- & \multicolumn{6}{c}{no context latent (a single cell latent)} \\
- & SIMVI & -- & \multicolumn{6}{c}{\pending{queued}} \\
- & MintFlow & -- & \multicolumn{6}{c}{\pending{queued}} \\
+ & SIMVI & -- & \multicolumn{6}{c}{could not be run on the resources currently available} \\
+ & MintFlow & -- & \multicolumn{6}{c}{could not be run on the resources currently available} \\
  & Cellina & 64 & 45.1 & 29.6 & \textbf{42.9} & \textbf{34.6} & 0.71 & 0.19 \\
  & Cellina, niche domain & 64 & \textbf{50.7} & \textbf{34.2} & 42.8 & 34.3 & 0.74 & 0.20 \\
 \midrule

@@ -27,13 +27,14 @@ import style as S  # noqa: E402
 
 PT = S.paper_tables()
 OUT = Path(__file__).resolve().parent.parent / "fig_kappa_sweep"
-# titles carry the preferred direction (up / down arrow: higher / lower is better);
-# the cycle R^2 of w has none, its target is zero (drawn as a line)
-READS = [("recon", r"reconstruction $\uparrow$"), ("nmi", r"NMI of $\mathbf{z}$ $\uparrow$"),
-         ("mirror_r2", r"mirror $R^2$ $\downarrow$"),
-         ("cycle_r2_z_q90", r"cycle $R^2$, $\mathbf{z}$ $\uparrow$"),
-         ("cycle_r2_w_q90", r"cycle $R^2$, $\mathbf{w}$ ($\approx 0$)"),
-         ("mi", r"$I(\mathrm{niche};\mathbf{w})$ $\uparrow$")]
+# column headers name the quantity on the vertical axes below them; no direction marker:
+# kappa is not selected on these readouts, which move with kappa by construction
+READS = [("recon", "held-out log-lik." "\n" "(nats/count)"),
+         ("nmi", r"NMI of $\mathbf{z}$" "\n" "with type"),
+         ("mirror_r2", r"mirror $R^2$"),
+         ("cycle_r2_z_q90", r"cycle $R^2$ of $\mathbf{z}$"),
+         ("cycle_r2_w_q90", r"cycle $R^2$ of $\mathbf{w}$" "\n" r"target $0$ (dashed)"),
+         ("mi", r"$I(\mathrm{niche};\mathbf{w})$" "\n" "(nats)")]
 ROWS = [(PT.OVARIAN, "Ovarian FFPE"), (PT.LUNG, "Lung FFPE"), (PT.FF, "Ovarian FF"),
         (PT.GSE, "Lung TMA core")]
 
@@ -43,13 +44,13 @@ withheld = {"mi"} if "I(niche; w) excess across" in tex else set()
 for n in tr.notes:
     if "mismatch" in n or "the sweep's" in n:
         print("check:", n)
-        for k, _ in READS:
+        for k, *_ in READS:
             if k in n:
                 withheld.add(k)
 
 S.apply()
-fig, axes = plt.subplots(len(ROWS), len(READS), figsize=(S.TEXTWIDTH, 3.55), sharex=True)
-fig.subplots_adjust(left=0.085, right=0.995, bottom=0.085, top=0.94, wspace=0.52, hspace=0.30)
+fig, axes = plt.subplots(len(ROWS), len(READS), figsize=(S.TEXTWIDTH, 3.9), sharex=True)
+fig.subplots_adjust(left=0.085, right=0.995, bottom=0.085, top=0.91, wspace=0.52, hspace=0.30)
 for i, (ds, name) in enumerate(ROWS):
     d = json.loads((PT.DATA / ds / "experiments" / "kappa_sweep_sweepL.json").read_text())
     grid = d["config"]["values"]
@@ -81,9 +82,9 @@ for i, (ds, name) in enumerate(ROWS):
         ax.yaxis.set_major_locator(plt.MaxNLocator(3))
         ax.tick_params(labelsize=6, pad=1.5)
         if i == 0:
-            ax.set_title(title, fontsize=7, color=S.INK, pad=3)
+            ax.set_title(title, fontsize=6.5, color=S.INK, pad=4, linespacing=1.1)
         if i == len(ROWS) - 1:
-            ax.set_xlabel(r"$\kappa$", labelpad=0.5)
+            ax.set_xlabel(r"leak fraction $\kappa$", labelpad=0.5, fontsize=7)
     axes[i, 0].annotate(name, xy=(-0.58, 0.5), xycoords="axes fraction", rotation=90,
                         ha="center", va="center", fontsize=7, color=S.INK)
 S.save(fig, OUT)

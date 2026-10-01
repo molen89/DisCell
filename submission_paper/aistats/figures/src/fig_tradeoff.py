@@ -109,15 +109,16 @@ for ax, (ds, title) in zip(axes.flat, PANELS):
     ax.set_title(title, fontsize=7.5, color=S.INK, pad=3)
     ax.grid(axis="both", color=S.GHOST, lw=0.5, zorder=0)
     ax.tick_params(labelsize=6.5)
-# the preferred direction on each axis (the y label is turned, so its arrow
-# is drawn as a right arrow that reads as an up arrow)
-YLAB = r"cycle $R^2$ of $\mathbf{z}$, better $\rightarrow$"
-XLAB = r"composition leakage of $\mathbf{z}$ (\%), $\leftarrow$ better"
+# the preferred direction on each axis, next to it: upright above the y axis, under the
+# right end of the x axis (the headers name sections); the labels name the quantities
+YLAB = r"cycle $R^2$ of $\mathbf{z}$"
+XLAB = r"composition leakage of $\mathbf{z}$ (\%)"
 for ax in axes[:, 0]:
     ax.set_ylabel(YLAB, labelpad=2)
-for ax in axes[1, :2]:
-    ax.set_xlabel(XLAB, labelpad=2)
-axes[0, 2].set_xlabel(XLAB, labelpad=2, loc="right")   # flush right: the figure edge is near
+    S.ybetter(ax, up=True)
+for ax in list(axes[1, :2]) + [axes[0, 2]]:
+    ax.set_xlabel(XLAB, labelpad=9)
+    S.xbetter(ax, right=False)
 # the desirable corner, once, where the first panel leaves it empty
 axes[0, 0].annotate(r"low leakage, keeps cycle state", xy=(0.012, 0.985), xycoords="axes fraction",
                     xytext=(0.13, 0.88), textcoords="axes fraction", fontsize=6.2, color=S.INK2,

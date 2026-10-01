@@ -74,8 +74,9 @@ for r, (key, rlab) in enumerate(ROWS):
         ax.yaxis.set_major_locator(plt.MaxNLocator(4))
         if r == 0:
             ax.set_title(title, fontsize=7.5, color=S.INK, pad=3)
-    # higher is better; the label is turned, so its right arrow reads as an up arrow
-    axes[r, 0].set_ylabel(f"fraction of ceiling,\n{rlab}, better " r"$\rightarrow$", labelpad=2, fontsize=7)
+    # higher is better: the marker is upright above the axis, the label names the quantity
+    axes[r, 0].set_ylabel(f"fraction of noise ceiling,\n{rlab}", labelpad=2, fontsize=7)
+    S.ybetter(axes[r, 0], up=True)
 h = [plt.Line2D([], [], marker="o", ls="-", lw=0.6, ms=3.5, color=S.BLUE, label="DISCELL, one line per seed"),
      plt.Line2D([], [], marker="^", ls="-", lw=0.6, ms=3.5, color=S.ORANGE, label="Cellina counterfactual")]
 fig.legend(handles=h, loc="lower center", ncol=2, frameon=False, fontsize=7, handlelength=1.8,

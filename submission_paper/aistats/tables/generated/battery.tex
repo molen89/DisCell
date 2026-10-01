@@ -1,9 +1,9 @@
 % Generated table: tab:battery. DO NOT EDIT BY HAND; regenerate instead.
-% Command: python scripts/paper_tables.py
-% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Command: python scripts/paper_tables.py --only battery timing
+% Generated: 2026-10-01 08:26:17 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
-%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 06:02:09)  [after the freeze; see checks]
+%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 22:00:20)  [after the freeze; see checks]
 %   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/baseline_battery_lineage.json  (2026-09-29 16:43:05)  [after the freeze; see checks]
 %   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage/Cellina_lineage.json  (2026-09-29 09:36:24)
 %   data/datasets/gse315411_pdltma06_10_prime_dual/experiments/probe_regrade_lineage_final.json  (2026-09-30 00:28:09)  [after the freeze; see checks]
@@ -12,15 +12,13 @@
 %   data/datasets/gse315411_pdltma06_11_prime_solo/experiments/probe_regrade_lineage_final.json  (2026-09-30 00:28:08)  [after the freeze; see checks]
 %   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-30 06:02:43)  [after the freeze; see checks]
 %   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage/Cellina_lineage.json  (2026-09-29 09:39:02)
-%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage/MintFlow_lineage.json  (2026-09-30 06:03:06)  [after the freeze; see checks]
-%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-30 00:28:09)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-30 22:00:21)  [after the freeze; see checks]
 %   data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json  (2026-09-29 17:13:13)  [after the freeze; see checks]
 %   data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage/Cellina_lineage.json  (2026-09-29 09:45:21)
-%   data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json  (2026-09-30 00:28:09)  [after the freeze; see checks]
-%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-29 23:31:14)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json  (2026-09-30 22:00:21)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json  (2026-09-30 21:54:06)  [after the freeze; see checks]
 %   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage/Cellina_lineage.json  (2026-09-29 09:46:50)
-%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-30 00:28:09)  [after the freeze; see checks]
-%   scripts/logs/baselines_complete_2026-09-28/queue.log  (2026-09-30 06:04:07)  [after the freeze; see checks]
+%   data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json  (2026-09-30 22:00:21)  [after the freeze; see checks]
 %   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/baseline_battery_lineage.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
 %   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_10_prime_dual/probe_regrade_lineage_final.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
 %   scripts/logs/cellina_extra_2026-09-29/backup/gse315411_pdltma06_11_prime_solo/baseline_battery_lineage.json  (2026-09-29 15:11:25)  [after the freeze; see checks]
@@ -50,6 +48,13 @@
 %   Ovarian FFPE / resolVI / Mirror $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
 %   Ovarian FFPE / resolVI / Cycle $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
 %   Ovarian FFPE / resolVI / Recon.: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   Ovarian FFPE / SIMVI / all columns: feasibility.tsv outcome 'failed': {'tool': 'SIMVI', 'dataset': 'xenium_prime_ovarian_cancer_ffpe', 'cells': '403648', 'outcome': 'failed', 'wall_h': '0.00', 'peak_gpu_gb': '0.0', 'peak_host_gb': '0.19', 'reason': 'CUDA OOM on a 24 GB RTX 4090 (GPU 1): tried to allocate 7.67 GiB with 15.87 GiB already in use by the fit; sampled peak 0.0 GB (nvidia-smi)'}
+%   Ovarian FFPE / MintFlow / NMI: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.nmi
+%   Ovarian FFPE / MintFlow / Comp., ridge: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   Ovarian FFPE / MintFlow / Comp., MLP: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   Ovarian FFPE / MintFlow / Mirror $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.mirror.r2
+%   Ovarian FFPE / MintFlow / Cycle $R^2$: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.cycle_q90.z.r2_pooled
+%   Ovarian FFPE / MintFlow / Recon.: not reported (issue B-mf1, manifest 'What must NOT be quoted')
 %   Ovarian FFPE / Cellina / NMI: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.nmi
 %   Ovarian FFPE / Cellina / Comp., ridge: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.fraction_of_uncontrolled
 %   Ovarian FFPE / Cellina / Comp., MLP: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.fraction_of_uncontrolled
@@ -74,9 +79,10 @@
 %   Lung FFPE / resolVI / Mirror $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
 %   Lung FFPE / resolVI / Cycle $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
 %   Lung FFPE / resolVI / Recon.: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   Lung FFPE / SIMVI / all columns: feasibility.tsv outcome 'failed': {'tool': 'SIMVI', 'dataset': 'xenium_prime_human_lung_cancer_ffpe', 'cells': '277169', 'outcome': 'failed', 'wall_h': '0.01', 'peak_gpu_gb': '17.29', 'peak_host_gb': '7.8', 'reason': 'CUDA OOM on a 24 GB RTX 4090 (GPU 1): tried to allocate 5.16 GiB with 21.27 GiB already in use by the fit; sampled peak 17.3 GB (nvidia-smi)'}
 %   Lung FFPE / MintFlow / NMI: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.nmi
-%   Lung FFPE / MintFlow / Comp., ridge: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage/MintFlow_lineage.json : 'MintFlow (lineage)'.ridge_comp.fraction_of_uncontrolled
-%   Lung FFPE / MintFlow / Comp., MLP: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage/MintFlow_lineage.json : 'MintFlow (lineage)'.mlp_comp.fraction_of_uncontrolled
+%   Lung FFPE / MintFlow / Comp., ridge: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.ridge_comp.fraction_of_uncontrolled
+%   Lung FFPE / MintFlow / Comp., MLP: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage_final.json : 'MintFlow (lineage)'.mlp_comp.fraction_of_uncontrolled
 %   Lung FFPE / MintFlow / Mirror $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.mirror.r2
 %   Lung FFPE / MintFlow / Cycle $R^2$: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json : 'MintFlow (lineage)'.cycle_q90.z.r2_pooled
 %   Lung FFPE / MintFlow / Recon.: not reported (issue B-mf1, manifest 'What must NOT be quoted')
@@ -104,6 +110,8 @@
 %   Ovarian FF / resolVI / Mirror $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'resolVI'.mirror.r2
 %   Ovarian FF / resolVI / Cycle $R^2$: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'resolVI'.cycle_q90.z.r2_pooled
 %   Ovarian FF / resolVI / Recon.: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'resolVI'.reconstruction.recon
+%   Ovarian FF / SIMVI / all columns: feasibility.tsv outcome 'failed': {'tool': 'SIMVI', 'dataset': 'xenium_prime_human_ovary_ff', 'cells': '1157343', 'outcome': 'failed', 'wall_h': '0.02', 'peak_gpu_gb': '0.54', 'peak_host_gb': '62.93', 'reason': 'CUDA OOM on a 24 GB RTX 4090 (GPU 1): tried to allocate 40.00 MiB with 23.47 GiB already in use by the fit; sampled peak 0.5 GB (nvidia-smi)'}
+%   Ovarian FF / MintFlow / all columns: feasibility.tsv outcome 'not_attempted': {'tool': 'MintFlow', 'dataset': 'xenium_prime_human_ovary_ff', 'cells': '1157343', 'outcome': 'not_attempted', 'wall_h': '', 'peak_gpu_gb': '', 'peak_host_gb': '', 'reason': "host memory: 102 GB available at the start of this step (< 110 GB required to retry). Earlier measured failure (2026-09-22, lane-2 REPAIR_REPORT section C): host OOM-killed (exit 137) after 574 s inside MintFlow's setup_data, before training; 1,157,343 cells x 5,001 genes, 956 M non-zeros; the process floor estimated ~92 GB (devlog: >= 45 GB before training) on a 125 GB host"}
 %   Ovarian FF / Cellina / NMI: data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json : 'Cellina (lineage)'.nmi
 %   Ovarian FF / Cellina / Comp., ridge: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.ridge_comp.fraction_of_uncontrolled
 %   Ovarian FF / Cellina / Comp., MLP: data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage_final.json : 'Cellina (lineage)'.mlp_comp.fraction_of_uncontrolled
@@ -208,10 +216,6 @@
 %   - Lung FFPE: per-method probe records convert exactly to the final table's layout (checked
 %     on 'Cellina (lineage)',
 %     data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage/Cellina_lineage.json).
-%   - Lung FFPE: 'MintFlow (lineage)' is not yet in probe_regrade_lineage_final.json (the queue
-%     re-renders it at its end); read from its own probe record
-%     data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/probe_regrade_lineage/MintFlow_lineage.json,
-%     whose uncontrolled reference equals the final table's seed mean (checked).
 %   - Ovarian FF: per-method probe records convert exactly to the final table's layout (checked
 %     on 'Cellina (lineage)',
 %     data/datasets/xenium_prime_human_ovary_ff/experiments/probe_regrade_lineage/Cellina_lineage.json).
@@ -226,14 +230,14 @@
 %     was compared with the frozen snapshot
 %     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/baseline_battery_lineage.json
 %     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2, resolVI,
-%     Cellina (lineage), cellina_nicheadv): identical.
+%     MintFlow (lineage), Cellina (lineage), cellina_nicheadv): identical.
 %   - Ovarian FFPE:
 %     data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/probe_regrade_lineage_final.json
 %     was compared with the frozen snapshot
 %     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_ovarian_cancer_ffpe/probe_regrade_lineage_final.json
 %     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
-%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage),
-%     cellina_nicheadv): identical.
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, MintFlow (lineage), Cellina
+%     (lineage), cellina_nicheadv): identical.
 %   - Lung FFPE:
 %     data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/baseline_battery_lineage.json
 %     was compared with the frozen snapshot
@@ -245,8 +249,8 @@
 %     was compared with the frozen snapshot
 %     scripts/logs/cellina_extra_2026-09-29/backup/xenium_prime_human_lung_cancer_ffpe/probe_regrade_lineage_final.json
 %     for the entries used (DisCell/finalL_s0, DisCell/finalL_s1, DisCell/finalL_s2,
-%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, Cellina (lineage),
-%     cellina_nicheadv): identical.
+%     DisCell/uncontrolledL_s0, DisCell/uncontrolledL_s1, resolVI, MintFlow (lineage), Cellina
+%     (lineage), cellina_nicheadv): identical.
 %   - Ovarian FF:
 %     data/datasets/xenium_prime_human_ovary_ff/experiments/baseline_battery_lineage.json was
 %     compared with the frozen snapshot
@@ -297,9 +301,9 @@
 %     its excess over the file's uncontrolled seed mean (1.1262). Its excess equals that of the
 %     entry 'Cellina (lineage)' (same fitted model, transferred), whose fraction is consistent,
 %     so that entry is used.
-%   - Ovarian FFPE / NMI: bold on Cellina.
+%   - Ovarian FFPE / NMI: bold on MintFlow.
 %   - Ovarian FFPE / Comp., ridge: bold on DISCELL.
-%   - Ovarian FFPE / Comp., MLP: bold on DISCELL.
+%   - Ovarian FFPE / Comp., MLP: bold on MintFlow.
 %   - Ovarian FFPE / Mirror $R^2$: bold on DISCELL.
 %   - Ovarian FFPE / Cycle $R^2$: bold on Cellina.
 %   - Ovarian FFPE / Recon.: bold on DISCELL.
@@ -332,8 +336,9 @@
 %     so the two tables' DISCELL rows are not interchangeable.
 %   - Ovarian FFPE: target cells scored per entry (reconstruction.n_cells):
 %     {'DisCell/finalL_s0': 36114, 'DisCell/finalL_s1': 35877, 'DisCell/finalL_s2': 34548,
-%     'resolVI': 36233, 'Cellina (lineage)': 36233, 'cellina_nicheadv': 36233}. The scored sets
-%     differ slightly between entries (each DISCELL seed has its own split).
+%     'resolVI': 36233, 'MintFlow (lineage)': 36233, 'Cellina (lineage)': 36233,
+%     'cellina_nicheadv': 36233}. The scored sets differ slightly between entries (each DISCELL
+%     seed has its own split).
 %   - Lung FFPE: target cells scored per entry (reconstruction.n_cells): {'DisCell/finalL_s0':
 %     39969, 'DisCell/finalL_s1': 39973, 'DisCell/finalL_s2': 39966, 'resolVI': 40000, 'MintFlow
 %     (lineage)': 40000, 'Cellina (lineage)': 40000, 'cellina_nicheadv': 40000}. The scored sets
@@ -354,9 +359,10 @@
 %     'cellina_owngraph_transfer': 10528}. The scored sets differ slightly between entries (each
 %     DISCELL seed has its own split).
 %   - Whole-section attempts (DisCell-baselines/results/feasibility.tsv, else the
-%     baselines_complete queue log): SIMVI Ovarian FFPE: queued; MintFlow Ovarian FFPE: running;
-%     SIMVI Lung FFPE: queued; MintFlow Lung FFPE: scored as 'MintFlow (lineage)' (feasibility:
-%     ok, 14.81 h); SIMVI Ovarian FF: queued; MintFlow Ovarian FF: queued.
+%     baselines_complete queue log): SIMVI Ovarian FFPE: failed; MintFlow Ovarian FFPE: scored
+%     as 'MintFlow (lineage)' (feasibility: ok, 15.82 h); SIMVI Lung FFPE: failed; MintFlow Lung
+%     FFPE: scored as 'MintFlow (lineage)' (feasibility: ok, 14.81 h); SIMVI Ovarian FF: failed;
+%     MintFlow Ovarian FF: not_attempted.
 %   - Caption claims verified 2026-09-29 against DisCell-baselines: common.py filter_cells (>= 5
 %     counts, the only filter); every result's config.json n_cells equals the export's cells
 %     with >= 5 counts (e.g. TMA core 69,206 of 69,422, the export's held-out split included);
@@ -370,20 +376,11 @@
 %     rule; on the serial section they are the core's fits transferred.
 %
 % Pending cells:
-%   - Ovarian FFPE / SIMVI / all columns: whole-section fit queued (queue
-%     baselines_complete_2026-09-28)
-%   - Ovarian FFPE / MintFlow / all columns: whole-section fit running (queue
-%     baselines_complete_2026-09-28)
-%   - Lung FFPE / SIMVI / all columns: whole-section fit queued (queue
-%     baselines_complete_2026-09-28)
-%   - Ovarian FF / SIMVI / all columns: whole-section fit queued (queue
-%     baselines_complete_2026-09-28)
-%   - Ovarian FF / MintFlow / all columns: whole-section fit queued (queue
-%     baselines_complete_2026-09-28)
+%   none
 %
 \begin{table*}[t]
 \centering
-\caption{One battery for every method, at lineage labels, on the held-out cells of each section, with Unassigned cells not targets. NMI of the intrinsic latent with the type; \emph{Ridge}, \emph{MLP}: the held-out excess of the ridge and MLP probes of neighbour composition as a fraction of that of DISCELL without the adversary (the fraction left of \cref{tab:probe}); mirror $R^2$; cycle $R^2$ of the intrinsic latent on the top-decile cycling set; held-out reconstruction in nats per count. For DISCELL, the mean over three seeds and the range. Arrows give the preferred direction; bold marks the best value per section, for DISCELL by its mean. DISCELL's held-out tiles are excluded from its training loss. The comparison methods are fitted as their software is designed, on every cell of the section with at least five counts, held-out tiles included, and are scored on our held-out cells: resolVI and MintFlow train on all of them, and Cellina and SIMVI on a random nine tenths of the cells (the rest serve their own early stopping), so their reads, reconstruction above all, are not held-out reads. On the serial section, resolVI and SIMVI are fitted on that section itself, so theirs are not held-out reads either; the Cellina rows, MintFlow and DISCELL are the core's models transferred. \emph{Cellina, own graph}: Cellina on its own neighbour graph instead of ours. DISCELL's rows are the battery's own reads, on the cell set shared with the comparison methods, and so differ slightly from \cref{tab:headline}. $^{a}$Whole-section fits of SIMVI and MintFlow: MintFlow on lung FFPE is done and reported; MintFlow on ovarian FFPE is being run; MintFlow on ovarian FF and SIMVI on ovarian FFPE, lung FFPE, ovarian FF are queued; a method that cannot be run on the resources available will be reported as such, with the measured reason. $^{b}$Not reported: MintFlow's reconstruction is under inspection. $^{c}$SIMVI has no count decoder. $^{d}$Cellina, niche domain: Cellina with its domain adversary given our niche label (clusters of neighbour composition, fitted on training cells) in place of the tissue regions of its own paper, which our sections do not have. The label matches what the composition probe grades, so this row is Cellina's best case on the probe, not its published setting. --: not applicable.}
+\caption{One battery for every method, at lineage labels, on the held-out cells of each section, with Unassigned cells not targets. NMI of the intrinsic latent with the type; \emph{Ridge}, \emph{MLP}: the held-out excess of the ridge and MLP probes of neighbour composition as a fraction of that of DISCELL without the adversary (the fraction left of \cref{tab:probe}); mirror $R^2$; cycle $R^2$ of the intrinsic latent on the top-decile cycling set; held-out reconstruction in nats per count. For DISCELL, the mean over three seeds and the range. Arrows give the preferred direction; bold marks the best value per section, for DISCELL by its mean. DISCELL's held-out tiles are excluded from its training loss. The comparison methods are fitted as their software is designed, on every cell of the section with at least five counts, held-out tiles included, and are scored on our held-out cells: resolVI and MintFlow train on all of them, and Cellina and SIMVI on a random nine tenths of the cells (the rest serve their own early stopping), so their reads, reconstruction above all, are not held-out reads. On the serial section, resolVI and SIMVI are fitted on that section itself, so theirs are not held-out reads either; the Cellina rows, MintFlow and DISCELL are the core's models transferred. \emph{Cellina, own graph}: Cellina on its own neighbour graph instead of ours. DISCELL's rows are the battery's own reads, on the cell set shared with the comparison methods, and so differ slightly from \cref{tab:headline}. $^{b}$MintFlow's reconstruction is not reported: the stored value came from an export error in our pipeline that scored each cell against its own counts; refits with a corrected export are running. $^{c}$SIMVI has no count decoder. $^{d}$Cellina, niche domain: Cellina with its domain adversary given our niche label (clusters of neighbour composition, fitted on training cells) in place of the tissue regions of its own paper, which our sections do not have. The label matches what the composition probe grades, so this row is Cellina's best case on the probe, not its published setting. $^{e}$Measured reason: SIMVI, ovarian FFPE: out of GPU memory on a 24 GB card (a further 7.67 GiB requested with 15.87 GiB in use); SIMVI, lung FFPE: out of GPU memory on a 24 GB card (a further 5.16 GiB requested with 21.27 GiB in use); SIMVI, ovarian FF: out of GPU memory on a 24 GB card (a further 40.00 MiB requested with 23.47 GiB in use); MintFlow, ovarian FF: an earlier attempt was stopped for lack of host memory before training (1,157,343 cells, 5,001 genes; an estimated 92 GB needed on a 125 GB host); a retry needs 110 GB free and 102 GB were available. --: not applicable.}
 \label{tab:battery}
 \small
 \setlength{\tabcolsep}{2pt}
@@ -392,18 +389,18 @@
 \toprule
 Section & Method & NMI $\uparrow$ & Ridge $\downarrow$ & MLP $\downarrow$ & Mirror $R^2$ $\downarrow$ & Cycle $R^2$ $\uparrow$ & Recon. $\uparrow$ \\
 \midrule
-\multirow{7}{*}{Ovarian FFPE} & DISCELL & 0.708 & \textbf{0.16} & \textbf{0.27} & \textbf{0.049} & 0.519 & \textbf{\boldmath $-7.192$} \\
+\multirow{7}{*}{Ovarian FFPE} & DISCELL & 0.708 & \textbf{0.16} & 0.27 & \textbf{0.049} & 0.519 & \textbf{\boldmath $-7.192$} \\
  & \quad range & 0.694--0.720 & 0.15--0.18 & 0.23--0.32 & 0.044--0.051 & 0.504--0.548 & $-7.231$ to $-7.148$ \\
  & resolVI & 0.711 & 1.22 & 1.09 & 0.293 & 0.559 & $-7.231$ \\
- & SIMVI & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
- & MintFlow & \multicolumn{6}{c}{\pending{running}$^{a}$} \\
- & Cellina & \textbf{0.850} & 1.35 & 0.85 & 0.103 & \textbf{0.566} & $-7.231$ \\
+ & SIMVI & \multicolumn{6}{c}{could not be run on the resources currently available$^{e}$} \\
+ & MintFlow & \textbf{0.962} & 0.65 & \textbf{0.17} & 0.053 & 0.062 & n/r$^{b}$ \\
+ & Cellina & 0.850 & 1.35 & 0.85 & 0.103 & \textbf{0.566} & $-7.231$ \\
  & Cellina, niche$^{d}$ & 0.653 & 1.43 & 0.82 & 0.175 & 0.329 & $-7.278$ \\
 \midrule
 \multirow{7}{*}{Lung FFPE} & DISCELL & 0.733 & \textbf{0.17} & 0.39 & \textbf{0.026} & 0.186 & \textbf{\boldmath $-7.254$} \\
  & \quad range & 0.728--0.741 & 0.15--0.20 & 0.36--0.43 & 0.025--0.027 & 0.177--0.195 & $-7.267$ to $-7.243$ \\
  & resolVI & 0.845 & 1.18 & 1.01 & 0.153 & 0.147 & $-7.282$ \\
- & SIMVI & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & SIMVI & \multicolumn{6}{c}{could not be run on the resources currently available$^{e}$} \\
  & MintFlow & \textbf{0.985} & 0.26 & \textbf{0.09} & 0.039 & 0.006 & n/r$^{b}$ \\
  & Cellina & 0.937 & 1.10 & 0.70 & 0.047 & \textbf{0.311} & $-7.276$ \\
  & Cellina, niche$^{d}$ & 0.811 & 1.27 & 0.76 & 0.048 & 0.180 & $-7.312$ \\
@@ -411,8 +408,8 @@ Section & Method & NMI $\uparrow$ & Ridge $\downarrow$ & MLP $\downarrow$ & Mirr
 \multirow{7}{*}{Ovarian FF} & DISCELL & 0.688 & \textbf{0.08} & \textbf{0.15} & \textbf{0.091} & \textbf{0.757} & $-7.320$ \\
  & \quad range & 0.667--0.722 & 0.07--0.09 & 0.14--0.16 & 0.086--0.094 & 0.744--0.768 & $-7.329$ to $-7.312$ \\
  & resolVI & 0.687 & 0.71 & 0.83 & 0.400 & 0.489 & $-7.319$ \\
- & SIMVI & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
- & MintFlow & \multicolumn{6}{c}{\pending{queued}$^{a}$} \\
+ & SIMVI & \multicolumn{6}{c}{could not be run on the resources currently available$^{e}$} \\
+ & MintFlow & \multicolumn{6}{c}{could not be run on the resources currently available$^{e}$} \\
  & Cellina & \textbf{0.823} & 1.10 & 0.80 & 0.142 & 0.675 & \textbf{\boldmath $-7.309$} \\
  & Cellina, niche$^{d}$ & 0.587 & 1.03 & 0.75 & 0.138 & 0.614 & $-7.315$ \\
 \midrule

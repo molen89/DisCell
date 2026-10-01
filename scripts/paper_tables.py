@@ -119,6 +119,12 @@ SYNTH = DATA / "synthetic_smoke" / "experiments"
 TIMING_ALL = (REPO / "scripts" / "logs" / "final_lineage_2026-09-25"
               / "timing_all_lineage.md")
 WHOLE_SECTION = (OVARIAN, LUNG, FF)        # the queue's whole-section targets
+# MintFlow refits with a corrected export (devlog 2026-10-01, B-mf1; queue
+# scripts/queue_2026-10-01_mintflow_refit.sh): used wherever they exist, else
+# the original fits (in place, or archived once their refit is scored).
+MF_REFIT = BRES / "mintflow_refit_lineage"
+MF_ARCHIVE = BRES / "_archive_mintflow_export_bug" / "mintflow"
+MF_REFIT_TAG = "refit (corrected export)"   # its feasibility.tsv reasons start so
 CELLINA_EXTRA = [
     # (row label, section -> battery/probe entry)
     ("Cellina, niche domain", {OVARIAN: "cellina_nicheadv",
@@ -189,6 +195,31 @@ def tex_escape(s: str) -> str:
            "~": "\\textasciitilde{}", "^": "\\textasciicircum{}"}
     return "".join(rep.get(c, c) for c in s)
 
+
+
+def paper_reason(reason: str) -> str:
+    """A measured failure reason from feasibility.tsv in paper words: no log
+    names, no device ids, no sampling notes (the raw text stays in the
+    provenance comments)."""
+    r = reason or ""
+    m = re.search(r"CUDA OOM on a (\d+) GB[^:]*: tried to allocate ([\d.]+ [GM]iB) "
+                  r"with ([\d.]+ GiB) already in use", r)
+    if m:
+        return (f"out of GPU memory on a {m.group(1)} GB card (a further "
+                f"{m.group(2)} requested with {m.group(3)} in use)")
+    m = re.search(r"host memory: (\d+) GB available.*?\(< (\d+) GB required", r)
+    if m and "exit 137" in r:
+        cells = re.search(r"([\d,]+) cells x ([\d,]+) genes", r)
+        floor = re.search(r"estimated ~?(\d+) GB", r)
+        host = re.search(r"on a (\d+) GB host", r)
+        return ("an earlier attempt was stopped for lack of host memory before "
+                "training"
+                + (f" ({cells.group(1)} cells, {cells.group(2)} genes"
+                   + (f"; an estimated {floor.group(1)} GB needed" if floor else "")
+                   + (f" on a {host.group(1)} GB host" if host else "") + ")"
+                   if cells else "")
+                + f"; a retry needs {m.group(2)} GB free and {m.group(1)} GB were available")
+    return re.sub(r"\s*\([^)]*(devlog|REPAIR|nvidia-smi|GPU \d)[^)]*\)", "", r)
 
 def finite(x) -> bool:
     return x is not None and not (isinstance(x, float) and math.isnan(x))
@@ -792,7 +823,10 @@ def baseline_state(tr: Trace, tool: str, ds: str) -> tuple[str, dict | None]:
     not_attempted), else 'running' or 'queued' from the queue's log."""
     rows = list(csv.DictReader(io.StringIO(tr.read_text(FEAS)),
                                delimiter="\t"))
-    mine = [r for r in rows if r["tool"] == tool and r["dataset"] == ds]
+    mine = [r for r in rows if r["tool"] == tool and r["dataset"] == ds
+            # a MintFlow refit that did not finish leaves the original fit
+            and not (r["reason"].startswith(MF_REFIT_TAG)
+                     and r["outcome"] not in RUNNABLE)]
     if mine:
         return mine[-1]["outcome"], mine[-1]
     log = tr.read_text(BQ_LOG)
@@ -845,10 +879,37 @@ def whole_entry(bat: dict, tool: str) -> str | None:
     """The battery column of a whole-section fit, if scored."""
     if tool == "SIMVI":
         return "SIMVI (lineage)" if "SIMVI (lineage)" in bat else None
-    for k in bat:
-        if k == "MintFlow (lineage)" or k.startswith("MintFlow (lineage, trunc"):
-            return k
-    return None
+    keys = [k for k in bat if k == "MintFlow (lineage)"
+            or k.startswith("MintFlow (lineage, trunc")]
+    refit = [k for k in keys if mf_refit_entry(bat[k])]
+    return (refit or keys or [None])[0]
+
+
+def mf_refit_entry(entry: dict | None) -> bool:
+    """A MintFlow battery entry scored from a refit with the corrected export
+    (its fit config names the decoded rate; B-mf1, devlog 2026-10-01)."""
+    return bool(((entry or {}).get("config") or {}).get("decoded_rate"))
+
+
+def mf_refit_entries(ds: str) -> set[str]:
+    """The battery entries of a section that are MintFlow refits."""
+    p = DATA / ds / "experiments" / "baseline_battery_lineage.json"
+    if not p.exists():
+        return set()
+    bat = json.loads(p.read_text())
+    return {k for k, v in bat.items() if k.startswith("MintFlow")
+            and mf_refit_entry(v)}
+
+
+def mf_config(ds: str) -> Path:
+    """The config.json of the MintFlow fit the paper reads for a section: the
+    refit's once it has written one (with the decoded rate), else the
+    original fit's, in place or archived."""
+    new = MF_REFIT / ds / "config.json"
+    if new.exists() and json.loads(new.read_text()).get("decoded_rate"):
+        return new
+    old = BRES / "mintflow" / f"{ds}_lineage" / "config.json"
+    return old if old.exists() else MF_ARCHIVE / f"{ds}_lineage" / "config.json"
 
 
 def _uncontrolled_mean(d: dict, block: str) -> float:
@@ -878,14 +939,19 @@ def _snapshot_check(tr: Trace, ds: str, fname: str, live: dict,
     if not snap.exists():
         return set()
     frozen = tr.read_json(snap)
-    bad = {e for e in entries if e in frozen and
+    # MintFlow refits (corrected export, 2026-10-01) replace their frozen
+    # entries by design: not compared
+    refit = mf_refit_entries(ds) & set(entries)
+    bad = {e for e in entries if e in frozen and e not in refit and
            json.dumps(frozen[e], sort_keys=True)
            != json.dumps(live.get(e), sort_keys=True)}
     live_p = DATA / ds / "experiments" / fname
     tr.notes.append(
         f"{SHORT[ds]}: {rel(live_p)} was compared with the frozen snapshot "
         f"{rel(snap)} for the entries used ({', '.join(entries)}): "
-        + ("identical." if not bad else f"DIFFERENT for {sorted(bad)}."))
+        + ("identical." if not bad else f"DIFFERENT for {sorted(bad)}.")
+        + (f" Not compared (MintFlow refits with the corrected export): "
+           f"{sorted(refit)}." if refit else ""))
     return bad
 
 
@@ -1220,7 +1286,7 @@ def table_battery(command: str) -> tuple[str, Trace]:
     body = []
     ncol = len(BATTERY_COLS)
     notrun: list[str] = []
-    any_pending = any_trunc = False
+    any_pending = any_trunc = any_nr = False
     for ds in SECTIONS:
         nrows = 2 + len(methods[ds])
         # DisCell: mean row and range row
@@ -1273,7 +1339,7 @@ def table_battery(command: str) -> tuple[str, Trace]:
                     cell = tr.pend(where, why, state) + "$^{a}$"
                 else:
                     notrun.append(f"{meth}, {INLINE[ds]}: "
-                                  + tex_escape(row["reason"] if row else state))
+                                  + tex_escape(paper_reason(row["reason"]) if row else state))
                     cell = f"{NOT_RUN}$^{{e}}$"
                     tr.prov.append(f"{where}: feasibility.tsv outcome "
                                    f"'{state}': {row}")
@@ -1294,7 +1360,9 @@ def table_battery(command: str) -> tuple[str, Trace]:
                                          "from the frozen snapshot", "check"))
                     continue
                 path = path_of(ds, entry, src)
-                if meth == "MintFlow" and key == "reconstruction.recon":
+                if (meth == "MintFlow" and key == "reconstruction.recon"
+                        and not mf_refit_entry(bat[ds][1].get(entry))):
+                    any_nr = True
                     cells.append("n/r$^{b}$")
                     tr.prov.append(f"{where}: not reported (issue B-mf1, "
                                    "manifest 'What must NOT be quoted')")
@@ -1415,8 +1483,10 @@ def table_battery(command: str) -> tuple[str, Trace]:
         "own reads, on the cell set shared with the comparison methods, and "
         "so differ slightly from \\cref{tab:headline}. "
         + foot_a +
-        "$^{b}$Not reported: MintFlow's reconstruction is under "
-        "inspection. $^{c}$SIMVI has no count decoder. $^{d}$Cellina, niche domain: Cellina with "
+        ("$^{b}$MintFlow's reconstruction is not reported: the stored value "
+         "came from an export error in our pipeline that scored each cell "
+         "against its own counts; refits with a corrected export are running. "
+         if any_nr else "") + "$^{c}$SIMVI has no count decoder. $^{d}$Cellina, niche domain: Cellina with "
         "its domain adversary given our niche label (clusters of neighbour "
         "composition, fitted on training cells) in place of the tissue "
         "regions of its own paper, which our sections do not have. The "
@@ -2039,7 +2109,8 @@ def table_timing(command: str) -> tuple[str, Trace]:
             tr.prov.append(f"{meth} / {SHORT[ds]}: {rel(cfgs[meth])} : "
                            "train_s / 60")
         for tool in ("SIMVI", "MintFlow"):
-            cp = BRES / tool.lower() / f"{ds}_lineage" / "config.json"
+            cp = (mf_config(ds) if tool == "MintFlow"
+                  else BRES / tool.lower() / f"{ds}_lineage" / "config.json")
             where = f"{tool} / {SHORT[ds]}"
             if ds == GSE:
                 state, row = "ok", None
@@ -2076,7 +2147,7 @@ def table_timing(command: str) -> tuple[str, Trace]:
                 tval[tool].append(None)
             else:
                 notrun.append(f"{tool}, {INLINE[ds]}: "
-                              + tex_escape(row["reason"]))
+                              + tex_escape(paper_reason(row["reason"])))
                 rows[tool].append(f"not run$^{{a}}$")
                 tval[tool].append(None)
                 tr.prov.append(f"{where}: feasibility.tsv {row}")
@@ -2109,7 +2180,8 @@ def table_timing(command: str) -> tuple[str, Trace]:
                     "configuration of finalL_s0). The comparison methods' "
                     "times are train_s of the fit compared in the paper "
                     "(lineage labels): resolvi_lineage/<ds>, cellina/"
-                    "<ds>_lineage, simvi/<ds>_lineage, mintflow/<ds>_lineage. "
+                    "<ds>_lineage, simvi/<ds>_lineage, mintflow/<ds>_lineage (or "
+                    "mintflow_refit_lineage/<ds> once that refit exists). "
                     "For the whole-section MintFlow fit on lung FFPE, "
                     "feasibility.tsv's wall_h includes setup and prediction; "
                     "the table shows train_s like every other method.")
@@ -2157,18 +2229,28 @@ BD_MEMBERS = [
     ("w_niche_mi_excess", "$\\I(\\text{niche}; \\vw)$ $-$ its floor"),
     ("readA_minus_typemean", "Read A $-$ type-mean reference"),
     ("readB_twin_margin", "Twin margin"),
-    ("transport_cf_minus_program", "Transport $-$ programme part"),
     ("transport_cf_minus_leak", "Transport $-$ leakage part"),
     ("signalling_response_lr_vs_other", "Signalling share, LR $-$ other"),
-    ("marker_excl_minus_ctrl_dc", "Marker pairs, exclusive $-$ control"),
     ("axis_tau_true_minus_false", "Tumour axis, true $-$ false"),
 ]
 BD_TRANSPORT = {"readA_minus_typemean", "readB_twin_margin",
-                "transport_cf_minus_program", "transport_cf_minus_leak"}
+                "transport_cf_minus_leak"}
 
 
-def _bd_family(section: str, m_s: int) -> set[str]:
-    """The members of a section's family (devlog, lean 8.19 entry)."""
+def _bd_family(section: str, m_s: int, record: dict | None = None
+               ) -> set[str]:
+    """The members of a section's family (devlog, lean 8.19 entry, less the
+    marker pairs, a trajectory readout since the author's 2026-09-30
+    decisions, and transport - programme part, one since 2026-10-01). A
+    section *record* written since 2026-10-01 names its family (by readout
+    availability: the axis test on lung and FF too, the headline members on
+    the serial section); older records get the earlier rule."""
+    if record and record.get("family") is not None:
+        fam = set(record["family"])
+        if len(fam) != m_s:
+            raise SystemExit(f"breakdown {section}: family of {len(fam)} "
+                             f"members, file says m = {m_s}")
+        return fam
     if section == "gse_dual":
         return {"cycle_asym_q90"}
     fam = {k for k, _ in BD_MEMBERS} - {"axis_tau_true_minus_false"}
@@ -2197,6 +2279,7 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
     foot = {"interval contains 0": "a", "a seed flips sign": "b",
             "seeds disagree in sign": "b"}
     used_foot: set[str] = set()
+    na_where: dict[str, list[str]] = {}
     neg = False
     body = []
     header = ["Contrast"]
@@ -2206,8 +2289,13 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
         cells = []
         for sec, ds in BD_SECTIONS:
             s = d[sec]
-            fam = _bd_family(sec, s["m_s"])
+            fam = _bd_family(sec, s["m_s"], s)
             where = f"{label} / {SHORT[ds]}"
+            if key in (s.get("not_applicable") or {}):
+                cells.append("n/a")
+                na_where.setdefault(s["not_applicable"][key]["short"],
+                                    []).append(SHORT[ds])
+                continue
             if key not in fam:
                 cells.append("--")
                 continue
@@ -2272,6 +2360,18 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
     if "c" in used_foot:
         fl.append("$^{c}$see the section's record")
     grid = d["ovarian"]["grid"]
+    dual_fam = _bd_family("gse_dual", d["gse_dual"]["m_s"], d["gse_dual"])
+    serial = ("On the serial section only the cycle asymmetry is read, "
+              "through the core's fits. " if dual_fam == {"cycle_asym_q90"}
+              else "On the serial section the contrasts are read with the "
+              "core's fits applied to its cells. ")
+    axis_on = [SHORT[ds] for sec, ds in BD_SECTIONS
+               if "axis_tau_true_minus_false" in _bd_family(sec, d[sec]["m_s"],
+                                                            d[sec])]
+    axis = ("The tumour axis exists on the ovarian FFPE section only. "
+            if not na_where and axis_on == [SHORT[OVARIAN]] else "")
+    na = " ".join(f"n/a: not applicable on {' and '.join(w)} ({why})."
+                  for why, w in na_where.items())
     caption = (
         "Breakdown points $\\kappa^*$ of the contrasts the results claim, per "
         "section, on the leakage sweep ($\\kappa \\in \\{"
@@ -2287,9 +2387,10 @@ def table_breakdown(command: str) -> tuple[str, Trace]:
         + ". Signalling share: the response's share of ligand-receptor (LR) "
         "genes against other genes; tumour axis: Kendall's $\\tau$ of the "
         "response-predicted shift with the true against a false axis. "
-        "On the serial section only the cycle asymmetry is read, through "
-        "the core's fits. The tumour axis exists on the ovarian FFPE "
-        "section only. --: not in that section's set.")
+        + serial + axis + "The marker-pair contrast and transport $-$ "
+        "programme part are trajectories "
+        "(\\cref{tab:breakdown-traj}). --: not in that section's set."
+        + (" " + na if na else ""))
     tex = (tr.header(command, "kappa* per member and section from the lean "
                      "8.19 table; Bonferroni within each section (m_s); "
                      "status and kappa* as stored")
@@ -2309,7 +2410,14 @@ TRAJ_READS = [
     ("moran_mu_w", "Moran's $I$ of $\\vmu_w$", 3),
     ("atlas_effective_rank", "Atlas effective rank", 1),  # range: integers
     ("kappa_survival_overlap", "Programme overlap with the reference", 2),
+    ("marker_excl_minus_ctrl_dc", "Marker pairs, exclusive $-$ control", 1),
+    ("transport_cf_minus_program", "Transport $-$ programme part", 2),
 ]
+#: readouts printed scaled (the marker contrast, a difference of rates: in
+#: percentage points, its range in small type so the row fits the width)
+TRAJ_SCALE = {"marker_excl_minus_ctrl_dc": 100.0}
+#: readouts whose range is set in small type so the row fits the width
+TRAJ_SMALL_RANGE = {"marker_excl_minus_ctrl_dc", "transport_cf_minus_program"}
 
 
 def table_breakdown_traj(command: str) -> tuple[str, Trace]:
@@ -2343,19 +2451,25 @@ def table_breakdown_traj(command: str) -> tuple[str, Trace]:
                 if e["n"] < 3:
                     mark = "$^{\\dagger}$"
                     few.append(f"{SHORT[ds]} {key} kappa {g:g}: n = {e['n']}")
+                sc = TRAJ_SCALE.get(key, 1.0)
+                mean = e["mean"] * sc
                 mean_c.append(tr.cell(f"{SHORT[ds]} {key}", f"{g:g}",
-                                      num(e["mean"], nd) + mark, [e["mean"]],
-                                      nd, p, f"{sec}.readouts.{key}.{g:g}.mean"))
-                lo, hi, rd = e["min"], e["max"], nd
+                                      num(mean, nd) + mark, [mean],
+                                      nd, p, f"{sec}.readouts.{key}.{g:g}.mean"
+                                      + (f" x {sc:g}" if sc != 1 else "")))
+                lo, hi, rd = e["min"] * sc, e["max"] * sc, nd
                 if key == "atlas_effective_rank":   # counts of axes
                     if lo != int(lo) or hi != int(hi):
                         raise SystemExit(f"{sec}: non-integer atlas rank")
                     lo, hi, rd = int(lo), int(hi), 0
+                txt = ((str(lo) if lo == hi else f"{lo}--{hi}")
+                       if rd == 0 else vrange([lo, hi], rd))
+                if key in TRAJ_SMALL_RANGE:
+                    txt = f"{{\\scriptsize {txt}}}"
                 rng_c.append(tr.cell(f"{SHORT[ds]} {key} range", f"{g:g}",
-                                     (str(lo) if lo == hi else f"{lo}--{hi}")
-                                     if rd == 0 else vrange([lo, hi], rd),
-                                     [lo, hi], rd, p,
-                                     f"{sec}.readouts.{key}.{g:g}.min, max"))
+                                     txt, [lo, hi], rd, p,
+                                     f"{sec}.readouts.{key}.{g:g}.min, max"
+                                     + (f" x {sc:g}" if sc != 1 else "")))
             mk = (arrow("transport")
                   if key == "transport_of_ceiling_trusted" else "")
             body.append(f"\\quad {label}{mk} & " + " & ".join(mean_c)
@@ -2378,7 +2492,12 @@ def table_breakdown_traj(command: str) -> tuple[str, Trace]:
         "Readouts reported as trajectories across the leakage sweep, without "
         "a breakdown point: the mean over three seeds with the range. These "
         "are magnitudes, positive under any fit, or descriptions of what the "
-        "invariance leaves, so no null applies. \\emph{Transport}: the "
+        "invariance leaves, so no null applies, and the marker-pair contrast, "
+        "which is signed but measures the decode rather than the leak "
+        "correction, since it is already present at $\\kappa = 0$, and "
+        "transport $-$ programme part, which is zero by construction at "
+        "$\\kappa = 0$, where no leakage is modelled. "
+        "\\emph{Transport}: the "
         "fraction of the noise ceiling recovered by the mean transport read, "
         "trusted tier" + ("; $^{\\dagger}$over the seeds with a trusted panel"
                           if few else "")
@@ -2388,16 +2507,25 @@ def table_breakdown_traj(command: str) -> tuple[str, Trace]:
         "effective rank}: the number of programme axes kept. \\emph{Programme "
         "overlap}: the overlap of each fit's programme shift space with that "
         "of the first seed at $\\kappa = 0.1$, which is therefore $1$ for that "
-        "fit. The operating point $\\kappa = 0.1$ is in bold. The arrow gives "
+        "fit. \\emph{Marker pairs}: the change in the double-positive rate of "
+        "mutually exclusive marker pairs from the raw counts to the "
+        "corrected decode, minus the same change for control pairs, in "
+        "percentage points (\\cref{app:readouts}). \\emph{Transport $-$ "
+        "programme part}: the mean $R^2$ over all panels of the mean transport "
+        "read with the leakage term, minus that of the programme part alone. "
+        "The operating point $\\kappa = 0.1$ is in "
+        "bold. The arrow gives "
         "the preferred direction; the other readouts have none.")
     tex = (tr.header(command, "3-seed mean and [min, max] per kappa as "
                      "stored in the trajectory table")
-           + "\\begin{table}[t]\n\\centering\n"
-           f"\\caption{{{caption}}}\n\\label{{tab:breakdown-traj}}\n"
-           "\\footnotesize\n\\setlength{\\tabcolsep}{3pt}\n"
-           f"\\begin{{tabular}}{{@{{}}l{'c' * len(grid)}@{{}}}}\n\\toprule\n"
-           f"{head}\n\\midrule\n" + "\n".join(body)
-           + "\n\\bottomrule\n\\end{tabular}\n\\end{table}\n")
+           # a longtable: the trajectories outgrow one page (2026-10-01)
+           + "{\\footnotesize\\setlength{\\tabcolsep}{3pt}\n"
+           f"\\begin{{longtable}}{{@{{}}l{'c' * len(grid)}@{{}}}}\n"
+           f"\\caption{{{caption}}}\\label{{tab:breakdown-traj}}\\\\\n"
+           f"\\toprule\n{head}\n\\midrule\n\\endfirsthead\n"
+           f"\\toprule\n{head}\n\\midrule\n\\endhead\n"
+           "\\bottomrule\n\\endlastfoot\n" + "\n".join(body)
+           + "\n\\end{longtable}}\n")
     return tex, tr
 
 

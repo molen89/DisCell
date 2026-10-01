@@ -356,7 +356,52 @@ def world_and_posterior(seed: int, depth: int, device: str = "cuda"):
     return _WORLDS[key]
 
 
-def run_cell(cell: Cell, device: str = "cuda", epochs: int = EPOCHS) -> dict:
+#: the final-configuration protocol (devlog "Author's decisions on the open
+#: flags (2026-09-30)", item 4): the production Trainer at the TrainConfig
+#: defaults (adversary, composition weight 3, alpha_w 0.1 with its 30-epoch
+#: warm-up, 500 epochs / patience 40 on 15 % held-out tiles, best checkpoint
+#: restored; alpha_z None = 1/2 / mean count of the connected training
+#: cells), with only the pre-final run's reduced widths, tiles of 512 and
+#: v_pcs = D_PHI overridden. The pre-final protocol stays the default.
+FINAL_WIDTHS = dict(d_z=D_Z, d_w=2, hidden=128, gat_dim=16)
+FINAL_TILE_CELLS = 512
+
+
+def fit_final(sim, kappa: float, seed: int, name: str,
+              device: str = "cuda") -> dict:
+    """{"z": mu_z of every cell (node order), "fit": the fit's record}."""
+    from discell.experiments.synthetic_recovery import model_data
+    from discell.model.train import Trainer, TrainConfig
+
+    data = model_data(sim, seed)
+    config = TrainConfig(dataset="synthetic_smoke", run_name=name,
+                         **FINAL_WIDTHS, tile_cells=FINAL_TILE_CELLS,
+                         v_pcs=D_PHI, kappa=float(kappa),
+                         figures_every=10 ** 6, seed=seed, device=device)
+    trainer = Trainer(config, data)
+    summary = trainer.fit()                    # restores the best checkpoint
+    swept = trainer._sweep(trainer.train_batches + trainer.val_batches)
+    order = np.argsort(swept["nodes"])
+    assert np.array_equal(swept["nodes"][order], np.arange(sim.t.size))
+    c = trainer.config
+    return {"z": swept["mu_z"][order],
+            "fit": {"run_dir": str(trainer.run_dir),
+                    "best_epoch": summary["best"]["epoch"],
+                    "last_epoch": summary["last_epoch"],
+                    "best_recon_val": summary["best"]["recon_val"],
+                    "best_nmi": summary["best"]["nmi"],
+                    "dead_w_channel": summary["dead_w_channel"],
+                    "train_minutes": summary["minutes"],
+                    "alpha_z": c.alpha_z, "alpha_w": c.alpha_w,
+                    "alpha_a": c.alpha_a, "invariance": c.invariance,
+                    "adv_comp_weight": c.adv_comp_weight,
+                    "w_warmup_epochs": c.w_warmup_epochs,
+                    "epochs": c.epochs, "patience": c.patience,
+                    "kappa_model": c.kappa}}
+
+
+def run_cell(cell: Cell, device: str = "cuda", epochs: int = EPOCHS,
+             protocol: str = "prefinal") -> dict:
     """One (mismatch, depth, seed): build, fit, integrate, measure."""
     from discell.applications.planted import fit_synthetic
 
@@ -364,8 +409,15 @@ def run_cell(cell: Cell, device: str = "cuda", epochs: int = EPOCHS) -> dict:
     sim, truth, mean, sd, diag = world_and_posterior(cell.seed, cell.depth,
                                                      device=device)
     fold = _folds(len(sim.t), seed=cell.seed)
-    fit = fit_synthetic(sim, epochs=epochs, device=device, seed=cell.seed,
-                        d_z=D_Z, kappa=sim.kappa + cell.mismatch)
+    fit_record = None
+    if protocol == "final":
+        name = f"planpost_final_d{cell.depth}_s{cell.seed}_m{cell.mismatch:+.2f}"
+        fit = fit_final(sim, sim.kappa + cell.mismatch, cell.seed, name,
+                        device=device)
+        fit_record = fit["fit"]
+    else:
+        fit = fit_synthetic(sim, epochs=epochs, device=device, seed=cell.seed,
+                            d_z=D_Z, kappa=sim.kappa + cell.mismatch)
 
     features = encoder_features(sim)
     rows = {
@@ -394,6 +446,8 @@ def run_cell(cell: Cell, device: str = "cuda", epochs: int = EPOCHS) -> dict:
            "gaps": rows, "posterior": diag,
            "signal_to_posterior_sd": spread,
            "seconds": round(time.time() - t0, 1)}
+    if fit_record is not None:
+        out["fit"] = fit_record
     log.info("%s", json.dumps(out))
     return out
 
@@ -457,16 +511,22 @@ def write_report(rows: list[dict], table: dict, out_dir, args) -> dict:
     import matplotlib.pyplot as plt
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    payload = {"design": {
+    stem = f"planted_posterior{args.tag}"
+    design = {
         "n_cells": N_CELLS, "n_genes": N_GENES, "n_types": N_TYPES,
         "d_z": D_Z, "sigma_z": SIGMA_Z, "kappa_world": KAPPA_WORLD,
         "depths": list(DEPTHS), "mismatch": list(MISMATCH),
         "epochs": args.epochs, "seeds": args.seeds,
         "quadrature": {"grid": [GRID_N, GRID_N], "half_width_sd": GRID_HALF},
-    }, "runs": rows, "table": table,
+    }
+    if args.protocol == "final":
+        design.update(protocol="final", widths=FINAL_WIDTHS,
+                      tile_cells=FINAL_TILE_CELLS, v_pcs=D_PHI,
+                      epochs="TrainConfig default (see runs[].fit)")
+    payload = {"design": design, "runs": rows, "table": table,
         "verdict": verdict(table, "discell_warped"),
         "verdict_affine_gauge": verdict(table, "discell")}
-    (out_dir / "planted_posterior.json").write_text(json.dumps(payload, indent=2))
+    (out_dir / f"{stem}.json").write_text(json.dumps(payload, indent=2))
 
     arms = ("discell", "discell_warped", "mlp_oracle", "mlp_oracle_rhobar",
             "linear_oracle", "prior_mean")
@@ -502,7 +562,7 @@ def write_report(rows: list[dict], table: dict, out_dir, args) -> dict:
               json.dumps(payload["verdict"], indent=2), "```", "",
               "## Verdict (strict affine gauge, discell)", "", "```",
               json.dumps(payload["verdict_affine_gauge"], indent=2), "```", ""]
-    (out_dir / "planted_posterior.md").write_text("\n".join(lines))
+    (out_dir / f"{stem}.md").write_text("\n".join(lines))
 
     depths = [d for d in DEPTHS if any(f"{m:+.2f}|{d}" in table for m in MISMATCH)]
 
@@ -531,7 +591,7 @@ def write_report(rows: list[dict], table: dict, out_dir, args) -> dict:
     axes[1][0].set_ylabel("gap / posterior sd")
     axes[0][0].legend(fontsize=7)
     fig.tight_layout()
-    fig.savefig(out_dir / "planted_posterior.png", dpi=160)
+    fig.savefig(out_dir / f"{stem}.png", dpi=160)
     plt.close(fig)
     return payload
 
@@ -544,6 +604,15 @@ def main(argv=None) -> int:
     parser.add_argument("--epochs", type=int, default=EPOCHS)
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--dataset", default="synthetic_smoke")
+    parser.add_argument("--protocol", default="prefinal",
+                        choices=("prefinal", "final"),
+                        help="prefinal: applications.planted.fit_synthetic "
+                             "for --epochs (the 2026-09-23 run); final: the "
+                             "production Trainer at the TrainConfig defaults "
+                             "(fit_final; --epochs is not used)")
+    parser.add_argument("--tag", default="",
+                        help="suffix of the output files "
+                             "(planted_posterior<tag>.{json,md,png})")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
                         datefmt="%H:%M:%S")
@@ -553,12 +622,13 @@ def main(argv=None) -> int:
         for seed in args.seeds:
             for mismatch in args.mismatch:
                 rows.append(run_cell(Cell(mismatch, depth, seed),
-                                     device=args.device, epochs=args.epochs))
+                                     device=args.device, epochs=args.epochs,
+                                     protocol=args.protocol))
     table = summarise(rows)
     out_dir = paths.dataset(args.dataset).root / "experiments"
     payload = write_report(rows, table, out_dir, args)
     log.info("verdict %s", json.dumps(payload["verdict"], indent=2))
-    log.info("wrote %s", out_dir / "planted_posterior.json")
+    log.info("wrote %s", out_dir / f"planted_posterior{args.tag}.json")
     return 0
 
 

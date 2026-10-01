@@ -148,3 +148,27 @@ def method_point(ax, x, y, name, scale=1.0, z=4):
     st = METHOD_STYLE[name]
     ax.scatter([x], [y], s=st["size"] * scale, marker=st["marker"], linewidths=0.9, zorder=z,
                facecolor=st["color"] if st["fill"] else "white", edgecolor=st["color"])
+
+
+# ---- direction markers on metric axes: the arrow runs along the axis the metric runs along.
+# A horizontal metric gets its arrow in the panel header ("type" + RIGHT); a vertical one an
+# upright marker next to the axis (ybetter); a horizontal one under section-named headers xbetter.
+RIGHT, LEFT = r" $\rightarrow$", r" $\leftarrow$"
+
+
+def ybetter(ax, up=True, fontsize=6.5, over=False):
+    """Upright '(up/down) better' marker just outside the top of a vertical metric axis,
+    left of the spine (over=True: starting at the spine, under a header), so its arrow is
+    never rotated with the axis label."""
+    ax.annotate(rf"$\{'uparrow' if up else 'downarrow'}$ better", xy=(0, 1), xycoords="axes fraction",
+                xytext=(0 if over else -3, 3), textcoords="offset points", ha="left" if over else "right",
+                va="bottom",
+                fontsize=fontsize, color=INK2, annotation_clip=False)
+
+
+def xbetter(ax, right=True, fontsize=6.5):
+    """'better (left/right)' marker under the right end of a horizontal metric axis, below
+    its tick labels, for panels whose header names a section rather than the metric."""
+    ax.annotate(r"better $\rightarrow$" if right else r"$\leftarrow$ better", xy=(1, 0),
+                xycoords="axes fraction", xytext=(0, -12), textcoords="offset points", ha="right",
+                va="top", fontsize=fontsize, color=INK2, annotation_clip=False)

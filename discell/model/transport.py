@@ -120,12 +120,31 @@ def split_cells(data, fold: np.ndarray, scored_cells: str = "fold0"):
     return scored, model
 
 
-def out_root(run_dir, scored_cells: str = "fold0"):
+def out_root(run_dir, scored_cells: str = "fold0",
+             eval_dataset: str | None = None):
     """Where a read's files go: the run directory for the published read,
     ``<run>/heldout_tiles`` for the variant (``transport/`` and
-    ``bootstrap_ci.json`` inside, as in a run directory)."""
+    ``bootstrap_ci.json`` inside, as in a run directory);
+    ``<run>/crossslide/<eval>`` for the fit applied to another section
+    (opt-in ``--eval-dataset``, fold-0 scoring only)."""
+    if eval_dataset:
+        if scored_cells != "fold0":
+            raise ValueError("--eval-dataset scores fold 0 of that section")
+        from discell.model.crossslide import applied_root
+        return applied_root(run_dir, eval_dataset)
     return (run_dir if scored_cells == "fold0"
             else run_dir / SCORED_DIRS[scored_cells])
+
+
+def load_for(args: argparse.Namespace):
+    """``load_run``'s tuple for a read: the run's own section, or (opt-in
+    ``--eval-dataset``) the fit applied to another one
+    (``crossslide.load_applied``)."""
+    eval_dataset = getattr(args, "eval_dataset", None)
+    if eval_dataset:
+        from discell.model.crossslide import load_applied
+        return load_applied(args.dataset, args.run, eval_dataset, args.device)
+    return load_run(args.dataset, args.run, args.device)
 
 
 def scored_record(data, scored: np.ndarray, model: np.ndarray,
@@ -588,8 +607,7 @@ def transport_check(args: argparse.Namespace) -> dict:
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    config, data, trainer, run_dir, b_matrix = load_run(
-        args.dataset, args.run, args.device)
+    config, data, trainer, run_dir, b_matrix = load_for(args)
     latents = collect_latents(trainer, data)
     connected = data.graph.degrees > 0
     source = getattr(args, "niche_source", "kmeans")
@@ -635,8 +653,11 @@ def transport_check(args: argparse.Namespace) -> dict:
     if scored_cells != "fold0":
         results["scored_cells"] = scored_record(data, held_out, model_side,
                                                 scored_cells)
+    eval_dataset = getattr(args, "eval_dataset", None)
+    if eval_dataset:
+        results["evaluated_on"] = eval_dataset
     curves: dict = {}          # per panel: (counterfactual, observed) per gene
-    out_dir = out_root(run_dir, scored_cells) / "transport"
+    out_dir = out_root(run_dir, scored_cells, eval_dataset) / "transport"
     out_dir.mkdir(parents=True, exist_ok=True)
     stem = "transport" if source == "kmeans" else f"transport_{source}"
 
@@ -1289,8 +1310,7 @@ def distribution_check(args: argparse.Namespace,
     """
     from scipy.stats import spearmanr
 
-    config, data, trainer, run_dir, b_matrix = load_run(
-        args.dataset, args.run, args.device)
+    config, data, trainer, run_dir, b_matrix = load_for(args)
     latents = collect_latents(trainer, data)
     mu_z = latents["mu_z"]
     connected = data.graph.degrees > 0
@@ -1413,6 +1433,8 @@ def distribution_check(args: argparse.Namespace,
     if scored_cells != "fold0":
         results["scored_cells"] = scored_record(data, held_out, model_side,
                                                 scored_cells)
+    if getattr(args, "eval_dataset", None):
+        results["evaluated_on"] = args.eval_dataset
 
     pairs = pick_pairs(labels, data.graph.y, connected)
     for niche_a, niche_b in pairs:
@@ -1537,7 +1559,8 @@ def distribution_check(args: argparse.Namespace,
 
     # bar (4): do the two instruments call the same panels good?
     stem = "transport" if source_kind == "kmeans" else f"transport_{source_kind}"
-    out_dir = out_root(run_dir, scored_cells) / "transport"
+    eval_dataset = getattr(args, "eval_dataset", None)
+    out_dir = out_root(run_dir, scored_cells, eval_dataset) / "transport"
     mean_path = out_dir / f"{stem}.json"
 
     def agreement(key: str) -> dict:
@@ -1575,6 +1598,8 @@ def distribution_check(args: argparse.Namespace,
                     "pairwise": [], "leave_one_out": []}
         if scored_cells != "fold0":
             twin_res["scored_cells"] = results["scored_cells"]
+        if eval_dataset:
+            twin_res["evaluated_on"] = eval_dataset
         for version in ("pairwise", "leave_one_out"):
             for p in results[version]:
                 row = {k: v for k, v in p.items()
@@ -1960,6 +1985,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                              "the model's held-out tiles scored, model "
                              "quantities from its training tiles, written "
                              "under runs/<run>/heldout_tiles/")
+    parser.add_argument("--eval-dataset", default=None,
+                        help="apply the fit to this section (crossslide."
+                             "load_applied; fold 0 of it scored, folds 1-4 "
+                             "for the model quantities); written under "
+                             "runs/<run>/crossslide/<eval>/")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
@@ -1969,6 +1999,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.sweep_tag and args.scored_cells != "fold0":
         # the sweep table under experiments/ has no variant path
         parser.error("--scored-cells applies to --run only")
+    if args.eval_dataset and (args.sweep_tag or args.scored_cells != "fold0"):
+        parser.error("--eval-dataset applies to --run with fold-0 scoring")
     if args.sweep_tag:
         sweep_sensitivity(args)
     elif args.run:

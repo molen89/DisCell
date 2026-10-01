@@ -1,15 +1,16 @@
 % Generated table: tab:timing. DO NOT EDIT BY HAND; regenerate instead.
-% Command: python scripts/paper_tables.py
-% Generated: 2026-09-30 11:59:21 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
+% Command: python scripts/paper_tables.py --only timing
+% Generated: 2026-10-01 10:13:52 (results frozen 2026-09-29 15:07:21, last line of scripts/logs/unassigned_2026-09-28/queue.log)
 %
 % Sources read (modification time):
 %   /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage/config.json  (2026-09-28 11:59:58)
 %   /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage/config.json  (2026-09-28 13:27:56)
 %   /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage/config.json  (2026-09-28 12:56:54)
 %   /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage/config.json  (2026-09-28 13:15:25)
-%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 06:02:09)  [after the freeze; see checks]
+%   /home/rmolen/github/DisCell-baselines/results/feasibility.tsv  (2026-09-30 22:00:20)  [after the freeze; see checks]
 %   /home/rmolen/github/DisCell-baselines/results/mintflow/gse315411_pdltma06_11_prime_solo_lineage/config.json  (2026-09-28 17:14:51)
 %   /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_human_lung_cancer_ffpe_lineage/config.json  (2026-09-30 06:02:07)  [after the freeze; see checks]
+%   /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_ovarian_cancer_ffpe_lineage/config.json  (2026-09-30 21:53:23)  [after the freeze; see checks]
 %   /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/gse315411_pdltma06_11_prime_solo/config.json  (2026-09-26 03:42:59)
 %   /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_lung_cancer_ffpe/config.json  (2026-09-26 04:52:50)
 %   /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_ovary_ff/config.json  (2026-09-26 07:28:18)
@@ -35,7 +36,6 @@
 %   data/datasets/xenium_prime_ovarian_cancer_ffpe/runs/finalL_s0/metrics.json  (2026-09-25 21:58:20)
 %   data/datasets/xenium_prime_ovarian_cancer_ffpe/runs/finalL_s1/metrics.json  (2026-09-25 23:33:00)
 %   data/datasets/xenium_prime_ovarian_cancer_ffpe/runs/finalL_s2/metrics.json  (2026-09-26 00:02:22)
-%   scripts/logs/baselines_complete_2026-09-28/queue.log  (2026-09-30 06:04:07)  [after the freeze; see checks]
 %
 % Reading convention:
 %   DISCELL: the 20-epoch timing arm (s/epoch, peak, parameters) and the three final fits'
@@ -46,13 +46,18 @@
 %   DISCELL / Ovarian FFPE: data/datasets/xenium_prime_ovarian_cancer_ffpe/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
 %   resolVI / Ovarian FFPE: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_ovarian_cancer_ffpe/config.json : train_s / 60
 %   Cellina / Ovarian FFPE: /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_ovarian_cancer_ffpe_lineage/config.json : train_s / 60
+%   SIMVI / Ovarian FFPE: feasibility.tsv {'tool': 'SIMVI', 'dataset': 'xenium_prime_ovarian_cancer_ffpe', 'cells': '403648', 'outcome': 'failed', 'wall_h': '0.00', 'peak_gpu_gb': '0.0', 'peak_host_gb': '0.19', 'reason': 'CUDA OOM on a 24 GB RTX 4090 (GPU 1): tried to allocate 7.67 GiB with 15.87 GiB already in use by the fit; sampled peak 0.0 GB (nvidia-smi)'}
+%   MintFlow / Ovarian FFPE: /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_ovarian_cancer_ffpe_lineage/config.json : train_s / 60; feasibility.tsv: outcome ok, wall 15.82 h, peak GPU 9.47 GB, host 23.56 GB (whole section; train_s=56317.5; epochs 50/50)
 %   DISCELL / Lung FFPE: data/datasets/xenium_prime_human_lung_cancer_ffpe/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
 %   resolVI / Lung FFPE: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_lung_cancer_ffpe/config.json : train_s / 60
 %   Cellina / Lung FFPE: /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_lung_cancer_ffpe_lineage/config.json : train_s / 60
+%   SIMVI / Lung FFPE: feasibility.tsv {'tool': 'SIMVI', 'dataset': 'xenium_prime_human_lung_cancer_ffpe', 'cells': '277169', 'outcome': 'failed', 'wall_h': '0.01', 'peak_gpu_gb': '17.29', 'peak_host_gb': '7.8', 'reason': 'CUDA OOM on a 24 GB RTX 4090 (GPU 1): tried to allocate 5.16 GiB with 21.27 GiB already in use by the fit; sampled peak 17.3 GB (nvidia-smi)'}
 %   MintFlow / Lung FFPE: /home/rmolen/github/DisCell-baselines/results/mintflow/xenium_prime_human_lung_cancer_ffpe_lineage/config.json : train_s / 60; feasibility.tsv: outcome ok, wall 14.81 h, peak GPU 8.85 GB, host 21.08 GB (whole section; train_s=52762.7; epochs 50/50)
 %   DISCELL / Ovarian FF: data/datasets/xenium_prime_human_ovary_ff/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
 %   resolVI / Ovarian FF: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/xenium_prime_human_ovary_ff/config.json : train_s / 60
 %   Cellina / Ovarian FF: /home/rmolen/github/DisCell-baselines/results/cellina/xenium_prime_human_ovary_ff_lineage/config.json : train_s / 60
+%   SIMVI / Ovarian FF: feasibility.tsv {'tool': 'SIMVI', 'dataset': 'xenium_prime_human_ovary_ff', 'cells': '1157343', 'outcome': 'failed', 'wall_h': '0.02', 'peak_gpu_gb': '0.54', 'peak_host_gb': '62.93', 'reason': 'CUDA OOM on a 24 GB RTX 4090 (GPU 1): tried to allocate 40.00 MiB with 23.47 GiB already in use by the fit; sampled peak 0.5 GB (nvidia-smi)'}
+%   MintFlow / Ovarian FF: feasibility.tsv {'tool': 'MintFlow', 'dataset': 'xenium_prime_human_ovary_ff', 'cells': '1157343', 'outcome': 'not_attempted', 'wall_h': '', 'peak_gpu_gb': '', 'peak_host_gb': '', 'reason': "host memory: 102 GB available at the start of this step (< 110 GB required to retry). Earlier measured failure (2026-09-22, lane-2 REPAIR_REPORT section C): host OOM-killed (exit 137) after 574 s inside MintFlow's setup_data, before training; 1,157,343 cells x 5,001 genes, 956 M non-zeros; the process floor estimated ~92 GB (devlog: >= 45 GB before training) on a 125 GB host"}
 %   DISCELL / TMA core: data/datasets/gse315411_pdltma06_11_prime_solo/experiments/timing_lineage/timing_phi.json : n_params, peak_train_mib, s_per_epoch (checked against timing_lineage.md); runs/finalL_s{0,1,2}/metrics.json : minutes, last_epoch + 1
 %   resolVI / TMA core: /home/rmolen/github/DisCell-baselines/results/resolvi_lineage/gse315411_pdltma06_11_prime_solo/config.json : train_s / 60
 %   Cellina / TMA core: /home/rmolen/github/DisCell-baselines/results/cellina/gse315411_pdltma06_11_prime_solo_lineage/config.json : train_s / 60
@@ -67,20 +72,17 @@
 %   - DISCELL times per epoch are the timing arm 'phi' (20 epochs, no evaluation, first epoch
 %     excluded; the final configuration of finalL_s0). The comparison methods' times are train_s
 %     of the fit compared in the paper (lineage labels): resolvi_lineage/<ds>,
-%     cellina/<ds>_lineage, simvi/<ds>_lineage, mintflow/<ds>_lineage. For the whole-section
-%     MintFlow fit on lung FFPE, feasibility.tsv's wall_h includes setup and prediction; the
-%     table shows train_s like every other method.
+%     cellina/<ds>_lineage, simvi/<ds>_lineage, mintflow/<ds>_lineage (or
+%     mintflow_refit_lineage/<ds> once that refit exists). For the whole-section MintFlow fit on
+%     lung FFPE, feasibility.tsv's wall_h includes setup and prediction; the table shows train_s
+%     like every other method.
 %
 % Pending cells:
-%   - SIMVI / Ovarian FFPE: whole-section fit queued (queue baselines_complete_2026-09-28)
-%   - MintFlow / Ovarian FFPE: whole-section fit running (queue baselines_complete_2026-09-28)
-%   - SIMVI / Lung FFPE: whole-section fit queued (queue baselines_complete_2026-09-28)
-%   - SIMVI / Ovarian FF: whole-section fit queued (queue baselines_complete_2026-09-28)
-%   - MintFlow / Ovarian FF: whole-section fit queued (queue baselines_complete_2026-09-28)
+%   none
 %
 \begin{table}[t]
 \centering
-\caption{Model size and training cost on one GPU. \emph{Peak memory}: largest allocation during training, with the section resident on the GPU. \emph{Run time}: one whole fit, for DISCELL including its evaluations every five epochs and the early stop, as the range over the three seeds of the final configuration; for the comparison methods, the training time of the fit compared in this paper, at lineage labels. Every method is fitted on whole sections only. Arrows give the preferred direction; bold marks the best value per section: the fastest finished fit, for DISCELL by its mean. Whole-section fits of SIMVI and MintFlow still queued or running are marked as pending.}
+\caption{Model size and training cost on one GPU. \emph{Peak memory}: largest allocation during training, with the section resident on the GPU. \emph{Run time}: one whole fit, for DISCELL including its evaluations every five epochs and the early stop, as the range over the three seeds of the final configuration; for the comparison methods, the training time of the fit compared in this paper, at lineage labels. Every method is fitted on whole sections only. Arrows give the preferred direction; bold marks the best value per section: the fastest finished fit, for DISCELL by its mean. $^{a}$Could not be run on the resources currently available; measured reason: SIMVI, ovarian FFPE: out of GPU memory on a 24 GB card (a further 7.67 GiB requested with 15.87 GiB in use); SIMVI, lung FFPE: out of GPU memory on a 24 GB card (a further 5.16 GiB requested with 21.27 GiB in use); SIMVI, ovarian FF: out of GPU memory on a 24 GB card (a further 40.00 MiB requested with 23.47 GiB in use); MintFlow, ovarian FF: an earlier attempt was stopped for lack of host memory before training (1,157,343 cells, 5,001 genes; an estimated 92 GB needed on a 125 GB host); a retry needs 110 GB free and 102 GB were available.}
 \label{tab:timing}
 \footnotesize
 \setlength{\tabcolsep}{2.5pt}
@@ -98,8 +100,8 @@
 \quad DISCELL & \textbf{8.7--9.3} & \textbf{3.2--7.4} & 31.2--43.4 & \textbf{1.3} \\
 \quad resolVI & 32.8 & 22.0 & 105.0 & 5.5 \\
 \quad Cellina & 11.6 & 9.9 & \textbf{29.1} & 3.4 \\
-\quad SIMVI & \multicolumn{3}{c}{{\scriptsize \pending{queued}}} & 192.6 \\
-\quad MintFlow, 50 epochs & {\scriptsize \pending{running}} & 879.4 & {\scriptsize \pending{queued}} & 544.0 \\
+\quad SIMVI & not run$^{a}$ & not run$^{a}$ & not run$^{a}$ & 192.6 \\
+\quad MintFlow, 50 epochs & 938.6 & 879.4 & not run$^{a}$ & 544.0 \\
 \bottomrule
 \end{tabular}
 \end{table}

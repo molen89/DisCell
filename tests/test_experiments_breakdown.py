@@ -80,8 +80,8 @@ def test_gap_is_not_survival():
 def test_bonferroni_level_from_m_s():
     assert B.level(8) == pytest.approx(1 - 0.05 / 8)
     assert B.level(9) == pytest.approx(1 - 0.05 / 9)
-    assert B.FAMILY_SIZE == {"ovarian": 9, "lung": 8, "ff": 8, "gse": 8,
-                             "gse_dual": 1}
+    assert B.FAMILY_SIZE == {"ovarian": 7, "lung": 7, "ff": 7, "gse": 6,
+                             "gse_dual": 6}
     # a planted member whose interval excludes 0 at m = 1 but not at m = 50
     means = [0.02] * 6
     wide = B.section_table("t", _collected(means, sd=0.015), m_s=50)
@@ -153,6 +153,63 @@ def test_a_point_some_seed_lacks_is_a_gap():
     assert m["status"] == "gap at kappa = 0.2"
 
 
+def test_marker_pairs_are_a_trajectory_not_a_family_member(tmp_path):
+    """Author, 2026-09-30: the marker-pair contrast leaves the family (its
+    draws on disk are not read) and is a trajectory readout from
+    marker_pairs.json."""
+    import json
+
+    from discell.experiments.breakdown_draws import write_group
+
+    run = tmp_path / "runs" / B.run_name(0.0, 0)
+    for group, name in (("cycle", "cycle_asym_q90"),
+                        ("marker", "marker_excl_minus_ctrl_dc")):
+        write_group(B.draws_path(run, group),
+                    {name: (0.5, np.arange(5.0), "percentile", 1.0, {})},
+                    {"run": run.name})
+    diff = {"exclusive": {"estimate": -0.002}, "control": {"estimate": 0.012}}
+    (run / "marker_pairs.json").write_text(json.dumps(
+        {"differences": {"decode_corrected-raw": diff}}))
+    got = B.collect("ovarian", grid=(0.0,), seeds=(0,), root=tmp_path)
+    assert set(got[0.0][0]) == {"cycle_asym_q90"}
+    traj = B.trajectory_table("ovarian", grid=(0.0,), seeds=(0,),
+                              root=tmp_path)
+    e = traj["readouts"]["marker_excl_minus_ctrl_dc"]["0"]
+    assert e["mean"] == pytest.approx(-0.014) and e["n"] == 1
+    assert "marker_excl_minus_ctrl_dc" in traj["sources"]
+
+
+def test_transport_cf_minus_program_is_a_trajectory(tmp_path):
+    """Author, 2026-10-01: transport counterfactual - programme-only leaves
+    the family (zero by construction at kappa = 0); its transport_mean.npz
+    draws are not read, transport_cf_minus_leak still is, and the trajectory
+    table reads it from transport.json's per-panel R^2."""
+    import json
+
+    from discell.experiments.breakdown_draws import write_group
+
+    run = tmp_path / "runs" / B.run_name(0.05, 0)
+    write_group(B.draws_path(run, "transport_mean"),
+                {name: (0.5, np.arange(5.0), "subsample", 1.0, {})
+                 for name in ("transport_cf_minus_program",
+                              "transport_cf_minus_leak")},
+                {"run": run.name})
+    got = B.collect("lung", grid=(0.05,), seeds=(0,), root=tmp_path)
+    assert set(got[0.05][0]) == {"transport_cf_minus_leak"}
+    panels = [{"counterfactual": {"r2": 0.5}, "program_only": {"r2": 0.4},
+               "leak_only": {"r2": 0.1}},
+              {"counterfactual": {"r2": 0.3}, "program_only": {"r2": 0.3},
+               "leak_only": {"r2": 0.0}}]
+    (run / "transport").mkdir(parents=True)
+    (run / "transport" / "transport.json").write_text(json.dumps(
+        {"panels": panels}))
+    traj = B.trajectory_table("lung", grid=(0.05,), seeds=(0,),
+                              root=tmp_path)
+    e = traj["readouts"]["transport_cf_minus_program"]["0.05"]
+    assert e["mean"] == pytest.approx(0.05) and e["n"] == 1
+    assert "transport_cf_minus_program" in traj["sources"]
+
+
 def test_transport_members_use_all_panels():
     """Author, 2026-09-29: the transport members are scored on ALL panels,
     untrusted and supported-tier ones included."""
@@ -173,3 +230,44 @@ def test_transport_members_use_all_panels():
     assert got["transport_cf_minus_leak"] == pytest.approx(
         np.mean([0.5, 0.2, 0.4]) - np.mean([0.1, 0.0, 0.2]))
     assert all_panel_contrasts([]) == {}
+
+
+def test_family_by_readout_availability_and_not_applicable(tmp_path):
+    """Devlog 2026-10-01 ("Filling the breakdown figure's gaps"): the axis
+    test joins lung and FF; the TMA sections carry it as not applicable (no
+    tumour cells), with the reason in the table and the combined markdown;
+    the dual reads every other headline member from its dual__ draws."""
+    from discell.experiments.breakdown_draws import EVAL_GROUPS, write_group
+
+    for sec in ("ovarian", "lung", "ff"):
+        assert B.AXIS in B.FAMILY[sec] and sec not in B.NOT_APPLICABLE
+    for sec in ("gse", "gse_dual"):
+        assert B.AXIS not in B.FAMILY[sec]
+        assert "tumour" in B.NOT_APPLICABLE[sec][B.AXIS]["reason"]
+    assert set(B.FAMILY["gse_dual"]) == set(B.HEADLINE)
+    assert set(B.DUAL_GROUPS) <= set(EVAL_GROUPS)
+    # the dual's members come from dual__<eval>__<group>.npz only
+    run = tmp_path / "runs" / B.run_name(0.0, 0)
+    for group, name in (("cycle", "cycle_asym_q90"),
+                        ("w_mi", "w_niche_mi_excess")):
+        write_group(B.draws_path(run, group, B.GD),
+                    {name: (0.5, np.arange(5.0), "percentile", 1.0, {})},
+                    {"run": run.name})
+    write_group(B.draws_path(run, "w_mi"),          # the core's own: not read
+                {"w_niche_mi_excess": (9.0, np.arange(5.0), "percentile",
+                                       1.0, {})}, {"run": run.name})
+    got = B.collect("gse_dual", grid=(0.0,), seeds=(0,), root=tmp_path)
+    assert got[0.0][0]["w_niche_mi_excess"]["estimate"] == 0.5
+    assert set(got[0.0][0]) == {"cycle_asym_q90", "w_niche_mi_excess"}
+    # the records and the combined markdown name the reason
+    t_gse = B.section_table("gse_dual", got, grid=(0.0,), seeds=(0,))
+    t_ov = B.section_table("ovarian", got, grid=(0.0,), seeds=(0,))
+    assert t_gse["m_s"] == 6 and t_gse["not_applicable"] == {
+        B.AXIS: B.NO_TUMOUR}
+    assert t_ov["not_applicable"] == {} and B.AXIS in t_ov["family"]
+    t_ov["members"][B.AXIS] = t_ov["members"]["cycle_asym_q90"]
+    md = B.combined_markdown({"ovarian": t_ov, "gse_dual": t_gse})
+    row = next(ln for ln in md.splitlines() if ln.startswith(f"| {B.AXIS}"))
+    assert row.rstrip().endswith("| n/a |")
+    assert B.NO_TUMOUR["reason"] in md
+    assert B.NO_TUMOUR["reason"] in B.markdown(t_gse)

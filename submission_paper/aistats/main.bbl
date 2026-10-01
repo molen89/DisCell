@@ -41,6 +41,15 @@ Arnol, D., Schapiro, D., Bodenmiller, B., Saez-Rodriguez, J., and Stegle, O.
   Spatial Variance Component Analysis}.
 \newblock {\em Cell Reports}, 29(1):202--211.e6.
 
+\bibitem[Ashburner et~al., 2000]{ashburner2000}
+Ashburner, M., Ball, C.~A., Blake, J.~A., Botstein, D., Butler, H., Cherry,
+  J.~M., Davis, A.~P., Dolinski, K., Dwight, S.~S., Eppig, J.~T., Harris,
+  M.~A., Hill, D.~P., Issel-Tarver, L., Kasarskis, A., Lewis, S., Matese,
+  J.~C., Richardson, J.~E., Ringwald, M., Rubin, G.~M., and Sherlock, G.
+  (2000).
+\newblock Gene ontology: Tool for the unification of biology.
+\newblock {\em Nature Genetics}, 25(1):25--29.
+
 \bibitem[Bai et~al., 2021]{bai2021redsea}
 Bai, Y., Zhu, B., Rovira-Clave, X., Chen, H., Markovic, M., Chan, C.~N., Su,
   T.-H., McIlwain, D.~R., Estes, J.~D., Keren, L., Nolan, G.~P., and Jiang, S.
@@ -49,11 +58,26 @@ Bai, Y., Zhu, B., Rovira-Clave, X., Chen, H., Markovic, M., Chan, C.~N., Su,
   for multiplexed images.
 \newblock {\em Frontiers in Immunology}, 12:652631.
 
+\bibitem[Belghazi et~al., 2018]{belghazi2018}
+Belghazi, M.~I., Baratin, A., Rajeshwar, S., Ozair, S., Bengio, Y., Courville,
+  A., and Hjelm, D. (2018).
+\newblock Mutual information neural estimation.
+\newblock In {\em Proceedings of the 35th International Conference on Machine
+  Learning}, volume~80 of {\em Proceedings of Machine Learning Research}, pages
+  531--540.
+
 \bibitem[Bengio et~al., 2013]{bengio2013}
 Bengio, Y., L{\'e}onard, N., and Courville, A. (2013).
 \newblock Estimating or propagating gradients through stochastic neurons for
   conditional computation.
 \newblock {\em arXiv preprint arXiv:1308.3432}.
+
+\bibitem[Benjamini and Hochberg, 1995]{benjamini1995}
+Benjamini, Y. and Hochberg, Y. (1995).
+\newblock Controlling the false discovery rate: A practical and powerful
+  approach to multiple testing.
+\newblock {\em Journal of the Royal Statistical Society: Series B
+  (Methodological)}, 57(1):289--300.
 
 \bibitem[Bilous et~al., 2026]{bilous2026split}
 Bilous, M., Buszta, D., Bac, J., Kang, S., Dong, Y., Tissot, S., Andre, S.,
@@ -131,6 +155,17 @@ Ganin, Y., Ustinova, E., Ajakan, H., Germain, P., Larochelle, H., Laviolette,
 \newblock Domain-adversarial training of neural networks.
 \newblock {\em Journal of Machine Learning Research}, 17(59):1--35.
 
+\bibitem[{Gene Ontology Consortium} et~al., 2023]{go2023}
+{Gene Ontology Consortium}, Aleksander, S.~A., Balhoff, J., et~al. (2023).
+\newblock The {Gene Ontology} knowledgebase in 2023.
+\newblock {\em Genetics}, 224(1):iyad031.
+
+\bibitem[Gretton et~al., 2012]{gretton2012}
+Gretton, A., Borgwardt, K.~M., Rasch, M.~J., Sch{\"o}lkopf, B., and Smola, A.
+  (2012).
+\newblock A kernel two-sample test.
+\newblock {\em Journal of Machine Learning Research}, 13(25):723--773.
+
 \bibitem[Hardt et~al., 2016]{hardt2016}
 Hardt, M., Price, E., and Srebro, N. (2016).
 \newblock Equality of opportunity in supervised learning.
@@ -150,6 +185,17 @@ Janesick, A., Shelansky, R., Gottscho, A.~D., Wagner, F., Williams, S.~R.,
   integrated single-cell, spatial and in situ analysis.
 \newblock {\em Nature Communications}, 14:8353.
 \newblock CHECK: full author list truncated.
+
+\bibitem[Jin et~al., 2025]{jin2025cellchat}
+Jin, S., Plikus, M.~V., and Nie, Q. (2025).
+\newblock {CellChat} for systematic analysis of cell--cell communication from
+  single-cell transcriptomics.
+\newblock {\em Nature Protocols}, 20(1):180--219.
+
+\bibitem[Kaiser, 1958]{kaiser1958}
+Kaiser, H.~F. (1958).
+\newblock The varimax criterion for analytic rotation in factor analysis.
+\newblock {\em Psychometrika}, 23(3):187--200.
 
 \bibitem[Khemakhem et~al., 2020]{khemakhem2020}
 Khemakhem, I., Kingma, D.~P., Monti, R.~P., and Hyv{\"a}rinen, A. (2020).
@@ -294,6 +340,11 @@ Rosenbaum, P.~R. (2002).
 \newblock {\em Observational Studies}.
 \newblock Springer, 2nd edition.
 
+\bibitem[Ross, 2014]{ross2014}
+Ross, B.~C. (2014).
+\newblock Mutual information between discrete and continuous data sets.
+\newblock {\em PLoS ONE}, 9(2):e87357.
+
 \bibitem[Sch{\"a}fer and Strimmer, 2005]{schafer2005}
 Sch{\"a}fer, J. and Strimmer, K. (2005).
 \newblock A shrinkage approach to large-scale covariance matrix estimation and
@@ -370,6 +421,18 @@ Williams-Katek, A.~L., Mallapragada, S., Mee, E.~D., Fischer, B.~K., Vannan,
   discovery.
 \newblock {\em Life Science Alliance}, 9(10).
 
+\bibitem[Wolf et~al., 2018]{wolf2018}
+Wolf, F.~A., Angerer, P., and Theis, F.~J. (2018).
+\newblock {SCANPY}: large-scale single-cell gene expression data analysis.
+\newblock {\em Genome Biology}, 19:15.
+
+\bibitem[Xia et~al., 2019]{xia2019merfish}
+Xia, C., Fan, J., Emanuel, G., Hao, J., and Zhuang, X. (2019).
+\newblock Spatial transcriptome profiling by {MERFISH} reveals subcellular
+  {RNA} compartmentalization and cell cycle-dependent gene expression.
+\newblock {\em Proceedings of the National Academy of Sciences},
+  116(39):19490--19499.
+
 \bibitem[Xie et~al., 2017]{xie2017}
 Xie, Q., Dai, Z., Du, Y., Hovy, E., and Neubig, G. (2017).
 \newblock Controllable invariance through adversarial feature learning.
@@ -387,6 +450,13 @@ Yang, S., Corbett, S.~E., Koga, Y., Wang, Z., Johnson, W.~E., Yajima, M., and
 \newblock {Decontamination of ambient RNA in single-cell RNA-seq with DecontX}.
 \newblock {\em Genome Biology}, 21:57.
 \newblock Preprint: doi:10.1101/704015.
+
+\bibitem[Yang et~al., 2025]{yang2025mistic}
+Yang, Y., DePasquale, E., Adeleke, D., Xie, X., Lu, Z., Nelson, M.~D., Xiao,
+  G., Wang, X., and Wang, Y. (2025).
+\newblock {MisTIC}: Missegmented transcript inference correction for improved
+  spatial transcriptomics analysis.
+\newblock bioRxiv preprint.
 
 \bibitem[Young and Behjati, 2020]{young2020soupx}
 Young, M.~D. and Behjati, S. (2020).

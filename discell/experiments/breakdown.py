@@ -48,7 +48,16 @@ member of the current families is a ranking (FAMILY.md).
 
 **Trajectory table (no kappa*).** Magnitudes and the Moran's I of mu_z and
 mu_w, only from reads that already exist on every sweep fit: 3-seed mean
-and [min, max] per grid point.
+and [min, max] per grid point. The marker-pair contrast
+``marker_excl_minus_ctrl_dc`` is read here too, not in the family (author,
+devlog "Author's decisions on the open flags (2026-09-30)": it measures
+decoding, not leak removal, and is already present at kappa = 0); its
+``marker.npz`` draws, if on disk, are not read. So is the transport contrast
+``transport_cf_minus_program`` (author, devlog "Transport counterfactual -
+programme-only leaves the claimed family (author, 2026-10-01)": it is zero by
+construction at kappa = 0, so its kappa = 0 sign reference is degenerate),
+read from the published transport.json's per-panel R^2; its draws in
+``transport_mean.npz`` are not read.
 
 Usage::
 
@@ -86,14 +95,38 @@ GD = "gse315411_pdltma06_10_prime_dual"
 SECTIONS = {"ovarian": (OV, OV, False), "lung": (LU, LU, False),
             "ff": (FF, FF, False), "gse": (GS, GS, False),
             "gse_dual": (GS, GD, True)}
-#: m_s, the lean family's sizes (devlog "8.19 revised to a lean version";
-#: FAMILY.md): 8 headline contrasts, + the axis test on ovarian; the dual
-#: carries the cycle asymmetry only
-FAMILY_SIZE = {"ovarian": 9, "lung": 8, "ff": 8, "gse": 8, "gse_dual": 1}
-#: the draw groups of a section (breakdown_draws.GROUPS); the dual: cycle only
-GROUPS = ("cycle", "w_mi", "marker", "signalling", "axis", "transport_mean",
+#: the lean family's headline contrasts (devlog "8.19 revised to a lean
+#: version", less the marker pairs (author, 2026-09-30) and transport
+#: counterfactual - programme-only (author, 2026-10-01); FAMILY.md)
+HEADLINE = ("cycle_asym_q90", "w_niche_mi_excess", "readA_minus_typemean",
+            "readB_twin_margin", "transport_cf_minus_leak",
+            "signalling_response_lr_vs_other")
+AXIS = "axis_tau_true_minus_false"
+#: members whose readout does not exist on a section, with the reason
+#: (devlog "Filling the breakdown figure's gaps", 2026-10-01): the axis test
+#: needs tumour bands, and the TMA sections have no tumour-annotated type
+NO_TUMOUR = {"short": "no tumour cells",
+             "reason": "the TMA sections have no tumour cells, so the "
+                       "tumour bands the axis test orders along are "
+                       "undefined"}
+NOT_APPLICABLE = {"gse": {AXIS: NO_TUMOUR}, "gse_dual": {AXIS: NO_TUMOUR}}
+#: each section's family, defined by readout availability: the headline
+#: contrasts and the axis test where it applies (the serial section reads
+#: them with the core's fits applied to its cells)
+FAMILY = {sec: HEADLINE + (() if AXIS in NOT_APPLICABLE.get(sec, {})
+                           else (AXIS,)) for sec in SECTIONS}
+#: m_s: ovarian 7, lung 7, FF 7, GSE core 6, GSE dual 6
+FAMILY_SIZE = {sec: len(members) for sec, members in FAMILY.items()}
+#: the draw groups the family reads (breakdown_draws.GROUPS, less "marker",
+#: now a trajectory readout); the dual: every group read with the core's
+#: fits applied to it (breakdown_draws.EVAL_GROUPS)
+GROUPS = ("cycle", "w_mi", "signalling", "axis", "transport_mean",
           "transport_dist")
-DUAL_GROUPS = ("cycle",)
+DUAL_GROUPS = ("cycle", "w_mi", "signalling", "transport_mean",
+               "transport_dist")
+#: members a read group still writes that are not in the family (author,
+#: 2026-10-01): trajectory readouts instead
+NOT_IN_FAMILY = ("transport_cf_minus_program",)
 LOG_ROOT = Path("scripts/logs/breakdown_2026-09-29")
 
 
@@ -151,7 +184,8 @@ def collect(section: str, grid: Sequence[float] = GRID,
             for group in groups:
                 p = draws_path(run_dir, group, read_ds if dual else None)
                 if p.exists():
-                    members.update(read_draws(p))
+                    members.update({k: v for k, v in read_draws(p).items()
+                                    if k not in NOT_IN_FAMILY})
             out[kappa][seed] = members
     return out
 
@@ -279,6 +313,8 @@ def section_table(section: str, collected: Mapping | None = None,
             "m_s": m_s, "level": level(m_s), "alpha_per_side": alpha / 2,
             "grid": list(grid), "seeds": list(seeds),
             "members_found": found, "family_complete": found == m_s,
+            "family": list(FAMILY[section]) if section in FAMILY else None,
+            "not_applicable": dict(NOT_APPLICABLE.get(section, {})),
             "members": members}
 
 
@@ -313,12 +349,19 @@ TRAJECTORY_SOURCES = {
     "atlas_effective_rank": "atlas/programs.npy columns",
     "kappa_survival_overlap": "experiments/atlas_kappa_survival.json, shift "
     "overlap vs finalL_s0 (mean of both directions)",
+    "marker_excl_minus_ctrl_dc": "runs/<run>/marker_pairs.json differences."
+    "decode_corrected-raw: exclusive.estimate - control.estimate",
+    "transport_cf_minus_program": "runs/<run>/transport/transport.json "
+    "panels[]: mean R^2(counterfactual) - mean R^2(program_only) over ALL "
+    "panels (breakdown_draws.all_panel_contrasts)",
 }
 
 
 def trajectory_values(run_dir: Path, dataset_root: Path, run: str) -> dict:
     """The trajectory readouts of one fit, each from the file named in
     :data:`TRAJECTORY_SOURCES`."""
+    from discell.experiments.breakdown_draws import all_panel_contrasts
+
     out: dict = {}
     tr = _load(run_dir / "transport" / "transport.json") or {}
     summ = tr.get("summary") or {}
@@ -344,6 +387,13 @@ def trajectory_values(run_dir: Path, dataset_root: Path, run: str) -> dict:
     out["kappa_survival_overlap"] = (0.5 * (ov["this_inside_other"]
                                             + ov["other_inside_this"])
                                      if ov else None)
+    mp = (((_load(run_dir / "marker_pairs.json") or {}).get("differences")
+           or {}).get("decode_corrected-raw"))
+    out["marker_excl_minus_ctrl_dc"] = (mp["exclusive"]["estimate"]
+                                        - mp["control"]["estimate"]
+                                        if mp else None)
+    out["transport_cf_minus_program"] = all_panel_contrasts(
+        tr.get("panels") or []).get("transport_cf_minus_program")
     return {k: (float(v) if v is not None and np.isfinite(v) else None)
             for k, v in out.items()}
 
@@ -404,6 +454,9 @@ def markdown(table: dict) -> str:
         lines += [f"**Incomplete:** {table['members_found']} of "
                   f"{table['m_s']} members have draws; the level still uses "
                   "m_s.", ""]
+    for name, na in (table.get("not_applicable") or {}).items():
+        lines += [f"`{name}`: not applicable: {na['reason']} (not in this "
+                  "section's family).", ""]
     lines += ["| member | " + " | ".join(f"κ = {k:g}" for k in grid)
               + " | κ* |", "|---" * (len(grid) + 2) + "|"]
     for name, m in table["members"].items():
@@ -439,17 +492,36 @@ def trajectory_markdown(table: dict) -> str:
 def combined_markdown(tables: Mapping[str, dict]) -> str:
     lines = ["# Breakdown points, all sections (todo 8.19)", "",
              "κ* per member and section (Bonferroni within each section, "
-             "m_s in the header; · = not in that section's family). Details: "
+             "m_s in the header; · = not in that section's family; "
+             "not computed = in the family, no draws on disk yet; n/a = "
+             "not applicable on that section, reason below). Details: "
              "each section's `experiments/breakdown.md`.", ""]
     sections = list(tables)
-    names = sorted({n for t in tables.values() for n in t["members"]})
+    names = sorted({n for t in tables.values() for n in t["members"]}
+                   | {n for t in tables.values()
+                      for n in t.get("not_applicable") or {}})
     lines += ["| member | " + " | ".join(
         f"{s} (m={tables[s]['m_s']})" for s in sections) + " |",
         "|---" * (len(sections) + 1) + "|"]
+    reasons = {}
     for name in names:
-        cells = [(_kstar(tables[s]["members"][name])
-                  if name in tables[s]["members"] else "·") for s in sections]
+        cells = []
+        for s in sections:
+            na = (tables[s].get("not_applicable") or {}).get(name)
+            if name in tables[s]["members"]:
+                cells.append(_kstar(tables[s]["members"][name]))
+            elif na:
+                cells.append("n/a")
+                reasons.setdefault(na["reason"], []).append(f"{name} on {s}")
+            elif name in (tables[s].get("family") or ()):
+                cells.append("not computed")
+            else:
+                cells.append("·")
         lines.append(f"| {name} | " + " | ".join(cells) + " |")
+    if reasons:
+        lines.append("")
+        lines += [f"n/a ({', '.join(where)}): not applicable: {why}."
+                  for why, where in reasons.items()]
     return "\n".join(lines) + "\n"
 
 

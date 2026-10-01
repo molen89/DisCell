@@ -7078,3 +7078,84 @@ The kNN estimator depends on dimension (d_w = 6, Cellina 64, SIMVI and MintFlow 
 ### Probe percentages are shares of variance: 1 − e^{−2·excess} (author, 2026-09-30)
 
 The per-block probe gives a V-information gain G = ½ log(MSE_base / MSE_probe). tab:probe reported e^{2G} − 1 as "the share of within-type variance explained", but that is the error ratio minus one. The share explained is 1 − MSE_probe/MSE_base = 1 − e^{−2G}. The two agree for small G: DISCELL with the adversary moves from ~5.8 % to ~5.5 %. They diverge for large G: FF without the adversary moves from ~39 % to ~28 %, and MintFlow's context latent reached 590–1900 % under the old transform. **Decision:** every probe percentage in the paper uses 1 − e^{−2·excess}. The "fraction left" is a ratio of excesses and is unchanged. The generators and text were updated by an agent (`scripts/logs/paper_polish_2026-09-30/PROBE_SHARE.md`); the paperlog lists each changed number.
+
+### Author's decisions on the open flags (2026-09-30)
+
+All the coder's recommendations are accepted. (1) **ω = 0 ablation:** it is run, because §2.3 calls the intrinsic path load-bearing. (2) **Marker-pair contrast:** it leaves the claimed κ\* family, because it measures decoding, not leak removal (it is already present at κ = 0), and becomes a trajectory. m_s becomes ovarian 8, lung 7, FF 7, GSE core 7, GSE dual 1. (3) **Marker-set upper bound:** the promise is dropped from the text, on the grounds of less complexity for small gain. (4) **The planted-worlds gap test** (app:planted, pre-final 300-epoch protocol) is rerun at the final configuration. (5) **MintFlow reconstruction (B-mf1):** the coder investigates the decode; if it cannot be fixed, it stays "not reported" with its footnote. (6) **Related-work table:** the writer verifies it against the sources before submission. (7) **Code and data availability:** a code repository is handed in with the submission. It is not this repository but a new, clean, tool-ready one. The text's availability statement says so, and KRONOS (CC BY-NC-ND) is used as distributed by its authors, not redistributed.
+
+### ω = 0 ablation (motivation, 2026-09-30)
+
+**Why.** §2.3 says the second bound, the intrinsic path, is load-bearing: it breaks the z/w allocation tie toward z. No fit tests that. **Plan.** The final configuration with `--omega 0` (the intrinsic path dropped; the (1+ω) factor then reads 1), on the four trained sections × seeds 0–2, at the same splits as finalL, with the full read set (validate, degeneracy, battery at best.pt, probe regrade), under the Unassigned mask. **Prediction, set in advance:** without the intrinsic path, w takes type and cell-state signal from z. The NMI of z with type falls; the NMI of μ_w with type rises; the cycle R² of w rises and that of z falls; the within-type share of w's variance changes. If none of these moves beyond the seed range of finalL, the claim is weakened to "argued, not shown to matter at this configuration", and the text says so. GPU 0 after the breakdown queue; about 6 GPU-h.
+
+### MintFlow reconstruction (B-mf1): cause found, not recoverable without refits (2026-09-30)
+
+`scripts/logs/mintflow_recon_2026-09-30/AGENT_REPORT.md`. **Cause:** the baselines runner (`DisCell-baselines/mintflow/run_mintflow.py`) exported the encoder's split Xint + Xmic, which sums back to the cell's own counts x. The battery therefore scored each cell against its own profile, a cell-level upper bound unrelated to the fit: −5.035 / −5.018 / −5.105 / −5.108, and −5.053 on lung, against −7.2 to −7.3 for real decoders. The latents (Z, S_in, S_out) and every other MintFlow read (NMI, probe, mirror, cycle, context grading) are unaffected. **No MintFlow weights were saved,** so no scored fit can be decoded. A decoding runner exists now (`decode_mintflow.py`, `run_mintflow_decoded.py`, with a test); a 2-epoch smoke run passes. Real values need refits: TMA core ~9.5 h, lung ~15 h; ovarian FFPE is training now under the old runner. **Status:** the paper keeps "n/r" with a footnote until the author decides on refits. Issue B-mf1 is updated by this entry.
+
+### Planted-worlds amortisation gap at the final configuration (results, 2026-09-30)
+
+`data/datasets/synthetic_smoke/experiments/planted_posterior_final_vs_prefinal.md`; `scripts/logs/omega0_2026-09-30/AGENT_REPORT.md` (part B). The old table came from a 600-epoch pre-final run; the text wrongly said 300. Rerun at the final configuration: 45 fits, widths 2/2/128/16 kept. **The encoder's gap rose from 0.55 / 0.83 / 1.48 to 0.65 / 1.02 / 1.93** (the three depths). The reference rows are unchanged: 0.61/0.95/1.60, 0.53/0.80/1.35, 1.39/2.50/4.53 and 2.4/4.1/7.4. The old table's 1.40 was a rounding error for 1.3947. **Most of app:planted's "result" no longer holds:**
+- the encoder is now above the perceptron trained on the same inputs at every depth;
+- the gap is not smallest at the true κ;
+- the worst wing is 1.13.
+
+The gap in z units stays roughly flat across depth. Reported as found: at the final configuration the amortisation gap is larger than at the development configuration, and the text changes accordingly (app:planted, and the conclusion's "small in simulation"). **Also:** the earlier waiter for the breakdown render matched its own command line and would never have exited. It was stopped and replaced by a waiter with a non-self-matching pattern (`[q]ueue_…`).
+
+### Overnight results (2026-10-01 morning)
+
+**Breakdown (8.19 lean), final** (`scripts/logs/breakdown_2026-09-29/breakdown_all.md`; the queue finished 00:32, 299 steps, 0 failed; family m_s 8/7/7/7/1 after the marker-pair removal). Every claimed contrast is above the grid on every section, except:
+- the FF signalling share breaks at κ = 0.2 (its interval contains 0);
+- transport counterfactual − leak-only breaks at 0.4 on ovarian and 0.3 on lung (a seed flips sign) and is above the grid on FF and GSE;
+- **transport counterfactual − programme-only is "no finding" on all four sections:** its interval already contains 0 at κ = 0. The leak term adds nothing measurable to the transport prediction beyond the response programme, on the published read.
+
+**ω = 0 ablation** (`scripts/logs/omega0_2026-09-30/READOUT.md`, 80 steps, 0 failed; a GSE code-drift control passed). Without the intrinsic path, w takes type signal on every section, as predicted:
+- the NMI of μ_w with type rises outside finalL's range on 4/4 sections (e.g. GSE 0.29 → 0.40, ovarian 0.42 → 0.50);
+- the within-type share of w's variance falls outside the range on 4/4 (GSE 0.53 → 0.33, ovarian 0.32 → 0.19).
+
+z loses less: the NMI of z falls on ovarian (mean only) and the cycle R² of z falls on FF (disjoint, 0.76 → 0.70) and ovarian (mean only); elsewhere z is within range. The cycle R² of w does not rise anywhere. **Reading:** the intrinsic path keeps type out of w, which supports "load-bearing" for the allocation, while z's own type and cycle content are largely kept without it, except on FF.
+
+**Whole-section baselines** (`DisCell-baselines/results/feasibility.tsv`; queue finished 2026-09-30 22:00):
+- MintFlow ovarian FFPE: ok, 15.8 h, 9.5 GB GPU, 23.6 GB host;
+- SIMVI lung, ovarian and FF: CUDA OOM on the 24 GB card within minutes (tried to allocate 5.2 / 7.7 GiB / 40 MiB with 21.3 / 15.9 / 23.5 GiB in use);
+- MintFlow FF: not attempted (102 GB host available, < the 110 GB gate; the earlier measured failure stands).
+
+MintFlow ovarian's battery, probe and context grade are scored; its reconstruction has the B-mf1 export fault, like the other MintFlow fits. **Regenerated:** all generated tables (0 pending), all figures (`build.sh`), and main.pdf (exit 0, no undefined refs). The earlier waiter was lost at session end; this was done by hand.
+
+### MintFlow refits with a corrected export (motivation, 2026-10-01; author)
+
+**Why.** B-mf1: the old runner exported the encoder's split, which sums to the cell's own counts, and saved no weights, so MintFlow's reconstruction is invalid and cannot be recovered. **Decision (author):** refit MintFlow whole-section on the TMA core, lung FFPE and ovarian FFPE with the corrected runner (`DisCell-baselines/mintflow/run_mintflow_decoded.py`, which saves the weights and decodes at the posterior), and **re-score every MintFlow metric from the new fits** as a safety check: battery, probe, context grade, timing and the transfer to the serial section. **Double-check the setup before launch:** the same MintFlow version and settings as the published-defaults runs (50 epochs, width, graph); lineage labels; the same cell filter (≥ 5 counts); the decoder export tested on a small window; a reconstruction read on the battery's basis (nats per count, held-out cells, posterior-mean decode). Old results are kept under an archive name. Detached, sequential; GPU 1, plus GPU 0 if free. ~40 GPU-h.
+
+### Corrections to the "Overnight results" entry (2026-10-01)
+
+(1) **Transport counterfactual − programme-only is NOT evidence that the leak adds nothing.** At κ = 0 no leak is modelled, so this contrast is exactly zero by construction, and the "no finding at κ = 0" rule cannot apply to it. From κ = 0.05 to 0.2 it is positive in every seed on all four sections (0.02–0.11 R²). The member is mis-specified for the breakdown rule: its sign reference at κ = 0 is degenerate. The text says only "the sweep does not show that the leak term adds beyond the programmes", with a CHECK flag. **Coder recommendation (for the author):** remove it from the claimed family, as was done for the marker pairs, and report it as a trajectory. m_s would become 7/6/6/6/1. (2) **The ω = 0 code-drift control did not pass exactly.** A same-config refit of finalL_s0 gave NMI z 0.616 against finalL's 0.621 (the finalL range is 0.621–0.625), with best epoch 54 against 44 and essentially the same recon. GPU training is not bitwise reproducible, so a refit varies by about the seed spread. The ω = 0 effects that are disjoint from finalL's range (NMI μ_w, the within-type share of w, FF's cycle R² of z) are robust to that; the "mean only" ones (ovarian NMI z and cycle z) are not. (3) Generated tables: the feasibility reasons no longer quote log names (`paper_reason` in scripts/paper_tables.py), and battery footnote b now states the MintFlow export error and the refits.
+
+### Transport counterfactual − programme-only leaves the claimed family (author, 2026-10-01)
+
+On the coder's recommendation. The contrast is zero by construction at κ = 0, so its κ = 0 sign reference is degenerate. It is reported as a trajectory (positive in every seed at κ 0.05–0.2 on all four sections, 0.02–0.11 R²). m_s becomes ovarian 7, lung 6, FF 6, GSE core 6, GSE dual 1. Re-render only, no compute.
+**MintFlow refits launched (2026-10-01; `scripts/logs/mintflow_refit_2026-10-01/AGENT_REPORT.md`).** Setup double-checked before launch:
+- the same MintFlow 0.3.0 install and settings; identical inputs, lineage labels and ≥ 5-count filter on all four sections; unchanged latent keys. Only the export and the saved weights differ;
+- the battery's reconstruction read on 5k windows (2 epochs) gives −8.36 on the core and on the serial section, against −5.16 / −5.07 under the old export, so the export fault is gone;
+- the transfer from the reloaded weights matches within MintFlow's run-to-run noise.
+
+Queue `scripts/queue_2026-10-01_mintflow_refit.sh` is detached: TMA core (+ serial transfer) → lung → ovarian, GPU 1, ~41 GPU-h. READOUT.md (old against new, every MintFlow metric) is written at the end, and `paper_tables.py` switches to the new folders once they exist. The five stale table tests are fixed (37 pass). **To do after the refits:** `figures/src/fig_battery.py` still hides MintFlow's reconstruction; unhide it, regenerate, and resolve the \pending in the text.
+
+### Peak memory, VRAM and RAM, for every method (motivation, 2026-10-01; author)
+
+The baselines recorded both peak GPU memory (peak_gpu_gb) and peak host memory (peak_host_gb) in each result's config.json. DISCELL recorded only `torch.cuda.max_memory_allocated` (VRAM); host RAM was never measured. **Plan:** one measurement fit per section at the final configuration (seed 0, same split as finalL_s0, run name `memL_s0`), under `/usr/bin/time -v` for the peak resident set, with VRAM as recorded. The fits are not used for any result except memory and wall time. GPU 0 (idle), detached, ~1 h total. Both VRAM and RAM go into tab:timing; a cost figure shows run time against peak memory per method and section.
+
+### Peak memory: the comparison is dropped (author, 2026-10-01)
+
+tab:timing returns to its earlier form: DISCELL's model and training details (parameters, peak VRAM, epochs, s/epoch) and the run time of one fit for every method. The per-method VRAM/RAM blocks are removed, the DISCELL RAM measurement (`scripts/queue_2026-10-01_memL.sh`, never launched) is not run, and there is no cost figure. **Unsupported claims, reworded at the author's delegation:**
+- The "one tenth to one half" misassignment range: MisTIC is cited for about a tenth per cell, with heavily contaminated cells rare. κ = 0.1 is justified as matching that typical value, and the 0.4 grid top as deliberately conservative. "Published range" phrasing is removed.
+- "Diffuse background negligible" becomes "low non-specific background, as measured by negative controls" (Janesick).
+- The secreted/membrane mRNA claim is softened to what Xia 2019 shows.
+
+### Filling the breakdown figure's gaps (motivation, 2026-10-01; author)
+
+(a) **The tumour-axis contrast on lung FFPE and ovarian FF.** Both have tumour cells (45,646 and 552,056); it was run on ovarian FFPE only for historical reasons. The axis test (with the 2026-09-30 gene-pairing fix) runs on finalL_s0–s2 and the sweepL fits of both sections, followed by its κ\* draws. The TMA sections have no tumour cells, so the test does not apply there, and the caption says so. (b) **The TMA serial section** gets the remaining claimed contrasts: I(niche; w) − floor, Read A − type-mean, twin margin, transport − leakage part and signalling LR − other. These are read with the GSE core fits (finalL and sweepL) applied to the serial section's cells, the cross-section protocol already used for the cycle asymmetry, which needs an extension of `breakdown_draws --eval-dataset` beyond the cycle group. **Family sizes after:** ovarian 7, lung 7, FF 7, GSE core 6, GSE dual ≈ 6. The Bonferroni levels follow. The rule is unchanged; this only adds members where the readout exists. GPU 0 (GPU 1 is busy with the MintFlow refits); detached.
+
+**Breakdown gaps launched (2026-10-01; `scripts/logs/breakdown_gaps_2026-10-01/AGENT_REPORT.md`).** Checked before launch:
+- **Axis test applies on lung and FF.** Both have a "Tumour" lineage type (45,646 / 552,056 cells) and pass the test's own requirements at finalL_s0 (per band ≥ 500 model-side and ≥ 200 fold-0 cells, ≥ 4 bands on both axes): lung 4 types, FF 7. Neither TMA section has a tumour-annotated type, so the axis test is recorded as not applicable there, with the reason, in breakdown.json, the table (n/a) and the figure panel.
+- **Serial section.** The GSE core fits are applied to the dual through a new opt-in `--eval-dataset` on `transport`, `external_criteria signalling-share`, `degeneracy` (w guard only) and more `breakdown_draws` groups. It reuses crossslide's construction (`crossslide.load_applied`), and each read keeps its own cell split on the dual. Outputs go under `runs/<run>/crossslide/<dual>/`. Defaults are bit-identical on the synthetic run (11 output files, same sha256 before and after). Applied to its own section, every cross read equals the own read (new test). A smoke run on GSE finalL_s0 reproduces all seven dual members.
+- **Family sizes** become 7/7/7/6/6.
+
+Queue `scripts/queue_2026-10-01_breakdown_gaps.sh` runs on GPU 0 only and is detached (PID 1626065): lung axis → dual → FF axis → re-render (breakdown tables, paper tables, fig_breakdown_data, main.pdf). ~10 h.

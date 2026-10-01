@@ -245,11 +245,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="todo 2.3: the alpha_w x decode table; merges into "
                              "experiments/w_contribution.json instead of "
                              "writing degeneracy.json")
+    parser.add_argument("--eval-dataset", default=None,
+                        help="the w-channel guard only, with the fit applied "
+                             "to this section (crossslide.load_applied; its "
+                             "own held-out tiles), written to runs/<run>/"
+                             "crossslide/<eval>/degeneracy.json")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s",
                         datefmt="%H:%M:%S")
 
+    if args.eval_dataset:
+        from discell.model.crossslide import applied_root, load_applied
+        if args.w_contribution:
+            parser.error("--eval-dataset reads the w-channel guard only")
+        _, _, trainer, run_dir, _ = load_applied(
+            args.dataset, args.run, args.eval_dataset, args.device)
+        guard = w_channel_guard_from_trainer(trainer, args.niches)
+        out_dir = applied_root(run_dir, args.eval_dataset)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "degeneracy.json").write_text(json.dumps(
+            {"run": args.run, "trained_on": args.dataset,
+             "evaluated_on": args.eval_dataset, "w_channel": guard},
+            indent=2, default=float))
+        log.info("%s on %s: I(niche;w) %.4f  floor %.4f  excess %+.4f",
+                 args.run, args.eval_dataset, guard["w_niche_mi"],
+                 guard["w_niche_mi_floor"], guard["w_niche_mi_excess"])
+        return 0
     trainer, run_dir, epoch = load_trainer(args.dataset, args.run, args.device)
     if args.w_contribution:
         out_path = (paths.dataset(args.dataset).root / "experiments"

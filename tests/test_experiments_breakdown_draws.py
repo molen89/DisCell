@@ -69,3 +69,87 @@ def test_draw_seeds_differ_by_run_seed_and_group():
 
     seeds = {draw_seed(g, s) for g in GROUPS for s in range(3)}
     assert len(seeds) == 3 * len(GROUPS)
+
+
+@pytest.mark.parametrize("synthetic_run", [(TE.WITH_U, False)], indirect=True)
+def test_eval_dataset_reads_match_own_reads_on_the_same_section(synthetic_run):
+    """The opt-in ``--eval-dataset`` variants (devlog 2026-10-01, the serial
+    section's members): applied to the section the fit was trained on (the
+    fixture's ``assemble`` answers every dataset id with the same data), the
+    transport, twin, signalling-share and w-guard reads and every group's
+    draws equal the run's own, and they land under
+    ``runs/<run>/crossslide/<eval>/`` without touching the own reads."""
+    import hashlib
+
+    import torch
+
+    from discell import paths
+    from discell.experiments import breakdown_draws as D
+    from discell.experiments import external_criteria as E
+    from discell.model import degeneracy as DG
+    from discell.model import transport as T
+    from discell.model.validate import load_run
+
+    torch.set_num_threads(1)
+    alias = "evalmask_dual"
+    run_dir = paths.dataset(TE.DS).root / "runs" / TE.RUN
+    cross = run_dir / "crossslide" / alias
+    common = ["--dataset", TE.DS, "--run", TE.RUN, "--device", "cpu",
+              "--niches", "10", "--figures", "0", "--hvg", "50", "--boot",
+              "20", "--read", "both"]
+    assert T.main(common) == 0
+    assert E.main(["signalling-share", "--dataset", TE.DS, "--run", TE.RUN,
+                   "--device", "cpu"]) == 0
+
+    def digest(root):
+        return {p.relative_to(root).as_posix():
+                hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in sorted(root.rglob("*.json"))
+                if "crossslide" not in p.parts}
+    own_files = digest(paths.dataset(TE.DS).root)
+    assert T.main(common + ["--eval-dataset", alias]) == 0
+    assert E.main(["signalling-share", "--dataset", TE.DS, "--run", TE.RUN,
+                   "--device", "cpu", "--eval-dataset", alias]) == 0
+    assert DG.main(["--dataset", TE.DS, "--run", TE.RUN, "--device", "cpu",
+                    "--eval-dataset", alias]) == 0
+    assert digest(paths.dataset(TE.DS).root) == own_files   # nothing own moved
+
+    def load(p):
+        return json.loads(p.read_text())
+    for name in ("transport.json", "transport_twins.json",
+                 "transport_distribution.json"):
+        a = load(run_dir / "transport" / name)
+        b = load(cross / "transport" / name)
+        assert b.pop("evaluated_on") == alias
+        assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+    a = load(paths.dataset(TE.DS).root / "experiments"
+             / f"external_signalling_share_{TE.RUN}.json")
+    b = load(cross / f"external_signalling_share_{TE.RUN}.json")
+    assert b.pop("evaluated_on") == alias and a == b
+    _, _, trainer, _, _ = load_run(TE.DS, TE.RUN, "cpu")
+    own_guard = DG.w_channel_guard_from_trainer(trainer)
+    assert load(cross / "degeneracy.json")["w_channel"] == json.loads(
+        json.dumps(own_guard, default=float))
+    # the draws: same estimates and draws, every point estimate reproduces
+    # the cross read on disk, written to dual__<eval>__<group>.npz
+    (run_dir / "degeneracy.json").write_text(json.dumps(
+        {"w_channel": own_guard}, default=float))
+    # (signalling: the synthetic slide has no panel with >= 100 kept genes,
+    # so its draws are covered by the real-data smoke; the share read above)
+    groups = ["w_mi", "transport_mean", "transport_dist"]
+    own = D.run(TE.DS, TE.RUN, groups, n=40, device="cpu", boot_replayed=20)
+    got = D.run(TE.DS, TE.RUN, groups, n=40, device="cpu", boot_replayed=20,
+                eval_dataset=alias)
+    for g in groups:
+        assert got[g], g
+        for k, v in got[g].items():
+            assert v["reproduces"] is True, (g, k, v)
+            assert v["estimate"] == own[g][k]["estimate"], (g, k)
+        a = B.read_draws(B.draws_path(run_dir, g))
+        b = B.read_draws(B.draws_path(run_dir, g, alias))
+        assert set(a) == set(b)
+        for k in a:
+            assert np.array_equal(a[k]["draws"], b[k]["draws"],
+                                  equal_nan=True), (g, k)
+    with pytest.raises(ValueError):
+        D.run(TE.DS, TE.RUN, ["axis"], n=4, device="cpu", eval_dataset=alias)

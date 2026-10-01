@@ -1,5 +1,6 @@
 \section{IMPLEMENTATION DETAILS}
 \label{app:implementation}
+\readorder{22}
 
 \subsection{Architecture and Hyperparameters}
 \label{app:architecture}
@@ -8,7 +9,7 @@
 
 \begin{table}[t]
 \centering
-\caption{Networks and fixed quantities. $G$ genes, $K$ types, $\dPhi$ image-embedding dimension.}
+\caption{\flag{TRIM}{ablation note and the repeated warm-up entry duplicate text; closed-form row unused} Networks and fixed quantities. $G$ genes, $K$ types, $\dPhi$ image-embedding dimension.}
 \label{tab:architecture}
 \small
 \begin{tabular}{@{}p{0.2\textwidth}p{0.27\textwidth}p{0.48\textwidth}@{}}
@@ -53,7 +54,7 @@ Hardware & & one NVIDIA GeForce RTX 4090 (24\,GB) per fit \\
 \subsection{Choices Made in Implementation}
 \label{app:deviations}
 
-Where the model description of \cref{sec:method} leaves a choice open, \cref{tab:deviations} records what was done and why. Every entry is also stated in the method text; the table collects them in one place. \todo{author to decide whether this table stays; it duplicates the method text}
+\flag{CUT}{tab:deviations duplicates the method text; its todo waits on the author's keep-or-cut decision} Where the model description of \cref{sec:method} leaves a choice open, \cref{tab:deviations} records what was done and why. Every entry is also stated in the method text; the table collects them in one place. \todo{author to decide whether this table stays; it duplicates the method text}
 
 \begin{table}[t]
 \centering
@@ -83,7 +84,7 @@ Invariance mechanism & the adversary is the operating configuration; the closed-
 
 \begin{table}[t]
 \centering
-\caption{Implementation choices, continued: the configuration used in the experiments, and what exists but is switched off.}
+\caption{\flag{TRIM}{keep the Built-but-not-default and Not-built rows; the others repeat the text} Implementation choices, continued: the configuration used in the experiments, and what exists but is switched off.}
 \label{tab:deviations2}
 \small
 \begin{tabular}{@{}p{0.22\textwidth}p{0.36\textwidth}p{0.36\textwidth}@{}}
@@ -129,5 +130,5 @@ Not built & Dirichlet-multinomial likelihood; per-cell counterfactuals with abdu
 
 \Cref{fig:probe-data} (\cref{sec:results-z}) shows the probe on the final fits of every section, and \cref{tab:probe} gives its values.
 
-\input{tables/generated/probe}
+\flag{KEEP-CORE}{tab:probe, the numbers behind thread point 3; the main text cites it} \input{tables/generated/probe}
 

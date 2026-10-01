@@ -29,11 +29,11 @@ import style as S  # noqa: E402
 
 PT = S.paper_tables()
 OUT = Path(__file__).resolve().parent.parent / "fig_sensitivity"
-# titles carry the preferred direction: a move toward the arrow's side is an improvement
-COLS = [("Recon.", r"reconstruction $\uparrow$"), ("NMI", r"NMI $\uparrow$"),
-        ("Mirror $R^2$", r"mirror $R^2$ $\downarrow$"),
-        ("$\\I(\\text{niche}; \\vw)$", r"$I(\mathrm{niche};\mathbf{w})$ $\uparrow$"),
-        ("MLP comp.", r"composition $\downarrow$"), ("Transport", r"transport $\uparrow$")]
+# short titles, with the side of zero on which a move is an improvement
+COLS = [("Recon.", "reconstruction", True), ("NMI", r"NMI of $\mathbf{z}$", True),
+        ("Mirror $R^2$", r"mirror $R^2$", False),
+        ("$\\I(\\text{niche}; \\vw)$", r"$I(\mathrm{niche};\mathbf{w})$", True),
+        ("MLP comp.", "composition\nleakage", False), ("Transport", "transport", True)]
 FAMILY = {"kappa_form": "form of the leakage rate", "fp_floor": "fixed false-positive floor",
           "alpha_w": "weight of the response deviation", "adversary": "adversary capacity, weight"}
 
@@ -73,9 +73,9 @@ for kind, *_ in rows:
     y -= H[kind]
     ys.append(y)
 XL = (-9.6, 7.6)
-fig, axes = plt.subplots(1, len(COLS), figsize=(S.TEXTWIDTH, 3.75), sharey=True)
-fig.subplots_adjust(left=0.205, right=0.995, bottom=0.08, top=0.955, wspace=0.10)
-for ax, (col, title) in zip(axes, COLS):
+fig, axes = plt.subplots(1, len(COLS), figsize=(S.TEXTWIDTH, 3.9), sharey=True)
+fig.subplots_adjust(left=0.205, right=0.995, bottom=0.085, top=0.935, wspace=0.10)
+for ax, (col, title, up) in zip(axes, COLS):
     ax.axvspan(-2, 2, color=S.GHOST, lw=0, zorder=0)
     ax.axvline(0, color=S.MUTED, lw=0.6, zorder=1)
     for (kind, text, mv), yy in zip(rows, ys):
@@ -100,7 +100,7 @@ for ax, (col, title) in zip(axes, COLS):
     ax.set_xticks([-8, -4, -2, 0, 2, 4])
     ax.set_xticklabels(["$-8$", "$-4$", "", "0", "", "4"])
     ax.tick_params(axis="x", labelsize=6)
-    ax.set_title(title, fontsize=7, color=S.INK, pad=3)
+    ax.set_title(title + (S.RIGHT if up else S.LEFT), fontsize=7, color=S.INK, pad=3, linespacing=1.05)
     ax.spines["left"].set_visible(False)
     ax.tick_params(axis="y", length=0)
 ax0 = axes[0]
@@ -114,6 +114,6 @@ for (kind, text, _), yy in zip(rows, ys):
     elif kind == "family":
         fig.text(0.016, yy, rf"\emph{{{text}}}", transform=blend(fig.transFigure, ax0.transData),
                  ha="left", va="center", fontsize=6.3, color=S.INK2)
-fig.text(0.605, 0.012, r"move from the final configuration, in its seed standard deviations (band: $\pm 2$)",
+fig.text(0.605, 0.006, r"move from the final configuration, in its seed standard deviations (band: $\pm 2$)",
          ha="center", fontsize=7, color=S.INK)
 S.save(fig, OUT)

@@ -1,5 +1,6 @@
 \section{DERIVATIONS}
 \label{app:derivations}
+\readorder{21}
 
 \subsection{The Reconstruction Bound}
 \label{app:bound}
@@ -23,7 +24,7 @@ Summed over cells, with each neighbour's $\vz_j, \vw_j$ drawn from its own poste
 \subsection{The Intrinsic Path and the Factor \texorpdfstring{$(1+\omega)$}{(1+omega)}}
 \label{app:pathb}
 
-A second bound on the same evidence holds by restricting the variational family to $q(\vw) := p(\vw \mid \vc_i, t_i)$, which zeroes the $\vw$-divergence and leaves
+\flag{TRIM}{first paragraph repeats 2.4; keep the gap derivation and the Slavutsky contrast} A second bound on the same evidence holds by restricting the variational family to $q(\vw) := p(\vw \mid \vc_i, t_i)$, which zeroes the $\vw$-divergence and leaves
 \begin{equation}
   \log p(\vx_i \mid \vc_i, t_i) \geq \E_{q(\vz)}\E_{p(\vw \mid \vc_i, t_i)}\big[\log p(\vx_i \mid \vz, \vw)\big] - \KL\big(q(\vz)\,\|\,p(\vz)\big) =: L_i^{z}.
 \end{equation}
@@ -35,12 +36,12 @@ The construction mirrors the two-bound objective of \citet{slavutsky2025}, where
 \end{equation*}
 with gap $\KL\big(q(\vz)q(\vw \mid \vz)\,\|\,p(\vz,\vw \mid \vx_i,\vc_i,t_i)\big) + \omega\,\KL\big(q(\vz)p(\vw \mid \vc_i,t_i)\,\|\,p(\vz,\vw \mid \vx_i,\vc_i,t_i)\big)$. One $q(\vz)$ serves two variational families, so its optimum is a compromise and not the best approximation of the posterior under either, which is one of the reasons uncertainty is reported from the leakage sweep rather than from $q$. The invariance term sits outside the bound for a separate reason (\cref{app:posterior-reg}).
 
-Why the intrinsic path is load-bearing: in \citet{slavutsky2025} the shared code is kept informative by a reconstruction from $\vz$ alone and by a prior on $\vw$ centred on the class-wise means of $\vz$. Our intrinsic path is the analogue of the first. We have no analogue of the second: our prior on $\vw$ never references $\vz$, and the prior on $\vz$ is a standard normal, so nothing else in the objective rewards $\vz$ for being informative. The intrinsic path supplies that pressure directly, since under it $\vz$ must explain the cell given only the expected response. It runs through the same leakage mixture as the first term, so it never asserts $\kappa = 0$ and contradicts it.
+Why the intrinsic path is load-bearing: in \citet{slavutsky2025} the shared code is kept informative by a reconstruction from $\vz$ alone and by a prior on $\vw$ centred on the class-wise means of $\vz$. Our intrinsic path is the analogue of the first. We have no analogue of the second: our prior on $\vw$ never references $\vz$, and the prior on $\vz$ is a standard normal, so nothing else in the objective rewards $\vz$ for being informative. The intrinsic path supplies that pressure directly, since under it $\vz$ must explain the cell given only the expected response. It decodes through the same leakage mixture as the first term, at the same $\kappa$, so it never treats the counts as free of leakage and the two terms never disagree about how much of them is leakage. At the final configuration that pressure acts on the allocation more than on $\vz$ alone: without the path, $\vz$ keeps most of its type and cycle content, and $\vw$ takes up type signal (\cref{app:sensitivity}).
 
 \subsection{The Invariance Term as Posterior Regularisation}
 \label{app:posterior-reg}
 
-Neither $\Pen$ nor $\Adv_i$ is part of any bound. Both are posterior regularisation in the spirit of \citet{ganchev2010}: a constraint on the variational family, $\I(\vz; [\vy, \vPhi] \mid t) = 0$, written as a penalty on the variational objective. This is the same status \citet{slavutsky2025} give their adversarial term. It is a statement about which $q$ are admissible, not a modification of the generative model, which does not model $\vy$ or $\vPhi$ at all; the constraint states what the decomposition is meant to satisfy, and it acts on the aggregate of the encoder's outputs over cells rather than on each cell's posterior, so it is posterior regularisation in a looser sense than the per-instance expectation constraints of \citet{ganchev2010}.
+\flag{MERGE}{repeats 2.5 nearly verbatim; fold the looser-sense clause into app:pathb} Neither $\Pen$ nor $\Adv_i$ is part of any bound. Both are posterior regularisation in the spirit of \citet{ganchev2010}: a constraint on the variational family, $\I(\vz; [\vy, \vPhi] \mid t) = 0$, written as a penalty on the variational objective. This is the same status \citet{slavutsky2025} give their adversarial term. It is a statement about which $q$ are admissible, not a modification of the generative model, which does not model $\vy$ or $\vPhi$ at all; the constraint states what the decomposition is meant to satisfy, and it acts on the aggregate of the encoder's outputs over cells rather than on each cell's posterior, so it is posterior regularisation in a looser sense than the per-instance expectation constraints of \citet{ganchev2010}.
 
 \subsection{The Gaussian Conditional Mutual Information}
 \label{app:gaussian-mi}

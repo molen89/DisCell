@@ -199,9 +199,17 @@ def abundance_matched_other(is_lr: np.ndarray, scored: np.ndarray,
 
 
 def signalling_share(args: argparse.Namespace) -> dict:
-    """6b.1 on one run: build the panels, accumulate shares, run the test."""
-    config, data, trainer, run_dir, b_matrix = load_run(
-        args.dataset, args.run, args.device)
+    """6b.1 on one run: build the panels, accumulate shares, run the test.
+    With ``args.eval_dataset`` (opt-in) the fit is applied to that section
+    (``crossslide.load_applied``; its own fold 0 scored)."""
+    eval_dataset = getattr(args, "eval_dataset", None)
+    if eval_dataset:
+        from discell.model.crossslide import load_applied
+        config, data, trainer, run_dir, b_matrix = load_applied(
+            args.dataset, args.run, eval_dataset, args.device)
+    else:
+        config, data, trainer, run_dir, b_matrix = load_run(
+            args.dataset, args.run, args.device)
     latents = collect_latents(trainer, data)
     connected = data.graph.degrees > 0
     source = args.niche_source
@@ -279,6 +287,8 @@ def signalling_share(args: argparse.Namespace) -> dict:
               "eval_mask": EM.record(data.type_names, data.t),
               "n_genes_scored": int(shares["scored"].sum()),
               "n_lr_in_panel": int(is_lr.sum()), "tests": {}}
+    if eval_dataset:
+        result["evaluated_on"] = eval_dataset
     for channel in ("response", "leak", "both"):
         v = shares[channel]
         lr_v = v[shares["scored"] & is_lr]
@@ -752,11 +762,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         if name == "signalling-share":
             p.add_argument("--niche-source", default="kmeans",
                            choices=["kmeans", "tumour-band"])
+            p.add_argument("--eval-dataset", default=None,
+                           help="apply the fit to this section; written "
+                                "under runs/<run>/crossslide/<eval>/")
         if name == "mi-quadrant":
             p.add_argument("--perms", type=int, default=N_PERM)
     args = parser.parse_args(argv)
 
     out_dir = paths.dataset(args.dataset).root / "experiments"
+    if getattr(args, "eval_dataset", None):
+        from discell.model.crossslide import applied_root
+        out_dir = applied_root(paths.dataset(args.dataset).root / "runs"
+                               / args.run, args.eval_dataset)
     out_dir.mkdir(parents=True, exist_ok=True)
     tag = args.tag or args.run
     if args.command == "signalling-share":

@@ -30,19 +30,19 @@ d = json.loads((PT.SYNTH / "synthetic_recovery.json").read_text())
 if not d["simulator_checks"]["all_pass"]:
     raise SystemExit("synthetic simulator checks do not all pass")
 PLANTED = 0.2
-# titles carry the preferred direction: higher (up arrow) or lower (down arrow) is better
-READS = [("nmi_z", r"NMI of $\boldsymbol{\mu}_z$, type $\uparrow$"),
-         ("w_cca", r"CCA of $\boldsymbol{\mu}_w$, response $\uparrow$"),
-         ("b_cosine", r"loadings, cosine $\uparrow$"),
-         ("comp_r2", r"composition $R^2$ from $\boldsymbol{\mu}_z$ $\downarrow$")]
+# short titles; y labels name the quantity, the upright marker above each axis its direction
+READS = [("nmi_z", "type", r"NMI of $\boldsymbol{\mu}_z$ with type", True),
+         ("w_cca", "response", r"CCA of $\boldsymbol{\mu}_w$, response", True),
+         ("b_cosine", "loadings", "largest cosine", True),
+         ("comp_r2", "composition leakage", r"composition $R^2$ from $\boldsymbol{\mu}_z$", False)]
 groups = sorted((g for g in d["groups"] if g["arm"] == "final" and g["planted_kappa"] == PLANTED),
                 key=lambda g: g["assumed_kappa"])
 ks = [g["assumed_kappa"] for g in groups]
 
 S.apply()
-fig, axes = plt.subplots(1, 4, figsize=(S.TEXTWIDTH, 1.75))
-fig.subplots_adjust(left=0.055, right=0.99, bottom=0.23, top=0.87, wspace=0.36)
-for c, (ax, (key, title)) in enumerate(zip(axes, READS)):
+fig, axes = plt.subplots(1, 4, figsize=(S.TEXTWIDTH, 1.9))
+fig.subplots_adjust(left=0.075, right=0.99, bottom=0.22, top=0.86, wspace=0.50)
+for c, (ax, (key, title, ylab, up)) in enumerate(zip(axes, READS)):
     S.light_grid(ax, "y")
     lo, mid, hi = [], [], []
     for g in groups:
@@ -61,6 +61,8 @@ for c, (ax, (key, title)) in enumerate(zip(axes, READS)):
     ax.set_xlim(-0.02, 0.42)
     ax.set_xlabel(r"assumed $\kappa$", labelpad=1)
     ax.set_title(title, fontsize=7, color=S.INK, pad=3)
+    ax.set_ylabel(ylab, fontsize=6.5, labelpad=2)
+    S.ybetter(ax, up=up, fontsize=6)
     ax.tick_params(labelsize=6.5)
     ax.yaxis.set_major_locator(plt.MaxNLocator(4))
 axes[-1].set_ylim(bottom=0)

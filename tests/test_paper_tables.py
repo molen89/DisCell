@@ -57,6 +57,75 @@ def row(path: Path, label: str, occurrence: int = 0) -> list[str]:
     return cells
 
 
+SHORT = {OV: "Ovarian FFPE", LUNG: "Lung FFPE", FF: "Ovarian FF",
+         GSE: "TMA core", DUAL: "TMA serial"}
+BASE = REPO.parent / "DisCell-baselines" / "results"
+#: MintFlow's battery / probe entry per section (the TMA serial: transferred)
+MF_ENTRY = {OV: "MintFlow (lineage)", LUNG: "MintFlow (lineage)",
+            FF: "MintFlow (lineage)", GSE: "MintFlow (lineage)",
+            DUAL: "MintFlow (lineage, transfer)"}
+
+
+def section_rows(path: Path, ds: str) -> list[list[str]]:
+    """The rendered rows of one section of a \\multirow-sectioned table
+    (battery, context), each as its cells (cells[1] is the method)."""
+    out, on = [], False
+    for ln in rendered(path):
+        if f"{{*}}{{{SHORT[ds]}}} &" in ln:
+            on = True
+        elif on and not ln.startswith(" & "):
+            break
+        if on:
+            out.append([c.strip() for c in ln.rstrip("\\ ").split(" & ")])
+    assert out, f"no {SHORT[ds]} section in {path.name}"
+    return out
+
+
+def method_row(path: Path, ds: str, method: str) -> list[str] | None:
+    hits = [c for c in section_rows(path, ds) if len(c) > 1 and c[1] == method]
+    return hits[0] if hits else None
+
+
+def battery_json(ds: str) -> dict:
+    return json.loads((DATA / ds / "experiments"
+                       / "baseline_battery_lineage.json").read_text())
+
+
+def mf_refit(entry: dict | None) -> bool:
+    """A MintFlow battery entry from a refit with the corrected export
+    (devlog 2026-10-01): its fit config names the decoded rate."""
+    return bool(((entry or {}).get("config") or {}).get("decoded_rate"))
+
+
+def mf_probe_excess(ds: str, block: str = "mlp_comp") -> float | None:
+    """MintFlow's probe excess on a section as the table reads it: the final
+    probe table's entry, else its own probe record; None if neither."""
+    name = MF_ENTRY[ds]
+    d = json.loads((DATA / ds / "experiments"
+                    / "probe_regrade_lineage_final.json").read_text())
+    if name in d:
+        return d[name][block]["excess"]
+    rec = (DATA / ds / "experiments" / "probe_regrade_lineage"
+           / (re.sub(r"[^A-Za-z0-9]+", "_", name).strip("_") + ".json"))
+    if not rec.exists():
+        return None
+    fam, blk = block.split("_")
+    return json.loads(rec.read_text())[fam][blk]["excess"]
+
+
+def mf_config(ds: str) -> Path:
+    """The config.json of the MintFlow fit a section's timing cell reads:
+    the refit's once it exists, else the original fit's (in place or
+    archived)."""
+    new = BASE / "mintflow_refit_lineage" / ds / "config.json"
+    if new.exists() and json.loads(new.read_text()).get("decoded_rate"):
+        return new
+    old = BASE / "mintflow" / f"{ds}_lineage" / "config.json"
+    return old if old.exists() else (BASE / "_archive_mintflow_export_bug"
+                                     / "mintflow" / f"{ds}_lineage"
+                                     / "config.json")
+
+
 def unbold(cell: str) -> str:
     """A cell without the bold that marks the best value of its section."""
     m = re.fullmatch(r"\\textbf\{(?:\\boldmath )?(.*)\}", cell)
@@ -282,7 +351,11 @@ def test_probe_round_trip(built):
     simvi = r(share(g["SIMVI (lineage)"]["mlp_comp"]["excess"]), 1)
     cells = row(f, "\\quad MintFlow, SIMVI")
     assert [unbold(c) for c in cells[4].split(", ")] == [mint, simvi]
-    assert cells[1] == "--"
+    # every section's MintFlow share from its source, or -- without one
+    for j, ds in enumerate((OV, LUNG, FF, GSE, DUAL)):
+        ex = mf_probe_excess(ds)
+        shown = cells[j + 1].split(", ")[0]
+        assert unbold(shown) == ("--" if ex is None else r(share(ex), 1)), ds
     text = (f).read_text()
     assert "guard" not in "\n".join(rendered(f)).lower()
     assert "\\label{tab:probe}" in text
@@ -291,16 +364,23 @@ def test_probe_round_trip(built):
 def test_battery_round_trip(built):
     out, _ = built
     f = out / "battery.tex"
-    b = json.loads((DATA / GSE / "experiments"
-                    / "baseline_battery_lineage.json").read_text())
-    resolvi = [ln for ln in rendered(f) if "& resolVI &" in ln][3]  # TMA core
-    cells = [unbold(c.strip()) for c in resolvi.rstrip("\\ ").split(" & ")]
+    b = battery_json(GSE)
+    cells = [unbold(c) for c in method_row(f, GSE, "resolVI")]
     assert cells[5] == r(b["resolVI"]["mirror"]["r2"], 3)
     assert cells[2] == r(b["resolVI"]["nmi"], 3)
-    mint = [ln for ln in rendered(f) if "& MintFlow &" in ln]
-    assert all("n/r" in ln or "\\pending" in ln for ln in mint)
-    assert not any(r(b["MintFlow (lineage)"]["reconstruction"]["recon"], 3)
-                   in ln for ln in rendered(f))
+    # MintFlow's reconstruction: the refit's value where the entry is a refit
+    # (corrected export), otherwise never a number (B-mf1)
+    for ds in (OV, LUNG, FF, GSE, DUAL):
+        cells = method_row(f, ds, "MintFlow")
+        e = battery_json(ds).get(MF_ENTRY[ds])
+        if len(cells) == 3:                     # not run / pending: one span
+            assert "could not be run" in cells[2] or "\\pending" in cells[2]
+        elif mf_refit(e):
+            assert unbold(cells[7]) == r(e["reconstruction"]["recon"], 3), ds
+        else:
+            assert cells[7] == "n/r$^{b}$", ds
+            assert not any(r(e["reconstruction"]["recon"], 3) in ln
+                           for ln in rendered(f)), ds
 
 
 def test_sensitivity_round_trip(built):
@@ -351,14 +431,13 @@ def test_sensitivity_transport_round_trip(built):
 def test_battery_new_rows(built):
     out, _ = built
     f = out / "battery.tex"
-    b = json.loads((DATA / LUNG / "experiments"
-                    / "baseline_battery_lineage.json").read_text())
-    mint = [ln for ln in rendered(f) if "& MintFlow &" in ln][1]   # lung
-    cells = [unbold(c.strip()) for c in mint.rstrip("\\ ").split(" & ")]
+    b = battery_json(LUNG)
+    cells = [unbold(c) for c in method_row(f, LUNG, "MintFlow")]
     assert cells[2] == r(b["MintFlow (lineage)"]["nmi"], 3)
     assert cells[6] == r(b["MintFlow (lineage)"]["cycle_q90"]["z"]
                          ["r2_pooled"], 3)
-    assert cells[7] == "n/r$^{b}$"
+    assert cells[7] == (r(b["MintFlow (lineage)"]["reconstruction"]["recon"], 3)
+                        if mf_refit(b["MintFlow (lineage)"]) else "n/r$^{b}$")
     pm = json.loads((DATA / LUNG / "experiments" / "probe_regrade_lineage"
                      / "MintFlow_lineage.json").read_text())
     assert cells[4] == r(pm["mlp"]["comp"]["fraction_of_uncontrolled"], 2)
@@ -372,10 +451,11 @@ def test_battery_new_rows(built):
     assert cells[2] == r(g["cellina_nicheadv"]["nmi"], 3)
     assert "best case on the probe, not its published setting" in \
         f.read_text()
-    # still-queued whole-section fits are pending, never numbers
+    # SIMVI: numbers with no reconstruction (n/a) where fitted, else pending
+    # or "could not be run" -- never a number for a whole section not fitted
     for ln in rendered(f):
         if "& SIMVI &" in ln and "\\pending" not in ln:
-            assert "n/a" in ln        # the two TMA sections
+            assert "n/a" in ln or "could not be run" in ln, ln
 
 
 def test_probe_new_rows(built):
@@ -407,16 +487,17 @@ def test_timing_round_trip(built):
                        .read_text())["minutes"] for s in range(3)]
     assert unbold(row(f, "\\quad DISCELL")[1]) == \
         f"{r(min(mins), 1)}--{r(max(mins), 1)}"
-    base = REPO.parent / "DisCell-baselines" / "results"
+    base = BASE
     c = json.loads((base / "cellina" / f"{LUNG}_lineage" / "config.json")
                    .read_text())
     assert unbold(row(f, "\\quad Cellina")[2]) == r(c["train_s"] / 60, 1)
     feas = (base / "feasibility.tsv").read_text()
     mf = row(f, "\\quad MintFlow, 50 epochs")
     if f"MintFlow\t{LUNG}\t" in feas and "\tok\t" in feas:
-        m = json.loads((base / "mintflow" / f"{LUNG}_lineage" / "config.json")
-                       .read_text())
+        m = json.loads(mf_config(LUNG).read_text())
         assert unbold(mf[2]) == r(m["train_s"] / 60, 1)
+    m = json.loads(mf_config(GSE).read_text())            # the TMA core
+    assert unbold(mf[4]) == r(m["train_s"] / 60, 1)
     assert "\\pending" in mf[1] or f"MintFlow\t{OV}\t" in feas
 
 
@@ -436,8 +517,23 @@ def test_breakdown_round_trip(built):
     readA = row(f, "Read A $-$")
     if "readA_minus_typemean" not in d["ovarian"]["members"]:
         assert "\\pending" in readA[1]
-    assert readA[-1] == "--"
-    assert "($m = 9$)" in f.read_text()
+    # the serial section's family: the cycle asymmetry only before the
+    # 2026-10-01 gap fill, the headline members (core fits applied) after
+    dual_fam = d["gse_dual"].get("family") or ["cycle_asym_q90"]
+    assert (readA[-1] == "--") == ("readA_minus_typemean" not in dual_fam)
+    assert "($m = 7$)" in f.read_text()
+    # not applicable (the TMA sections: no tumour cells) is said, not blank
+    axis = row(f, "Tumour axis")
+    for i, sec in enumerate(("ovarian", "lung", "ff", "gse", "gse_dual")):
+        if "axis_tau_true_minus_false" in (d[sec].get("not_applicable")
+                                           or {}):
+            assert axis[1 + i] == "n/a"
+            assert "no tumour cells" in f.read_text()
+    # the marker pairs are a trajectory, not a claimed contrast (2026-09-30)
+    assert not [ln for ln in rendered(f) if ln.startswith("Marker pairs")]
+    # so is transport - programme part (2026-10-01)
+    assert not [ln for ln in rendered(f)
+                if ln.startswith("Transport $-$ programme")]
 
 
 def test_breakdown_traj_round_trip(built):
@@ -449,6 +545,21 @@ def test_breakdown_traj_round_trip(built):
              if ln.strip().startswith("\\quad Moran's $I$ of $\\vmu_z$")]
     cells = [c.strip() for c in lines[1].rstrip("\\ ").split(" & ")]  # lung
     assert cells[4] == r(e["mean"], 3)
+    # the marker-pair contrast, in percentage points (2026-09-30)
+    e = d["ff"]["readouts"]["marker_excl_minus_ctrl_dc"]["0"]
+    lines = [ln for ln in rendered(out / "breakdown_traj.tex")
+             if ln.strip().startswith("\\quad Marker pairs")]
+    cells = [c.strip() for c in lines[2].rstrip("\\ ").split(" & ")]  # FF
+    assert cells[1] == r(100 * e["mean"], 1)
+    # transport - programme part, zero by construction at kappa = 0
+    # (2026-10-01)
+    lines = [ln for ln in rendered(out / "breakdown_traj.tex")
+             if ln.strip().startswith("\\quad Transport $-$ programme")]
+    for g in ("0", "0.2"):
+        e = d["ff"]["readouts"]["transport_cf_minus_program"][g]
+        cells = [c.strip() for c in lines[2].rstrip("\\ ").split(" & ")]
+        assert cells[1 + ["0", "0.05", "0.1", "0.2"].index(g)] == r(
+            e["mean"], 2)
 
 
 def _heldout():
@@ -574,13 +685,31 @@ def test_battery_footnote_follows_the_whole_section_state(pt, built):
     """Audit item 18: the footnote names what is done, running and queued
     (feasibility.tsv, else the queue log), never 'three Xenium sections'."""
     out, _ = built
-    text = " ".join(rendered(out / "battery.tex"))
+    f = out / "battery.tex"
+    text = " ".join(rendered(f))
     assert "three Xenium sections" not in text
-    feas = (pt.FEAS.read_text().splitlines())
-    ok = [ln.split("\t") for ln in feas[1:] if ln.split("\t")[3] == "ok"]
-    for tool, ds, *_ in ok:
-        name = {LUNG: "lung FFPE", OV: "ovarian FFPE", FF: "ovarian FF"}[ds]
-        assert f"{tool} on {name}" in text and "done and reported" in text
+    names = {LUNG: "lung FFPE", OV: "ovarian FFPE", FF: "ovarian FF"}
+    last = {}
+    for ln in pt.FEAS.read_text().splitlines()[1:]:
+        tool, ds, _, outcome, *_, reason = ln.split("\t")
+        # a refit that did not finish leaves the original fit in place
+        if reason.startswith(pt.MF_REFIT_TAG) and outcome not in ("ok", "truncated"):
+            continue
+        if ds in names:
+            last[(tool, ds)] = outcome
+    if "Whole-section fits of SIMVI and MintFlow:" in text:   # something pending
+        for (tool, ds), outcome in last.items():
+            if outcome == "ok":
+                assert f"{tool} on {names[ds]}" in text
+                assert "done and reported" in text
+    else:                    # nothing pending: no footnote a, every row final
+        assert "\\pending" not in text and "$^{a}$" not in text
+        for (tool, ds), outcome in last.items():
+            cells = method_row(f, ds, tool)
+            if outcome in ("ok", "truncated"):
+                assert len(cells) == 8, (tool, ds, cells)
+            else:
+                assert "could not be run" in cells[2], (tool, ds, cells)
 
 
 # ------------------------------- directions and bold, 2026-09-30 (polish)
@@ -754,14 +883,20 @@ def test_context_round_trip_and_bold(pt, built):
     lung = json.loads((DATA / LUNG / "experiments"
                        / "context_grade.json").read_text())["methods"]
     lines = rendered(f)
-    mf = [c.strip() for c in next(ln for ln in lines if "& MintFlow & 100 &"
-                                  in ln).rstrip("\\ ").split(" & ")]
+    mf = method_row(f, LUNG, "MintFlow")
+    assert mf[2] == str(lung["MintFlow"]["width"])
     assert unbold(mf[3]) == r(share(lung["MintFlow"]["probe"]["mlp"]["comp"]
                                     ["excess"]), 1)
     assert mf[7] == r(lung["MintFlow"]["niche_mi"]["w_niche_mi_excess"], 2)
+    for ds in (OV, GSE, DUAL):          # every other section that has it
+        ctx = json.loads((DATA / ds / "experiments"
+                          / "context_grade.json").read_text())["methods"]
+        mf = method_row(f, ds, "MintFlow")
+        if "MintFlow" in ctx and len(mf) > 3:
+            assert unbold(mf[3]) == r(share(ctx["MintFlow"]["probe"]["mlp"]
+                                            ["comp"]["excess"]), 1), ds
     runs = lung["DISCELL"]["runs"].values()
-    dc = [c.strip() for c in next(ln for ln in lines if "Lung FFPE" in ln
-                                  and "DISCELL" in ln).rstrip("\\ ").split(" & ")]
+    dc = method_row(f, LUNG, "DISCELL")
     assert unbold(dc[5]) == r(np.mean([share(e["probe"]["mlp"]["img"]["excess"])
                                        for e in runs]), 1)
     start = next(i for i, ln in enumerate(lines) if ln == "\\midrule")
@@ -779,3 +914,35 @@ def test_context_round_trip_and_bold(pt, built):
         for j in range(4):
             _check_bold([row_[j] for row_ in rows], "up", f"context col {j}")
         assert not any(is_bold(row_[k]) for row_ in rows for k in (4, 5))
+
+
+# ------------------------------- MintFlow refits (corrected export), 2026-10-01
+
+def test_mintflow_refit_switch(pt, tmp_path, monkeypatch):
+    """The refit's config is used once it exists with the decoded rate; a
+    refit entry wins over the original; a refit that did not finish leaves
+    the original fit's feasibility state."""
+    monkeypatch.setattr(pt, "MF_REFIT", tmp_path)
+    cfg = tmp_path / LUNG / "config.json"
+    assert pt.mf_config(LUNG) != cfg                       # no refit yet
+    cfg.parent.mkdir()
+    cfg.write_text(json.dumps({"train_s": 1.0}))
+    assert pt.mf_config(LUNG) != cfg                       # not a corrected export
+    cfg.write_text(json.dumps({"train_s": 1.0, "decoded_rate": "decode_mintflow"}))
+    assert pt.mf_config(LUNG) == cfg
+    bat = {"MintFlow (lineage)": {"config": {}},
+           "MintFlow (lineage, truncated 9/50 epochs)":
+               {"config": {"decoded_rate": "decode_mintflow"}}}
+    assert pt.whole_entry(bat, "MintFlow").startswith("MintFlow (lineage, trunc")
+    assert pt.whole_entry({"MintFlow (lineage)": {}}, "MintFlow") == "MintFlow (lineage)"
+    feas = tmp_path / "feasibility.tsv"
+    head = "tool\tdataset\tcells\toutcome\twall_h\tpeak_gpu_gb\tpeak_host_gb\treason\n"
+    old = f"MintFlow\t{LUNG}\t1\tok\t1\t1\t1\twhole section\n"
+    feas.write_text(head + old + f"MintFlow\t{LUNG}\t1\tfailed\t1\t1\t1\t"
+                    f"{pt.MF_REFIT_TAG}: CUDA OOM\n")
+    monkeypatch.setattr(pt, "FEAS", feas)
+    assert pt.baseline_state(pt.Trace("t"), "MintFlow", LUNG)[0] == "ok"
+    feas.write_text(head + old + f"MintFlow\t{LUNG}\t1\tok\t2\t1\t1\t"
+                    f"{pt.MF_REFIT_TAG}: whole section\n")
+    state, row_ = pt.baseline_state(pt.Trace("t"), "MintFlow", LUNG)
+    assert state == "ok" and row_["wall_h"] == "2"

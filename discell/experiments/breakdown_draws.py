@@ -48,8 +48,18 @@ Groups (``--groups``) and their members:
                     ``readB_twin_margin`` (median over panels of
                     (d_random - d_twin) / d_random, own target).
 
-Every draw file is ``runs/<run>/breakdown/<group>.npz`` (the dual:
-``dual__<eval>__cycle.npz``): ``members``, ``estimate``, ``draws`` (members x
+**Another section** (``--eval-dataset``, the GSE dual; groups
+:data:`EVAL_GROUPS`): the fit is applied to that section as
+``crossslide.load_applied`` / ``apply_fit`` build it, and every group keeps
+its own cell split on it (the section was never trained on, so all of it is
+held out; the splits are the reads' own: the probe's train / val tiles for
+the cycle, the val tiles for I(niche; w), fold 0 scored and folds 1-4 for
+the model quantities for signalling and transport). Each point estimate is
+checked against the same read run with ``--eval-dataset`` (files under
+``runs/<run>/crossslide/<eval>/``; the cycle: ``crossslide/<eval>.json``).
+
+Every draw file is ``runs/<run>/breakdown/<group>.npz`` (another section:
+``dual__<eval>__<group>.npz``): ``members``, ``estimate``, ``draws`` (members x
 n), ``method`` (``percentile`` | ``subsample``), ``c`` (the subsample scale)
 and ``meta`` (JSON: run, kappa, seed, draw seed, reproduction checks, mask).
 The draw generator of a fit is ``DRAW_SEED + 1000 * group index + run seed``,
@@ -60,7 +70,8 @@ Usage::
     python -m discell.experiments.breakdown_draws --dataset <id> --run <run> \\
         --groups cycle,w_mi,marker,signalling [--n 10000]
     python -m discell.experiments.breakdown_draws --dataset <GSE> --run <run> \\
-        --groups cycle --eval-dataset gse315411_pdltma06_10_prime_dual
+        --groups cycle,w_mi,signalling,transport_mean,transport_dist \\
+        --eval-dataset gse315411_pdltma06_10_prime_dual
 """
 
 from __future__ import annotations
@@ -87,6 +98,9 @@ N_DRAWS = 10_000
 #: GPU-heavy groups default to fewer draws (still >= 11 per tail at m = 9)
 N_DRAWS_HEAVY = 4_000
 HEAVY = ("signalling", "axis", "transport_mean", "transport_dist")
+#: the groups that can be read on another section (``--eval-dataset``)
+EVAL_GROUPS = ("cycle", "w_mi", "signalling", "transport_mean",
+               "transport_dist")
 TOL = 1e-4
 
 
@@ -254,9 +268,10 @@ def _rank_biserial_rows(v: "torch.Tensor", is_lr: "torch.Tensor"):
 
 
 def group_signalling(dataset, run, config, data, trainer, b_matrix, device,
-                     n, seed):
+                     n, seed, stored_path=None):
     """``external_criteria.signalling_share``'s panels (k-means niches,
-    fold 0 scored), the response share's LR-vs-rest effect per draw."""
+    fold 0 scored), the response share's LR-vs-rest effect per draw.
+    *stored_path*: the read to reproduce (default: the run's own)."""
     import torch
 
     from discell.experiments import external_criteria as E
@@ -353,8 +368,10 @@ def group_signalling(dataset, run, config, data, trainer, b_matrix, device,
     share = acc[0][:, sc] / total[:, sc].clamp(min=1e-12)
     lr = torch.as_tensor(is_lr[scored], device=dev)
     draws = _rank_biserial_rows(share, lr).cpu().numpy()
-    stored = ((((_load(paths_dataset(dataset) / "experiments" /
-                       f"external_signalling_share_{run}.json") or {})
+    if stored_path is None:
+        stored_path = (paths_dataset(dataset) / "experiments"
+                       / f"external_signalling_share_{run}.json")
+    stored = ((((_load(stored_path) or {})
                 .get("tests") or {}).get("response") or {})
               .get("all_other") or {}).get("effect")
     return {"signalling_response_lr_vs_other": (
@@ -477,7 +494,7 @@ def all_panel_contrasts(stored_panels: list[dict]) -> dict:
 
 
 def group_transport_mean(config, data, trainer, run_dir, b_matrix, device,
-                         n, seed, scored_cells="fold0"):
+                         n, seed, scored_cells="fold0", eval_dataset=None):
     """The mean read's trusted extrapolation panels (``bootstrap.
     transport_mean_panels``) with their program-only and leak-only
     predictions re-formed from the same group channels."""
@@ -492,7 +509,8 @@ def group_transport_mean(config, data, trainer, run_dir, b_matrix, device,
                                       fold, device, scored_cells)
     panels = select_panels(panels)
     out = {}
-    stored = all_panel_contrasts((_load(T.out_root(run_dir, scored_cells)
+    stored = all_panel_contrasts((_load(T.out_root(run_dir, scored_cells,
+                                                   eval_dataset)
                                         / "transport" / "transport.json")
                                   or {}).get("panels") or [])
     if not panels:
@@ -585,7 +603,8 @@ def _weighted_median(values: np.ndarray, weights: np.ndarray) -> np.ndarray:
 
 
 def group_transport_dist(config, data, trainer, run_dir, device, n, seed,
-                         boot_replayed=200, scored_cells="fold0"):
+                         boot_replayed=200, scored_cells="fold0",
+                         eval_dataset=None):
     """Read A (``bootstrap.transport_dist_panels``' tile draws, the paired
     difference per draw) and Read B (per-target-cell twin distances,
     weighted medians under tile draws of the target cells)."""
@@ -598,7 +617,7 @@ def group_transport_dist(config, data, trainer, run_dir, device, n, seed,
                                    boot_replayed, n, BS.TILE_UM, seed,
                                    scored_cells, twin_cells=True)
     panels = res["panels"]
-    root = T.out_root(run_dir, scored_cells) / "transport"
+    root = T.out_root(run_dir, scored_cells, eval_dataset) / "transport"
     out = {}
     # Read A: median gap (own, transported) - median gap (own, type-mean)
     pt, pm, dt, dm = [], [], [], []
@@ -687,8 +706,13 @@ def run(dataset: str, run_name: str, groups: Sequence[str], n: int | None,
         device: str = "cuda", eval_dataset: str | None = None,
         scored_cells: str = "fold0", boot_replayed: int = 200) -> dict:
     from discell.experiments.breakdown import draws_path
+    from discell.model.crossslide import applied_root
     from discell.model.validate import load_run
 
+    if eval_dataset and (set(groups) - set(EVAL_GROUPS)
+                         or scored_cells != "fold0"):
+        raise ValueError(f"--eval-dataset reads {', '.join(EVAL_GROUPS)} "
+                         "with fold-0 scoring only")
     written = {}
     loaded = None
     for group in groups:
@@ -701,15 +725,20 @@ def run(dataset: str, run_name: str, groups: Sequence[str], n: int | None,
         else:
             if loaded is None:
                 loaded = load_run(dataset, run_name, device)
+                if eval_dataset:       # the fit applied to the other section
+                    config, _, trainer, run_dir, b_matrix = loaded
+                    loaded = (config, *_dual(config, trainer, eval_dataset),
+                              run_dir, b_matrix)
             config, data, trainer, run_dir, b_matrix = loaded
             seed = draw_seed(group, config.seed)
             dev = str(next(trainer.model.parameters()).device)
+            cross = (applied_root(run_dir, eval_dataset) if eval_dataset
+                     else None)
             if group == "cycle" and eval_dataset:
-                data_b, trainer_b = _dual(config, trainer, eval_dataset)
                 rec = _load(run_dir / "crossslide" / f"{eval_dataset}.json") or {}
                 q = ((rec.get("held_out_section") or {}).get("cycle_q90") or {})
                 stored = {k: (q.get(k) or {}).get("r2_pooled") for k in "zw"}
-                members = group_cycle(config, data_b, trainer_b, stored, n_g,
+                members = group_cycle(config, data, trainer, stored, n_g,
                                       seed)
             elif group == "cycle":
                 q = (((_load(run_dir / "degeneracy.json") or {}).get("battery")
@@ -717,25 +746,27 @@ def run(dataset: str, run_name: str, groups: Sequence[str], n: int | None,
                 stored = {k: (q.get(k) or {}).get("r2_pooled") for k in "zw"}
                 members = group_cycle(config, data, trainer, stored, n_g, seed)
             elif group == "w_mi":
-                members = group_w_mi(config, data, trainer, run_dir, n_g, seed)
+                members = group_w_mi(config, data, trainer, cross or run_dir,
+                                     n_g, seed)
             elif group == "signalling":
-                members = group_signalling(dataset, run_name, config, data,
-                                           trainer, b_matrix, dev, n_g, seed)
+                members = group_signalling(
+                    dataset, run_name, config, data, trainer, b_matrix, dev,
+                    n_g, seed, None if cross is None else
+                    cross / f"external_signalling_share_{run_name}.json")
             elif group == "axis":
                 members = group_axis(dataset, run_name, config, data, trainer,
                                      b_matrix, n_g, seed)
             elif group == "transport_mean":
                 members = group_transport_mean(config, data, trainer, run_dir,
                                                b_matrix, dev, n_g, seed,
-                                               scored_cells)
+                                               scored_cells, eval_dataset)
             elif group == "transport_dist":
                 members = group_transport_dist(config, data, trainer, run_dir,
                                                dev, n_g, seed, boot_replayed,
-                                               scored_cells)
+                                               scored_cells, eval_dataset)
             else:
                 raise ValueError(f"unknown group {group!r}")
-        path = draws_path(run_dir, group, eval_dataset if group == "cycle"
-                          else None)
+        path = draws_path(run_dir, group, eval_dataset)
         meta = {"dataset": dataset, "run": run_name,
                 "kappa": float(config.kappa), "seed": int(config.seed),
                 "group": group, "n_draws": n_g,
@@ -786,7 +817,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                              f"{', '.join(HEAVY)})")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--eval-dataset", default=None,
-                        help="cycle only: apply the fit to this section")
+                        help="apply the fit to this section (groups "
+                             f"{', '.join(EVAL_GROUPS)})")
     parser.add_argument("--scored-cells", default="fold0",
                         choices=("fold0", "heldout-tiles"))
     parser.add_argument("--boot-replayed", type=int, default=200)
@@ -798,8 +830,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     bad = set(groups) - set(GROUPS)
     if bad:
         parser.error(f"unknown groups {sorted(bad)}")
-    if args.eval_dataset and groups != ["cycle"]:
-        parser.error("--eval-dataset reads the cycle group only")
+    if args.eval_dataset and (set(groups) - set(EVAL_GROUPS)
+                              or args.scored_cells != "fold0"):
+        parser.error(f"--eval-dataset reads {', '.join(EVAL_GROUPS)} with "
+                     "fold-0 scoring only")
     out = run(args.dataset, args.run, groups, args.n, args.device,
               args.eval_dataset, args.scored_cells, args.boot_replayed)
     failed = [f"{g}:{k}" for g, m in out.items() for k, v in m.items()

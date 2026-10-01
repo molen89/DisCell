@@ -28,10 +28,10 @@ OUT = Path(__file__).resolve().parent.parent / "fig_planted_percell"
 d = json.loads((PT.SYNTH / "planted_percell.json").read_text())
 rule = d["rule"]
 # KL AUC: higher is better (detection); absorption and the cross-seed agreement have no
-# direction of their own, only the rule's line
-PANELS = [("kl_auc", r"KL AUC, planted vs.\ other cells $\uparrow$", rule["auc_min"]),
-          ("z_absorption", r"absorption by $\mathbf{z}$", None),
-          ("spearman", r"cross-seed Spearman of the KL", rule["spearman_min"])]
+# direction of their own, only the rule's line. (key, title, y label, line)
+PANELS = [("kl_auc", r"planted vs.\ other cells", "KL AUC", rule["auc_min"]),
+          ("z_absorption", r"absorption by $\mathbf{z}$", r"absorption by $\mathbf{z}$", None),
+          ("spearman", r"agreement between seeds", r"Spearman $\rho$ of the KL", rule["spearman_min"])]
 
 
 def vals(g, key):
@@ -42,9 +42,9 @@ def vals(g, key):
 
 S.apply()
 fig, axes = plt.subplots(1, 3, figsize=(S.TEXTWIDTH, 1.85))
-fig.subplots_adjust(left=0.065, right=0.985, bottom=0.21, top=0.88, wspace=0.32)
+fig.subplots_adjust(left=0.09, right=0.985, bottom=0.21, top=0.88, wspace=0.40)
 worlds = sorted({g["world_seed"] for g in d["groups"]})
-for c, (ax, (key, title, line)) in enumerate(zip(axes, PANELS)):
+for c, (ax, (key, title, ylab, line)) in enumerate(zip(axes, PANELS)):
     S.light_grid(ax, "y")
     for w in worlds:
         gs = sorted((g for g in d["groups"] if g["world_seed"] == w), key=lambda g: g["s"])
@@ -75,8 +75,11 @@ for c, (ax, (key, title, line)) in enumerate(zip(axes, PANELS)):
     ax.set_xlim(-0.12, 2.12 if c else 2.55)
     ax.set_xlabel(r"strength $s$ of the plant", labelpad=1)
     ax.set_title(title, fontsize=7.5, color=S.INK, pad=3)
+    ax.set_ylabel(ylab, fontsize=7, labelpad=2)
     ax.tick_params(labelsize=6.5)
-    S.panel_label(ax, "abc"[c], x=-0.1)
+    S.panel_label(ax, "abc"[c], x=-0.17, y=1.11)   # above the direction marker
+    if key == "kl_auc":
+        S.ybetter(ax, up=True, fontsize=6)
 axes[0].set_ylim(top=1.0)
 axes[2].set_ylim(0, 0.8)
 axes[1].set_ylim(bottom=-0.03)

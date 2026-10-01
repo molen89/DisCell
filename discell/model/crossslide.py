@@ -49,6 +49,38 @@ def apply_fit(config, model, data) -> dict:
     return reads
 
 
+def load_applied(dataset: str, run: str, eval_dataset: str,
+                 device: str = "cuda"):
+    """``validate.load_run``'s tuple ``(config, data, trainer, run_dir,
+    b_matrix)`` with the fit applied to *eval_dataset*: B assembled under the
+    run's settings and a Trainer on B carrying the run's model, as
+    :func:`evaluate_on` builds it (same vocabulary and panel checks). For the
+    post-hoc reads' opt-in ``--eval-dataset``: every read then keeps its own
+    cell split on B (B was never trained on, so all of it is held out)."""
+    config, data_a, trainer_a, run_dir, b_matrix = load_run(dataset, run,
+                                                            device=device)
+    data_b = assemble(eval_dataset, config.variant, config.embeddings,
+                      tile_cells=config.tile_cells, phi_pca=config.phi_pca,
+                      v_pcs=config.v_pcs, val_fraction=config.val_fraction,
+                      seed=config.seed, label_key=config.label_key)
+    if [str(n) for n in data_a.type_names] != [str(n) for n in
+                                               data_b.type_names]:
+        raise ValueError(f"type vocabularies differ: {dataset} vs "
+                         f"{eval_dataset}")
+    if data_b.x.shape[1] != data_a.x.shape[1]:
+        raise ValueError(f"gene panels differ: {data_a.x.shape[1]} vs "
+                         f"{data_b.x.shape[1]}")
+    trainer_b = Trainer(config, data_b)
+    trainer_b.model = trainer_a.model.to(trainer_b.device).eval()
+    return config, data_b, trainer_b, run_dir, b_matrix
+
+
+def applied_root(run_dir, eval_dataset: str):
+    """Where a post-hoc read applied to *eval_dataset* writes:
+    ``runs/<run>/crossslide/<eval_dataset>/`` (beside ``<eval>.json``)."""
+    return run_dir / "crossslide" / eval_dataset
+
+
 def evaluate_on(dataset: str, run: str, eval_dataset: str,
                 eval_variant: str | None = None, device: str = "cuda") -> dict:
     config, data_a, trainer_a, run_dir, _ = load_run(dataset, run, device=device)
