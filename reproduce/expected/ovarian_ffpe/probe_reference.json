@@ -1,0 +1,44 @@
+{
+ "DisCell/seed0": {
+  "ridge_comp": {
+   "excess": 0.004788569168310892
+  },
+  "ridge_img": {
+   "excess": 0.005066073345705281
+  },
+  "mlp_comp": {
+   "excess": 0.022025792362506715
+  },
+  "mlp_img": {
+   "excess": 0.0168440470307678
+  }
+ },
+ "DisCell/seed1": {
+  "ridge_comp": {
+   "excess": 0.005530867500203335
+  },
+  "ridge_img": {
+   "excess": 0.006853857072429996
+  },
+  "mlp_comp": {
+   "excess": 0.028103006459561767
+  },
+  "mlp_img": {
+   "excess": 0.020257043290137097
+  }
+ },
+ "DisCell/seed2": {
+  "ridge_comp": {
+   "excess": 0.004824718253087158
+  },
+  "ridge_img": {
+   "excess": 0.0027679764884057205
+  },
+  "mlp_comp": {
+   "excess": 0.02027555945405926
+  },
+  "mlp_img": {
+   "excess": 0.01118503762772683
+  }
+ }
+}

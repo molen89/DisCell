@@ -1,0 +1,109 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "discell"
+dynamic = ["version"]
+description = "Separates a cell's intrinsic state, its niche response and spillover in imaging spatial transcriptomics, and tests how much spillover each finding withstands"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "BSD-3-Clause"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Ricky Molén", email = "rickym@kth.se" },
+    { name = "Hosein Toosi", email = "hoseint@kth.se" },
+    { name = "Pedro F. Ferreira", email = "pedrofe@kth.se" },
+    { name = "Jens Lagergren", email = "jensl@kth.se" },
+]
+keywords = [
+    "spatial transcriptomics",
+    "imaging spatial transcriptomics",
+    "Xenium",
+    "spillover",
+    "segmentation",
+    "cell niche",
+    "variational autoencoder",
+    "disentanglement",
+    "anndata",
+]
+# No "License ::" classifier: with an SPDX `license` expression (PEP 639) it is
+# deprecated, and the expression is what PyPI shows.
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.0",
+    "torch>=2.4",
+    "scikit-learn>=1.4",
+    "threadpoolctl>=3.1",
+    "anndata>=0.10",
+    "h5py>=3.9",
+    "pyarrow>=14",
+    "shapely>=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/molen89/DisCell"
+Repository = "https://github.com/molen89/DisCell"
+Documentation = "https://github.com/molen89/DisCell/tree/main/docs"
+Issues = "https://github.com/molen89/DisCell/issues"
+
+[project.scripts]
+discell = "discell.cli:main"
+
+[project.optional-dependencies]
+# Per-cell image descriptors with KRONOS2 (the default encoder). Its weights are
+# gated: request access and use your own login; nothing is redistributed with
+# this package. Needs Python >= 3.11 (zarr 3).
+image = [
+    "tifffile[codecs]>=2024.1",
+    "zarr>=3.0",
+    "huggingface-hub>=0.24",
+    "transformers>=4.56",
+    "omegaconf>=2.3",
+]
+# discell.pl draws with matplotlib.
+viz = ["matplotlib>=3.8"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+# run the example notebooks and their test (tests/test_docs.py)
+docs = ["matplotlib>=3.8", "nbformat>=5.9", "nbclient>=0.10", "ipykernel>=6.29"]
+
+[tool.hatch.version]
+path = "src/discell/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/discell"]
+
+# The sdist holds the package, its tests, README, LICENSE and NOTICE. The repository's
+# reproduce/, docs/, examples/ and CI files stay on GitHub; the two tests that read
+# them (test_reproduce.py, test_docs.py) are left out with them.
+[tool.hatch.build.targets.sdist]
+include = ["/src/discell", "/tests", "/README.md", "/LICENSE", "/NOTICE", "/pyproject.toml"]
+exclude = ["/tests/test_reproduce.py", "/tests/test_docs.py", "__pycache__"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["B905"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "gpu: needs a CUDA device",
+    "slow: takes more than a minute on CPU",
+]

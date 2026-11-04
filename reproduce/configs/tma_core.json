@@ -1,0 +1,92 @@
+{
+ "section": "tma_core",
+ "description": "GEO GSE315411 slide 11 (PDLTMA06-11, Xenium Prime 5K), TMA core of donor PDL018D",
+ "outs": "GSE315411/output-XETG00048__0069221__NB_PDLTMA06-11_5K__20251010__231325",
+ "labels": {
+  "cell_groups": null,
+  "source_key": "cell_group",
+  "map": null,
+  "reassignments": null,
+  "choices": {},
+  "note": "in-house annotation (scVI + pseudobulk + manual curation), not shipped: pass --cell-groups (cell_id, group, donor) and --label-dir (lineage_map_proposed.csv and the *_reassignment_proposed.csv tables)"
+ },
+ "donors": [
+  "PDL018D"
+ ],
+ "n_cells": 69422,
+ "breakdown_key": "gse",
+ "embed": {
+  "key": "X_kronos_masked",
+  "encoder": "kronos2",
+  "large_cells": "embed"
+ },
+ "config": {
+  "label_key": "lineage",
+  "image_key": "X_kronos_masked",
+  "kappa": 0.1,
+  "alpha_z": 0.0018,
+  "alpha_a": 0.3,
+  "tile_cells": 2048,
+  "epochs": 500,
+  "patience": 40,
+  "d_z": 20,
+  "d_w": 6,
+  "hidden": 256,
+  "gat_dim": 32,
+  "heads": 4,
+  "v_pcs": 12,
+  "omega": 1.0,
+  "alpha_w": 0.1,
+  "w_warmup_epochs": 30,
+  "adv_lr": 0.002,
+  "adv_steps": 6,
+  "adv_hidden": 64,
+  "adv_comp_weight": 3.0,
+  "lr": 0.001,
+  "grad_clip": 10.0,
+  "val_fraction": 0.15,
+  "nmi_guard": 0.9,
+  "eval_every": 5
+ },
+ "kappas": [
+  0.0,
+  0.05,
+  0.1,
+  0.2,
+  0.3,
+  0.4
+ ],
+ "seeds": [
+  0,
+  1,
+  2
+ ],
+ "final_kappa": 0.1,
+ "serial": {
+  "description": "GEO GSE315411 slide 10 (PDLTMA06-10, GSM9427182), serial section of the same TMA, donor PDL018D: the core's fits applied unchanged",
+  "outs": "GSE315411/output-XETG00048__0069259__NB_PDLTMA06-10_5K__20251010__231325",
+  "n_cells": 70757,
+  "breakdown_key": "gse_dual",
+  "expected": "tma_serial"
+ },
+ "variants": {
+  "no_adversary": {
+   "table": "the fits without the adversary, 'DisCell, no adversary' in Fig. 2 and Table S4",
+   "config": {
+    "alpha_a": 0.0
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ]
+  },
+  "timing": {
+   "table": "Table S3: s per epoch (first epoch excluded), one evaluation, peak GPU memory, parameters",
+   "timing": {
+    "epochs": 20,
+    "seed": 0
+   }
+  }
+ }
+}

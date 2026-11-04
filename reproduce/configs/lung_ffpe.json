@@ -1,0 +1,82 @@
+{
+ "section": "lung_ffpe",
+ "description": "10x Xenium Prime FFPE Human Lung Cancer, CC BY 4.0",
+ "outs": "Xenium_Prime_Human_Lung_Cancer_FFPE",
+ "labels": {
+  "cell_groups": null,
+  "source_key": "graphclust",
+  "map": "labels/lung_ffpe/lineage_map.csv",
+  "reassignments": null,
+  "choices": {}
+ },
+ "donors": null,
+ "n_cells": 278324,
+ "breakdown_key": "lung",
+ "embed": {
+  "key": "X_kronos_masked",
+  "encoder": "kronos2",
+  "large_cells": "embed"
+ },
+ "config": {
+  "label_key": "lineage",
+  "image_key": "X_kronos_masked",
+  "kappa": 0.1,
+  "alpha_z": 0.002,
+  "alpha_a": 0.3,
+  "tile_cells": 4096,
+  "epochs": 500,
+  "patience": 40,
+  "d_z": 20,
+  "d_w": 6,
+  "hidden": 256,
+  "gat_dim": 32,
+  "heads": 4,
+  "v_pcs": 12,
+  "omega": 1.0,
+  "alpha_w": 0.1,
+  "w_warmup_epochs": 30,
+  "adv_lr": 0.002,
+  "adv_steps": 6,
+  "adv_hidden": 64,
+  "adv_comp_weight": 3.0,
+  "lr": 0.001,
+  "grad_clip": 10.0,
+  "val_fraction": 0.15,
+  "nmi_guard": 0.9,
+  "eval_every": 5
+ },
+ "kappas": [
+  0.0,
+  0.05,
+  0.1,
+  0.2,
+  0.3,
+  0.4
+ ],
+ "seeds": [
+  0,
+  1,
+  2
+ ],
+ "final_kappa": 0.1,
+ "variants": {
+  "no_adversary": {
+   "table": "the fits without the adversary, 'DisCell, no adversary' in Fig. 2 and Table S4",
+   "config": {
+    "alpha_a": 0.0
+   },
+   "seeds": [
+    0,
+    1,
+    2
+   ]
+  },
+  "timing": {
+   "table": "Table S3: s per epoch (first epoch excluded), one evaluation, peak GPU memory, parameters",
+   "timing": {
+    "epochs": 20,
+    "seed": 0
+   }
+  }
+ }
+}

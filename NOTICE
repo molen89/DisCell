@@ -1,0 +1,47 @@
+DisCell
+Copyright (c) the DisCell authors. Released under the BSD 3-Clause license (LICENSE).
+
+THIRD-PARTY DATA, MODELS AND GENE LISTS
+
+None of the items below is shipped in this repository or in the package, except
+where a derived table or a gene list is named. Each is obtained by the user from its
+source, under its own terms.
+
+* KRONOS2 (MahmoodLab, https://huggingface.co/MahmoodLab/KRONOS2), the image model of
+  the optional [image] extra. CC BY-NC-ND 4.0, gated, non-commercial academic research
+  only; commercial use of the model and its derivatives, including models trained on
+  its outputs, needs prior approval from its authors. discell.image downloads the
+  weights and the model's own code at run time with the user's own Hugging Face login
+  (revision e2a5473206c02d9973885b6445ef783f7e082951 by default) and never
+  redistributes them. Its non-commercial terms bind anyone who uses the image extra.
+* BioLinkBERT-large (michiyasunaga/BioLinkBERT-large), downloaded by KRONOS2's own code
+  on first use to encode the description of the 18S channel. Apache-2.0.
+* KRONOS v1 (MahmoodLab), the image model behind the paper's fits. Deprecated by its
+  authors and closed to new access requests; not supported or used by this release.
+* 10x Genomics Xenium Prime datasets: FFPE Human Ovarian Cancer, FFPE Human Lung
+  Cancer, Fresh Frozen Human Ovary. CC BY 4.0, attribution to 10x Genomics.
+  reproduce/download.sh fetches them from 10x. The lineage maps in reproduce/labels/
+  are derived from 10x's own labels and clusterings of these datasets.
+* GEO series GSE315411 (the TMA core, slide 11, and its serial section, slide 10).
+  Under the terms of its submitters on GEO. The in-house cell labels of the TMA core
+  are not public and not shipped.
+* The esophageal adenocarcinoma cohort of Yates et al. 2025 (Zenodo record 15341263),
+  CC BY 4.0. Not downloaded or read by this package; reproduce/README.md documents how
+  the paper used it, including program gene sets recovered from its published scores.
+* CellChatDB (CellChatDB.human.rda, from CellChat, GPL-3). Downloaded by
+  reproduce/download.sh and read as data by reproduce/scripts/lr_genes.py (with rdata,
+  MIT); no CellChat code is imported or copied, and neither the database nor the
+  derived ligand-receptor gene list is shipped.
+* The S and G2/M cell-cycle genes of Tirosh et al. 2016, as updated in Seurat's
+  cc.genes.updated.2019 (Seurat: MIT). The gene symbols are listed in
+  src/discell/sensitivity/findings.py; the scoring reimplements Scanpy's score_genes
+  (BSD-3-Clause), with no Scanpy code imported.
+
+DEPENDENCIES
+
+The core dependencies (numpy, scipy, pandas, torch, scikit-learn, threadpoolctl,
+anndata, h5py, pyarrow, shapely) are under permissive licenses (BSD, MIT, Apache-2.0,
+PSF), with two small MPL-2.0 packages pulled in by anndata. The [image] extra adds
+tifffile, zarr, huggingface-hub, transformers and omegaconf (BSD, MIT, Apache-2.0);
+its restrictions come with the KRONOS2 weights and code, not with these packages. No
+GPL code is imported or vendored.
