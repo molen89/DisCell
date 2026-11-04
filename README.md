@@ -42,9 +42,15 @@ morphology image.
 ## Install
 
 ```bash
-pip install .                 # core: numpy, scipy, pandas, torch, scikit-learn, anndata, shapely, ...
-pip install ".[image]"        # KRONOS2 image descriptors (Python >= 3.11)
-pip install ".[viz]"          # discell.pl plots (matplotlib)
+pip install discell                                        # from PyPI
+pip install git+https://github.com/molen89/DisCell.git     # the latest code from GitHub
+pip install "discell[image]"  # KRONOS2 image descriptors (Python >= 3.11)
+pip install "discell[viz]"    # discell.pl plots (matplotlib)
+```
+
+From a clone of this repository, for the tests and the example notebooks:
+
+```bash
 pip install ".[dev]"          # pytest, ruff
 pip install ".[docs]"         # run the example notebooks (matplotlib, Jupyter kernel)
 ```
